@@ -114,8 +114,8 @@ function lib_dirs()  {
 function export_ld()  {
 
   if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
-  then  export   LD_LIBRARY_PATH="$( lib_dirs  $*  )"
-  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  $*  )"
+  then  export   LD_LIBRARY_PATH="$( lib_dirs  \"$@\"  )"
+  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  \"$@\"  )"
   fi
   
   export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
@@ -131,7 +131,7 @@ function ldd_check()  {  (
   fi
 
      SPELL=$1
-     VERSION=`installed_version  $SPELL`
+     VERSION=`installed_version  "$SPELL"`
        I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   LDD_STATUS=0
 
@@ -141,13 +141,10 @@ function ldd_check()  {  (
          grep      "/bin/\|/games/\|/lib/\|/sbin/"  |
          grep  -v  "/doc/\|/fonts/\|/include/\|/locale/\|/man/\|/modules/\|/var/"`
     
-    let size=0
-    for FILE in $LOG ; do
-    	let size++
-    done
+    let size=`grep -c '' <<<"$LOG"`
 
     let count=0
-    for  FILE  in  $LOG;  do
+    echo "$LOG" | while read FILE ; do
 
       if  [  -z  "$QUIET"  ];  then
         progress_bar $DOT_PROGRESS $count $size 50
@@ -200,13 +197,10 @@ function find_check()  { (
          grep      "/bin/\|/games/\|/include/\|/lib/\|/sbin/"  |
          grep  -v  "/doc/\|/etc/\|/fonts/\|/man/\|/var/"`
 
-    let size=0
-    for FILE in $LOG ; do
-    	let size++
-    done
+    let size=`grep -c '' <<<"$LOG"`
 
     let count=0
-    for  ITEM  in  $LOG;  do
+    echo "$LOG" | while read ITEM;  do
 
       if  [  -z  "$QUIET"  ];  then
         progress_bar $DOT_PROGRESS $count $size 50
@@ -244,7 +238,7 @@ function find_check()  { (
 
 function show_owner()  {
 
-  OWNER=`grep  $TARGET  $INSTALL_LOGS/*  |
+  OWNER=`grep  "$TARGET"  $INSTALL_LOGS/*  |
          cut  -d :  -f1                  |
          sed  -n  1p`
 
@@ -259,9 +253,9 @@ function remove_line()  {
 
   F_TMP=/tmp/`basename  $I_LOG`.$$.$RANDOM
 
-  cp         $I_LOG  $F_TMP
-  grep  -v   $ITEM   $F_TMP  >  $I_LOG
-  rm    -rf          $F_TMP
+  cp         "$I_LOG"  "$F_TMP"
+  grep  -v   "$ITEM"   "$F_TMP"  >  "$I_LOG"
+  rm    -rf          "$F_TMP"
 
   message  "Symbolic link: ${SYMLINK_COLOR}${ITEM}${DEFAULT_COLOR}"  \
            "is owned by ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
@@ -289,13 +283,10 @@ function sym_check()  { (
 
     LOG=`cat   $I_LOG`
 
-    let size=0
-    for FILE in $LOG ; do
-    	let size++
-    done
+    let size=`grep -c '' <<<"$LOG"`
 
     let count=0
-    for  ITEM  in  $LOG;  do
+    echo "$LOG" | while read ITEM;  do
 
       if  [  -z  "$QUIET"  ];  then
         progress_bar $DOT_PROGRESS $count $size 50 
@@ -306,13 +297,13 @@ function sym_check()  { (
           [  -f  "$ITEM"  ]
       then
 
-      TARGET=$(  basename  $(  ls   -la  "$ITEM"  |
+      TARGET=$(  basename  "$(  ls   -la  "$ITEM"  |
                                cut  -d  '>'  -f2  |
                                cut  -c  2-
-                            )
+                            )"
               )
 
-        if  !  grep  -q  "$TARGET"  $I_LOG
+        if  !  grep  -q  "$TARGET"  "$I_LOG"
         then  (  remove_line  )
         fi
 
@@ -347,13 +338,10 @@ md5sum_check()  { (
 
     if  [  -n  "$OUTPUT"  ];  then
     
-      let size=0
-      for FILE in $LOG ; do
-      	let size++
-      done
+      let size=`grep -c '' <<<"$LOG"`
 
       let count=0
-      for  FILE  in  $OUTPUT;  do
+      echo $OUTPUT | while read FILE;  do
 
         if  [  -z  "$QUIET"  ];  then
           progress_bar $DOT_PROGRESS $count $size 50 
@@ -396,8 +384,8 @@ md5sum_check()  { (
 
 function status_okay()  {
 
-  spell_installed  $1  ||
-  spell_held       $1
+  spell_installed  "$1"  ||
+  spell_held       "$1"
 
 }
 
@@ -413,11 +401,10 @@ function run_checks()  {
     progress_bar $DOT_PROGRESS 1 1 50 
   fi
 
-  #Note: check to see if these should all be joined by &&
-     sym_check  $1
-    find_check  $1  &&
-     ldd_check  $1  &&
-  md5sum_check  $1
+     sym_check  "$1"  &&
+    find_check  "$1"  &&
+     ldd_check  "$1"  &&
+  md5sum_check  "$1"
 
 }
 
@@ -516,7 +503,7 @@ function run_fix()  { (
 
           if  [  "$LDD_CHECK"  ==  "on"    ] ;  then
             export  LD_LIBRARY_PATH="$LD_LIBRARY_PATH_OLD"
-            export_ld  $(  find  /usr/lib  -type  d  ! -empty  )
+            export_ld  $(  find  /usr/lib  -type  d  ! -empty  ) #This will have an issue with spaces
           fi
 
           if    run_checks     $SPELL  ||
