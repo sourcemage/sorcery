@@ -1673,27 +1673,27 @@ function prune()  { (
     tDEPENDS=`lock_start_transaction /var/state/sorcery/depends`
 		
     if [ -e /var/state/sorcery/depends.stale ] ; then
-			message "${MESSAGE_COLOR}Detected depends.stale file, will add my finding to the end of this file..."
+      message "${MESSAGE_COLOR}Detected depends.stale file, will add my finding to the end of this file..."
       message "Starting search for stale depends...${DEFAULT_COLOR}"
     else
       message "${MESSAGE_COLOR}A new depends.stale file will be added to store my findings at:"
       message "   /var/state/sorcery/depends.stale  "
       message "Starting search for stale depends...${DEFAULT_COLOR}"
-		fi
+    fi
 
     while read LINE;  do
       SPELL=${LINE%%:*}
-			if spell_installed $SPELL | grep -q "not installed" 
-			then
-				echo $LINE 
-			fi
+      if spell_installed $SPELL | grep -q "not installed" 
+      then
+        echo $LINE 
+      fi
     done < /var/state/sorcery/depends >> /var/state/sorcery/depends.stale
 
-		lock_commit_transaction /var/state/sorcery/depends
+    lock_commit_transaction /var/state/sorcery/depends
     
-		message "${MESSAGE_COLOR}The stale depends we found are available in :"
-		message "   ${STATE_DIRECTORY}/depends.stale${DEFAULT_COLOR}"
-	fi
+    message "${MESSAGE_COLOR}The stale depends we found are available in :"
+    message "   ${STATE_DIRECTORY}/depends.stale${DEFAULT_COLOR}"
+  fi
                                                             
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
   KEEP="/tmp/prune.keep"
