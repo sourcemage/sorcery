@@ -591,12 +591,7 @@ function install_xinetd_confs()  { (
 
   LIST=$@
 
-  if  [  -z  "$LIST"  ] ; then
-    LIST=$( cd $SCRIPT_DIRECTORY/xinetd.d; ls )
-    debug  "libgrimiore" "services from install_xinetd_confs to be deactivated : '$LIST'"
-  else
-    debug  "libgrimiore" "services from install_xinetd_confs to be activated : '$LIST'"
-  fi
+  debug  "libgrimiore" "services from install_xinetd_confs to be activated : '$LIST'"
   
   # Something is seriously wrong if this doesn't already exist.
   mkdir  -p  /etc/xinetd.d
@@ -609,14 +604,6 @@ function install_xinetd_confs()  { (
         debug  "libgrimoire" "Activating service in install_xinetd_confs for '$FILE'"
         # activate service.
         cp  $FILE  /etc/xinetd.d
-      else
-        debug  "libgrimoire" "Deactivating service in install_xinetd_confs for '$FILE'"
-        # install but deactivate services.
-        ( 
-          head -n 2 $FILE 
-          echo "  disable = yes" 
-          tail -n +3 $FILE 
-        ) > /etc/xinetd.d/$FILE
       fi
     done
   done

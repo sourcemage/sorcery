@@ -173,7 +173,7 @@ function use_xinetd()  { (
       then 
         SERVICES="$SERVICE $SERVICES"
       else
-        SERVICES_DISABLE="$SERVICE $SERVICES_DISABLE" 
+        SERVICES_DISABLE="$SERVICE_DISABLE $SERVICES_DISABLE" 
       fi
     done
 
@@ -198,23 +198,27 @@ function use_xinetd()  { (
     fi
 
     echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
+		echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
 
   fi
 
 ) }
 
 function install_xinetd() { (
-    # now we install the selected services.
-    # no need to disable any here, in install_xinetd_confs the
-    # files found in xinet.d/ spell dir and not passed here will
-    # be installed and disabled.
+
   if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] 
   then
-    SERVICES=""
+		
+    SERVICES=""          # services to be installed.
+		SERVICES_DISABLE=""  # services not to install.
     . $SPELL_CONFIG
     debug "cast" "use_xinetd: about to call install_xinetd_confs"
-    install_xinetd_confs $SERVICES
-  fi
+
+		if  [  -n  "$SERVICES"  ] ; then
+  		# now we install the selected services.
+			install_xinetd_confs $SERVICES
+		fi
+	fi
 ) }
 
 # Automagic initscript installation.
@@ -407,9 +411,6 @@ function run_build()  {
     default_build
   fi &&
 
-  #
-  # check for and install scripts (needs to be in installwatch, but how?)
-  #
   install_xinetd &&
   install_initd
 
