@@ -1103,6 +1103,38 @@ function mk_tmp_dirs() {
 ## according to CAST_PASS
 #---------------------------------------------------------------------
 function main()	{
+
+  # TEMPORARY HACK!!
+  if ! [ -f /tmp/sorcery/cast_ran_cleanse ] ; then
+  	[ -d /tmp/sorcery ] || mkdir -p /tmp/sorcery
+  	touch /tmp/sorcery/cast_ran_cleanse 
+  	message "Due to some internal changes, it is likely that"
+	message "a new script called ${WHITE}cleanse${DEFAULT_COLOR} must be run at "
+	message "least once on your system. A file has been created"
+	message "called /tmp/sorcery/cast_ran_cleanse. So long as "
+	message "the file is there, this step will be skipped in "
+	message "future casts."
+	message
+	message "If cast exits after some errors about not being "
+	message "able to find targets and being unable to make all"
+	message "please run cleanse again and make sure that it "
+	message "completes without complaint."
+	message
+	message "${BOLD}You may at this point want to ^C and run cleanse "
+	message "yourself manualy. This is safer but requires you"
+	message "to perform some commands manualy at the end.${DEFAULT}"
+	message 
+	echo -en "\a" ; sleep 4
+	echo -en "\a" ; sleep 3
+	echo -en "\a" ; sleep 2
+	echo -en "\a" ; sleep 1
+	message -n "Press enter to continue and run cleanse..."
+	read LINE
+	message "Running cleanse..."
+	cleanse --packages --delint --prune doit
+  fi
+  # END OF TEMPORARY HACK!!
+
   debug "cast" "main() - $*"
   local T_SPELLS=""
   process_parameters        $*
