@@ -180,13 +180,11 @@ uncompress() {
     ) | tee /dev/stderr | md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing 
   ) 2>&1
   
-  [[ $SUPER_DEBUG ]] && set -x
-  
-
   #This temp file is here because this function MUST NOT send
   # anything to stdout or stderr, and upack needs a way to get the success or
   # failure of this function.
   local a=$?
+  [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
   echo "$a"  > /tmp/libgrimoire.uncompress.$$
   return $a
   
