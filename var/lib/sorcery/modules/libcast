@@ -302,12 +302,15 @@ function resurrect()  {  (
     run_conflicts    &&
     # can this please go away?
     satisfy_depends  &&
-		
+
+    # new tarballs are cached relative to $INSTALL_ROOT
+    pushd $INSTALL_ROOT/ &>/dev/null
     if  [  -n  "$EXTENSION"  ];  then
       $COMPRESSBIN   -cd   $CACHE_COMP  |  tar  -Pkx  1>/dev/null  2>&1
     else
       tar  -Pkxf  $CACHE_COMP  1>/dev/null  2>&1
     fi 
+    popd &>/dev/null
 
     # minor hack until I re-write this (afk 4/12/2004)
     if [ $BUILD_API == 2 ] ; then
