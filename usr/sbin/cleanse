@@ -456,12 +456,12 @@ function cleanse_fix()
   cleanse_fix_init_ldd_check $(make -f $MAKEFILE all)
 
   local PASSED FIXED HOPELESS TOTALNR CURNR unused
-  
-  TOTALNR=0 #counting them like this doesn't seem to take substantial time
-  for unused in $SPELLS ; do let TOTALNR++ ; done
-  CURNR=0 #but is there a more elegant method?
-  
+ 
+  CURNR=0
+ 
   if [ $FIX == quick ] ; then
+    TOTALNR=0 #counting them like this doesn't seem to take substantial time
+    for unused in $SPELLS ; do let TOTALNR++ ; done
     for SPELL in $SPELLS ; do
       let CURNR++
       if cleanse_fix_run_checks $SPELL $CURNR $TOTALNR; then
@@ -473,6 +473,9 @@ function cleanse_fix()
       fi
     done
   else
+    # non-quick mode implies we check from the bottom up, so get all
+    # the spells..
+    TOTALNR=$(make -f $MAKEFILE all|wc -l)
     cleanse_fix_depends all
   fi
 
