@@ -22,10 +22,21 @@
 function locked_resources()
 { #1=dir, 2=type, 3=name, 4=pid
 	local t="${2//\//^}" n=${3//\//^} p=${4//\//^}
+	local i
 	t=${t:-*}; n=${n:-*}; p=${p:-*}
 	
 	local A=$( echo $1/$t.$n.$p.lock )
+	
+	#These next lines are because if there is no file to match the
+	# glob, bash will treat the string literaly.
+	# So we get to look at the first element and see if it actualy 
+	# is a file.
+	for i in $A ; do
+		[ -e $i ] || return 1
+		break
+	done
 	[ A == "" ] && return 1
+	
 	echo "${A}"
 
 }
