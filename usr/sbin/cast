@@ -338,6 +338,9 @@ run_post_build() {
     default_post_build
   fi
 
+  # Lock made in prepare_install
+  unlock_resources "libgrimoire" "install"
+
 }
 
 
@@ -1020,6 +1023,9 @@ cast_spell()  { (
 	    rm_source_dir
 		echo $SPELL >> $SUCCESS_LIST
   else
+    # This may have been locked if there was a failure during the install
+    unlock_resources "libgrimoire" "install"
+	
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
 	IW_LOG="$INSTALLWATCHFILE"
 	INSTALLWATCHFILE=""
