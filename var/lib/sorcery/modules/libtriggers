@@ -1,27 +1,18 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 LIBTRIGGERS
-##
-##=head1 SYNOPSIS
-##
-## Set of functions used by the internal sorcery scripts
-##
-##=head1 DESCRIPTION
+## @Synopsis Set of functions used by the internal sorcery scripts
 ##
 ## Functions used to manage triggers. Used both by spells
 ## and by the sorcery scripts.
 ##
-##=head1 COPYRIGHT
+## @Copyright Original version Copyright 2002 by the Source Mage Team
 ##
-## Original version Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-#=item remove_triggers <spell>
+## @param spell
 ##
 ## Remove's all of a spell's triggers from the list of registered 
 ## triggers.
@@ -39,10 +30,14 @@ function remove_triggers ()
 }
 
 #---------------------------------------------------------------------
-#=item trigger <event> [<spell>]
+## @param event
+## @param [spell]
+## @Globals SPELL if \$2 is omitted
 ##
+## @Stdout Query and warnings
+## @Stdin y/n
 ## Triggers an event and performs necessary actions. Argument 2 is 
-## optional. If omited, the value of SPELL will be used.
+## optional. If omitted, the value of SPELL will be used.
 ##
 #---------------------------------------------------------------------
 function trigger ()
@@ -93,13 +88,14 @@ function trigger ()
 }
 
 #---------------------------------------------------------------------
-#=item set_trigger <event> <causing-spell> <action> <subject-spell>
-##
+## @param event
+## @param causing-spell
+## @param action
+## @param subject-spell
 ## Registers a trigger in the list of triggers. Also verifies that 
 ## the trigger and action exist.
 ##
 #---------------------------------------------------------------------
-
 function set_trigger ()
 { #1==trigger to set, $2==spell that triggers it, $3=action, $4==(optional)spell this is for
 
@@ -134,7 +130,9 @@ function set_trigger ()
 }
 
 #---------------------------------------------------------------------
-#item=on_cast
+## @param spell that triggers
+## @param action
+## @Type API
 ##
 ## Used by spells to make adding triggerse nice.
 ##
@@ -143,7 +141,9 @@ function on_cast ()
 { set_trigger "on_cast" "$1" "$2"; }
 
 #---------------------------------------------------------------------
-#item=on_dispel
+## @param spell that triggers
+## @param action
+## @Type API
 ##
 ## Used by spells to make adding triggers nice.
 ##
@@ -152,7 +152,9 @@ function on_dispel ()
 { set_trigger "on_dispel" "$1" "$2"; }
 
 #---------------------------------------------------------------------
-#item=on_pre_cast
+## @param spell that triggers
+## @param action
+## @Type API
 ##
 ## Used by spells to make adding triggerse nice.
 ##
@@ -161,7 +163,9 @@ function on_pre_cast ()
 { set_trigger "on_pre_cast" "$1" "$2"; }
 
 #---------------------------------------------------------------------
-#item=on_pre_dispel
+## @param spell that triggers
+## @param action
+## @Type API
 ##
 ## Used by spells to make adding triggerse nice.
 ##
