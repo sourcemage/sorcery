@@ -3,10 +3,8 @@
 ##
 ## @Synopsis Set of functions used by the internal sorcery scripts
 ##
-## In addition to being used in the core sorcery commands, many of
-## these functions are useful in creating new spells.  These functions
-## can be used in the PRE_BUILD, BUILD, and POST_BUILD sections of
-## spells.
+## This should really be home to things related to the sorcery script
+## itself, not a repository for other functions. (Andrew 5/29/04)
 ##
 ## @Copyright Original version Copyright 2001 by Kyle Sallee
 ## @Copyright Additions/Corrections Copyright 2002 by the Source Mage Team
@@ -40,7 +38,6 @@ function update_sorcery_scripts() {
     fi
   }
 
-  FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
   INST_LOG="/etc/sorcery/update/sorcery-$BRANCH.log"
   CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
   FORCE_DOWNLOAD=1
@@ -53,15 +50,17 @@ function update_sorcery_scripts() {
     mv $INST_LOG $INST_LOG.prev
   fi
 
-  dl_source  $SOURCE  ${SOURCE_URL[*]}   &&
+  echo "$SOURCE  ${SOURCE_URL[*]}"|download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither"
+
+  FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
 
   # pre build
-  mk_source_dir  $SOURCE_DIRECTORY       &&
-  cd $INSTALL_ROOT/usr/src                            &&
-  bzip2  -cdf   $SOURCE_CACHE/$FILENAME |
-  tar --owner=root --group=root -xf /dev/stdin   &&
-  cd      $SOURCE_DIRECTORY              &&
-  invoke_installwatch                    &&
+  mk_source_dir  $SOURCE_DIRECTORY              &&
+  cd $INSTALL_ROOT/usr/src                      &&
+  bzip2  -cdf   $FILENAME |
+  tar --owner=root --group=root -xf /dev/stdin  &&
+  cd      $SOURCE_DIRECTORY                     &&
+  invoke_installwatch                           &&
 
   # build
   (
@@ -99,58 +98,7 @@ function update_sorcery_scripts() {
 }
 
 
-function disconnect()  {
-
-  debug "libsorcery" "disconnect()"
-
-  if    ps  -C disconnect  >  /dev/null
-  then  return
-  fi
-
-  rm  -rf          /tmp/disconnect
-  cat  <<  EOF  >  /tmp/disconnect
-#!/bin/bash
-
-while  ps  -A  |  egrep  -q  "summon|leach";  do  sleep  120;  done
-poff
-rm  /tmp/disconnect
-EOF
-
-chmod  a+x  /tmp/disconnect
-            /tmp/disconnect  &
-
-}
-
-
-function connect()  {
-
-  debug "libsorcery" "connect()"
-
-  if  !  ifconfig  |  grep  -q  "^eth"   &&
-      !  ifconfig  |  grep  -q  "^wlan"  &&
-      !  ifconfig  |  grep  -q  "^bnep"  &&
-      !  ifconfig  |  grep  -q  "^tr"    &&
-      !  ifconfig  |  grep  -q  "^ppp";  then
-    pon
-
-    # Timeout in deciseconds to wait for Interface to come up.
-    TIMEOUT=30
-
-    until  ifconfig  |  grep  -q  eth   ||
-           ifconfig  |  grep  -q  ppp   ||
-           [  $TIMEOUT == 0  ]
-    do
-      sleep  10
-      (( TIMEOUT-- ))
-    done
-    disconnect
-
-  fi
-
-
-}
-
-
+## This routine is depreciated in favor of download_files
 function get() {
 
   debug "libsorcery" "get() $*"
@@ -197,8 +145,7 @@ function set_nice()  {
 ## - it's lifespan has expired
 ## - the user has requested a forced download
 ##
-## NOTE: This and get() should be moved into summon soon.
-## (duff, 2002/10/13)
+## This routine is depreciated in favor of download_files
 ##
 #---------------------------------------------------------------------
 function dl_source()  {
@@ -245,21 +192,6 @@ function dl_source()  {
   fi
 
 }
-
-
-function file_exists_in_cache()  {
-
-  guess_filename  $SOURCE_CACHE/$1  >  /dev/null
-
-}
-
-function remove_old_cache_src()  {
-
-    if    [  -n  "$LIFESPAN"  ]
-    then  rm  -f  $( find $SOURCE_CACHE/$1 -mmin +$LIFESPAN 2>/dev/null )
-    fi
-}
-
 
 
 
@@ -816,21 +748,6 @@ function push_remove_queue() {
 
 }
 
-
-#---------------------------------------------------------------------
-##
-## Removes files installed by apprentice.
-##
-## (2002/0929) Is there any more apprentice?
-##
-#---------------------------------------------------------------------
-function apprentice_off()  { (
-
-  rm  -f  $(  find  /usr/bin /usr/games /usr/sbin  -group  apprentice  2>/dev/null )
-
-) }
-
-
 #---------------------------------------------------------------------
 ##
 ## Sets some environment variables (such as C<CFLAGS>) based on the
@@ -1247,7 +1164,6 @@ function run_details() {
              "in grimoire(s): $GRIMOIRES ${DEFAULT_COLOR}"
     false
   fi
-  debug "libsorcery" "ending run_details"
 }
 
 #---------------------------------------------------------------------
@@ -1412,16 +1328,35 @@ function sources()  { (
   if  [  -z  "$SOURCE"  ];  then
     codex_set_current_spell_by_name  $1
   fi
-
-  if  [  -n  "$SOURCE"    ];  then  echo  $SOURCE;    fi
-
-  i=2
-  ii=SOURCE$i
-  while  [  -n "${!ii}"  ];  do
-    echo ${!ii}
-    i=$(($i+1))
-    ii=SOURCE$i
+  get_spell_files_and_urls|while read line; do
+    explode "$line" " " "dl_array"
+    echo "${dl_array[0]}"
   done
+
+
+) }
+
+#---------------------------------------------------------------------
+## @param spell
+## @Stdout filelist
+## Returns a list of each source file used by a spell.  Most have only
+## one, but xfree86 for example splits the sources into three separate
+## source files.
+##
+#---------------------------------------------------------------------
+function source_urls()  { (
+
+  local i srcVar
+
+  if  [  -z  "$SOURCE"  ];  then
+    codex_set_current_spell_by_name  $1
+  fi
+  get_spell_files_and_urls|while read line; do
+    explode "$line" " " "dl_array"
+    unset dl_array[0]
+    echo "${dl_array[*]}"
+  done
+
 
 ) }
 

@@ -22,28 +22,48 @@
 #---------------------------------------------------------------------
 
 
-help()	{
+help() {
 
   cat  <<  EOF
 
 Summon downloads single or multiple spell source files.
 
-Example:	summon  nano hdparm sudo
-Usage:		summon  [parameters] [spells]
+Example:        summon  nano hdparm sudo
+Usage:          summon  [parameters] [spells]
 
 Optional Parameters:
 
-       --from	directory		Specify an alternate for $SOURCE_CACHE
-       --url	URL			Specify an alternate download URL
-       -d | --download			Force download of source, regardless of
-					of whether it exists locally or not.
-       -g | --grimoire <grimoire path>	Searches only the given grimoire when
-					searching for spells to summon.
-       -g | --grimoire <grimoire name>	Searches only the named grimoire when
-					searching for spells to summon.  Looks
-					under the codex root for the grimoire.
-       --queue				Download all spells in the install queue.
-       --all				Download all spells in the grimoire.
+       --from        <directory>        Specify an alternate for $SOURCE_CACHE
+
+       --url        <URL>               Specify an alternate download URL
+
+       -d | --download                  Force download of source, regardless of
+                                        of whether it exists locally or not.
+
+       -g | --grimoire <grimoire path>  Searches only the given grimoire when
+                                        searching for spells to summon.
+
+       -g | --grimoire <grimoire name>  Searches only the named grimoire when
+                                        searching for spells to summon.  Looks
+                                        under the codex root for the grimoire.
+
+       -p | --print <type>              Instead of downloading, print out
+                                        information in some form according
+                                        to the value of <type> for each spell:
+                                        source   - print out the filenames
+                                        one_url  - print the first url
+                                        all_urls - print out all the urls
+                                        raw      - print out all the file
+                                        and urls, this format is meant to
+                                        be re-read by summon in raw mode.
+
+       -r | --raw                       Read in urls in "raw" form, eg:
+                                        file1 url1-1 url1-2 ...
+                                        file2 url2-1 url2-2 ...
+                                        ...
+
+       --queue                       Download all spells in the install queue.
+       --all                         Download all spells in the grimoire.
 EOF
 
   exit  1
@@ -59,20 +79,22 @@ fi
 
   while  [  -n  "$1"  ];  do
 
-    if  echo  "" $1  |  grep  -q  "^ -";  then
+    if echo "" $1 | grep  -q "^ -"; then
 
-      case  $1  in
-         --from)  SOURCE_CACHE=$2;         shift 2  ;;
-         --help)  help;                    exit  1  ;;
-          --url)  BASE_URL="$2" ;          shift 2  ;;
-  -d|--download)  FORCE_DOWNLOAD=1;        shift 1  ;;
-  -g|--grimoire)  codex_set_grimoires $2;  shift 2  ;;
-        --queue)  QUEUE=1;                 shift 1  ;;
-          --all)  SUMMON_ALL=1;            shift 1  ;;   	
-              *)  help;                                ;;
+      case $1 in
+         --from) SOURCE_CACHE=$2;         shift 2 ;;
+         --help) help;                    exit  1 ;;
+          --url) BASE_URL="$2" ;          shift 2 ;;
+  -d|--download) FORCE_DOWNLOAD=1;        shift 1 ;;
+  -g|--grimoire) codex_set_grimoires $2;  shift 2 ;;
+     -p|--print) set_print_type $2;       shift 2 ;;
+        --queue) QUEUE=1;                 shift 1 ;;
+          --all) SUMMON_ALL=1;            shift 1 ;; 
+       -r|--raw) RAW=1;                   shift 1 ;; 
+              *) help;                            ;;
       esac
 
-    else  shift
+    else  shift 1
     fi
 
   done
@@ -92,19 +114,29 @@ strip_parameters()  {
          --url)  shift 2  ;;
  -d|--download)  shift 1  ;;
  -g|--grimoire)  shift 2  ;;
+    -p|--print)  shift 2  ;;
        --queue)  shift 1  ;;
          --all)  shift 1  ;;
+         --raw)  shift 1  ;;
              *)  shift 1  ;;
       esac
 
     else  echo  $1
-          shift 
+          shift 1
     fi
 
   done
 
 }
 
+set_print_type() {
+  PRINT_TYPE="$1"
+  [ "$PRINT_TYPE" == source ]    ||
+  [ "$PRINT_TYPE" == one_url ]   ||
+  [ "$PRINT_TYPE" == all_urls ]  ||
+  [ "$PRINT_TYPE" == raw ]       ||
+  help
+}
 
 summon_locked()  {
 
@@ -120,6 +152,10 @@ summon_locked()  {
 
 
 run_xdelta()  { (
+  echo "This function is depricated. Please submit a bug report if this is seen:"
+  echo "summon::run_xdelta"
+  debug "summon" "This function is depricated. Please submit a bug report if this is seen:"
+  debug "summon" "summon::run_xdelta (2004/05/30)"
   
   cd  $BUILD_DIRECTORY
 
@@ -159,6 +195,10 @@ run_xdelta()  { (
 
 
 patcher()  { (
+  echo "This function is depricated. Please submit a bug report if this is seen:"
+  echo "summon::patcher"
+  debug "summon" "This function is depricated. Please submit a bug report if this is seen:"
+  debug "summon" "summon::patcher (2004/05/30)"
 
 #  patcher( OLD_SOURCE, NEW_SOURCE, PATCH_FILE, PATCH_URL )
 
@@ -192,6 +232,10 @@ patcher()  { (
 
 
 run_patch()  {
+  echo "This function is depricated. Please submit a bug report if this is seen:"
+  echo "summon::run_patch"
+  debug "summon" "This function is depricated. Please submit a bug report if this is seen:"
+  debug "summon" "summon::run_patch (2004/05/30)"
 
   [     "$PATCH"  ==  "on"          ]  &&
   [  -x  /usr/bin/xdelta            ]  &&
@@ -201,83 +245,105 @@ run_patch()  {
 }
 
 
-download() {
-
-  debug "summon" "download - SPELL=$SPELL"
-
-  run_patch
-
-  compgen -v | grep -q "^SOURCE$" && #some spells need nothing
-  echo "$SOURCE" | grep -q '[[:graph:]]' && #just in case a spell has SOURCE=""
-   dl_source  $SOURCE  ${SOURCE_URL[*]}
-
-  i=2
-  ii=SOURCE$i
-  while  compgen -v | grep -q "^${ii}$" ;  do
-    if echo "${!ii}" | grep -q '[[:graph:]]'
-    then #don't attempt do download blanks
-      iii="${ii}_URL[*]"
- 
-      dl_source  ${!ii}  ${!iii}
-    fi
-   
-    let i++
-    ii=SOURCE$i
-  done
-  
+summon_spell() {
+  local SPELL=$1
+  if [ -n "${SPELL}" ] && trylock_resources "summon" "${SPELL}"; then
+    # run in a subshell rather than try to unset_details
+    # and instead jump through hoops to get the return code correctly
+    ( run_details  &&
+      get_spell_files_and_urls | download_files && rc=0
+      # save the rc, then unlock
+      unlock_resources "summon" "${SPELL}"
+      # this actually only returns from the subshell, not the function
+      return ${rc:-1}
+    ) && return 0
+  fi
+  return 1
 }
 
+summon_spells() {
+  local SPELLS="$*"
+  [ -z "$SPELLS" ] && return 1
+  for  SPELL  in  $SPELLS;  do
+    if summon_spell $SPELL ; then 
+      activity_log "summon" "$SPELL"  "$VERSION" "success" 
+      true
+    else
+      activity_log "summon" "$SPELL"  "$VERSION" "failure"
+      false
+    fi
+  done
+}
 
-summon_grimoire()  {
+summon_print_spells() {
+  local SPELLS="$*"
+  [ -z "$SPELLS" ] && return 1
 
-  for  SPELLNAME  in  `codex_get_all_spells`;  do
-    local  SPELL=$( basename  $SPELLNAME )
-    (  if trylock_resources "summon" "${SPELL}"; then
-         run_details  &&
-         download
-         unlock_resources "summon" "${SPELL}"
-       fi
+  for  SPELL  in  $SPELLS;  do
+    # run in a subshell rather than try to unset_details
+    # its a fork either way, and this way leaves us less open for surprises
+    ( run_details  &&
+      get_spell_files_and_urls|while read line; do
+        if [ "$PRINT_TYPE" == source ]; then
+          explode "$line" " " "dl_array"
+          echo "${dl_array[0]}"
+          unset dl_array
+        elif [ "$PRINT_TYPE" == one_url ]; then
+          explode "$line" " " "dl_array"
+          [ -n "${dl_array[1]}" ] && echo "${dl_array[1]}"
+          unset dl_array
+        elif [ "$PRINT_TYPE" == all_urls ]; then
+          explode "$line" " " "dl_array"
+          unset dl_array[0]
+          [ -n "${dl_array[*]}" ] && echo "${dl_array[*]}"
+          unset dl_array
+        elif [ "$PRINT_TYPE" == raw ]; then
+          echo "$line"
+        else
+          echo "unknown value of PRINT_TYPE $PRINT_TYPE we shouldn't get here"
+          echo "please file a bug if you see this, thanks."
+          exit 1
+        fi
+      done
     )
   done
-
 }
 
+main() {
 
-main()	{
-
+  local spells_to_get
   cd  /tmp
-  process_parameters        $*
-  SPELLS=`strip_parameters  $*`
+  process_parameters $*
+
+  if [ -n "$RAW" ] ; then
+    download_files "for raw mode summon"
+  fi
 
   if  [  -n  "$SUMMON_ALL"  ];  then
-    summon_grimoire
-  else 
-  
-    if [  -n  "$QUEUE"  ]; then
+    spells_to_get=`codex_get_all_spells|get_basenames`
+  elif [  -n  "$QUEUE"  ]; then
+
+    # Since sometimes we'll be running in raw mode and possibly
+    # redirecting the output somewhere, we dont want to be prompting
+    # the "user" about the install queue, but if stdout is a character
+    # device (such as a terminal) we may as well try. Im not expecting
+    # the user to redirect to a character device too often...but that
+    # may be an issue at some point.
+    if test -c /dev/stdout ; then
       message -n "${MESSAGE_COLOR}Summoning all spells listed in the queue..."
       message "${DEFAULT_COLOR}"
       list_install_queue
     fi
-
-    for  SPELL  in  $SPELLS;  do
-      (
-        if trylock_resources "summon" "${SPELL}"; then
-         run_details  &&
-	 {
-           if download  ; then 
-	     activity_log "summon" "$SPELL"  "$VERSION" "success" 
-	     true
-	   else
-             activity_log "summon" "$SPELL"  "$VERSION" "failure"
-	     false
-	   fi
-	 }
-	 unlock_resources "summon" "$SPELL"
-        fi
-      )
-    done
+    spells_to_get=$(< $INSTALL_QUEUE)
+  else 
+    spells_to_get=`strip_parameters  $*`
   fi
 
+  if [ -n "$PRINT_TYPE" ]; then
+    summon_print_spells $spells_to_get
+  else
+    summon_spells $spells_to_get
+  fi
 }
 
 
@@ -286,6 +352,7 @@ if    [  "$UID"  ==  0  ] ; then
   if  [[ $NICE != "0" ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
+  # what is this here for?
   source $SGL_LIBRARY_MODULES/libsorcery
   main  $*
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help

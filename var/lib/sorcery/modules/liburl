@@ -278,6 +278,9 @@ function url_download() {
   local SUCCESS=false
 
   debug "liburl" "url_download() $*"
+
+  # you can't expect me to download something without urls...
+  [ -z "$URL_LIST" ] && return 1
   
   if (  [[ $NET_SELECT == on ]]  &&  spell_installed "netselect"  );  then
     lock_resources "network" "network"
