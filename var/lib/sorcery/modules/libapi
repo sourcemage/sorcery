@@ -9,10 +9,11 @@
 #    config_query_string    (libmisc)
 #    conflicts              (libgrimoire)  
 #    default_build          (libgrimoire)   
-#    default_compile        (libgrimoire)   
-#    default_install        (libgrimoire)   
-#    default_post_build     (libgrimoire)   
+#    default_install        (libgrimoire)   (BUILD_API==2 only)
 #    default_pre_build      (libgrimoire)   
+#    default_pre_install    (libgrimoire)   (BUILD_API==2 only)
+#    default_post_build     (libgrimoire)   (BUILD_API==1 only)
+#    default_post_install   (libgrimoire)   (BUILD_API==2 only)
 #    depends                (libdepends)
 #    installed_version      (libgrimoire)   
 #    list_add               (libmisc)
@@ -91,7 +92,7 @@ function default_pre_build () {
 #---------------------------------------------------------------------
 ## @Type API
 ## Used if no BUILD script is found for a spell
-## Default build is:
+## Default build for BUILD_API==1 is:
 ## <pre>
 ##  ./configure  --build=$BUILD        \
 ##               --prefix=/usr         \
@@ -102,17 +103,7 @@ function default_pre_build () {
 ##  prepare_install                    &&
 ##  make    install
 ## </pre>
-##
-#---------------------------------------------------------------------
-function default_build () {
-    debug "default_build - $*"
-    real_default_build "$@"
-}
-#---------------------------------------------------------------------
-## @Type API
-## Used if no COMPILE script is found for a spell using the new
-## split BUILD setup
-## Default compile is:
+## Default build for BUILD_API==2 is:
 ## <pre>
 ##  ./configure  --build=$BUILD        \
 ##               --prefix=/usr         \
@@ -123,17 +114,30 @@ function default_build () {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function default_compile () {
-    debug "default_compile - $*"
-    real_default_compile "$@"
+function default_build () {
+    debug "default_build - $*"
+    real_default_build "$@"
 }
 #---------------------------------------------------------------------
 ## @Type API
-## Used if no INSTALL script is found for a spell using the new
-## split BUILD setup
+## Only defined for BUILD_API==2
+## Used if no PRE_INSTALL script is found.
+## Default pre_install is:
+## <pre>
+##  prepare_install
+## </pre>
+##
+#---------------------------------------------------------------------
+function default_pre_install () {
+    debug "default_pre_install - $*"
+    real_default_pre_install "$@"
+}
+#---------------------------------------------------------------------
+## @Type API
+## Only defined for BUILD_API==2
+## Used if no INSTALL script is found.
 ## Default install is:
 ## <pre>
-##  prepare_install                    &&
 ##  make    install
 ## </pre>
 ##
@@ -144,13 +148,27 @@ function default_install () {
 }
 #---------------------------------------------------------------------
 ## @Type API
+## Only defined for BUILD_API==1
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
+## equivalent to default_post_install in BUILD_API==2
 ##
 #---------------------------------------------------------------------
 function default_post_build () {
     debug "default_post_build - $*"
     real_default_post_build "$@"
+}
+#---------------------------------------------------------------------
+## @Type API
+## Only defined for BUILD_API==2
+## Installs configuration files and documentation.  Stops installwatch.
+## Used if no POST_INSTALL script is found for a spell.
+## equivalent to default_post_build in BUILD_API==1
+##
+#---------------------------------------------------------------------
+function default_post_install () {
+    debug "default_post_install - $*"
+    real_default_post_install "$@"
 }
 
 #---------------------------------------------------------------------

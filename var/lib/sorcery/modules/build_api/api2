@@ -1,0 +1,308 @@
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Functions for dealing with the actual compiling/installation of spells
+## and walking through casts 'pass 4' pipeline.
+##
+##=head1 DESCRIPTION
+##
+## Contains functions for the build api version 2
+## which has the following steps:
+## PRE_BUILD -> BUILD -> PRE_INSTALL -> INSTALL -> POST_INSTALL ->
+## FINAL -> TRIGGERS
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
+##
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## This runs through the phase 4 pipeline of building and installing
+## a spell for BUILD_API 1.
+#---------------------------------------------------------------------
+function run_build_spell() {
+  debug "build_api/api2" "run_build_spell"
+
+  C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  rm  -f $C_FIFO
+  mkfifo  $C_FIFO
+  rm  -f $C_LOG
+
+  run_pre_build				&&
+  activate_voyeur                       &&
+
+  (
+  run_build				&&
+  run_pre_install			&&
+  run_install				&&
+  run_post_install			&&
+  run_final				
+  ) > $C_FIFO 2>&1                      &&
+  run_triggers				&&
+  return 0 || return 1
+}
+#---------------------------------------------------------------------
+## This phase of casting involves unpacking the source into the
+## source directories. If a PRE_BUILD file exists in SCRIPT_DIRECTORY
+## and is executable it is run in preference to the default_pre_build.
+#---------------------------------------------------------------------
+function run_pre_build() {
+
+  debug "build_api/api2" "run_pre_build()"
+  message  "${MESSAGE_COLOR}Building"  \
+           "${SPELL_COLOR}${SPELL}"    \
+           "${DEFAULT_COLOR}"
+
+  cd  $BUILD_DIRECTORY
+
+  verify_sources &&
+  persistent_load &&
+  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
+    debug "build_api/api2" "run_pre_build() - Prebuild script exists, now sourcing "
+    . $SCRIPT_DIRECTORY/PRE_BUILD
+  else
+    debug "build_api/api2" "run_pre_build() - Prebuild script not found, using default"
+    default_pre_build
+  fi &&
+  persistent_save
+}
+
+
+#---------------------------------------------------------------------
+## Starts up the compile logs and fifo, turns on the various environment
+## settings that need to be on, eventually gets around to running
+## BUILD or default_build.
+#---------------------------------------------------------------------
+function run_build()  {
+
+  debug "build_api/api2" "Starting run_compile()"
+
+  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+
+
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY
+
+  invoke_build_dir
+  invoke_gcc2
+  optimize
+  invoke_installwatch
+
+  message -n "Installing in dir: "
+  pwd
+  message "$SPELL    $VERSION"
+
+  run_config_loc
+
+  persistent_load &&
+  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
+    .  $SCRIPT_DIRECTORY/BUILD
+  else
+    default_build
+  fi &&
+  persistent_save
+
+  if  [  "$?"  !=  0  ];  then
+    message  "${PROBLEM_COLOR}"      \
+             "! Problem Detected !"  \
+             "${DEFAULT_COLOR}"
+    false
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## Turns all the various logs back on that were turned off from after
+## run_build finished, then runs PRE_INSTALL or default_pre_install
+#---------------------------------------------------------------------
+function run_pre_install() {
+  debug "build_api/api2" "Starting run_pre_install()"
+
+  persistent_load &&
+  if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
+    .  $SCRIPT_DIRECTORY/PRE_INSTALL 
+  else
+    default_pre_install
+  fi &&
+  persistent_save
+}
+
+
+#---------------------------------------------------------------------
+## Turns all the various logs back on that were turned off from after
+## run_pre_install finished, then runs INSTALL or default_install
+## Along with other stuff that needs to be transplanted elsewhere.
+#---------------------------------------------------------------------
+function run_install() {
+  debug "build_api/api2" "Starting run_install()"
+
+  persistent_load &&
+  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
+    .  $SCRIPT_DIRECTORY/INSTALL 
+  else
+    default_install
+  fi &&
+  persistent_save &&
+  install_xinetd &&
+  install_initd
+
+  if  [  "$?"  !=  0  ];  then
+    message  "${PROBLEM_COLOR}"      \
+             "! Problem Detected !"  \
+             "${DEFAULT_COLOR}"
+    false
+  fi
+}
+
+#---------------------------------------------------------------------
+## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
+## executable, runs it. This file is run after INSTALL and before
+## FINAL. Its purpose is to bookend INSTALL and shutoff installwatch.
+#---------------------------------------------------------------------
+function run_post_install() {
+  debug "build_api/api2" "Starting run_post_install()"
+  persistent_load &&
+  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
+    . $SCRIPT_DIRECTORY/POST_INSTALL
+  else
+    default_post_install
+  fi &&
+  persistent_save &&
+  unlock_resources "libgrimoire" "install"
+}
+
+#---------------------------------------------------------------------
+## Checks for a FINAL file in SCRIPT_DIRECTORY, and if it is
+## executable, runs it. This file is used for extra files that need
+## to be installed, but not tracked by installwatch.
+#---------------------------------------------------------------------
+function run_final() {
+
+  debug "build_api/api2" "Starting run_final()"
+  persistent_load &&
+  if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
+  then
+    . $SCRIPT_DIRECTORY/FINAL
+  fi &&
+  persistent_save
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## Creates the source directory and unpacks the source package into it.
+## Used if no PRE_BUILD script is found for a spell.
+##
+#---------------------------------------------------------------------
+function real_default_pre_build() {
+
+  debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
+  mk_source_dir        $SOURCE_DIRECTORY  &&
+  unpack               $SOURCE ${MD5[0]}
+
+}
+
+
+#---------------------------------------------------------------------
+## @Type API
+## Used if no BUILD script is found 
+## Default build is:
+## <pre>
+##  ./configure  --build=$BUILD        \
+##               --prefix=/usr         \
+##               --sysconfdir=/etc     \
+##               --localstatedir=/var  \
+##               $OPTS                 &&
+##  make
+## </pre>
+##
+#---------------------------------------------------------------------
+function real_default_build() {
+  debug "build_api/api2" "real_default_build"
+  #If these switches are used, they stop distcc and ccache from working
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
+	
+  ./configure --prefix=${INSTALL_ROOT}/usr  \
+	  --sysconfdir=${INSTALL_ROOT}/etc  \
+       --localstatedir=${INSTALL_ROOT}/var  \
+	      --mandir=${INSTALL_ROOT}/usr/share/man   \
+	     --infodir=${INSTALL_ROOT}/usr/share/info  \
+		       $OPTS                 &&
+  make
+
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## Used if no PRE_INSTALL script is found
+## Default pre_install is:
+## <pre>
+##  prepare_install
+## </pre>
+##
+#---------------------------------------------------------------------
+function real_default_pre_install() {
+  debug "build_api/api2" "Starting real_default_pre_install"
+  prepare_install
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## Used if no INSTALL script is found
+## Default install is:
+## <pre>
+##  make    install
+## </pre>
+##
+#---------------------------------------------------------------------
+function real_default_install() {
+  debug "build_api/api2" "Starting real_default_install"
+  make    install
+}
+
+
+#---------------------------------------------------------------------
+## @Type API
+## Installs configuration files and documentation.  Stops installwatch.
+## Used if no POST_INSTALL script is found for a spell.
+##
+## This is identical to api1's post_build
+#---------------------------------------------------------------------
+function real_default_post_install() {
+
+  debug "build_api/api2" "Starting real_default_post_install"
+  install_pam_confs
+  install_services
+  gather_docs
+  devoke_installwatch
+  init_post_install
+  ldconfig
+  # release_saved_libraries
+  cd  /
+
+}
+
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -21,73 +21,21 @@
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-## Prompts the user about spells that are in conflict with the current
-## spell and allows them to dispel them. If the user chooses not to
-## dispel the conflicting spell, the function returns 1
-## @return nothing if the user dispels the conflicting spell
-## @return 1 if the user chooses not to dispel the conflicting spell
+## This is used to dynamically setup an api environment for a spell
+## into the build api that it is specified to use. (ie split BUILD or
+## no split BUILD).
 #---------------------------------------------------------------------
-function run_conflicts() {
-    
-  debug "cast" "Starting run_conflicts() on $SPELL"
 
-  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-    local CONFLICTS=$(
-        persistent_load
-        . $SCRIPT_DIRECTORY/CONFLICTS
-        persistent_save
-    )
+function load_build_api() {
 
-    local tmp to_dispel=""
-    for  tmp  in  $CONFLICTS  ;  do
-      local spell_and_default
-      explode  $tmp  ':'  spell_and_default
+  debug "libcast" "Starting load_build_api"
 
-      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}."
-      text="$text Dispel"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
-
-      if  query  "$text"  ${spell_and_default[1]}  ;  then
-	to_dispel="$to_dispel ${spell_and_default[0]}"
-      else
-        echo  $SPELL  >>  $FAILED_LIST
-        return  1
-      fi
-
-      dispel  $to_dispel
-    done
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-## Prompts the user about possible security problems with the current
-## spell. Allows a safe way of failing a spell due to security problems.
-## @return 0 if there are no security problem or the user acknowledges them.
-## @return 1 if the user decides not to accept the security concerns
-#---------------------------------------------------------------------
-# checks for a security file
-# returns 0 if spell should be cast, 1 otherwise
-function run_security() {
-    debug "cast" "Starting run_security() on $SPELL"
-    if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
-      echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
-      tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
-        if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
-          if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
-            return 0
-          fi
-          return 1
-        else
-          if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
-            return 0
-          fi
-          return 1
-        fi
-    fi
-    return 0
+  source $SGL_LIBRARY_MODULES/build_api/common
+  case $BUILD_API in
+    1) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
+    2) source $SGL_LIBRARY_MODULES/build_api/api2 ;;
+    *) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
+  esac
 }
 
 
@@ -257,32 +205,6 @@ function install_initd() { (
     
 ) }
 
-#---------------------------------------------------------------------
-## This phase of casting involves unpacking the source into the
-## source directories. If a PRE_BUILD file exists in SCRIPT_DIRECTORY
-## and is executable it is run in preference to the default_pre_build.
-#---------------------------------------------------------------------
-function run_pre_build() {
-
-  debug "cast" "run_pre_build()"
-  message  "${MESSAGE_COLOR}Building"  \
-           "${SPELL_COLOR}${SPELL}"    \
-           "${DEFAULT_COLOR}"
-
-  cd  $BUILD_DIRECTORY
-
-  verify_sources &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    debug "cast" "run_pre_build() - Prebuild script exists, now sourcing "
-    persistent_load
-    . $SCRIPT_DIRECTORY/PRE_BUILD
-    persistent_save
-  else
-    debug "cast" "run_pre_build() - Prebuild script not found, using default"
-    default_pre_build
-  fi
-}
-
 
 #---------------------------------------------------------------------
 ## Takes the compile log, created by activate_voyeur and stuffs it into
@@ -290,7 +212,7 @@ function run_pre_build() {
 #---------------------------------------------------------------------
 function create_compile_log()  {
 
-  message  "${MESSAGE_COLOR}Creating"                              \
+  message  "${MESSAGE_COLOR}Creating compile log"                  \
            "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"  \
            "${DEFAULT_COLOR}"
 
@@ -299,20 +221,19 @@ function create_compile_log()  {
   else
     $COMPRESSBIN  -f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
   fi
-  rm             $C_LOG
-  rm             $C_FIFO
-
 }
 
 
 #---------------------------------------------------------------------
 ## Prompts the user to view the compile log
+## and deletes the temporary files too
 #---------------------------------------------------------------------
 function view_compile_log()  {
 
-    sleep   1
-    report              $C_LOG  "Compile log"
-
+    debug "libcast" "In view_compile_log, C_LOG=$C_LOG"
+    report $C_LOG  "Compile log"
+    rm $C_LOG
+    rm $C_FIFO
 }
 
 
@@ -332,240 +253,6 @@ function activate_voyeur()  {
   fi
 
 }
-#---------------------------------------------------------------------
-#---------------------------------------------------------------------
-function run_config_loc () {
-  if  [ -x ./configure ] || [ -x ./src/configure ] ; then
-		
-    if  [[  $CONFIG_LOC  == on  ]]; then
-
-      if  [  !  -d  $SM_CONFIG_OPTION_CACHE  ] ; then
-        mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
-      fi
-
-      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
-        message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
-        message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL | column
-      fi
-
-      if    query  "Do you wish to add -- options to ./configure?"  n ;  then
-				F_TMP=/tmp/cast.$$.configure
-        rm -f $F_TMP
-				
-        if [ -x ./configure ]; then
-          ./configure --help > $F_TMP
-        elif [ -x ./src/configure ]; then
-          ./src/configure --help > $F_TMP
-        fi
-
-        if [ -f $F_TMP ]; then
-          sedit 's/^/# /' $F_TMP
-        fi
-
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL >> $F_TMP 2>/dev/null
-        edit_file $F_TMP
-        rm -f $SM_CONFIG_OPTION_CACHE/$SPELL
-        sedit '/^#.*$/d' $F_TMP
-        mv $F_TMP $SM_CONFIG_OPTION_CACHE/$SPELL
-      fi
-
-      # load custom OPTS
-      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
-        message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
-      fi
-
-    fi
-
-  fi
-}
-
-#---------------------------------------------------------------------
-#---------------------------------------------------------------------
-function run_build()  {
-
-  debug "cast" "Starting run_build()"
-   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
-
-  rm  -f $C_FIFO
-  mkfifo  $C_FIFO
-  rm  -f $C_LOG
-  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
-  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
-
-  activate_voyeur
-
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
-
-  invoke_build_dir
-  invoke_gcc2
-  optimize
-  invoke_installwatch
-
-  message -n "Installing in dir: "
-  pwd
-  message "$SPELL    $VERSION"
-
-  run_config_loc
-
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    persistent_load
-    .  $SCRIPT_DIRECTORY/BUILD
-    persistent_save
-  else
-    default_build
-  fi &&
-
-  install_xinetd &&
-  install_initd
-
-  if  [  "$?"  ==  0  ];  then
-    create_compile_log
-  else
-    sound  FAILURE
-    message  "${PROBLEM_COLOR}"      \
-             "! Problem Detected !"  \
-             "${DEFAULT_COLOR}"
-    view_compile_log
-    create_compile_log
-    false
-  fi
-
-}
-
-#---------------------------------------------------------------------
-#---------------------------------------------------------------------
-function run_compile()  {
-
-  debug "cast" "Starting run_compile()"
-   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
-
-  rm  -f $C_FIFO
-  mkfifo  $C_FIFO
-  rm  -f $C_LOG
-  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
-  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
-
-  activate_voyeur
-
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
-
-  invoke_build_dir
-  invoke_gcc2
-  optimize
-  invoke_installwatch
-
-  message -n "Installing in dir: "
-  pwd
-  message "$SPELL    $VERSION"
-
-  run_config_loc
-
-  if  [  -x  $SCRIPT_DIRECTORY/COMPILE  ];  then
-    persistent_load
-    .  $SCRIPT_DIRECTORY/COMPILE
-    persistent_save
-  else
-    default_compile
-  fi
-}
-
-#---------------------------------------------------------------------
-#---------------------------------------------------------------------
-function run_install() {
-  debug "cast" "Starting run_install()"
-  #turn voyeur back on, very important, INSTALL will hang otherwise
-
-   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
-
-  [ -w $C_FIFO ] || mkfifo $C_FIFO
-
-  activate_voyeur
-
-  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
-    persistent_load
-    .  $SCRIPT_DIRECTORY/INSTALL 
-    persistent_save
-  else
-    default_install
-  fi &&
-  install_xinetd &&
-  install_initd
-
-  if  [  "$?"  ==  0  ];  then
-    create_compile_log
-  else
-    sound  FAILURE
-    message  "${PROBLEM_COLOR}"      \
-             "! Problem Detected !"  \
-             "${DEFAULT_COLOR}"
-    view_compile_log
-    create_compile_log
-    false
-  fi
-}
-
-#---------------------------------------------------------------------
-## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
-## executable, runs it. This file is run after BUILD/INSTALL and before
-## POST_INSTALL. Its purpose is to bookend INSTALL and shutoff installwatch.
-#---------------------------------------------------------------------
-function run_post_build() {
-
-  if  [  -x  $SCRIPT_DIRECTORY/POST_BUILD  ];  then
-           persistent_load
-           . $SCRIPT_DIRECTORY/POST_BUILD
-           persistent_save
-  else
-    default_post_build
-  fi
-
-  # Lock made in prepare_install
-  unlock_resources "libgrimoire" "install"
-
-}
-
-
-#---------------------------------------------------------------------
-## Checks for a POST_INSTALL file in SCRIPT_DIRECTORY, and if it is
-## executable, runs it. This file is used for extra files that need
-## to be installed, but not tracked by installwatch.
-#---------------------------------------------------------------------
-function run_post_install() {
-
-  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]
-  then
-    persistent_load
-    . $SCRIPT_DIRECTORY/POST_INSTALL
-    persistent_save
-  fi
-}
-
-#---------------------------------------------------------------------
-## Checks for a TRIGGERS file in SCRIPT_DIRECTORY, and if it is
-## executable, runs it.
-#---------------------------------------------------------------------
-function run_triggers() {
-
-  if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
-  then
-    persistent_load
-    . $SCRIPT_DIRECTORY/TRIGGERS
-    persistent_save
-  fi
-
-}
-
-
-
-
-
 
 #---------------------------------------------------------------------
 ## @param spellname
@@ -573,7 +260,7 @@ function run_triggers() {
 ## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
 #---------------------------------------------------------------------
 function can_resurect()  {
-	debug "cast" "can_resurect - $*"
+	debug "libcast" "can_resurect - $*"
 	run_details		&&
 	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION ] &&
 	debug "cast" "I am able to resurect."
@@ -581,11 +268,14 @@ function can_resurect()  {
 
 function resurrect()  {  (  
 
-  debug "cast" "resurect - $*"
+  debug "libcast" "resurrect - $*"
 
   run_prepare   &&
   can_resurect
 #  run_details  run by can_resurect now
+
+  # needed because of build splitification
+  load_build_api
 
   STATUS=installed
 
@@ -621,7 +311,12 @@ function resurrect()  {  (
       tar  -Pkxf  $CACHE_COMP  1>/dev/null  2>&1
     fi 
 
-    run_post_install 
+    # minor hack until I re-write this (afk 4/12/2004)
+    if [ $BUILD_API == 2 ] ; then
+      run_final
+    else
+      run_post_install 
+    fi
     run_triggers
     
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
@@ -698,8 +393,8 @@ function show_downloading()  {
 #---------------------------------------------------------------------
 function report_install()  {
 
-#  rm  -f  $BOOST_LOCK
-  INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+  local INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+  debug "libcast" "In report_install, INST_LOG=$INST_LOG"
   report  $INST_LOG  "Install log"
 
 }

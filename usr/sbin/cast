@@ -649,21 +649,12 @@ function strip_parameters()  {
 }
 
 #---------------------------------------------------------------------
-## That one does a whole lot too much I think..
+## Gets the cast lock for us and ensures that we've waited for all
+## solo/non-solo casts to complete
 #---------------------------------------------------------------------
-function cast_spell()  { (
-
-  debug "cast" "Casting spell [$SPELL]"
-  set_term_title "Casting spell [$SPELL]"
-  run_details                                 && #run by can_resurect now, but it's a minor expense
-  run_security                                &&
-  run_conflicts                               &&
-  run_spell_config                            &&
-  satisfy_depends             && #needed or optional deps dont get passed??
-  show_downloading            && 
-  verify_sources              ||   return 1
-  
-  #locking - blocks normal spells if a solo cast is running, solo casts if any cast is running
+function acquire_cast_lock() {
+  # locking - blocks normal spells if a solo cast is running,
+  # solo casts if any cast is running
   message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} casts to complete..."
   lock_resources "solo" "cast"
   if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
@@ -676,46 +667,82 @@ function cast_spell()  { (
     unlock_resources "solo" "cast"
   fi
   message " done."
+}
+
+
+#---------------------------------------------------------------------
+## 
+#---------------------------------------------------------------------
+function cast_spell()  { (
+
+  debug "cast" "Casting spell [$SPELL]"
+  set_term_title "Casting spell [$SPELL]"
+
+  run_details || return 1
+  load_build_api
+
+# these both prompt, and prompting should NOT occur at this point
+# someday they will get split to a query and action pair (like use_xinetd
+# and install_xinetd) (afk 4/10/04)
+  run_security                                &&
+  run_conflicts                               &&
+
+  # this is already done by run_details, and should go away (afk 4/10/04)
+  run_spell_config                            &&
+
+  # depends should not be an issue here, the whole point of using make
+  # was to avoid having to care at this point
+  # this line may disappear (afk 4/10/04)
+  satisfy_depends             && #needed or optional deps dont get passed??
+  show_downloading            && 
+  verify_sources              ||   return 1
   
-  if    run_pre_build              			&&
-  		if  [[  -x  $SCRIPT_DIRECTORY/COMPILE ||
-			-x $SCRIPT_DIRECTORY/INSTALL ]];  then
-echo OKAY
-			run_compile			&&
-			run_install
-		else
-          		run_build
-        	fi					&&
-		run_post_build              		&&
-		run_post_install            		&&
-                run_triggers				&&
-		add_spell $SPELL installed $VERSION	&&
-		cd  /                       		&&
-		report_install						;
-  then
-		sound  SUCCESS
-    pop_install_queue "$SPELL"    
-		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-	    rm_source_dir
-		echo $SPELL >> $SUCCESS_LIST
+  # wait for solo casts, to finish and ensure that others can't
+  acquire_cast_lock
+
+
+  # all this needs to reorganized and stuff...later
+
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+  C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+  TMP_LOG="/tmp/$SPELL-$VERSION"
+  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+  MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+  IW_LOG="/tmp/$SPELL.iw"
+
+
+  #some minor discussion occured about having this, i'll leave it out for now
+  #activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
+  
+  # this will run through the whole build process
+  run_build_spell
+  rc=$?
+
+  # This is the home for anything and everything we do
+  # when a phase4 succeeds or fails, no more spreading things out
+  # into multiple functions.
+  cd /
+
+  # make the compile log _no_matter_what_
+  create_compile_log
+
+  pop_install_queue "$SPELL"    
+
+  # hooks back out to the build_api to do whatever needs to be done
+  if [ $rc == 0 ] ; then
+    run_spell_success
+    CAST_EXIT_STATUS=0
   else
-    # This may have been locked if there was a failure during the install
-    unlock_resources "libgrimoire" "install"
-	
-    activity_log "cast" "$SPELL"  "$VERSION" "failure"
-	  IW_LOG="$INSTALLWATCHFILE"
-	  INSTALLWATCHFILE=""
-    rm  -f  $IW_LOG  $TMP_LOG  $CASTING
-    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
-    echo $SPELL >> $FAILED_LIST
+    run_spell_failure
     CAST_EXIT_STATUS=1
   fi
+
 
   unlock_resources "cast" "$SPELL"
   #It's OK to try to release a lock you don't have
   unlock_resources "solo" "cast"
 
-  return ${CAST_EXIT_STATUS:-0}
+  return $CAST_EXIT_STATUS
 
 ) }
 

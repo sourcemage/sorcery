@@ -360,21 +360,6 @@ function testpack() {
 
 #---------------------------------------------------------------------
 ##
-## Returns true if a boost lock file exists for a live cast process.
-## @return 0 if boost lock file exists
-##
-#---------------------------------------------------------------------
-function boost_locked()  {
-
-  [  -f     $BOOST_LOCK  ]  &&
-  ps  `cat  $BOOST_LOCK`    |
-  grep  -q  cast
-
-}
-
-
-#---------------------------------------------------------------------
-##
 ## Saves the current libraries associated with the spell, from /lib
 ## and /usr/lib into $SOURCE_DIRECTORY/old.libraries/
 ## Also runs ldconfig with the saved libraries.
@@ -1338,7 +1323,7 @@ function activity_log()  { (
 ##
 #---------------------------------------------------------------------
 function run_details() {
-
+  debug "libsorcery" "starting run_details for $SPELL"
   if  !  codex_set_current_spell_by_name  $SPELL;  then
     local  GRIMOIRES=`codex_get_all_grimoires`
     message  "${PROBLEM_COLOR}Unable to find spell"        \
@@ -1346,6 +1331,7 @@ function run_details() {
              "in grimoire(s): $GRIMOIRES ${DEFAULT_COLOR}"
     false
   fi
+  debug "libsorcery" "ending run_details"
 }
 
 #---------------------------------------------------------------------
@@ -1410,8 +1396,7 @@ function color()  {
 function invoke_installwatch()  {
 
   if  [  -e  /usr/lib/installwatch.so  ];  then
-    rm  -rf  /tmp/$SPELL.iw
-    export  INSTALLWATCHFILE=/tmp/$SPELL.iw
+    export  INSTALLWATCHFILE=$IW_LOG
     export  LD_PRELOAD=/usr/lib/installwatch.so
   fi
 
@@ -1498,7 +1483,7 @@ function track()  {
   filter  "$LOCAL_EXCLUDED"  |
   exists                     >  $TMP_LOG
 
-  echo  "$C_LOG_COMP"         >>  $TMP_LOG
+  echo  "$C_LOG_COMP"       >>  $TMP_LOG
   echo  "$MD5_LOG"          >>  $TMP_LOG
   echo  "$INST_LOG"         >>  $TMP_LOG
 
@@ -1516,6 +1501,23 @@ function track()  {
 
 
 #---------------------------------------------------------------------
+## Makes a list of files with the md5sum
+#---------------------------------------------------------------------
+function md5list() {
+  local INPUT=$1
+  local OUTPUT=$2
+  message  "${MESSAGE_COLOR}Creating MD5 log ${FILE_COLOR}${OUTPUT}${DEFAULT_COLOR}"
+  debug  "libsorcery" "Running md5list() on $SPELL"
+  while read LINE ; do
+		debug "archive()" "Checking file $LINE"
+    if  [ !  -p "$LINE" ] && [ ! -d "$LINE" ] && [ -e "$LINE" ] ; then
+			debug "archive()" "Running md5 on $LINE"
+      md5sum "$LINE"
+    fi
+  done < $INPUT 2>/dev/null > $OUTPUT
+}
+
+#---------------------------------------------------------------------
 ##
 ## Creates a bzip/gzip'ed tar file containing an archived backup of 
 ## every file installed by a spell.
@@ -1525,14 +1527,6 @@ function archive()  {
 
   debug  "libsorcery" "Running archive() on $SPELL"
 
-  while read LINE ; do
-		debug "archive()" "Checking file $LINE"
-    if  [ !  -p  "$LINE"  ] ; then
-			debug "archive()" "Running md5 on $LINE"
-      md5sum "$LINE"
-    fi
-  done < $INST_LOG 2>/dev/null >> $MD5_LOG 
-
   if    [  "$ARCHIVE"  ==  "off"  ]; then
     debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
     return
@@ -1540,7 +1534,7 @@ function archive()  {
 
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-  message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
+  message  "${MESSAGE_COLOR}Creating cache file ${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
 
   if  [  "$COMPRESSBIN" == "tar"  ]; then 
     tar --no-recursion -cPf "$CACHE_COMP" -T $INST_LOG
@@ -1555,33 +1549,33 @@ function archive()  {
 ##
 ## Runs C<track> and C<archive> on the current spell.
 ##
-## NOTE: boost and boost_locked should be removed or renamed, due
-## to liblock being introduced
+## THIS FUNCTION IS DEPRECIATED AND SHOULD NOT BE CALLED FOR ANY REASON
 ##
 #---------------------------------------------------------------------
 function boost()	{ (
 
-  debug  "libsorcery" "Running boost() on $SPELL"
-
-     CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
-CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
-C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
-   TMP_LOG="/tmp/$SPELL-$VERSION"
-  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
-   MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
-    IW_LOG="/tmp/$SPELL.iw"
-
-  rm  -rf  $CACHE
-  rm  -rf  $INST_LOG
-  touch    $INST_LOG
-  rm  -rf  $TMP_LOG
-  rm  -rf  $MD5_LOG
-  touch    $MD5_LOG
-
-  track    &&
-  archive  &&
-  add_spell  $SPELL installed $VERSION 
-
+  debug  "libsorcery" "Running boost() on $SPELL THIS IS DEPRECIATED"
+#
+#     CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
+#CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+#C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+#   TMP_LOG="/tmp/$SPELL-$VERSION"
+#  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+#   MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+#    IW_LOG="/tmp/$SPELL.iw"
+#
+#  rm  -rf  $CACHE
+#  rm  -rf  $INST_LOG
+#  touch    $INST_LOG
+#  rm  -rf  $TMP_LOG
+#  rm  -rf  $MD5_LOG
+#  touch    $MD5_LOG
+#
+#  track    &&
+#  md5list < $INST_LOG > $MD5_LOG &&
+#  archive
+#
+true
 ) }
 
 
