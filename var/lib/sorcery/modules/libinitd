@@ -229,10 +229,11 @@ function init_install()
       _init_make_backup $script_path $runlevel_dir/$script_name
       if [ "$enable_script" == "enabled" ] ; then
         install -m 754 $script_path $runlevel_dir
-        message "  script $script_name installed and enabled.  Disable with 'telinit disable $script_name'."
+        message "  script $script_name installed and ${MESSAGE_COLOR}enabled${DEFAULT_COLOR}. Disable with 'telinit disable $script_name'."
+        message "${MESSAGE_COLOR}If you want to [re]start the service now${DEFAULT_COLOR}, issue 'telinit run $script_name [re]start'."
       else
         install -m 644 $script_path $runlevel_dir
-        message "  script $script_name installed and disabled.  Enable with 'telinit enable $script_name'."
+        message "  script $script_name installed and ${MESSAGE_COLOR}disabled${DEFAULT_COLOR}. Enable with 'telinit enable $script_name'."
       fi
       _init_install_conf_files $( _init_get_conf_files $script_path )
     fi
