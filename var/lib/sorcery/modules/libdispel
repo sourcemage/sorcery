@@ -7,6 +7,7 @@
 ## @Copyright Original version Copyright 2001 by Kyle Sallee
 ## @Copyright Additions/Corrections Copyright 2002-4 by the SourceMage Team
 ##
+## Functions for dispelling spells.
 #---------------------------------------------------------------------
 
 
@@ -79,7 +80,6 @@ function reap_depends()  {
 
 
 #---------------------------------------------------------------------
-##=item reaper
 ## @param file
 ## @param file
 ##
@@ -138,6 +138,12 @@ function reaper()  { (
 
 ) }
 
+#-----
+## Checks that a spell is indeed installed. Perhaps this should also see
+## if the spell was held?
+## @return true Can be dispelled
+## @return false Cannot be dispelled
+#-----
 function dispel_not_possible()  {
 
   if  !  grep  -q  "^$SPELL:"  $SPELL_STATUS  &&
@@ -152,7 +158,9 @@ function dispel_not_possible()  {
 
 }
 
-
+#-----
+## Does the sustained checks for spells
+#-----
 function dispel_sustained()  {
 
   if  [  "$SUSTAIN"  ==  "on"  ]  &&
@@ -167,10 +175,10 @@ function dispel_sustained()  {
 
 }
 
-
-
-
-
+#-----
+## Find out where a spell is located
+## @Globals SPELL
+#-----
 function set_script_directory()  {
 
            SECTION="`codex_get_spell_section_name  $SPELL`"
@@ -178,7 +186,9 @@ function set_script_directory()  {
 
 }
 
-
+#-----
+## Run the PRE_REMOVE script if it exists
+#-----
 function pre_remove() {
 
   if  [  -x  $SCRIPT_DIRECTORY/PRE_REMOVE  ];  then  unset  LD_PRELOAD
@@ -187,7 +197,9 @@ function pre_remove() {
 
 }
 
-
+#-----
+## Run the POST_REMOVE script if it exists.
+#-----
 function post_remove() {
 
   LD_PRELOAD_OLD="$LD_PRELOAD"
@@ -205,8 +217,6 @@ function post_remove() {
 
 
 #---------------------------------------------------------------------
-##=item reaper
-##
 ## Dispel a spell
 #---------------------------------------------------------------------
 
@@ -236,3 +246,21 @@ function dispel_spell() {
              "${DEFAULT_COLOR}" &&
     activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
 }
+
+#---------------------------------------------------------------------
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
