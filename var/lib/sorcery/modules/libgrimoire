@@ -160,6 +160,8 @@ guess_compressor()  {
 #---------------------------------------------------------------------
 uncompress() {
   debug "libgrimoire" "uncompress - $*"
+  set +x #This is here so Duff's super debugging info doesn't screw the next step up
+  
   # Outer subshell is necessary to redirect stderr to stdout
   (
     #Inner subshell decompresses archive to stdout
@@ -177,6 +179,8 @@ uncompress() {
     esac
     ) | tee /dev/stderr | md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing 
   ) 2>&1
+  
+  [[ $SUPER_DEBUG ]] && set -x
   
 
   #This temp file is here because this function MUST NOT send
@@ -204,8 +208,6 @@ unpack() {
   FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
   COMPRESSOR=`guess_compressor $FILENAME`
 #  UNCOMPRESSED=""
-
-  set +x  #This is here so Duff's super debugging info doesn't screw the next step up
 
   uncompress $FILENAME $COMPRESSOR $2 | \
   {
@@ -459,7 +461,6 @@ make() {
   fi
 
   debug  "libgrimoire"  "make: running with $JOBS jobs"
-
   /usr/bin/make -j $JOBS "$@"
   
   # Cache the result
