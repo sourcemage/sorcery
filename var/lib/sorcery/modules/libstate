@@ -407,45 +407,27 @@ function add_spell()  {
 
 #---------------------------------------------------------------------
 ##
-## @param spell
-## @param version (optional)
-## @Stdout mathing lines
+## @param spell ( [A-Za-z0-9_-] )
+## @param version ( may not contain space,
+##                  '.' and '*' have special meaning)
+## @Stdout last matching line ( only one even if there are more )
+##
 ## Searches the SPELL_STATUS file for a spell and optionaly
 ## a version.
 ##
-## Prints out the matching entries
-## Returns the result of the search
+## Prints out the matching spell's status
+## Returns 1 only for critical problems ( missing SPELL_STAUS file ) 
+##         0 for all other cases ( even when spell is not found )
 ##
 #---------------------------------------------------------------------
 function query_spell_status()
 { #$1=spell, $2=(OPT)version
 
-	local version spell
+	local version
 	version=`esc_str ${2:-".*"}`
-	spell=`esc_str $1`
 
-	tac $SPELL_STATUS | grep -m 1 "^$spell:.*:.*:$version$" | \
+	tac $SPELL_STATUS | grep -m 1 "^$1:.*:.*:$version$" | \
 		cut -d ":" -f 3
-		
-	return $?
-
-}
-
-#---------------------------------------------------------------------
-## @param spell name
-## @Stdout status
-## Returns the given spell's status (installed, held, exiled, etc.)
-##
-## Why is this needed, the cut is useless, and i cant see how we'd get
-## to the else case and then succeed  (afk 8/7/04)
-#---------------------------------------------------------------------
-function get_status()  {
-
-  if    query_spell_status $1    >/dev/null
-  then  query_spell_status $1    |  cut  -d : -f3
-  else  query_spell_status "$1-" |  cut  -d : -f3
-  fi
-
 }
 
 #---------------------------------------------------------------------
@@ -455,7 +437,7 @@ function get_status()  {
 ## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
 function real_spell_installed() {
-  [  "$(  get_status  $1  )"  ==  "installed"  ];
+  [  "$(  query_spell_status  $1  )"  ==  "installed"  ];
 }
 
 
@@ -466,7 +448,7 @@ function real_spell_installed() {
 ##
 #---------------------------------------------------------------------
 function real_spell_held()      {
-  [  "$(  get_status  $1  )"  ==  "held"       ];
+  [  "$(  query_spell_status  $1  )"  ==  "held"       ];
 }
 
 #---------------------------------------------------------------------
@@ -476,8 +458,8 @@ function real_spell_held()      {
 ## @return 0 if the given spell's status is "installed" or "held"
 #---------------------------------------------------------------------
 function real_spell_ok() {
-  [  "$(  get_status  $1  )"  ==  "installed"  ] ||
-  [  "$(  get_status  $1  )"  ==  "held"       ];
+  [  "$(  query_spell_status  $1  )"  ==  "installed"  ] ||
+  [  "$(  query_spell_status  $1  )"  ==  "held"       ];
 }
 
 
@@ -526,7 +508,7 @@ function real_get_spell_provider() {
 ##
 #---------------------------------------------------------------------
 function spell_exiled()    {
-  [  "$(  get_status  $1  )"  ==  "exiled"     ];
+  [  "$(  query_spell_status  $1  )"  ==  "exiled"     ];
 }
 
 
