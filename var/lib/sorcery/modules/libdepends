@@ -47,9 +47,6 @@ function run_prepare() {
                "${SPELL_COLOR}${SPELL}"                   \
                "${DEFAULT_COLOR}"
   prepare_spell_config #from cast
-# Should this be here? It causes the questions to be asked twice - Chris 20030123
-#  use_xinetd #from cast
-#  use_initd
 
   if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
     . $SCRIPT_DIRECTORY/PREPARE
@@ -84,9 +81,7 @@ function run_configure() {
 #    remove_depends_status  $SPELL
 #  fi
 
-#  prepare_spell_config  #This is also run in run_prepare. Shouldn't be needed here too.
-  use_xinetd
-  use_initd
+  determine_xinetd_or_initd   # ask user pref, default xinetd if both yes.
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
     . $SCRIPT_DIRECTORY/CONFIGURE

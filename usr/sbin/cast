@@ -132,9 +132,64 @@ function prepare_spell_config()  {
 
 }
 
+function determine_xinetd_or_initd()  {
+
+  # ask user what they want, either xinetd or initd 
+  # install... if both yes then we choose xinetd as
+  # the default.
+  
+
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]; then 
+
+	  if  query  "Invoke $SERVICE via xinetd?"  y 
+	  then
+		  QUERYXINETD=0
+	  fi
+
+	  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
+
+		  if query  "Invoke $INITSCRIPT at boot via init?"  y
+		  then
+			  QUERYINITD=0
+		  fi
+
+		  if  [[ $QUERYXINETD && $QUERYINITD ]]; then
+			  message  "${MESSAGE_COLOR}Defaulting to xinetd as you can't select both!"  \
+			           "${DEFAULT_COLOR}"
+		  	  use_xinetd  # both are yes so we default to xinetd.
+		  fi
+		  if  [[ $QUERYXINETD  &&   ! $QUERYINITD ]]; then
+			  message  "${MESSAGE_COLOR}Using xinetd."  \
+			           "${DEFAULT_COLOR}"
+			  use_xinetd
+			  disable_initd
+		  fi
+		  if  [[ ! $QUERYXINETD && $QUERYINITD ]]; then
+			  message  "${MESSAGE_COLOR}Using initd."  \
+			           "${DEFAULT_COLOR}"
+			  use_inetd
+		  fi
+	  fi
+
+  else
+
+	  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
+
+		  if query  "Invoke $INITSCRIPT at boot via init?"  y
+		  then
+			   message  "${MESSAGE_COLOR}Using initd." \
+			   			"${DEFAULT_COLOR}"
+			  use_initd
+		  else
+			 disable_initd
+		  fi
+	  fi
+  fi
+}
 
 function use_xinetd()  { (
 
+  
   if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
       !  grep  -q  "SERVICES="  $SPELL_CONFIG
   then
@@ -144,9 +199,7 @@ function use_xinetd()  { (
                   sed   "s/service //"`
 
     for  SERVICE  in  $ALL_SERVICES;  do
-      if    query  "Invoke $SERVICE via xinetd?"  y
-      then  SERVICES="$SERVICE $SERVICES"
-      fi
+      SERVICES="$SERVICE $SERVICES"
     done
 
     for  SERVICE  in  $SERVICES;  do
@@ -190,12 +243,8 @@ function use_initd()  { (
       echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
           grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-      if    query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
-        INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
-        init_prepare_install  $INITSCRIPT
-      else
-        INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
-      fi
+      INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
+      init_prepare_install  $INITSCRIPT
     done
 
     debug "cast" "saving initscripts"
@@ -205,6 +254,33 @@ function use_initd()  { (
     echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
     echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
   fi
+
+) }
+
+function disable_initd()  { (
+
+  debug "cast" "In disable_initd()"
+
+  INITDSCRIPTS=""
+  INITDSCRIPTS_DISABLED=""
+  . $SPELL_CONFIG
+
+  local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+  debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
+
+  for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
+    echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
+        grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
+
+    INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
+  done
+
+  debug "cast" "saving initscripts"
+  tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
+      $SPELL_CONFIG )
+  echo $tmp > $SPELL_CONFIG
+  echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
+  echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
 
 ) }
 
