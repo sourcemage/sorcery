@@ -104,6 +104,7 @@ function use_xinetd()  { (
     debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
     debug "cast" "setting up depends for services"
 
+    # what is this for?
     for  SERVICE  in  $SERVICES;  do
       for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
 
@@ -280,7 +281,6 @@ function resurrect()  {  (
 
   debug "libcast" "resurrect - $*"
 
-  run_prepare   &&
   can_resurect
 #  run_details  run by can_resurect now
 
@@ -313,6 +313,7 @@ function resurrect()  {  (
   if  $CONTINUE
   then
     run_conflicts    &&
+    # can this please go away?
     satisfy_depends  &&
 		
     if  [  -n  "$EXTENSION"  ];  then
@@ -332,7 +333,6 @@ function resurrect()  {  (
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
     pop_install_queue "$SPELL"
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    set_successful_cast  "$SPELL"
     clear_line
     message  "${RESURRECT_COLOR}Resurrected spell:"  \
              "${SPELL_COLOR}${SPELL}"                \
@@ -354,19 +354,21 @@ function resurrect()  {  (
 
 
 #---------------------------------------------------------------------
+## LC means "line count" why not just type line_count?
 #---------------------------------------------------------------------
 function show_download_progress()  {
 
-  if  [  -f  "$D_LOG"   ]   &&
+  local download_log=$1
+  if  [  -f  "$download_log"   ]   &&
       [  -z  "$SILENT"  ];  then
 
     LC_OLD=${LC_OLD:-0}
 
-    LC=`cat  $D_LOG  2>/dev/null  |  wc  -l  |  tr  -d ' '`
+    LC=`cat  $download_log  2>/dev/null  |  wc  -l  |  tr  -d ' '`
 
     if  [  "$LC"  !=  "$LC_OLD"  ];  then
       ((  LC_OLD++  ))
-      sed  -n ${LC_OLD},${LC}p  $D_LOG
+      sed  -n ${LC_OLD},${LC}p  $download_log
       LC_OLD=$LC
     fi
 
@@ -379,23 +381,25 @@ function show_download_progress()  {
 #---------------------------------------------------------------------
 function show_downloading()  {
 
-#  COMPILE="y"
-  debug "cast" "Started show_downloading() on $SPELL"
-  while ! ( [[ $D_LOG ]] && 
-            [  -f "$D_LOG"  ] ) 
+  local SPELL=$1
+  local download_log=$(get_spell_dl_log $SPELL)
+  debug "cast" "Started show_downloading() on $SPELL from $download_log"
+
+  # poke around waiting for downloading to start
+  while ! ( [[ $download_log ]] && 
+            [  -f "$download_log"  ] ) 
   do
     sleep 1
   done
 
-  #The file is created in run_summon
-  until [  -f "${D_LOG}.done.$SPELL"  ] ;  do
-    show_download_progress
+  # isn't this out of band ipc great?
+  until [  -f "${download_log}.done"  ] ;  do
+    show_download_progress $download_log
     sleep 1
   done
   
-  rm "${D_LOG}.done.$SPELL"
-  show_download_progress
-
+  show_download_progress $download_log
+  debug "libcast" "Out of show_downloading"
 }
 
 
@@ -403,12 +407,13 @@ function show_downloading()  {
 #---------------------------------------------------------------------
 function report_install()  {
 
-  local INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   debug "libcast" "In report_install, INST_LOG=$INST_LOG"
   report  $INST_LOG  "Install log"
 
 }
 
 
-
+function get_spell_dl_log() {
+  echo "$TMP_DIR/download.$1"
+}
 

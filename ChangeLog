@@ -1,3 +1,27 @@
+2004-06-29 Andrew Stitt <astitt@sourcemage.org>
+	* libapi: fix debug calls to call debug properly
+	* summon, libsummon: split summon code into a library so
+	  cast can download things directly rather than calling summon
+	* install: install out of a svn sandbox without copying .svn files
+	* build: WIP build script for rolling a sorcery release tarball
+	* cast: remove some unused functions, better tmp file directory support
+	  cleanup at the right point, remove TEMPORARY HACK. 
+	  Add an experimental optional rule to the makefile in order to
+	  get rid of the make dependency dropping and bailing out issue
+	* libcast, cast: individual spell download logs (rather than
+          dumping the entire log over and over again)
+	* build_api/common, cast: move some code in cast_spell to the build_api
+	* libdepends: add a big demystifying comment and re-arrange some
+	  functions to hopefully be in a more logical arrangement (to
+	  me at least). Change the algorithm used to not re-evaluate a spell.
+	* cast, libdepends: add flag to recast spells that are depended on
+	  and already installed, but not specifed on the command line.
+	* libstate, libdepends, sorcery/config: don't commit depends
+	  until cast actually succeeds, change libstate calls to require
+	  a depends file to look at rather than assumming DEPENDS_STATUS,
+	  add config file variables for uncommitted and abandoned depends
+	* libhash: add hash_append and hash_debug_dump functions
+
 2004-06-24 Eric Sandall <eric@sandall.us>
 	* usr/sbin/sorcery:optimization_menu():
 	Added prelink compile-time menu option for alter
@@ -30,8 +54,8 @@
 
 2004-06-18 Arwed v. Merkatz <v.merkatz@gmx.net>
 	* libdepends: fix assumption that a depends line would always exist
-	  in work_optional_depends_provider which caused /all/ depends entries for
-	  the spell in question to be removed (oops, thanks alley_cat).
+	  in work_optional_depends_provider which caused /all/ depends entries
+	  for the spell in question to be removed (oops, thanks alley_cat).
 
 2004-06-18 Arwed v. Merkatz <v.merkatz@gmx.net>
 	* libcodex: DETAILS now also uses persistence

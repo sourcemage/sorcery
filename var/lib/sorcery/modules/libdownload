@@ -96,13 +96,11 @@ function download_files() {
   FINAL_DIR=${FINAL_DIR:-"$SOURCE_CACHE"}
   USE_LF_FB=${USE_LF_FB:-"both"}
 
-  while read line; do 
+  while read -a dl_array; do 
 
     # the input is defined as "file url1 url2 ..."
     # but download_from_local wants just the file
     # and download_from_internet needs all the urls, but not the file
-    unset dl_array
-    explode "$line" " " "dl_array"
     REAL_FILE=${dl_array[0]}
 
     # be very very paranoid about getting an actual filename...
@@ -115,8 +113,8 @@ function download_files() {
     # we may want to defer complaining here until later though...
     [ -z "$URLS" ] && continue
 
-    debug "libdownload" " download_thingy FILE = $REAL_FILE"
-    debug "libdownload" " download_thingy URLS = $URLS"
+    debug "libdownload" "download_files FILE = $REAL_FILE"
+    debug "libdownload" "download_files URLS = $URLS"
 
     # maybe we already have the file
     [[ "$CHECK_LOCAL" == "yes" ]] &&

@@ -129,7 +129,7 @@ function run_config_loc () {
 
       # load custom OPTS
       if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
+        OPTS="$OPTS $(< $SM_CONFIG_OPTION_CACHE/$SPELL)"
         message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
       fi
 
@@ -166,9 +166,28 @@ function run_spell_success() {
 
     sound  SUCCESS
 
+    create_compile_log
+    view_compile_log
+
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     add_spell $SPELL installed $VERSION
     echo $SPELL >> $SUCCESS_LIST
+
+    debug "build_api/common" "Merging depends info"
+    local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
+    # none of the old values are valid, only the new, uncommitted values are
+    remove_depends_status $t_DEPENDS_STATUS $SPELL
+    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    if [ -e $spell_depends ] ; then
+      cat  $spell_depends >> $t_DEPENDS_STATUS
+      rm -f $spell_depends &>/dev/null 
+    fi
+    lock_commit_transaction $DEPENDS_STATUS
+
+    # since the database is now accurate, no reason to keep old answers
+    # floating around
+    [ -e "$ABANDONED_DEPENDS/$SPELL" ] &&
+    rm -f $ABANDONED_DEPENDS/$SPELL &>/dev/null
 
     track
     md5list $INST_LOG $MD5_LOG
@@ -186,11 +205,19 @@ function run_spell_success() {
 #---------------------------------------------------------------------
 function run_spell_failure() {
     debug "build_api/common" "cast of $SPELL-$VERSION failed"
+    local rc=$1
 
     sound  FAILURE
 
+    if [ $rc != 1 ] ; then
+      create_compile_log
+      view_compile_log
+    fi
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     echo $SPELL >> $FAILED_LIST
+
+    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    [ -e $spell_depends ] && rm $spell_depends
 
     # This may have been locked if there was a failure during the install
     unlock_resources "libgrimoire" "install"

@@ -244,71 +244,6 @@ run_patch()  {
 
 }
 
-
-summon_spell() {
-  local SPELL=$1
-  if [ -n "${SPELL}" ] && trylock_resources "summon" "${SPELL}"; then
-    # run in a subshell rather than try to unset_details
-    # and instead jump through hoops to get the return code correctly
-    ( run_details  &&
-      get_spell_files_and_urls | download_files && rc=0
-      # save the rc, then unlock
-      unlock_resources "summon" "${SPELL}"
-      # this actually only returns from the subshell, not the function
-      return ${rc:-1}
-    ) && return 0
-  fi
-  return 1
-}
-
-summon_spells() {
-  local SPELLS="$*"
-  [ -z "$SPELLS" ] && return 1
-  for  SPELL  in  $SPELLS;  do
-    if summon_spell $SPELL ; then 
-      activity_log "summon" "$SPELL"  "$VERSION" "success" 
-      true
-    else
-      activity_log "summon" "$SPELL"  "$VERSION" "failure"
-      false
-    fi
-  done
-}
-
-summon_print_spells() {
-  local SPELLS="$*"
-  [ -z "$SPELLS" ] && return 1
-
-  for  SPELL  in  $SPELLS;  do
-    # run in a subshell rather than try to unset_details
-    # its a fork either way, and this way leaves us less open for surprises
-    ( run_details  &&
-      get_spell_files_and_urls|while read line; do
-        if [ "$PRINT_TYPE" == source ]; then
-          explode "$line" " " "dl_array"
-          echo "${dl_array[0]}"
-          unset dl_array
-        elif [ "$PRINT_TYPE" == one_url ]; then
-          explode "$line" " " "dl_array"
-          [ -n "${dl_array[1]}" ] && echo "${dl_array[1]}"
-          unset dl_array
-        elif [ "$PRINT_TYPE" == all_urls ]; then
-          explode "$line" " " "dl_array"
-          unset dl_array[0]
-          [ -n "${dl_array[*]}" ] && echo "${dl_array[*]}"
-          unset dl_array
-        elif [ "$PRINT_TYPE" == raw ]; then
-          echo "$line"
-        else
-          echo "unknown value of PRINT_TYPE $PRINT_TYPE we shouldn't get here"
-          echo "please file a bug if you see this, thanks."
-          exit 1
-        fi
-      done
-    )
-  done
-}
-
 main() {
 
   local spells_to_get
@@ -316,6 +251,7 @@ main() {
   process_parameters $*
 
   if [ -n "$RAW" ] ; then
+    # this will read from stdin
     download_files "for raw mode summon"
   fi
 
@@ -323,8 +259,8 @@ main() {
     spells_to_get=`codex_get_all_spells|get_basenames`
   elif [  -n  "$QUEUE"  ]; then
 
-    # Since sometimes we'll be running in raw mode and possibly
-    # redirecting the output somewhere, we dont want to be prompting
+    # Since sometimes we'll be running in raw output mode and possibly
+    # redirecting that output somewhere, we dont want to be prompting
     # the "user" about the install queue, but if stdout is a character
     # device (such as a terminal) we may as well try. Im not expecting
     # the user to redirect to a character device too often...but that
@@ -352,8 +288,6 @@ if    [  "$UID"  ==  0  ] ; then
   if  [[ $NICE != "0" ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
-  # what is this here for?
-  source $SGL_LIBRARY_MODULES/libsorcery
   main  $*
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 else  
