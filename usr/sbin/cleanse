@@ -1,0 +1,804 @@
+#!/bin/bash
+
+#---------------------------------------------------------------------
+## This script should clean up the sorcery files, particularly
+## the depends and packages files. It should validate the files 
+## remove corrupted lines, and ensure the information all agrees
+## with itself. It is also to clean out unused lines and files.
+##
+## --fix		spell integrity check
+## --sweep		unneeded spool and cache
+## --prune		fix dependency shrub
+## --delint		fix depends
+## --packages	fix packages format
+##
+## @Copyright Copyright 2004 by Paul Mahon for Source Mage
+## @Licence Relased under the GNU GPL version 2
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
+
+#--------------------
+## Gives the usage of this script
+## @param A switch that was not understood (optional)
+## @Stdout Usage statement
+#--------------------
+function usage()
+{
+	local s=$(basename $0)
+cat << EOF
+$s < --delint [full] | --prune [doit] | --packages | --fix [nofix] | --sweep>
+	--delint: Finds stale dependency entries
+		full will delint dependencies that are off
+	--prune: Finds dispeled spells that should be cast
+		doit will cause it to actualy cast and dispel
+	--packages: find bad entries in the installed spells file
+	--fix: attempts to detect problems in cast spells and tries to fix them
+	--sweep: clean out old compile/install/md5 log files
+It is suggested that you try the following order the first time:
+	1) $s --packages
+	2) $s --delint
+	3) $s --prune
+	4) $s --sweep
+	5) $s --fix
+EOF
+	[[ $# -gt 0 ]] && echo "Unknown $*"
+}
+
+
+#---------------------
+## Interpret the arguments to this script
+## @Args	--help	  		display help
+## @Args	--delint [full]	Find stale dependency entries, with full it'll look at off entries too
+## @Args	--prune [doit]	Find missing spells, do the actions of "doit" is specified
+## @Args	--packages		Find packages entries that are corrupted, or non-existant
+#---------------------
+function args()
+{
+	while [ $# -gt 0 ] ; do
+		arg=$1
+		shift
+	
+		case $arg in
+			--help)		usage 				;;
+			--delint)	
+				if [[ $1 == full ]] ; then
+					delint full
+					shift
+				else
+					delint
+				fi
+				;;
+			--prune)
+				if [[ $1 == doit ]] ; then
+					prune doit
+					shift
+				else
+					prune
+				fi
+				;;
+			--fix)		fix 				;;
+			--sweep)	prune 				;;
+			--packages)	packages 			;;
+			*)	usage $arg $* ; return 1	;;
+		esac
+	done
+}
+
+#-------------------
+## Find stale dependency entries, with full it'll look at off entries too
+## @param full	if set, looks at off dependancies as well as on
+## @Stdout Misc output and questions
+## @Stdin Answers to questions
+#-------------------
+function delint()
+{
+	message "Delinting..."
+	local cond='$3=="on"'
+	local options=()
+	local choice t lines regex
+	if [[ $1 == full ]] ; then
+		cond=''
+	fi
+	
+	lock_file $DEPENDS_STATUS
+	
+	message "Pass one (malformed lines)"
+	# This grep will pull out malformed lines from the depends file
+	regex='^[^:]*:[^:]*:(on|off|providedby):(optional|required):'
+	lines=$(grep -v -E "$regex" $DEPENDS_STATUS)
+	if [[ $lines ]] ; then
+		message "The following malformed lines were found"
+		message "and will cause problems with the following passes:"
+		message "$lines"
+		if query "Do you want them removed" "n" ; then	
+			message "Removing lines..."
+			grep -E "$regex" $DEPENDS_STATUS > $TMPDIR/delint.1
+			mv $TMPDIR/delint.1 $DEPENDS_STATUS
+			t=$(date +%Y%m%d%s)
+			message "Saving bad lines to $BACKUPDIR/depends.malformed.$t"
+			echo "$lines" > $BACKUPDIR/depends.malformed.$t
+			message "done."
+		else
+			message "Not removing malformed lines, quitting."
+			return 1
+		fi
+	fi
+	
+	message "Pass two (stale entries)"
+
+	# This baby will spit out lines that have a package that isn't installed
+	# If the first is not installed, it bitches.
+	awk -F: '
+		BEGIN { 
+			while (getline < "'$SPELL_STATUS'") 
+				Installed[$1] = 1; 
+		} 
+		'$cond'{ 
+			if ( ! Installed[$1] ) 
+				print $0;  
+		}' $DEPENDS_STATUS > $TMPDIR/depends.delint.2
+	t=$(wc -l $TMPDIR/depends.delint.2 | awk '{print $1;}')
+	message "\t$t bad lines, $(( $(wc -l $DEPENDS_STATUS | cut -f1 -d' ') - t)) good lines in your depends file."
+	if [[ $t -gt 0 ]] ; then
+		t=$(date +%Y%m%d%s)
+		message "\tSaving bad lines to $BACKUPDIR/depends.stale.$t"
+		cp $TMPDIR/depends.delint.2 $BACKUPDIR/depends.stale.$t
+		message "\tRemoving bad entries"
+		cat $DEPENDS_STATUS >> $TMPDIR/depends.delint.2
+		sort $TMPDIR/depends.delint.2 | uniq -u > $TMPDIR/depends.delint.2.2
+		cp $TMPDIR/depends.delint.2.2 $DEPENDS_STATUS
+	fi
+
+	message "Pass three (duplicate entries)"
+	for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/p' $DEPENDS_STATUS | sed 's/+/\\+/' | sort | uniq -d ) ; do
+		message
+		options=()
+		eval $(awk '/^'$LINE':/{ 
+			if(!ENTRIES[$0]) {	
+				printf("options[%d]=\"%s\"\n", count++, $0); ENTRIES[$0]=1;
+			} }' $DEPENDS_STATUS)
+		if [ ${#options[@]} -gt 1 ] ; then
+			select_list choice "${options[@]}"
+			message "Removing other entries and keeping selected entry"
+		else
+			choice="${options[0]}"
+			message "Identical lines removed: $choice"
+		fi
+		grep -Ev "^$LINE:" $DEPENDS_STATUS > $TMPDIR/delint.3
+		echo "$choice" >> $TMPDIR/delint.3
+		mv $TMPDIR/delint.3 $DEPENDS_STATUS
+	done
+
+	unlock_file $DEPENDS_STATUS
+	message "Delint done."
+}
+
+#---------------------
+## Find missing spells, do the actions of "doit" is specified
+## @param	if set to "doit" it'll actual cast and dispel
+## @Stdout	questions about what to do about problems
+## @Stdin	responses to queries
+#---------------------
+function prune()
+{
+	message "Pruning..."
+	local action=""
+	local LINE DISPEL_LIST CAST_LIST
+	local choice options
+	
+	# actualy do the actions, or just output what should be done
+	if [[ $1 == doit ]] ; then
+		action="doit"
+	fi
+	
+	# Lock the depends file so no one messes with it while it's being worked on
+	lock_file $DEPENDS_STATUS	
+	
+	# Get a list of bad dependencies
+	# Output is in the form "SPELL DEPENDENDY optional/reqired"
+	bad=( $( awk -F: '
+		BEGIN { 
+			while (getline < "'$SPELL_STATUS'") 
+				Installed[$1] = 1; 
+		} 
+		$3=="on"{ 
+			gsub("\\(.*\\)", "", $2)
+			if ( Installed[$1] && ! Installed[$2] && $2!="") 
+				printf("%s %s %s\n", $1, $2, $4);
+		 }' $DEPENDS_STATUS ) )
+
+	# Set the function args to the spells with problems
+	set -- ${bad[@]}
+	while [ $# -gt 0 ] ; do
+		message "$1 needs $2 ($3)."
+
+		# If the spell is optional, then the dependency can be removed and the spell recast
+		# If it's required, then it can't be removed
+		if [[ $3 == required ]] ; then
+			options=( "Ignore" "Dispel $1" "Cast $2" )
+		elif [[ $3 == optional ]] ; then
+			options=( "Ignore" "Dispel $1" "Cast $2" "Recast $1 without $2" )
+		fi
+		
+		#Get the user's choice of action
+		select_list choice "${options[@]}" 
+		case ${choice:0:1} in
+			I)	message "Ignoring."					;;
+			D)	echo $1 >> $TMPDIR/prune.dispel		;;
+			C)	echo $2 >> $TMPDIR/prune.cast		;;
+			R)	echo $1 >> $TMPDIR/prune.cast
+				# Revise choice in the depends file
+				sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMPDIR/prune.1
+				mv $TMPDIR/prune.1 $DEPENDS_STATUS
+				;;
+			*)	message "We should never get here." 
+				exit 1
+				;;
+		esac
+		shift 3
+	done
+	
+	unlock_file $DEPENDS_STATUS	
+	
+	# put the spells in two files for later perusal
+	if [[ $action ]] ; then
+		[ -s $TMPDIR/prune.dispel ] && 
+			dispel $( sort $TMPDIR/prune.dispel | uniq )
+		[ -s $TMPDIR/prune.cast ] && 
+			cast $( sort $TMPDIR/prune.cast | uniq )
+	else
+		t=$(date +%Y%m%d%s)
+		echo dispel $( sort $TMPDIR/prune.dispel 2>/dev/null  | uniq ) > /tmp/prune.$t
+		echo cast $( sort $TMPDIR/prune.cast 2>/dev/null | uniq ) >> /tmp/prune.$t
+		cat /tmp/prune.$t
+		message "For future reference, lines are stored in /tmp/prune.$t"
+	fi
+	message "Pruning done."
+}
+
+#----------------------
+## Find packages entries that are corrupted, or non-existant
+## @Stdout Misc status output
+#----------------------
+function packages()
+{
+	local spell t LINE
+	message "Fixing packages..."
+	lock_file $SPELL_STATUS
+	
+	message "Pass 1 (bad lines)"
+	sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/!p' $SPELL_STATUS > $TMPDIR/packages.bad
+	if [ -s $TMPDIR/packages.bad ] ; then
+		sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/p' $SPELL_STATUS > $TMPDIR/packages.good
+		echo "$(wc -l $TMPDIR/packages.bad) bad lines, $(wc -l $TMPDIR/packages.good) good lines in your packages file."
+		t=$(date +%Y%m%d%s)
+		message "\tSaving bad lines to $BACKUPDIR/packages.1.bad.$t"
+		mv $TMPDIR/packages.bad $BACKUPDIR/packages.1.bad.$t
+		message "\tRemoving bad entries"
+		mv $TMPDIR/packages.good $SPELL_STATUS
+	fi
+	
+	message "Pass 2 (non-existant spells)"
+	t=""
+	for spell in $( sed -n 's/^\([^:]*\):.*$/\1/p' $SPELL_STATUS ) ; do
+		if ! [[ $( codex_find_spell_by_name $spell ) ]] ; then
+			message "\t$spell"
+			t="found"
+		fi
+	done
+	if [[ $t ]] ; then
+		message "Entries for non-existant spells will NOT be automaticly removed."
+		message "You may have removed the grimoire with the spell"
+		message "or the name may have changed. You should figure out where"
+		message "these spells went. They may have been deprecated and then"
+		message "removed. You may want to dispel these if that is the case."
+	fi
+		
+	message "Pass 3 (duplicate entries)"
+	t=$(
+		for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1/p' $SPELL_STATUS | sort | uniq -d ) ; do
+			grep "^$LINE:" $SPELL_STATUS | sed 's/^/\t/'
+		done
+	)
+	if [[ $t ]] && query "\tRemove all but one of each set of duplicates?" "n" ; then
+		awk -F: '{if(!LINES[$1]) { LINES[$1]=1; print $0; } }' $SPELL_STATUS > $TMPDIR/packages.3
+		message "\tRemoving bad entries"
+		mv $TMPDIR/packages.3 $SPELL_STATUS
+	fi
+	
+	unlock_file $SPELL_STATUS
+	message "Done fixing packages."
+}
+
+#-----------------------------
+##
+## Checks and fixes a list of spells. If no spells
+## are specified, then all installed spells are checked.
+## If the first arg is 'nofix', then no fixing will be done
+## Just error detection
+##
+## @Args [nofix] [spell [spell [...]]]
+## @FIXME I don't think this returns non-zero if any spell has a problem
+## @Returns May return non zero if there was a problem, I dont't hink so though
+##
+#-----------------------------
+function fix()
+{ (
+	if [[ $1 == nofix ]] ; then
+		NOFIX="y"
+		shift
+	fi
+	SPELLS=$*
+
+  if  [  -z  "$QUIET"  ];  then
+    message  "${CHECK_COLOR}Initiating integrity check, please wait..."  \
+             "${DEFAULT_COLOR}"
+  fi
+
+  if  [  -z  "$SPELLS"  ];  then
+
+
+    # Why are these special cases? (duff, 09/29)
+    # Because we want to always check them first?
+    if    spell_installed  xfree86
+    then  SPELLS="glibc xfree86"
+    elif  spell_installed xfree86-devel
+    then  SPELLS="glibc xfree86-devel"
+    else  SPELLS="glibc"
+    fi
+
+    #was $SPELL_STATUS_BACKUP (2002/09/29)
+    SPELLS="$SPELLS $(  awk -F : '{print $1; }' $SPELL_STATUS |
+                        grep  -v  'glibc|xfree86|xfree86-devel|sorcery|j2sdk'   )"
+  fi
+
+  if  [  -z  "$QUIET"  ];  then
+    progress_bar $DOT_PROGRESS 1 5 50 
+  fi
+
+  PASSED=":"
+
+  if    [  "$LDD_CHECK"  ==  "on"    ]
+  then  LD_LIBRARY_PATH_OLD="$LD_LIBRARY_PATH"
+        if  [  -z  "$QUIET"  ];  then
+         progress_bar $DOT_PROGRESS 2 5 50 
+          wait_flag_up
+          wait_flag  $$  &
+        fi
+        export_ld  $(  find  /usr/lib  -type  d  ! -empty  )
+        if  [  -z  "$QUIET"  ];  then
+          wait_flag_down
+        fi
+  fi
+
+  until  [  "$FIXED"     ==  "yes"  ]   ||
+         [  "$HOPELESS"  ==  "yes"  ];  do
+
+       FIXED="yes"
+    HOPELESS="no"
+
+    if  [  -z  "$QUIET"  ];  then
+      progress_bar $DOT_PROGRESS 3 5 50 
+    fi
+
+    for  SPELL  in  $SPELLS;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        progress_bar $DOT_PROGRESS 4 5 50 
+      fi
+
+      if  status_okay  $SPELL  &&
+          !  echo  $PASSED     |
+             grep  -q  ":`esc_str $SPELL`:";  then
+
+        if  [  -z  "$QUIET"  ];  then
+          progress_bar $DOT_PROGRESS 5 5 50 
+		  clear_line 
+          message    "${CHECK_COLOR}Checking integrity of"  \
+                     "${SPELL_COLOR}${SPELL}"               \
+                     "${DEFAULT_COLOR}"
+        else
+          message  "${CHECK_COLOR}Checking integrity of"  \
+                   "${SPELL_COLOR}${SPELL}"               \
+                   "${DEFAULT_COLOR}"
+        fi
+
+        if    run_checks     $SPELL  ||
+              [  -n  "$NOFIX"  ]
+        then
+          PASSED="$PASSED$SPELL:"
+        else
+
+          FIXED="no"
+          (  run_details
+             satisfy_depends
+             unset  FIX
+             satisfy_depends
+          )
+
+          if  [  "$LDD_CHECK"  ==  "on"    ] ;  then
+            export  LD_LIBRARY_PATH="$LD_LIBRARY_PATH_OLD"
+            export_ld  $(  find  /usr/lib  -type  d  ! -empty  )
+          fi
+
+          if    run_checks     $SPELL  ||
+                [  -n  "$NOFIX"  ]
+          then
+
+            PASSED="$PASSED$SPELL:"
+            if  [  "$LDD_CHECK"  ==  "on"    ] ;  then
+              export  LD_LIBRARY_PATH="$LD_LIBRARY_PATH_OLD"
+              export_ld  $(  find  /usr/lib  -type  d  ! -empty  )
+            fi
+
+          else
+            unset  FIX
+            if    !  cast  --compile  $SPELL;  then  HOPELESS="yes"
+            elif  !  run_checks       $SPELL;  then  HOPELESS="yes"
+            fi
+            export  FIX="--fix"
+          fi
+        fi
+      fi
+    done
+  done
+  rm  -f  /tmp/LD_LIBRARY_PATH_FILE
+
+) }
+
+#--------------------------
+##
+## Run the checks on a spell.
+## @param Spell to check
+## @FIXME I don't think this retuens non-zero if any of the checks fails
+## @return Should return 0 if all the checks completed
+##
+#--------------------------
+function run_checks()  {
+
+  if  [ -z  "$QUIET"  ]; then
+    progress_bar $DOT_PROGRESS 1 1 50 
+  fi
+
+  #Note: check to see if these should all be joined by &&
+     sym_check  $1
+    find_check  $1  &&
+     ldd_check  $1  &&
+  md5sum_check  $1
+
+}
+
+#---------------------------
+## Check the symlinks of a spell. Make sure they are still 
+## pointing to the same files. If not, remove the file from 
+## the install log. That may not be the most desired behaviour.
+## @FIXME for ITEM in $LOG will break on files with spaces
+##
+## @param Spell to check
+#---------------------------
+function sym_check()  { (
+
+  if  [  "$SYM_CHECK"  ==  "off"  ];  then
+    return
+  fi
+
+      SPELL=$1
+      VERSION=`installed_version  $SPELL`
+        I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+
+  if  [  -e  $I_LOG  ];  then
+
+    LOG=`cat   $I_LOG`
+
+    let size=0
+    for FILE in $LOG ; do
+    	let size++
+    done
+
+    let count=0
+    for  ITEM  in  $LOG;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        progress_bar $DOT_PROGRESS $count $size 50 
+      fi
+      let count++
+      
+      if  [  -h  "$ITEM"  ]  &&
+          [  -f  "$ITEM"  ]
+      then
+
+      TARGET=$(  basename  $(  ls   -la  "$ITEM"  |
+                               cut  -d  '>'  -f2  |
+                               cut  -c  2-
+                            )
+              )
+
+        if  !  grep  -q  "$TARGET"  $I_LOG
+        then  (  remove_line  )
+        fi
+
+      fi
+    done
+	clear_line
+  fi
+
+) }
+
+#-----------------------
+##
+## Check that all files installed still exist.
+## @FIXME for ITEM in $LOG will break on file names with spaces
+## @FIXME The skipped directories should be made configurable somewhere
+## @return 0 The files were all in existance
+## @return 1 At least one file was found missing
+## 
+#-----------------------
+function find_check()  { (
+
+  if  [  "$FIND_CHECK"  ==  "off"             ]   ||
+      [  "$1"           ==  "xfree86"         ]   ||
+      [  "$1"           ==  "xfree86-devel"         ]   ||
+      [  "$1"           ==  "xfree86-custom"  ];  then
+    return
+  fi
+
+        SPELL=$1
+      VERSION=`installed_version  $SPELL`
+        I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+  FIND_STATUS=0
+
+  if  [  -e  $I_LOG  ];  then
+
+    LOG=`cat   $I_LOG                                          |
+         grep      "/bin/\|/games/\|/include/\|/lib/\|/sbin/"  |
+         grep  -v  "/doc/\|/etc/\|/fonts/\|/man/\|/var/"`
+
+    let size=0
+    for FILE in $LOG ; do
+    	let size++
+    done
+
+    let count=0
+    for  ITEM  in  $LOG;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        progress_bar $DOT_PROGRESS $count $size 50
+      fi
+      let count++
+      
+      
+      if  [  -e  "$ITEM"  ];  then
+        true
+      else
+        (
+	   clear_line
+           message  "${FILE_COLOR}${ITEM}"       \
+                    "${DEFAULT_COLOR}of"           \
+                    "${SPELL_COLOR}${SPELL}"       \
+                    "${PROBLEM_COLOR}is missing."  \
+                    "${DEFAULT_COLOR}"
+        )
+        FIND_STATUS=1
+      fi
+    done
+	clear_line
+  else
+    (
+       message  "${SPELL_COLOR}${SPELL} "                     \
+                "${PROBLEM_COLOR}is missing an install log."  \
+                "${DEFAULT_COLOR}"
+    )
+    FIND_STATUS=1
+  fi
+  return  $FIND_STATUS
+
+) }
+
+#---------------------------------
+## Check that necessary libs for a spell are present
+## @FIXME this is where mozilla messes up all the time 
+## @param Spell to check
+## @return 0 if everything is okay
+#---------------------------------
+function ldd_check()  {  (
+
+  if  [  "$LDD_CHECK"  ==  "off"    ] ;  then
+    return
+  fi
+
+     SPELL=$1
+     VERSION=`installed_version  $SPELL`
+       I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+  LDD_STATUS=0
+
+  if  [  -e  $I_LOG  ];  then
+
+    LOG=`cat   $I_LOG                               |
+         grep      "/bin/\|/games/\|/lib/\|/sbin/"  |
+         grep  -v  "/doc/\|/fonts/\|/include/\|/locale/\|/man/\|/modules/\|/var/"`
+    
+    let size=0
+    for FILE in $LOG ; do
+    	let size++
+    done
+
+    let count=0
+    for  FILE  in  $LOG;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        progress_bar $DOT_PROGRESS $count $size 50
+      fi
+      let count++
+
+      if     [  -f  "$FILE"  ]     &&
+          !  [  -h  "$FILE"  ]     &&
+          file  -b  "$FILE"        |
+          grep  -q  "ELF"          &&
+          ldd       "$FILE"  2>&1  |
+          grep  -q  "not found"
+      then
+        (
+	   clear_line
+           message  "${FILE_COLOR}${FILE}"       \
+                    "${DEFAULT_COLOR}of"         \
+                    "${SPELL_COLOR}${SPELL}"     \
+                    "${PROBLEM_COLOR}is broken."  \
+                    "${DEFAULT_COLOR}"
+           ldd      "$FILE" 2>&1 | grep  "not found"
+        )
+        LDD_STATUS=1
+      fi
+    done
+	clear_line
+  fi
+  return  $LDD_STATUS
+
+) }
+
+#---------------------
+#---------------------
+md5sum_check()  { (
+
+  if  [  "$MD5SUM_CHECK"  ==  "off"  ];  then
+    return
+  fi
+
+  SPELL=$1
+  VERSION=`installed_version  $SPELL`
+  MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+
+  MD5SUM_STATUS=0
+
+  if  [  -e  $MD5_LOG  ];  then
+
+    OUTPUT=`cat  $MD5_LOG                                         |
+            grep      "/bin/\|/games/\|/include/\|/lib/\|/sbin/"  |
+            grep  -v  "/doc/\|/etc/\|/fonts/\|/man/\|/var/"       |
+            md5sum  --check  2>/dev/null                          |    
+            grep   -v       ": OK"                                |
+            cut    -d :  -f1`
+
+    if  [  -n  "$OUTPUT"  ];  then
+    
+      let size=0
+      for FILE in $LOG ; do
+      	let size++
+      done
+
+      let count=0
+      for  FILE  in  $OUTPUT;  do
+
+        if  [  -z  "$QUIET"  ];  then
+          progress_bar $DOT_PROGRESS $count $size 50 
+        fi
+        let count++
+      
+        if     [  -f  "$FILE"  ]  &&
+            !  [  -h  "$FILE"  ]  &&
+            file  -b  "$FILE"     |
+            grep  -q  "ELF"
+        then
+          MD5SUM=`md5sum  $FILE`
+          if  !  grep  -q  "$MD5SUM"  $MD5SUM_LOGS/*;  then
+            (
+	       clear_line
+               message  "${FILE_COLOR}${FILE}"               \
+                        "${DEFAULT_COLOR}of"                 \
+                        "${SPELL_COLOR}${SPELL}"             \
+                        "${PROBLEM_COLOR}has wrong md5sum."  \
+                        "${DEFAULT_COLOR}"
+            )
+            MD5SUM_STATUS=1
+          fi
+        fi
+      done
+	  clear_line
+    fi
+  else
+    (
+       message  "${SPELL_COLOR}${SPELL} "                   \
+                "${PROBLEM_COLOR}is missing a md5sum log."  \
+                "${DEFAULT_COLOR}"
+    )
+    MD5SUM_STATUS=1
+  fi
+  return  $MD5SUM_STATUS
+
+) }
+
+
+function status_okay()  {
+
+  spell_installed  $1  ||
+  spell_held       $1
+
+}
+
+function export_ld()  {
+
+  if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
+  then  export   LD_LIBRARY_PATH="$( lib_dirs  $*  )"
+  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  $*  )"
+  fi
+  
+  export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
+  
+}
+
+function lib_dirs()  {
+
+  for  DIRECTORY  in  $*;  do
+    for FILE in $DIRECTORY/*.so* ; do
+      if file -b "$FILE" | grep  -q  "shared object" ; then
+        echo -n "$DIRECTORY:"
+	break
+      fi
+    done
+  done
+
+}
+
+source /etc/sorcery/config
+
+if [ $UID -eq 0 ] ; then
+	# Make sure root is running this
+	if [ $# -eq 0 ] ; then
+		# IF there are no args, assume the full treatment is desired
+		exec $0 --packages --delint --prune --sweep --fix
+	fi
+	TMPDIR=/tmp/sorcery/cleanse/$$
+	BACKUPDIR=/tmp/cleanse
+	if [ -d $TMPDIR ] ; then
+		echo "You have some old cleanse stuff. Removing it."
+		rm -rf $TMPDIR
+	fi
+	mkdir -p $TMPDIR
+	mkdir -p $BACKUPDIR
+	if [ ! -d $TMPDIR ] || [ ! -d $BACKUPDIR ] ; then
+		exit 1
+	fi
+	args "$@"
+	rm -rf $TMPDIR
+	message "Removed information is backed up to $BACKUPDIR."
+else
+	message "You must be root to run this command."
+	message "Switching to root user..."
+	exec su -c $0 "$@"
+fi
