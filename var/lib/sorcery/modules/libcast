@@ -69,8 +69,8 @@ function prepare_spell_config()  {
 ## An optional depends is set on or off depending on whether or not
 ## the user wants to invoke a spell via xinetd
 #---------------------------------------------------------------------
-function use_xinetd()  { (
-
+function use_xinetd()  {
+  local SERVICES SERVICE ALL_SERVICES SERVICES_DISABLE
   debug "cast" "In use_xinetd()"
   
   if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
@@ -91,7 +91,7 @@ function use_xinetd()  { (
       then 
         SERVICES="$SERVICE $SERVICES"
       else
-        SERVICES_DISABLE="$SERVICE_DISABLE $SERVICES_DISABLE" 
+        SERVICES_DISABLE="$SERVICE $SERVICES_DISABLE" 
       fi
     done
 
@@ -99,48 +99,43 @@ function use_xinetd()  { (
     debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
     debug "cast" "setting up depends for services"
 
-    # what is this for?
-    for  SERVICE  in  $SERVICES;  do
-      for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
-
-         if  grep  -q   "service $SERVICE"  $FILE   &&
-             grep  -q   "stunnel"           $FILE;  then
-           add_depends  "$SPELL"  "stunnel"  "on"  "optional"
-         fi
-
-      done
-    done
-
-    if    [  -n  "$SERVICES"  ]
-    then  add_depends  "$SPELL"  "xinetd"  "on"   "optional"
-    else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
+    if    [  -n  "$SERVICES"  ] ; then 
+      private_common_depends "xinetd" "on" "optional" "" ""
+    else
+      private_common_depends "xinetd" "off" "optional" "" ""
     fi
 
     echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
-		echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
+    echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
 
   fi
 
-) }
+}
 
 #---------------------------------------------------------------------
 ## Installs the services selected from use_xinetd
 #---------------------------------------------------------------------
 function install_xinetd() { (
-
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] 
-  then
-		
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] ; then
+    mkdir  -p  /etc/xinetd.d
     SERVICES=""          # services to be installed.
-		SERVICES_DISABLE=""  # services not to install.
+    SERVICES_DISABLE=""  # services not to install.
     . $SPELL_CONFIG
-    debug "cast" "use_xinetd: about to call install_xinetd_confs"
+    pushd "$SCRIPT_DIRECTORY/xinetd.d" >/dev/null
 
-		if  [  -n  "$SERVICES"  ] ; then
-  		# now we install the selected services.
-			install_xinetd_confs $SERVICES
-		fi
-	fi
+    # install and enable
+    for  FILE in  $SERVICES;  do
+      cp  $FILE  /etc/xinetd.d
+      chmod +x  /etc/xinetd.d/$FILE  
+    done
+
+    # install but disable
+    for  FILE in  $SERVICES_DISABLE;  do
+      cp  $FILE  /etc/xinetd.d
+      chmod -x  /etc/xinetd.d/$FILE  
+    done
+    popd >/dev/null
+  fi
 ) }
 
 #---------------------------------------------------------------------
