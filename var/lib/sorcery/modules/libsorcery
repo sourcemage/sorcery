@@ -494,65 +494,6 @@ function find_section()  {
 
 
 #---------------------------------------------------------------------
-##=item directories
-##
-## @Stdin list of files/dirs/..
-## @Stdout list of dirs
-##
-## Reads a list from standard input, and prints out each entry that is
-## a directory (and not a symbolic link to a directory).
-#---------------------------------------------------------------------
-function directories() {
-
-  while  read       ITEM;  do
-    if  [     -d  "$ITEM"  ]   &&
-        !  [  -h  "$ITEM"  ];  then
-      echo        "$ITEM"
-    fi
-  done
-
-}
-
-
-#---------------------------------------------------------------------
-## @Stdin list of files/dirs/..
-## @Stdout list of files
-## Reads a list from standard input, and prints out each entry that is
-## a file (and not a symbolic link to a file).
-##
-#---------------------------------------------------------------------
-function files()  {
-
-  while  read       ITEM;   do
- 	
-    if  [     -f  "$ITEM"  ]   &&
-        !  [  -h  "$ITEM"  ];  then
-      echo "$ITEM"
-    fi
-  done
-
-}
-
-
-#---------------------------------------------------------------------
-## @Stdin list of files/dirs/..
-## @Stdout list of symlinks
-## Reads a list from standard input, and prints out each entry that is
-## a symbolic linke
-##
-#---------------------------------------------------------------------
-function symlinks()  {
-
-  while  read    ITEM;   do
-    if  [  -h  "$ITEM"  ];  then
-      echo     "$ITEM"
-    fi
-  done
-
-}
-
-
-#---------------------------------------------------------------------
 ## @param filename
 ## @Stdin list of files/dirs/..
 ## @Stdout filtered list
@@ -566,14 +507,17 @@ function filter() {
 
   if  [  -f  $1  ];  then
 
-     DIRS=`directories  <  $1  2>/dev/null`
-    FILES=`files        <  $1  2>/dev/null`
-     SYMS=`symlinks     <  $1  2>/dev/null`
+    RID_LIST=""
 
-    RID_LIST=`for  DIR   in  $DIRS;   do  echo  -n  "^$DIR\|";     done
-              for  FILE  in  $FILES;  do  echo  -n  "^$FILE\$\|";  done
-              for  SYM   in  $SYMS;   do  echo  -n  "^$SYM\$\|";   done
-              echo  -n  "/dev/null"`
+    for ITEM in `cat $1`; do
+      if [ -d "$ITEM" ]; then
+        RID_LIST="${RID_LIST}^${ITEM}\|"
+      else
+        RID_LIST="${RID_LIST}^${ITEM}\$\|"
+      fi
+    done
+
+    RID_LIST="${RID_LIST}/dev/null"
 
     grep  -v  "$RID_LIST"
 
