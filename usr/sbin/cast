@@ -138,94 +138,90 @@ function determine_xinetd_or_initd()  {
   # install... if both yes then we choose xinetd as
   # the default.
   
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] &&
+  		!  grep  -q  "SERVICES="  $SPELL_CONFIG
+	then 
+		
+   	ALL_SERVICES=`cat  $SCRIPT_DIRECTORY/xinetd.d/*  |
+    	            grep  "service"                    |
+      	          sed   "s/service //"`
 
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]; then 
+		for  SERVICE  in  $ALL_SERVICES;  do
+			if    query  "Invoke $SERVICE via xinetd?"  y
+			then  
+				SERVICES="$SERVICE $SERVICES"
+			fi
+		done
 
-	  if  query  "Invoke this spells services via xinetd?"  y 
-	  then
-		  QUERYXINETD=0
-	  fi
+		if  [  -n  "$SERVICES"  ]
+		then
+			use_xinetd $SERVICES
+			disable_initd
+		else
 
-	  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
+			if  [  -d  $SCRIPT_DIRECTORY/init.d  ]
+			then
+			
+				INITDSCRIPTS=""
+				INITDSCRIPTS_DISABLED=""
+				. $SPELL_CONFIG
 
-		  if query  "Invoke this spells services via initd?"  y
-		  then
-			  QUERYINITD=0
-		  fi
+				local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+			
+				for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
 
-		  if  [[ $QUERYXINETD && $QUERYINITD ]]; then
-			  message  "${MESSAGE_COLOR}Defaulting to xinetd as you can't select both!"  \
-			           "${DEFAULT_COLOR}"
-		  	  use_xinetd  # both are yes so we default to xinetd.
-		  fi
-		  if  [[ $QUERYXINETD  &&   ! $QUERYINITD ]]; then
-			  message  "${MESSAGE_COLOR}Using xinetd."  \
-			           "${DEFAULT_COLOR}"
-			  use_xinetd
-			  disable_initd
-		  fi
-		  if  [[ ! $QUERYXINETD && $QUERYINITD ]]; then
-			  message  "${MESSAGE_COLOR}Using initd."  \
-			           "${DEFAULT_COLOR}"
-			  use_inetd
-		  fi
-	  fi
+					if query  "Invoke $INITSCRIPT at boot via init?"  y
+					then
+						echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
+						grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-  else
+						INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
+					fi
 
-	  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
-
-		  if query  "Invoke $INITSCRIPT at boot via init?"  y
-		  then
-			   message  "${MESSAGE_COLOR}Using initd." \
-			   			"${DEFAULT_COLOR}"
-			  use_initd
-		  else
-			 disable_initd
-		  fi
-	  fi
-  fi
+					if [  -n  "$INITDSCRIPTS"  ]; then
+						# using initd.
+						use_initd
+					else
+						# disable for initd.
+						disable_initd 
+					fi
+				
+				done
+			fi
+  	fi
+	fi
 }
 
-function use_xinetd()  { (
+function use_xinetd()  { 
 
+  # receive passed list of services to start with xinetd.
+	SERVICES=$1
   
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
-      !  grep  -q  "SERVICES="  $SPELL_CONFIG
-  then
+  for  SERVICE  in  $SERVICES;  do
+  	for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
 
-    ALL_SERVICES=`cat  $SCRIPT_DIRECTORY/xinetd.d/*  |
-                  grep  "service"                    |
-                  sed   "s/service //"`
+			if  grep  -q   "service $SERVICE"  $FILE   &&
+					grep  -q   "stunnel"           $FILE  
+			then
+				add_depends  "$SPELL"  "stunnel"  "on"  "optional"
+			fi
 
-    for  SERVICE  in  $ALL_SERVICES;  do
-      SERVICES="$SERVICE $SERVICES"
     done
+  done
 
-    for  SERVICE  in  $SERVICES;  do
-      for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
+  if    [  -n  "$SERVICES"  ]
+  then  
+		add_depends  "$SPELL"  "xinetd"  "on"   "optional"
+	else  
+		add_depends  "$SPELL"  "xinetd"  "off"  "optional"
+	fi
 
-         if  grep  -q   "service $SERVICE"  $FILE   &&
-             grep  -q   "stunnel"           $FILE;  then
-           add_depends  "$SPELL"  "stunnel"  "on"  "optional"
-         fi
+  echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
 
-      done
-    done
-
-    if    [  -n  "$SERVICES"  ]
-    then  add_depends  "$SPELL"  "xinetd"  "on"   "optional"
-    else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
-    fi
-
-    echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
-
-  fi
-
-) }
+}
 
 # Automagic initscript installation.
-function use_initd()  { (
+function use_initd()  { 
 
   debug "cast" "In use_initd()"
 
@@ -254,10 +250,10 @@ function use_initd()  { (
     echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
     echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
   fi
+}
 
-) }
 
-function disable_initd()  { (
+function disable_initd()  { 
 
   debug "cast" "In disable_initd()"
 
@@ -282,7 +278,7 @@ function disable_initd()  { (
   echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
   echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
 
-) }
+}
 
 
 function run_pre_build() {
