@@ -2,31 +2,6 @@
 
 SORCERY_VERSION=`/usr/sbin/gaze installed sorcery`
 
-if [ ! -x /usr/sbin/lockexec ] ; then
-    cat <<EOS 1>&2
-
-WARNING: You don't appear to have lockexec installed. I'm going to create a
-         filthy hack to keep this process going, but you need to cast
-	 lockexec asap.
-
-EOS
-    echo '#!/bin/sh
-cat << EOF 1>&2
-
-This is a filthy hack used to smooth a difficult upgrade process and
-it is not the real lockexec. You should cast lockexec as soon as
-possible.
-
-EOF
-lockfile=$1
-touch $lockfile
-shift
-"$@"
-rm $lockfile
-' > /usr/sbin/lockexec && chmod 755 /usr/sbin/lockexec
-
-fi
-
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
 # encapsulates the filters necessary to strip CVS files and EMACS temporary files

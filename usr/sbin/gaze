@@ -110,6 +110,7 @@ install-queue	<empty>		View the install queue
 
 remove-queue	<empty>		View the remove queue
 
+checkmd5s       spell/section/<empty> Print a md5 check of spells
 EOF
 }
 #' Just ignore this... it's so my poor syntax hilighting works.'
@@ -262,24 +263,91 @@ gaze_catalog_html()  {
         fi
   fi
 
-  echo  "<html><head><title>Sorcery Grimoires for `date  -u`</title></head>"
-  echo  "<body background=\"media/blackmarble.jpg\">"
+  echo  "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 STRICT//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">"
+  echo  "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+  echo  "<head>"
+  echo  "<title>Sorcery Grimoires for `date  -u`</title>"
+  echo  "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\" />"
+  echo  "<style type=\"text/css\" media=\"all\"> <!--"
+  echo  "body"
+  echo  "{"
+  echo  "background: white;"
+  echo  "color: black;"
+  echo  "font-family: Verdana, Arial, Helvetica, sans-serif;"
+  echo  "font-size: 10pt;"
+  echo  "margin:0px;"
+  echo "}"
+  echo ""
+  echo "h1"
+  echo "{"
+  echo "background: white;"
+  echo "color: green;"
+  echo "text-align: center;"
+  echo "font-family: Verdana, Arial, Helvetica, sans-serif;"
+  echo "font-size: 14pt; "
+  echo "}"
 
-  echo  "<table  align=\"center\""
-  echo  "        background=\"media/whitemarble.jpg\""
-  echo  "        border=5>"
+  echo "h2"
+  echo "{"
+  echo "background: white;"
+  echo "color: green;"
+  echo "text-align: center;"
+  echo "font-family: Verdana, Arial, Helvetica, sans-serif;"
+  echo "font-size: 12pt; "
+  echo "}"
 
-  echo  "<tr><th colspan=${COLS}><font color=green  size=+1>"
-  echo  "Sorcery Grimoires<br>"
-  echo  $(date -u) "<br>"
+  echo "table"
+  echo "{"
+  echo "width: 100%;"
+  echo "border-style: solid;"
+  echo "border-color: black;"
+  echo "border-width: 2px;"
+  echo "}"
+
+  echo "th"
+  echo "{"
+  echo "vertical-align: top;"
+  echo "text-align: left;"
+  echo "background: white;"
+  echo "color: black;"
+  echo "border-style: solid;"
+  echo "border-color: black;"
+  echo "border-width: 2px;"
+  echo "font-size:12pt;"
+  echo "}"
+
+  echo "td"
+  echo "{"
+  echo "background: white;"
+  echo "color: black;"
+  echo "vertical-align: top; "
+  echo "text-align: left;"
+  echo "border-style: solid;"
+  echo "border-color: black;"
+  echo "border-width: 2px;"
+  echo "font-size: 10pt;"
+  echo "}"
+
+  echo "--></style>"
+
+  echo  "</head>"
+  echo  "<body>"
+
+  echo  "<table>"
+
+  echo "<tr>"
+  echo "<th colspan=\"${COLS}\">"
+  echo "<h1>Sorcery Grimoires</h1>"
+  echo "<h1>$(date -u)</h1>"
 
   if [ $grimoire ]; then
-        echo  "Grimoire: " $(basename $grimoire)
+        echo  "<h1>Grimoire: " $(basename $grimoire)"</h1>"
   else
-        echo  "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+        echo  "<h1>Grimoires: " $(codex_get_all_grimoires | get_basenames)"</h1>"
   fi
 
-  echo  "</font></th></tr>"
+  echo  "</th>"
+  echo  "</tr>"
 
   echo  "<tr>"
   echo  "<th>Spell</th>"
@@ -292,7 +360,10 @@ gaze_catalog_html()  {
   ((  COUNT=0  ))
 
   for  SECTION  in  `codex_get_all_sections $grimoire`;  do
-    echo  "<tr><th colspan=${COLS}><font color="green">$( basename  $SECTION )</font></th></tr>"
+    echo  "<tr>"
+    echo  "<th colspan=\"${COLS}\">"
+    echo  "<h2>$( basename  $SECTION )</h2>"
+    echo  "</th></tr>"
     for  SPELL  in  `codex_get_spells  $SECTION`;  do
       (
         codex_set_current_spell  $SPELL
@@ -300,41 +371,26 @@ gaze_catalog_html()  {
         echo  "<tr>"
         if  [  "$SPELL"  ==  "linux"  ]   ||
             [  "$SPELL"  ==  "glibc"  ];  then
-            BOLD="<b>"
-          UNBOLD="</b>"
+            BOLD="<th>"
+          UNBOLD="</th>"
         else
-          unset    BOLD
-          unset  UNBOLD
-        fi
-        if  [  ${#SPELL}  -gt  15  ];  then
-          SPELL="<font size=-1>$SPELL</font>"
+            BOLD="<td>"
+            UNBOLD="</td>"
         fi
 	if  [  -z  "$UPDATED"  ]  &&  [  "$ENTERED"  ];  then
 	    UPDATED=$ENTERED
 	fi
-        echo  "<td>$BOLD $SPELL $UNBOLD</td>"
-        echo  "<td><font size=-1>$BOLD $VERSION $UNBOLD</font></td>"
-        echo  "<td><font size=-1>$UPDATED</font></td>"
-
-        WEBSITE=$WEB_SITE
-        if    [  ${#WEB_SITE}  -lt 20  ];  then
-            SHRINK="<font size=-1>"
-          UNSHRINK="</font>"
-        elif  [  ${#WEB_SITE}  -lt 30  ];  then
-            SHRINK="<font size=-2>"
-          UNSHRINK="</font>"
-        else
-           WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
-            SHRINK="<font size=-3>"
-          UNSHRINK="</font>"
-        fi
+        echo  "${BOLD}${SPELL}${UNBOLD}"
+        echo  "${BOLD}${VERSION}${UNBOLD}"
+        echo  "<td>$UPDATED</td>"
 
         if  [  "$WEB_SITE"  !=  "unknown"  ];  then
-          echo  "<td> $SHRINK"
-          echo  "<a href=\"$WEB_SITE\" target=\"_blank\">$WEBSITE</a>"
-          echo  "$UNSHRINK </td>"
+	    WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
+	    echo  "<td>"
+	    echo  "<a href=\"$WEB_SITE\">$WEBSITE</a>"
+	    echo  "</td>"
         else
-          echo  "<td></td>"
+	    echo  "<td></td>"
         fi
         if [[ $COLS -eq 5 ]]; then
             echo "<td>"
@@ -343,7 +399,8 @@ gaze_catalog_html()  {
            ii=SOURCE${i}
            while  [  -n "${!ii}"  ];  do
                iii="${ii}_URL"
-               echo "<br><a href=\"${!iii}\">$(echo ${!ii} | cut -c-25)</a>"
+               echo "<br />"
+	       echo "<a href=\"${!iii}\">$(echo ${!ii} | cut -c-25)</a>"
                i=$(($i+1))
                ii=SOURCE${i}
            done
@@ -356,7 +413,9 @@ gaze_catalog_html()  {
   done
 
 
-  echo  "<tr><th colspan=${COLS}>Total spells:  $COUNT</th></tr>"
+  echo  "<tr>"
+  echo "<th colspan=\"${COLS}\">Total spells:  $COUNT</th>"
+  echo "</tr>"
   echo  "</table></body></html>"
 }
 
@@ -506,7 +565,7 @@ grep_find_grimoire() {
         local name=$2
         local pattern="$3"
 
-        grep -il -- "${pattern}" $( codex_find_in_grimoire "$path" "$name" )
+        codex_find_in_grimoire "$path" "$name" | xargs grep -il -- "${pattern}"
 }
 
 
@@ -543,62 +602,50 @@ real_short_search() {
 
 
 real_long_search()  {
-
-  local numSpells=`codex_get_all_spells|wc -l`
   local atSpell=0
   local file
+  local SEARCH
 
   if ! [[ $GAZE_VERBOSE == 0 ]] ; then
 	echo  "Searching...   "
   fi
 
   let j=0	
-  for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
 
-    if ! [[ $GAZE_VERBOSE == 0 ]] ; then
-     progress_bar $((atSpell++)) "$numSpells" 40
-    fi
-
-#	SPELL=`basename $SPELL_DIRECTORY`
-	file="$SPELL_DIRECTORY/DETAILS"
-	
-    for pattern in "$@"; do
-		grep -iq -- "$pattern" $file || continue
-		SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
-			/'"${pattern}"'/{
-				if(/^[[:blank:]]*SPELL/)	{print "(Name Match)";			exit 0;}
-				if(/^[[:blank:]]*SHORT/)	{print "(Short Description)";	exit 0;}
-				if(inLongDesc)	{print "(Description)";			exit 0;}
-			}
-			/cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
-			/^EOF$/{inLongDesc=0;} ' $file)
-    	
-		if [[ ${SEARCH_RESULTS[$j]} ]]; then 
-			SEARCH_RESULTS[$j]="$pattern ->  $(basename $SPELL_DIRECTORY) ${SEARCH_RESULTS[$j]}"
-			if [[ $GAZE_VERBOSE == 0 ]]; then
-				basename $SPELL_DIRECTORY
-			else
-				clear_line
-				echo ${SEARCH_RESULTS[$j]}
-			fi
-			let j++
-    	fi
-    
-    done  
-  
+  SEARCH=''
+  for pattern in "$@"; do
+    SEARCH="$SEARCH -e $pattern"
   done
 
-if ! [ "$GAZE_VERBOSE" == "0" ]; then
-	clear_line
-fi
+  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il $SEARCH`; do
+     for pattern in "$@"; do
+       SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
+         /'"${pattern}"'/{
+           if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
+           if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
+           if(inLongDesc) {print "(Description)";       exit 0;}
+         }
+         /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
+         /^EOF$/{inLongDesc=0;} ' $file)
 
-#This dumps the array at the end of the search
-#redundant at the moment. Left for future use -rha
-#  let dump_count=0
-#  while [ $dump_count -lt $j ]; do
-#   echo "${SEARCH_RESULTS[$dump_count]}"
-#   let dump_count++
-#  done
+      if [[ ${SEARCH_RESULTS[$j]} ]]; then
+        SEARCH_RESULTS[$j]="$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS[$j]}"
+        if [[ $GAZE_VERBOSE == 0 ]]; then
+          basename $SPELL_DIRECTORY
+        else
+          clear_line
+          echo ${SEARCH_RESULTS[$j]}
+        fi
+        let j++
+      fi
+
+    done
+  done
+
+  if ! [ "$GAZE_VERBOSE" == "0" ]; then
+    clear_line
+  fi
+
 unset SEARCH_RESULTS
 
 }
@@ -705,7 +752,7 @@ activate_voyeur()  {
 
 show_orphans()  {
 
-  for  SPELL  in  `cat  $SPELL_STATUS  |  cut  -d :  -f1`;  do
+  for  SPELL  in  `grep -v exiled  $SPELL_STATUS  |  cut  -d :  -f1`;  do
     if    !  cut  -d :  -f2-  $DEPENDS_STATUS  |
              grep             "^`esc_str $SPELL`:"       |
              grep  -q         ":on:"
@@ -1312,6 +1359,7 @@ parse()  {
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
             size)  shift; gaze_show_size              $@ ;;
+       checkmd5s)  shift; gaze_md5check               $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
