@@ -49,8 +49,9 @@ function trigger ()
 
 	[ -f $TRIGGER_LIST ] || return 0
 	
-	for i in `grep "^[^:]*:$spell:on_$1" $TRIGGER_LIST` ; do
-		explode "$i" ":" TRIGGER
+	grep "^[^:]*:$spell:on_$1" $TRIGGER_LIST | while read line; do
+		explode "$line" ":" TRIGGER
+
 		query "${TRIGGER[1]} being $1 has triggered a ${TRIGGER[3]} on spell ${TRIGGER[0]}. Proceed? " "y"
 		[[ $? != 0 ]] && continue
 		#otherwise continue... hmmm, I've always thought that keyword was bad.
@@ -61,6 +62,9 @@ function trigger ()
 #		    for VAR in `export | sed 's/declare -x \([^=[:blank:]]*\).*/\1/' | grep -v "TRIGGER"` ; do
 #		      unset $VAR
 #		    done
+		  }
+		  function run_script() {
+		    eval $@
 		  }
 		  #Ok, now do the required action:
 		  case ${TRIGGER[3]} in
@@ -79,7 +83,7 @@ function trigger ()
 			  ;;
 			run_script*)
 			  unset_vars
-			  eval ${TRIGGER[3]}
+			  eval "${TRIGGER[3]}"
 			  ;;
 			*)
 			  message "${PROBLEM_COLOR}${TRIGGER[3]} is not a known kind of trigger.${DEFAULT_COLOR}"
@@ -105,7 +109,7 @@ function set_trigger ()
 	local str spell
 	[[ $4 ]] || [[ $SPELL ]] || return 1
 	case $3 in
-		cast_self|dispel_self|check_self|run_script)
+		cast_self|dispel_self|check_self|run_script*)
 			;;
 		*)
 			message "${PROBLEM_COLOR}$3 is not a valid trigger action.${DEFAULT_COLOR}"
