@@ -55,7 +55,7 @@ function gaze_checkmd5 () {
       OLDESTSOURCE="$SOURCE"
       OLDSOURCE="`echo $SOURCE | sed -e 's/\./\\\./g'`"
       SOURCE="`echo $SOURCE | sed -e 's/\.[bt].*/\./'`"
-      SOURCE="`ls $SOURCE_CACHE/$SOURCE* 2> /dev/null | cut -d'/' -f 5 | head -1`"
+      SOURCE="`ls $SOURCE_CACHE/$SOURCE* 2> /dev/null | cut -d'/' -f 5 | head -n 1`"
       if [ "$SOURCE" ]
       then
         if [ -z "`echo ${SOURCE#$OLDSOURCE.} | egrep '^[0-9]{14}$'`" ]
@@ -79,7 +79,7 @@ function gaze_checkmd5 () {
          test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'RPM'  &&
          test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'tar'
       then
-        fMD5=`cat $SOURCE_CACHE/$SOURCE 2> /dev/null | md5sum | cut -d' ' -f1 | head -1`
+        fMD5=`cat $SOURCE_CACHE/$SOURCE 2> /dev/null | md5sum | cut -d' ' -f1 | head -n 1`
       else
         fMD5=$(
           uncompress $SOURCE_CACHE/$SOURCE `
@@ -88,7 +88,7 @@ function gaze_checkmd5 () {
         )
       fi
     else
-      fMD5="`grep " $SOURCE\$" $PRECACHEDF | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$' | cut -d' ' -f1 | head -1`"
+      fMD5="`grep " $SOURCE\$" $PRECACHEDF | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$' | cut -d' ' -f1 | head -n 1`"
     fi
     if [ -n "$REALSOURCE" ]
     then
@@ -124,9 +124,9 @@ function gaze_checkmd5 () {
           else
             if test -z "$PRECACHEDB"
             then
-              bMD5="`md5sum $SOURCE_CACHE/$SOURCE | cut -d' ' -f1` | head -1"
+              bMD5="`md5sum $SOURCE_CACHE/$SOURCE | cut -d' ' -f1` | head -n 1"
             else
-              bMD5="`grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$'`" # | cut -d' ' -f1` | head -1"
+              bMD5="`grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$'`" 
             fi
             if test "$tMD5" == "$bMD5"
             then
@@ -142,7 +142,7 @@ function gaze_checkmd5 () {
               echo -en "${RED}${BOLD}GPG-SIGN $SRCDATA"
             elif test -n "$PRECACHEDB" && test -n "`grep $tMD5 $PRECACHEDF`"
             then
-              MATCHED="`grep "$tMD5" "$PRECACHEDF" | cut -c60- | head -1`"
+              MATCHED="`grep "$tMD5" "$PRECACHEDF" | cut -c60- | head -n 1`"
               if test -n "`echo "$MATCHED" | fgrep "$SOURCE"`"
               then
                 echo -en "${RED}${BOLD}MODIFIED $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT} MATCHES $MATCHED"

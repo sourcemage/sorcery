@@ -516,6 +516,359 @@ function set_term_title()
     esac
 }
 
+
+#---------------------------------------------------------------------
+## @param return_var
+## @param elements, ...
+##
+## Removes from the list string(s). Strings are kept to be unique and
+## are separated by spaces
+##
+#---------------------------------------------------------------------
+function real_list_remove () {
+    local var=$1
+    shift
+    
+    local i
+    
+    for i in $@; do
+        eval "$var=\`echo \"\$$var \" | sed  \
+               -e \"s/[[:space:]]\\+/ /g\"   \
+               -e \"s/ $i / /g\"             \
+               -r -e \"s/^ (.+) $/\\1/\"\`"
+    done
+}
+
+
+#---------------------------------------------------------------------
+## @param return_var
+## @param elements, ...
+##
+## Puts in the list string(s). Strings are kept to be unique and are
+## separated by spaces
+##
+#---------------------------------------------------------------------
+function real_list_add () {
+    local var=$1
+    shift
+  
+    local i
+  
+    for i in $@; do
+        eval "$var=\`echo \" \$$var \" | sed \
+               -e \"s/[[:space:]]\\+/ /g\"   \
+               -e \"s/ $i / /g\"             \
+               -e \"s/^ //\"\`\"$i\""
+    done
+}
+
+
+#---------------------------------------------------------------------
+## @param string
+## @param elements, ...
+##
+## return 0 at least one element is in list
+## return 1 none of supplied elements is not in list
+##
+## Finds if at least one of given elements is in the string. Warning,
+## this function takes real string, not variable name as other list_*
+## functions
+##
+#---------------------------------------------------------------------
+function real_list_find () {
+    local i
+    local input="$1"
+    shift
+
+    for i in $@; do
+        eval "echo \" $input \" | grep -qE -e \"[[:space:]]$i[[:space:]]\" && return 0"
+    done
+    return 1
+}
+
+
+#---------------------------------------------------------------------
+## @param variables, ...
+##
+## Adds variable names to the list of persistent variables
+##
+#---------------------------------------------------------------------
+function real_persistent_add () {
+    list_add PERSISTENT_VARIABLES $@
+}
+
+
+#---------------------------------------------------------------------
+## @param variables, ...
+##
+## Removes variable names from the list of persistent variables
+##
+#---------------------------------------------------------------------
+function real_persistent_remove () {
+    list_remove PERSISTENT_VARIABLES $@
+}
+
+
+#---------------------------------------------------------------------
+## Loads persistent variables stored in file "$SPELL_CONFIG"
+##
+#---------------------------------------------------------------------
+function real_persistent_load () {
+    if [ -f "$SPELL_CONFIG.p" ]; then
+        . "$SPELL_CONFIG.p"
+        persistent_add `awk 'BEGIN{FS="="}{print $1}' < "$SPELL_CONFIG.p"`
+    fi
+}
+
+
+#---------------------------------------------------------------------
+## Saves variables marked as persistent to file "$SPELL_CONFIG". The
+## File is completely overwritten
+##
+#---------------------------------------------------------------------
+function real_persistent_save () {
+    local VAR
+    local TMP
+    > "$SPELL_CONFIG.p"
+    for VAR in $PERSISTENT_VARIABLES; do
+        config_get_option $VAR TMP
+        echo "$VAR=\"$TMP\"" >> "$SPELL_CONFIG.p"
+    done
+}
+
+
+#---------------------------------------------------------------------
+## @param return_var
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+##
+#---------------------------------------------------------------------
+function real_query_string () {
+  
+    debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
+    
+    local RESPONSE=""
+    local RETURN=0
+    
+    local DEFAULT=""
+    [ -n "$3" ] && DEFAULT=" [$3] "
+    
+    if [ -z "$SILENT" ]; then
+        echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
+        read -t $PROMPT_DELAY RESPONSE
+    fi
+  
+    [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
+    
+    eval $1=\"${RESPONSE}\"
+    return $RETURN
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable
+## @param return variable (optional)
+##
+## @return 1 option is not present in the config
+## @return 0 option is present in the config (even if the option is
+##           empty string "")
+##
+## Retrieves setting from $SPELL_CONFIG file and optionally sets user
+## supplied variable. Function is here to make possible changes to
+## config system easy, since all other functions are using this
+## function and are not working with variables directly
+##
+#---------------------------------------------------------------------
+#function config_get_option {
+#    local VAR=$2
+#    local REPLY=`grep -E "^$1=" $SPELL_CONFIG | head -n 1 | sed "s/^[^=]*=//"`
+#    [ -n "$VAR" ] && eval $VAR=\"$REPLY\"
+#    [ -z "$REPLY" ] && return 1
+#    return 0
+#}
+function config_get_option () {
+    eval "
+         [ -n \"$2\" ] && $2=\"\$$1\"
+
+         # If variable has some value, return 0
+         [ -n \"\$$1\" ] && return 0
+
+         # Variable don't have value, and we don't have config file return 1
+         test -e \"$SPELL_CONFIG.p\" || return 1
+
+         # If the variable name is in config file, it means that we have this variable, and it's empty
+         grep -qE \"^$1=\" \"$SPELL_CONFIG.p\" && return 0
+
+         # We dont' have this variable
+         return 1
+     "
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable
+## @param value
+##
+## Stores string to given variable and makes the variable persistent
+## Function is here to make possible changes to config system easy,
+## since all other functions are using this function and are not
+## working with variables directly
+##
+#---------------------------------------------------------------------
+#function config_set_option {
+#    echo "$1=$2" >> $SPELL_CONFIG
+#}
+function config_set_option () {
+    persistent_add $1
+    eval "$1=\"$2\""
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistent
+##
+#---------------------------------------------------------------------
+function real_config_query () {
+    local ANSWER
+  
+    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
+        # option allready ANSWERed in config
+        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
+  
+        [ "$ANSWER" == "y" ] && return 0
+        [ "$ANSWER" == "n" ] && return 1
+        echo "Wrong value !!!"
+        exit 1
+    fi
+  
+    if query "$2" $3; then
+        config_set_option "$1" y
+        return 0
+    else
+        config_set_option "$1" n
+        return 1
+    fi
+}
+
+#---------------------------------------------------------------------
+## @param config file variable
+## @param question
+## @param default answer [y|n]
+## @param option_yes
+## @param option_no
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## The string is added to the variable
+## Return variable is also marked as persistent
+##
+#---------------------------------------------------------------------
+function real_config_query_option () {
+    local ANSWER
+  
+    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
+        # option allready ANSWERed in config
+        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
+        return 1
+    fi
+  
+    if query "$2" $3; then
+        list_add ANSWER $4
+    else
+        list_add ANSWER $5
+    fi
+
+    config_set_option "$1" "$ANSWER"
+    return 0
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable, return variable
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistent
+##
+#---------------------------------------------------------------------
+function real_config_query_string () {
+    local ANSWER
+    local RET=0
+    
+    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
+        # option allready answered in config
+        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
+    else
+        query_string ANSWER "$2" "$3"
+        RET=$?
+        config_set_option "$1" "$ANSWER"
+    fi
+    
+    return $RET
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable, return variable
+## @param question
+## @param elements, ...
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with numbered possibilities listed
+## Return variable is also marked as persistent
+##
+#---------------------------------------------------------------------
+function real_config_query_list () {
+  local ANSWER
+  local RET=0
+  local VARIABLE="$1"
+  local QUESTION="$2"
+  shift
+  shift
+
+  if [ -z "$RECONFIGURE" ] && config_get_option "$VARIABLE" ANSWER; then
+    # option allready ANSWERed in config
+    (
+        for foo in $@; do
+            [ "$foo" == "$ANSWER" ] && exit 0
+        done
+        echo "!!!! WARNING !!!!"
+        echo "!!!! stored option '$ANSWER' in config is not in list of provided options !!!!"
+        echo "!!!! WARNING !!!!"
+    )
+    echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
+  else
+    # we have to ask user
+    select_list ANSWER $@
+    RET=$?
+    config_set_option "$VARIABLE" "$ANSWER"
+  fi
+
+  eval $VARIABLE=\"$ANSWER\"
+  return $RET
+}
+
 #---------------------------------------------------------------------
 ## @License
 ##

@@ -57,7 +57,7 @@ function update_sorcery_scripts() {
 
   # pre build
   mk_source_dir  $SOURCE_DIRECTORY       &&
-  cd /usr/src                            &&
+  cd $INSTALL_ROOT/usr/src                            &&
   bzip2  -cdf   $SOURCE_CACHE/$FILENAME |
   tar --owner=root --group=root -xf /dev/stdin   &&
   cd      $SOURCE_DIRECTORY              &&
@@ -360,21 +360,6 @@ function testpack() {
 
 #---------------------------------------------------------------------
 ##
-## Returns true if a boost lock file exists for a live cast process.
-## @return 0 if boost lock file exists
-##
-#---------------------------------------------------------------------
-function boost_locked()  {
-
-  [  -f     $BOOST_LOCK  ]  &&
-  ps  `cat  $BOOST_LOCK`    |
-  grep  -q  cast
-
-}
-
-
-#---------------------------------------------------------------------
-##
 ## Saves the current libraries associated with the spell, from /lib
 ## and /usr/lib into $SOURCE_DIRECTORY/old.libraries/
 ## Also runs ldconfig with the saved libraries.
@@ -432,7 +417,8 @@ function save_libraries()  {
   if  [  "$SPELL"  ==  "glibc"         ]   ||
       [  "$SPELL"  ==  "glibc-custom"  ] ;  then
     if [ -e $OLD_LIBS/ld-$OLD_VERSION.so ] ; then 
-    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld-linux.so.2
+      [[ `uname -m` == ppc* ]] && ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld.so.1 ||
+      ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld-linux.so.2 
     fi
   fi
 
@@ -462,14 +448,29 @@ function spell_recover()  {
            "${MESSAGE_COLOR} and recovering${DEFAULT_COLOR}"
 
   CURRENT_VERSION=$(installed_version  $SPELL)
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$BUILD.tar.bz2"
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$BUILD.tar$EXTENSION"
+  CONTINUE=false
 
-  if  [      -e   $CACHE_BZ  ]  &&
-      bzip2  -tf  $CACHE_BZ;    then
-
-    bzcat   $CACHE_BZ  |  tar  -Pkx  2>/dev/null
+  if    [  !      -f  $CACHE_COMP   ];  then
+    false
+  elif  [         -n  "$EXTENSION"  ];  then
+    CONTINUE=true
+  elif  $COMPRESSBIN  -tf  $CACHE_COMP
+  then
+    CONTINUE=true
+  fi
+ 
+  if  $CONTINUE
+  then
+ 
+    if  [  -n  "$EXTENSION"  ];  then
+      $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Pkx  2>/dev/null
+    else
+      tar  -Pkxf  $CACHE_COMP  2>/dev/null
+    fi
     add_spell  $SPELL  installed  $CURRENT_VERSION
-
+  else
+    false
   fi
 
   exit  130
@@ -488,91 +489,6 @@ function find_section()  {
   debug  "libsorcery" "Running find_section() on $1"
 
   codex_get_spell_section_name  $1
-
-}
-
-
-#---------------------------------------------------------------------
-## @param spell name
-## @Stdout status
-## Returns the given spell's status (installed, held, exiled, etc.)
-##
-#---------------------------------------------------------------------
-function get_status()  {
-
-  if    query_spell_status $1    >/dev/null
-  then  query_spell_status $1    |  cut  -d : -f3
-  else  query_spell_status "$1-" |  cut  -d : -f3
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-## @Type API
-## @param spell name
-##
-## @return 0 if the given spell's status is "installed"
-#---------------------------------------------------------------------
-function real_spell_installed() {
-  [  "$(  get_status  $1  )"  ==  "installed"  ];
-}
-
-
-#---------------------------------------------------------------------
-## @param spell name
-##
-## @return 0 if the given spell's status is "held"
-##
-#---------------------------------------------------------------------
-function spell_held()      {
-  [  "$(  get_status  $1  )"  ==  "held"       ];
-}
-
-
-#---------------------------------------------------------------------
-## @param spell name
-##
-##  @return 0 if the given spell's status is "exiled"
-##
-#---------------------------------------------------------------------
-function spell_exiled()    {
-  [  "$(  get_status  $1  )"  ==  "exiled"     ];
-}
-
-
-#---------------------------------------------------------------------
-## @param spell name
-##
-## Removes the given spell from the /var/state/sorcery/packages file.
-## if C<EXILE> is set, the spell is changed to "exiled" in the file.
-##
-#---------------------------------------------------------------------
-function remove_spell()  {
-
-  debug  "libsorcery" "Running remove_spell() on $1"
-
-  remove_spell_status $1
-
-  if  [  -n  "$EXILE"  ];  then
-    add_spell_status $1 "." "exiled" "0.0"
-    remove_depends_status ".*" $1
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-## @param spell name
-##
-## Given a spell, status (installed, held, etc), and version, add_spell
-## adds the spell to the /var/state/sorcery/packages file
-##
-#---------------------------------------------------------------------
-function add_spell()  {
-
-  remove_spell  $1
-  add_spell_status $1 $2 $3
 
 }
 
@@ -987,7 +903,7 @@ function optimize()  {
 
   export  CFLAGS="-O $CFLAGS"
   export  CXXFLAGS="$CFLAGS"
-  export  LDFLAGS
+  export  LDFLAGS="$LDFLAGS"
   export  LC_ALL="C"
 
 }
@@ -1245,7 +1161,7 @@ function log_list()  {
     SPELL=`echo  $LINE  |  cut  -d  :  -f1`
       VER=`echo  $LINE  |  cut  -d  :  -f4`
     echo  "$SPELL-$VER"
-    echo  "$SPELL-$VER.bz2"
+    echo  "$SPELL-$VER$EXTENSION"
   done
 
 }
@@ -1323,7 +1239,7 @@ function activity_log()  { (
 ##
 #---------------------------------------------------------------------
 function run_details() {
-
+  debug "libsorcery" "starting run_details for $SPELL"
   if  !  codex_set_current_spell_by_name  $SPELL;  then
     local  GRIMOIRES=`codex_get_all_grimoires`
     message  "${PROBLEM_COLOR}Unable to find spell"        \
@@ -1331,12 +1247,16 @@ function run_details() {
              "in grimoire(s): $GRIMOIRES ${DEFAULT_COLOR}"
     false
   fi
+  debug "libsorcery" "ending run_details"
 }
 
 #---------------------------------------------------------------------
 ##
 ## unsets variables set by DETAILS. <br>
 ## vars: SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT SOURCE* 
+## 
+## Needs to be merged with the libcodex function since they are both
+## needed to fully unset a DETAILS (afk 4/21/04)
 ##
 #---------------------------------------------------------------------
 function unset_details()  {
@@ -1387,181 +1307,38 @@ function color()  {
 }
 
 
-#---------------------------------------------------------------------
-##
-## Sets up installwatch.
-##
-#---------------------------------------------------------------------
-function invoke_installwatch()  {
-
-  if  [  -e  /usr/lib/installwatch.so  ];  then
-    rm  -rf  /tmp/$SPELL.iw
-    export  INSTALLWATCHFILE=/tmp/$SPELL.iw
-    export  LD_PRELOAD=/usr/lib/installwatch.so
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Stops using installwatch
-##
-#---------------------------------------------------------------------
-function devoke_installwatch()  {
-
-  unset  LD_PRELOAD
-  unset  INSTALLWATCHFILE
-
-}
-
-
-#---------------------------------------------------------------------
-## @param filename
-##
-## First argument is a file containing a list of files.  Checks for
-## broken symbolic links.
-##
-#---------------------------------------------------------------------
-function syms_not_owned()  {
-
-  cat  $1  |
-  while  read  ITEM;  do
-
-    if  [  -h  "$ITEM"  ]   &&
-        [  -f  "$ITEM"  ];  then
-
-      DEST=$(  basename  $(  ls   -la  "$ITEM"  |
-                             cut  -d  '>'  -f2  |
-                             cut  -c  2-
-                          )
-            )
-
-      if  !  grep  -q  "$DEST"  "$1"
-      then   echo  -n  "$ITEM\|"
-             echo      "$ITEM"  >>  /tmp/$SPELL.rejected.symlinks
-      fi
-
-    fi
-
-  done
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Parses the installwatch log for files installed by a spell.
-##
-#---------------------------------------------------------------------
-function parse_iw()  {
-
-  OMIT="^/dev\|^/tmp\|^/usr/src"
-  OMIT_IN="	rename\|	symlink\|	unlink"
-
-  grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep -v "$OMIT"
-  cat                $IW_LOG | cut -f4 | grep -v "$OMIT" | grep "^/"
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Creates the install log containing all files installed by the spell.
-##
-#---------------------------------------------------------------------
-function track()  {
-
-  debug  "libsorcery" "Running track() on $SPELL"
-
-  message  "${MESSAGE_COLOR}Creating install log ${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
-
-  parse_iw                   |
-  sort                       |
-  uniq                       |
-  filter  "$EXCLUDED"        |
-  filter  "$LOCAL_EXCLUDED"  |
-  exists                     >  $TMP_LOG
-
-  echo  "$C_LOG_BZ"         >>  $TMP_LOG
-  echo  "$MD5_LOG"          >>  $TMP_LOG
-  echo  "$INST_LOG"         >>  $TMP_LOG
-
-  MISOWNED_SYMLINKS=`syms_not_owned  $TMP_LOG
-                     echo  -n  "/dev/null"`
-
-  if    [  "$MISOWNED_SYMLINKS"  ==  "/dev/null"  ]
-  then  cp  $TMP_LOG  $INST_LOG
-  else  grep  -v  "$MISOWNED_SYMLINKS"  $TMP_LOG  >  $INST_LOG
-  fi
-
-  rm  -f  $IW_LOG  $TMP_LOG
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Creates a bzip'ed tar file containing an archived backup of every
-## file installed by a spell.
-##
-#---------------------------------------------------------------------
-function archive()  {
-
-  debug  "libsorcery" "Running archive() on $SPELL"
-
-  while read LINE ; do
-		debug "archive()" "Checking file $LINE"
-    if  [ !  -p  "$LINE"  ] ; then
-			debug "archive()" "Running md5 on $LINE"
-      md5sum "$LINE"
-    fi
-  done < $INST_LOG 2>/dev/null >> $MD5_LOG 
-
-  if    [  "$ARCHIVE"  ==  "off"  ]; then
-    debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
-    return
-  fi
-
-  debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
-
-  message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
-  tar --no-recursion --bzip -cPf "$CACHE_BZ" -T $INST_LOG
-
-}
-
 
 #---------------------------------------------------------------------
 ##
 ## Runs C<track> and C<archive> on the current spell.
 ##
-## NOTE: boost and boost_locked should be removed or renamed, due
-## to liblock being introduced
+## THIS FUNCTION IS DEPRECIATED AND SHOULD NOT BE CALLED FOR ANY REASON
 ##
 #---------------------------------------------------------------------
 function boost()	{ (
 
-  debug  "libsorcery" "Running boost() on $SPELL"
-
-     CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
-  C_LOG_BZ="$COMPILE_LOGS/$SPELL-$VERSION.bz2"
-   TMP_LOG="/tmp/$SPELL-$VERSION"
-  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
-   MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
-    IW_LOG="/tmp/$SPELL.iw"
-
-  rm  -rf  $CACHE
-  rm  -rf  $INST_LOG
-  touch    $INST_LOG
-  rm  -rf  $TMP_LOG
-  rm  -rf  $MD5_LOG
-  touch    $MD5_LOG
-
-  track    &&
-  archive  &&
-  add_spell  $SPELL installed $VERSION 
-
+  debug  "libsorcery" "Running boost() on $SPELL THIS IS DEPRECIATED"
+#
+#     CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
+#CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+#C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+#   TMP_LOG="/tmp/$SPELL-$VERSION"
+#  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+#   MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+#    IW_LOG="/tmp/$SPELL.iw"
+#
+#  rm  -rf  $CACHE
+#  rm  -rf  $INST_LOG
+#  touch    $INST_LOG
+#  rm  -rf  $TMP_LOG
+#  rm  -rf  $MD5_LOG
+#  touch    $MD5_LOG
+#
+#  track    &&
+#  md5list < $INST_LOG > $MD5_LOG &&
+#  archive
+#
+true
 ) }
 
 
@@ -1660,7 +1437,7 @@ function generate_keep_list()  { (
   (
     codex_set_current_spell  $SPELL_DIRECTORY
     sources  $SPELL
-    echo     $SPELL-$VERSION-$BUILD.tar.bz2
+    echo     $SPELL-$VERSION-$BUILD.tar$EXTENSION
   )
   done
 
@@ -1673,6 +1450,12 @@ function generate_keep_list()  { (
 #---------------------------------------------------------------------
 ##
 ## Removes unnecessary files from the source cache and install cache.
+## 
+## This function includes a stale depends question for the user, if yes
+## then the depends file is checked for old dependencies that can be
+## removed. These lines are added to a file 'depends.stale' and a cleaned
+## up depends file is installed. The depends.stale will be left for the
+## user to manage.
 ##
 #---------------------------------------------------------------------
 function prune()  { (
@@ -1683,7 +1466,7 @@ function prune()  { (
     echo  "Enter the root password, please."
     su  - -c "DISPLAY=$DISPLAY PATH=$PATH"
   fi
-                                                            
+
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
   KEEP="/tmp/prune.keep"
   generate_keep_list  >  $KEEP
@@ -1756,6 +1539,51 @@ function verify_sources()  {
 }
 
 
+
+#---------------------------------------------------------------------
+##
+## Will set the prefered compression type based on user filled option
+## in dialog menu (either gzip/bzip).
+## 
+#---------------------------------------------------------------------
+function set_compression_type() {
+
+  while
+
+    B_HELP="bzip2 compression (slow, small files)"
+    G_HELP="gzip compression (fast, larger files)"
+    T_HELP="no compression/tar (fastest, largest files)"
+
+    COMMAND=`eval $DIALOG '  --title "Currently using : $COMPRESSBIN "  \
+                             --item-help                                \
+                             --ok-label      "Select"                   \
+                             --cancel-label  "Exit"                     \
+                             --menu                                     \
+                             ""                                         \
+                             0 0 0                                      \
+                             "B"  "bzip2 compression"        "$B_HELP"  \
+                             "G"  "gzip compression"         "$G_HELP"  \
+                             "T"  "no compression/tar"       "$T_HELP"'`
+
+  do
+
+    case  $COMMAND in
+
+      B)  modify_local_config "COMPRESSBIN" "bzip2"  &&
+          COMPRESSBIN="bzip2"                        &&
+          modify_local_config "EXTENSION" ".bz2"     ;;
+      G)  modify_local_config "COMPRESSBIN" "gzip"   &&
+          COMPRESSBIN="gzip"                         &&
+          modify_local_config "EXTENSION" ".gz"      ;;
+      T)  modify_local_config "COMPRESSBIN" "tar"    &&
+          COMPRESSBIN="tar"                          &&
+          modify_local_config "EXTENSION" ""         ;;
+
+    esac
+      
+  done
+
+}
 
 #---------------------------------------------------------------------
 ## @param filename
@@ -1844,7 +1672,7 @@ function set_sound_theme()  {
   SOUND_THEME=$1                          
 
    
-  if  ! spell_installed $1
+  if  ! spell_installed sorcery-sound-$SOUND_THEME
   then 
     eval $DIALOG '--msgbox "Sorcery has determined that the $SOUND_THEME  \
                             theme must be installed to work. It will now  \

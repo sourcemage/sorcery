@@ -3,12 +3,22 @@
 #That file must NOT contain any logic.
 
 # functions defined in here: (in alphabetical order)
+#    config_query           (libmisc)
+#    config_query_list      (libmisc)
+#    config_query_option    (libmisc)
+#    config_query_string    (libmisc)
 #    conflicts              (libgrimoire)  
 #    default_build          (libgrimoire)   
-#    default_post_build     (libgrimoire)   
+#    default_install        (libgrimoire)   (BUILD_API==2 only)
 #    default_pre_build      (libgrimoire)   
+#    default_pre_install    (libgrimoire)   (BUILD_API==2 only)
+#    default_post_build     (libgrimoire)   (BUILD_API==1 only)
+#    default_post_install   (libgrimoire)   (BUILD_API==2 only)
 #    depends                (libdepends)
 #    installed_version      (libgrimoire)   
+#    list_add               (libmisc)
+#    list_find              (libmisc)
+#    list_remove            (libmisc)
 #    message                (libmisc)      
 #    mk_source_dir          (libgrimoire)   
 #    on_cast                (libtriggers)   
@@ -16,8 +26,13 @@
 #    on_pre_cast            (libtriggers)   
 #    on_pre_dispel          (libtriggers)   
 #    optional_depends       (libdepends)
+#    persistent_add         (libmisc)
+#    persistent_load        (libmisc)
+#    persistent_remove      (libmisc)
+#    persistent_save        (libmisc)
 #    prepare_install        (libgrimoire)   
 #    query                  (libmisc)       
+#    query_string           (libmisc)
 #    requires               (libdepends)
 #    sedit                  (libmisc)       
 #    spell_installed        (libsorcery)
@@ -77,7 +92,7 @@ function default_pre_build () {
 #---------------------------------------------------------------------
 ## @Type API
 ## Used if no BUILD script is found for a spell
-## Default build is:
+## Default build for BUILD_API==1 is:
 ## <pre>
 ##  ./configure  --build=$BUILD        \
 ##               --prefix=/usr         \
@@ -88,23 +103,72 @@ function default_pre_build () {
 ##  prepare_install                    &&
 ##  make    install
 ## </pre>
+## Default build for BUILD_API==2 is:
+## <pre>
+##  ./configure  --build=$BUILD        \
+##               --prefix=/usr         \
+##               --sysconfdir=/etc     \
+##               --localstatedir=/var  \
+##               $OPTS                 &&
+##  make
+## </pre>
 ##
 #---------------------------------------------------------------------
 function default_build () {
     debug "default_build - $*"
     real_default_build "$@"
 }
-
-
 #---------------------------------------------------------------------
 ## @Type API
+## Only defined for BUILD_API==2
+## Used if no PRE_INSTALL script is found.
+## Default pre_install is:
+## <pre>
+##  prepare_install
+## </pre>
+##
+#---------------------------------------------------------------------
+function default_pre_install () {
+    debug "default_pre_install - $*"
+    real_default_pre_install "$@"
+}
+#---------------------------------------------------------------------
+## @Type API
+## Only defined for BUILD_API==2
+## Used if no INSTALL script is found.
+## Default install is:
+## <pre>
+##  make    install
+## </pre>
+##
+#---------------------------------------------------------------------
+function default_install () {
+    debug "default_install - $*"
+    real_default_install "$@"
+}
+#---------------------------------------------------------------------
+## @Type API
+## Only defined for BUILD_API==1
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
+## equivalent to default_post_install in BUILD_API==2
 ##
 #---------------------------------------------------------------------
 function default_post_build () {
     debug "default_post_build - $*"
     real_default_post_build "$@"
+}
+#---------------------------------------------------------------------
+## @Type API
+## Only defined for BUILD_API==2
+## Installs configuration files and documentation.  Stops installwatch.
+## Used if no POST_INSTALL script is found for a spell.
+## equivalent to default_post_build in BUILD_API==1
+##
+#---------------------------------------------------------------------
+function default_post_install () {
+    debug "default_post_install - $*"
+    real_default_post_install "$@"
 }
 
 #---------------------------------------------------------------------
@@ -304,3 +368,243 @@ function on_pre_dispel () {
 }
 
 
+#---------------------------------------------------------------------
+## @param return_var
+## @param elements, ...
+##
+## Removes from the list string(s). Strings are kept to be unique and
+## are separated by spaces
+## <pre>
+## Example:
+##    MY_LIST="--disable-static --enable-dynamic"
+##    list_remove MY_LIST "--enable-dynamic"
+## </pre>
+##
+#---------------------------------------------------------------------
+function list_remove () {
+    debug "list_remove - $*"
+	 real_list_remove "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param return_var
+## @param elements, ...
+##
+## Puts in the list string(s). Strings are kept to be unique and are
+## separated by spaces
+## <pre>
+## Example:
+##    list_add MY_LIST "--with-x"
+##    list_add MY_LIST "--with-jpeg" $OTHER_OPTS
+##    echo $MY_LIST
+## </pre>
+##
+#---------------------------------------------------------------------
+function list_add () {
+    debug "list_add - $*"
+    real_list_add "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param string
+## @param elements, ...
+##
+## return 0 at least one element is in list
+## return 1 none of supplied elements is not in list
+##
+## Finds if at least one of given elements is in the string. Warning,
+## this function takes real string, not variable name as other list_*
+## functions
+## <pre>
+## Example:
+##    if list_find MY_LIST "--with-x"; then
+##        ... we have to compile X components in
+##    fi
+## </pre>
+##
+#---------------------------------------------------------------------
+function list_find () {
+    debug "list_find - $*"
+    real_list_find "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param variables, ...
+##
+## Adds variable names to the list of persistent variables
+## <pre>
+## Example:
+##    persistent_add MY_VARIABLE
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_add () {
+    debug "persistent_add - $*"
+    real_persistent_add "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param variables, ...
+##
+## Removes variable names from the list of persistent variables
+## <pre>
+## Example:
+##    persistent_remove MY_VARIABLE
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_remove () {
+    debug "persistent_remove - $*"
+	 real_persistent_remove "$@"
+}
+
+
+#---------------------------------------------------------------------
+## Loads persistent variables stored in file "$SPELL_CONFIG"
+## <pre>
+## Example:
+##    persistent_load
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_load () {
+    debug "persistent_load - $*"
+	 real_persistent_load "$@"
+}
+
+
+#---------------------------------------------------------------------
+## Saves variables marked as persistent to file "$SPELL_CONFIG". The
+## File is completely overwritten
+## <pre>
+## Example:
+##    persistent_save
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_save () {
+    debug "persistent_save - $*"
+    real_persistent_save "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param return_var
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## <pre>
+## Example:
+##    query_string YOUR_HOST "What is your hostname ?" "localhost"
+## </pre>
+##
+#---------------------------------------------------------------------
+function query_string ()  {
+    debug "query_string  - $*"
+    real_query_string "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    if config_query DETAILED "Detailed questions ?" n; then
+##        ....
+##    fi
+##    echo The reply for last question was: $DETAILED
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query () {
+    debug "config_query - $*"
+    real_config_query "$@"
+}
+
+#---------------------------------------------------------------------
+## @param config file variable
+## @param question
+## @param default answer [y|n]
+## @param option_yes
+## @param option_no
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## The string is added to the variable
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query_option OPT "Use X ?" y "--with-x" "--without-x"
+##    config_query_option OPT "Use jpeg ?" y "--with-jpeg" "--do-not-use-jpeg"
+##    echo All selected options together: $OPT
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query_option () {
+    debug "config_query_option - $*"
+	 real_config_query_option "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable, return variable
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query_string REAL_NAME "What is your real name ?" "nobody"
+##    echo Hi $REAL_NAME
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query_string () {
+    debug "config_query_string - $*"
+    real_config_query_string "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable, return variable
+## @param question
+## @param elements, ...
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with numbered possibilities listed
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query_list COLOR "What color ?" "red" "white" "blue"
+##    echo Your color is $COLOR
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query_list () {
+    debug "config_query_list - $*"
+    real_config_query_list "$@"
+}
