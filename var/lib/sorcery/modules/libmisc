@@ -990,6 +990,19 @@ function mk_tmp_dir_error() {
 }
 
 #---------------------------------------------------------------------
+## @param tmp_dir, should begin with /tmp/sorcery
+#---------------------------------------------------------------------
+function cleanup_tmp_dir() {
+  local TMP_DIR=$1
+  if  [  ${TMP_DIR:0:13} ==  "/tmp/sorcery/"  ];  then
+    rm -rf $TMP_DIR
+  else
+    message "Cowardly refusing to remove $TMP_DIR, this may be a bug," \
+            "please alert the sorcery team."
+  fi
+}
+
+#---------------------------------------------------------------------
 ## @param Variable to check if its a known sorcery variable
 ## @return Success if its a sorcery variable, false if not
 ##

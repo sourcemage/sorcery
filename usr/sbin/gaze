@@ -1649,7 +1649,11 @@ if  [  $#  == 0  ];  then
   help  |  $PAGER
 else
   parse  "$@"
-  # dont put code here unless you save the return value from the line above
+  rc=$?
+  if  [  ${TMP_DIR:0:13} ==  "/tmp/sorcery/"  ];  then
+    cleanup_tmp_dir $TMP_DIR
+  fi
+  exit $rc
 fi
 
 
