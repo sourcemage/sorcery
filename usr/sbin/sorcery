@@ -34,11 +34,14 @@ Optional Parameters:
 
 -h  |  --help		Display this help screen
 
--u  |  update		Update the sorcery scripts only.
-
 -s  |  system-update	Perform a system update (updates sorcery, grimoire,
 			  and spells).
 			  [ scribe update, sorcery queue, cast --queue ]
+-u  |  update		Update the sorcery scripts only.
+-g  |  upgrade		Do not update grimoire, just any spells that need to
+			  be upgraded.  [ sorcery queue, cast --queue ]
+
+-r  |  rebuild		rebuild all spells
 
 -q  |  queue		Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
@@ -46,14 +49,30 @@ Optional Parameters:
 review-queue		Review the install queue for each spell's history 
 			  since each was last installed.
 
--g |  upgrade		Do not update grimoire, just any spells that need to
-			  be upgraded.  [ sorcery queue, cast --queue ]
-
-show-held          Shows all held spells.
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
 
--v | --version		Print the sorcery version
+
+default add spell_1 spell_2 on/off	If "spell_1" optionally depends
+					on "spell_2" the default answer
+					is on/off.
+
+default add "" spell on/off	If anything optionally depends on "spell" the
+				default answer is on/off.
+
+default add spell "" on/off	If "spell" optionally depends on anything
+				the default answer is on/off.
+
+default add spell PROVIDER on/off	"Spell" is the provder for
+					PROVIDER bydefault, in the
+					case of optional_depends, if
+					on/off is off, none is chosen
+					by default instead.
+
+default remove [spell|""] [spell|PROVIDER|""] Remove entry from defaults
+default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
+
+-v  | --version		Print the sorcery version
 
 EOF
 
@@ -132,7 +151,8 @@ mirror_menu()  {
          MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
       fi  &&
 
-      modify_local_config "$MIRROR" "$MIRROR_URL" &&
+      remove_config $LOCAL_CONFIG "$MIRROR" "$MIRROR_URL" &&
+      modify_config $LOCAL_URL_CONFIG "$MIRROR" "$MIRROR_URL" &&
 
       eval $DIALOG  '--msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 0 0'
 
@@ -389,7 +409,6 @@ list_install_queue
 message  "${MESSAGE_COLOR}Casting updated spells...${DEFAULT_COLOR}"
 cast -q --queue
 
-# XXX should this be 'cast --fix' ?
 fix_installed_spells     # check integrity of installed spells
 
 
@@ -483,7 +502,7 @@ EOF
     message  "scripts are lost, Source Mage can be restored by"
     message  "running the following script:"
     message  "${FILE_COLOR}"
-    message  "            ${RESTORE_SCRIPT}"
+    message  "            bash ${RESTORE_SCRIPT}"
     message  "${MESSAGE_COLOR}"
     message  "If for some reason this does not work, see the"
     message  "Source Mage website at http://www.sourcemage.org/"
@@ -776,12 +795,13 @@ optimization_menu(){
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
 
-  local    SPEEDY_HELP="Optimize to increase performance of generated code, conflicts with 'tiny'"
-  local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules (unsafe)"
-  local      TINY_HELP="Optimize to decrease size of generated code, conflicts with 'speedy'"
-  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
-  local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink"
-  local STATIC_HELP="Compile libraries statically"
+  local COMBRELOC_HELP="Speed up loading libs, also needed for prelink (LDFLAGS=-z combreloc)"
+  local   PRELINK_HELP="Speed up loading applications by pre-linking libraries (CFLAGS=-DPIC -fPIC)"
+  local     RISKY_HELP="Optimize by violating ANSI/IEEE (unsafe) (CFLAGS=-ffast-math -funroll-loops)"
+  local    SPEEDY_HELP="Optimize generated code, conflicts with 'tiny' (CFLAGS=$FAST)"
+  local    STATIC_HELP="Compile libraries statically (LDFLAGS=-static)"
+  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information (LDFLAGS=-s)"
+  local      TINY_HELP="Optimize to smaller generated code, conflicts with 'speedy' (CFLAGS=$SMALL)"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -790,12 +810,13 @@ optimization_menu(){
                               --checklist               \
                               "$OPT_HELP"               \
                                0 0 0                    \
-        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
-        "risky"     "          +speed"         "$RISKY"     "$RISKY_HELP"     \
         "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
-        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
+        "prelink"   "          +speed"  "$PRELINK"   "$PRELINK_HELP"   \
+        "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
+        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
+        "static"    " ++size   +speed"  "$STATIC"    "$STATIC_HELP"    \
         "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
-        "static"    " ++size  +speed"   "$STATIC"    "$STATIC_HELP"'`
+        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"'`
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`
@@ -810,7 +831,7 @@ optimization_menu(){
 integrity_fix_menu()  {
 
     INT_TITLE="Integrity Checking Selection Menu"
-     INT_HELP="Please select the tests which cast --fix should execute."
+     INT_HELP="Please select the tests which cleanse --fix should execute."
     FIND_HELP="Discover missing  binary executables, libraries, and header files"
      LDD_HELP="Discover broken   binary executables, and libraries"
      SYM_HELP="Discover misowned symbolic links to files"
@@ -906,7 +927,7 @@ integrity_menu()  {
 
   INT_TITLE="Integrity Checking Selection Menu"
    INT_HELP="Options involving integrity checking, including --fix and download options."
-   FIX_HELP="Set cast --fix checks"
+   FIX_HELP="Set cleanse --fix checks"
     DL_HELP="Discover corrupted or modified archives during cast"
 
   while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
@@ -1260,14 +1281,15 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
   U_HELP="Automatically remove old sources and install caches upon sorcery update?"
   V_HELP="View compilation as it happens?"
-  X_HELP="Download and apply xdelta patches when available?"
  NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
  CS_HELP="Clean up source directories after failures?"
  CI_HELP="Non-native installation / cross compilation"
  ST_HELP="Set xterm title/screen window title on cast?"
+ UF_HELP="Ensure a sane environment before sorcery update"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
+     UPDATEFIX=${UPDATEFIX:=off}
      AUTOPRUNE=${AUTOPRUNE:=off}
          CABAL=${CABAL:=off}
         CCACHE=${CCACHE:=off}
@@ -1277,7 +1299,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   MAIL_REPORTS=${MAIL_REPORTS:=off}
          TMPFS=${TMPFS:=on}
   VIEW_REPORTS=${VIEW_REPORTS:=off}
-         PATCH=${PATCH:=on}
       PRESERVE=${PRESERVE:=on}
        SUSTAIN=${SUSTAIN:on}
         VOYEUR=${VOYEUR:=on}
@@ -1296,6 +1317,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                         0 0 0                   \
       "ARCHIVE"        "Toggle"  "$ARCHIVE"        "$I_HELP"   \
       "AUTOFIX"        "Toggle"  "$AUTOFIX"        "$F_HELP"   \
+      "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"   \
       "AUTOPRUNE"      "Toggle"  "$AUTOPRUNE"      "$U_HELP"   \
       "CABAL"          "Toggle"  "$CABAL"          "$B_HELP"   \
       "CCACHE"         "Toggle"  "$CCACHE"         "$G_HELP"   \
@@ -1303,7 +1325,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CONFIG_LOC"     "Toggle"  "$CONFIG_LOC"     "$L_HELP"   \
       "GATHER_DOCS"    "Toggle"  "$GATHER_DOCS"    "$D_HELP"   \
       "MAIL_REPORTS"   "Toggle"  "$MAIL_REPORTS"   "$M_HELP"   \
-      "PATCH"          "Toggle"  "$PATCH"          "$X_HELP"   \
       "PRESERVE"       "Toggle"  "$PRESERVE"       "$P_HELP"   \
       "SUSTAIN"        "Toggle"  "$SUSTAIN"        "$T_HELP"   \
       "TMPFS"          "Toggle"  "$TMPFS"          "$TMP_HELP" \
@@ -1315,7 +1336,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1326,6 +1347,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
              ARCHIVE)        ARCHIVE=on  ;;
              AUTOFIX)        AUTOFIX=on  ;;
+           UPDATEFIX)      UPDATEFIX=on  ;;
            AUTOPRUNE)      AUTOPRUNE=on  ;;
                CABAL)          CABAL=on  ;;
               CCACHE)         CCACHE=on  ;;
@@ -1333,7 +1355,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
           CONFIG_LOC)     CONFIG_LOC=on  ;;
          GATHER_DOCS)    GATHER_DOCS=on  ;;
         MAIL_REPORTS)   MAIL_REPORTS=on  ;;
-               PATCH)          PATCH=on  ;;
             PRESERVE)       PRESERVE=on  ;;
              SUSTAIN)        SUSTAIN=on  ;;
                TMPFS)          TMPFS=on  ;;
@@ -1348,7 +1369,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1367,18 +1388,18 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
 }
 
-
 option_menu()  {
 
   while
 
     B_HELP="Specify the sorcery branch you would like to track"
+    H_HELP="Specify the color scheme for messages"
     D_HELP="Enter the default delay time for prompts"
     E_HELP="Enter the email address for this box's sorcerer"
     F_HELP="Select many options on or off at once"
     M_HELP="Select ftp and http mirrors for faster downloads"
     O_HELP="Select architecture optimizations"
-    I_HELP="Select the test that cast --fix, and AUTOFIX execute"
+    I_HELP="Select the test that cleanse --fix, and AUTOFIX execute"
     J_HELP="Enter the number of jobs 'make' should run at the same time"
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
@@ -1397,6 +1418,7 @@ option_menu()  {
                       ""                                        \
                       0 0 0                                     \
                       "B"  "Sorcery Branch"           "$B_HELP" \
+                      "H"  "Color Scheme"             "$H_HELP" \
                       "D"  "Prompt Delay"             "$D_HELP" \
                       "R"  "Download Rate"            "$R_HELP" \
                       "N"  "Nice Level"               "$N_HELP" \
@@ -1417,6 +1439,7 @@ option_menu()  {
     case  $COMMAND in
 
       B)  set_branch             ;;
+      H)  color_schemes_menu     ;;
       D)  set_delay              ;;
       R)  set_download_rate      ;;
       N)  set_nice               ;;
@@ -1484,22 +1507,19 @@ foreground_execute() {
 
 main_menu()  {
 
+  S_HELP="Easy spell management."
+  O_HELP="Change sorcery options and features."
+  L_HELP="View and edit sorcery generated log files."
+  Q_HELP="View and edit sorcery queues."
+  F_HELP="Process queues while you watch and wait."
+  B_HELP="Process queues in the background."
+  E_HELP="Exit without processing queues."
+  I_HELP="Setting your install/state/track root locations"
+  C_HELP="Administrate groups of Unix/Linux boxes."
+      OK="Select"
+  CANCEL="Exit"
   while
-
-    S_HELP="Easy spell management."
-    O_HELP="Change sorcery options and features."
-    L_HELP="View and edit sorcery generated log files."
-    Q_HELP="View and edit sorcery queues."
-    F_HELP="Process queues while you watch and wait."
-    B_HELP="Process queues in the background."
-    E_HELP="Exit without processing queues."
-    I_HELP="Setting your install root location for cross compile environment."
-    C_HELP="Administrate groups of Unix/Linux boxes."
-        OK="Select"
-    CANCEL="Exit"
-
-    if  [  "$CABAL"  ==  "on"  ]  &&  [  "$CROSS_INSTALL"  ==  "on"  ];  then 
-
+    if  [  "$CABAL"  ==  "on"  ] ;  then 
         COMMAND=`eval $DIALOG ' --title "Main Menu"             \
                        --item-help                              \
                        --ok-label      "$OK"                    \
@@ -1507,51 +1527,16 @@ main_menu()  {
                        --menu                                   \
                        "Sorcery Version  $SORCERY_VERSION"      \
                        0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
+                       "S"  "Spell        Menu"     "$S_HELP"     \
+                       "O"  "Option       Menu"     "$O_HELP"     \
+                       "L"  "Log          Menu"     "$L_HELP"     \
+                       "Q"  "Queue        Menu"     "$Q_HELP"     \
+                       "F"  "Foreground   Execute"  "$F_HELP"     \
+                       "B"  "Background   Execute"  "$B_HELP"     \
                        "I"  "Install Root Menu"   "$I_HELP"     \
-                       "C"  "Cabal      Menu"     "$C_HELP"'`
-
-    elif  [  "$CABAL"  ==  "on"  ]; then
-
-        COMMAND=`eval $DIALOG ' --title "Main Menu"             \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
-                       "C"  "Cabal      Menu"     "$C_HELP"'`
-
-		elif [  "$CROSS_INSTALL"  ==  "on"  ];  then
-
-      COMMAND=`eval $DIALOG ' --title "Main Menu"               \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
-                       "I"  "Install Root Menu"   "$I_HELP"'`
+                       "C"  "Cabal        Menu"     "$C_HELP"'`
 
     else
-
       COMMAND=`eval $DIALOG ' --title "Main Menu"               \
                        --item-help                              \
                        --ok-label      "$OK"                    \
@@ -1559,14 +1544,14 @@ main_menu()  {
                        --menu                                   \
                        "Sorcery Version  $SORCERY_VERSION"      \
                        0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"'`
+                       "S"  "Spell        Menu"     "$S_HELP"     \
+                       "O"  "Option       Menu"     "$O_HELP"     \
+                       "L"  "Log          Menu"     "$L_HELP"     \
+                       "Q"  "Queue        Menu"     "$Q_HELP"     \
+                       "F"  "Foreground   Execute"  "$F_HELP"     \
+                       "B"  "Background   Execute"  "$B_HELP"     \
+                       "I"  "Install Root Menu"   "$I_HELP"'`
     fi
-
   do
 
     case  $COMMAND in
@@ -1577,28 +1562,13 @@ main_menu()  {
       F)  foreground_execute  ;;
       B)  background_execute  ;;
       C)  cabal_menu          ;;
-      I)  cross_install_menu  ;;
+      I)  install_root_menu   ;;
     esac
 
   done
 
 }
 
-
-#---------------------------------------------------------------------
-#-item sorcery_show_held_spells 
-##
-## prints all held spells.
-##
-## cli function
-#---------------------------------------------------------------------
-sorcery_show_held_spells () {
-    message -n "${MESSAGE_COLOR}the following spells are set to"
-    message -n "${DEFAULT_COLOR} hold"
-    message    "${SPELL_COLOR}"
-    get_held | sort | column
-    message -n "${DEFAULT_COLOR}"
-}
 
 
 #---------------------------------------------------------------------
@@ -1625,6 +1595,91 @@ sorcery_unhold_spells () {
 }
 
 
+#---------------------------------------------------------------------
+#-item sorcery_set_default <spells>
+##
+## Used for setting default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_cli_defaults () {
+  local cmd=$1
+  shift
+  case $cmd in
+    add) sorcery_add_defaults "$@" ;;
+    search) sorcery_search_defaults "$@" ;;
+    search) search_default_providers "$@" ;;
+    remove) sorcery_remove_defaults "$@" ;;
+    *) help ;;
+  esac
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_add_default <spells>
+##
+## Used for setting default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_add_defaults () {
+    if [ $# -ne 3 ] ; then
+      message "${PROBLEM_COLOR}Wrong number of arguments.${DEFAULT_COLOR}"
+      help
+    fi
+
+
+    # check for this first as a slight optimization
+    if [[ $3 != on ]] && [[ $3 != off ]] ; then
+      message "${PROBLEM_COLOR}Please choose on or off.${DEFAULT_COLOR}"
+      help
+    fi
+
+    if [[ ! $1 ]] && [[ ! $2 ]] ; then
+      message "${PROBLEM_COLOR}Can't set anything to be the default" \
+              "for everything!${DEFAULT_COLOR}"
+    fi
+
+    if [[ $1 ]] && ! codex_does_spell_exist $1; then
+      #echo "$1 is not a spell" # already printed by codex_does_spell_exist
+      help
+    fi
+
+    if [[ ! $2 ]] || codex_does_spell_exist $2 &>/dev/null; then
+      add_default_depends $DEFAULT_DEPENDS "$@"
+    elif codex_does_service_exist $2 ; then
+      add_default_provider $DEFAULT_PROVIDERS "$@"
+    else
+      message "${SPELL_COLOR}$2${PROBLEM_COLOR} is not a valid choice." \
+              "Please choose a spell, provider, or \"\".${DEFAULT_COLOR}"
+      help
+    fi || echo "Unknown error occured, contact the sorcery team"
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_search_default <spells>
+##
+## Used for searching default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_search_defaults () {
+  # it wont hurt to look in both
+  search_default_depends $DEFAULT_DEPENDS "$@"
+  search_default_provider $DEFAULT_PROVIDERS "$@"
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_remove_default <spells>
+##
+## Used for removing default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_remove_defaults () {
+  remove_default_depends $DEFAULT_DEPENDS "$@"
+  remove_default_provider $DEFAULT_PROVIDERS "$@"
+}
+
 main() {
 
   rm  -f  $UPDATE_SCRIPT
@@ -1639,9 +1694,9 @@ main() {
              -q|queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
            -r|rebuild)  rebuild                                 ;;
-            show-held) sorcery_show_held_spells                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
+              default*) shift; sorcery_cli_defaults "$@"        ;;
 
 
             -h|--help)  help                                    ;;
@@ -1660,7 +1715,7 @@ if  [  "$UID"  ==  0  ];  then
   SORCERY_VERSION=`cat /etc/sorcery/version`
   SORCERY_DIR=`codex_find_spell_by_name  sorcery-$SORCERY_BRANCH`
   #SORCERY_DETAILS="$SORCERY_DIR/DETAILS"
-  main  $*
+  main  "$@"
 else
   if [[ $1 == -h ]] || [[ $1 == --help ]]; then 
     help

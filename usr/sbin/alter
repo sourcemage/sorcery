@@ -1,0 +1,580 @@
+#!/bin/bash
+
+############################################################
+# Copyright 2004 Seth Woolley                              #
+# Released under the GPL                                   #
+############################################################
+# alter handles post-spell spell handling                  #
+############################################################
+
+function alter_alter() {
+
+  if [ -z "$1" ]; then
+    cat <<EOF > /dev/stderr && return 1  
+alter [ -a|--alter ] [ -n|--spell spellname ]
+                     [ -v|--version version ]
+                     command [ args ... ]
+EOF
+  fi
+
+  
+  if [ "$1" == "-n" -o "$1" == "--spell" ]; then SPELL="$2";shift;shift; fi
+  if [ "$1" == "-v" -o "$1" == "--version" ]; then VERSION="$2";shift;shift; fi
+
+  source /etc/sorcery/config
+  SPELL=${SPELL:=alter}
+  VERSION="$(gaze -q installed "$SPELL" | grep -v 'not installed')"
+  [ -z "$VERSION" ] && VERSION=$$
+  TMP_LOG=/tmp/$SPELL-$VERSION
+  IW_LOG=/tmp/$SPELL-$VERSION.iw
+  INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+  MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
+  C_LOG=/tmp/$SPELL-$VERSION.compile.log
+  C_LOG_COMP=$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
+  CACHE_COMP=$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION
+  rm -f  "$C_LOG" 2> /dev/null
+  touch  "$C_LOG"
+  message "${MESSAGE_COLOR}Gathering metadata for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  DATA="$(gaze compile $SPELL 2> /dev/null)" && COM_DATA="$DATA" || COM_DATA=""
+  DATA="$(gaze install $SPELL 2> /dev/null)" && INS_DATA="$DATA" || INS_DATA=""
+  DATA="$(gaze md5sum  $SPELL 2> /dev/null)" && MD5_DATA="$DATA" || MD5_DATA=""
+  [ -n "$COM_DATA" ] && echo "$COM_DATA" > "$C_LOG"
+  message "${MESSAGE_COLOR}Altering...${DEFAULT_COLOR}"
+
+  if [ "$VOYEUR" == "on" -a -z "$SILENT" ]; then
+    VOYEUR_STDOUT=/dev/stdout
+    VOYEUR_STDERR=/dev/stderr
+  else
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
+  fi
+
+  invoke_installwatch
+  (
+    echo "$@"
+    echo "$@" | bash
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+  devoke_installwatch
+  touch $IW_LOG $MD5_LOG $C_LOG_COMP
+  track
+  [ -n "$MD5_DATA" ] && echo "$MD5_DATA" | cut -c35- |
+    exists | grep -v "^$LOG_DIRECTORY" > "$TMP_LOG.2" &&
+    cat "$TMP_LOG.2" "$INST_LOG" | sort | uniq > "$TMP_LOG.3" ||
+    cp "$INST_LOG" "$TMP_LOG.3"
+  rm "$TMP_LOG.2" 2> /dev/null
+  mv "$TMP_LOG.3" "$INST_LOG"
+  create_compile_log
+  md5list $INST_LOG $MD5_LOG
+  archive
+  add_spell "$SPELL" installed "$VERSION"
+  rm $C_LOG
+  report_install
+
+  return 0
+
+}
+
+function alter_md5_mend() {
+
+  SINGLE=       #grab a single conflict only instead of all conflicts
+  STORE_BASE=${STORE_BASE:=/var/log/sorcery/tmp} # */tmp are often small 
+                                  # by default for the backup
+  SPELL="$1"
+  VERSION="$(gaze -q installed "$SPELL")"
+
+  MD5S="$(
+    (
+      echo "$MASTER_MD5S" | grep -v " $SPELL-$VERSION$"
+      cat "$MD5SUM_LOGS/$SPELL-$VERSION" | cut -c35- | sed -e 's/.*/& -/'
+    )
+  )"
+
+  TOTAL=$(echo -n "$MD5S" | wc -l)
+  message "${MESSAGE_COLOR}Checking $TOTAL files for conflicts with ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR}...${DEFAULT_COLOR}" > /dev/stderr
+  RESULTS="$(
+    echo -n "$MD5S" | sort -s -k1 | sed -e 's/\(.*\) \(.*\)/\2 \1/' |
+    (
+      FILE=
+      COUNT=0
+      while read LINE; do
+        if [ "${LINE:0:2}" == '- ' ]; then
+          FILE="${LINE:2}"
+        else
+          if [ "${LINE#* }" == "$FILE" ]; then
+            echo "$LINE"
+            [ -n "$SINGLE" ] && FILE=
+          fi
+        fi
+        [ "$((++COUNT))" != "${COUNT%%000}" ] && # increment and check for mod 1000
+        progress_bar $COUNT $TOTAL 60 > /dev/stderr
+      done
+      clear_line > /dev/stderr
+    ) | sort
+  )"
+
+  if [ -n "$RESULTS" ]; then
+    TOTAL="$(echo "$RESULTS" | wc -l)"
+    SPELLS="$(echo "$RESULTS" | cut -d' ' -f1 | sort | uniq)"
+    TOTSP="$(echo "$SPELLS" | wc -l)"
+    FILES="$(echo "$RESULTS" | cut -d' ' -f2 | sort | uniq)"
+    if [ "$ARCHIVE" != "off" ]; then    
+      STORE=$STORE_BASE/$SPELL-$VERSION.$$
+      mkdir -p "$STORE"
+      mkdir -p "$STORE/tmp/sorcery"
+      message "${MESSAGE_COLOR}Cleaning $TOTAL old md5sums from $TOTSP spells and creating $SPELL-undo-$VERSION store.${DEFAULT_COLOR}" > /dev/stderr
+    else
+      message "${MESSAGE_COLOR}Cleaning $TOTAL old md5sums from $TOTSP spells.${DEFAULT_COLOR}" > /dev/stderr
+    fi
+    echo "$SPELLS" |
+    (
+      COUNT=0
+      while read SPVER; do
+        SPFLS="$(echo "$RESULTS" | grep "^$SPVER " | cut -d' ' -f2)"
+        echo "$SPFLS" |
+        sed -e 's/[^a-zA-Z0-9*.+]/\\&/g' |
+        sed -e 's/.*/\\:&: d/' |
+        sed -i -f - "$MD5SUM_LOGS/$SPVER"    
+        if [ "$ARCHIVE" != "off" ]; then
+          if [ "$COMPRESSBIN" == "tar" ]; then
+            echo "$SPFLS" | 
+              tar -f $INSTALL_CACHE/$SPVER-*.tar \
+              -kx -T /dev/stdin -C "$STORE" 2> /dev/null
+          else
+            echo "$SPFLS" | 
+              tar --"$COMPRESSBIN" -f $INSTALL_CACHE/$SPVER-*.tar$EXTENSION \
+              -kx -T /dev/stdin -C "$STORE" 2> /dev/null
+          fi
+        fi
+        progress_bar $((++COUNT)) $TOTSP 60 > /dev/stderr
+      done
+      clear_line > /dev/stderr  
+    )
+    if [ "$ARCHIVE" != "off" ]; then    
+      message "${MESSAGE_COLOR}Creating ${SPELL_COLOR}$SPELL-undo${DEFAULT_COLOR}${MESSAGE_COLOR} spell for ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" > /dev/stderr
+      ORIGSPELL="$SPELL"
+      SPELL="$SPELL-undo"
+      cd "$STORE"
+      INST_LOG="$STORE.log"
+      mkdir -p "$STORE$MD5SUM_LOGS"
+      MD5S_LOG="$STORE$MD5SUM_LOGS/$SPELL-$VERSION"
+      touch "$MD5S_LOG"
+      echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL-$VERSION-backup.md5"
+      find * > "$INST_LOG"
+      md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
+      CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+      archive # No install log nor compile cache needed or wanted since we are 
+              # only doing md5sum deletions from other spells, the undeleted 
+              # form should only restore the md5sums to the proper location.
+      rm -rf "$STORE"
+    fi
+    return 1
+  else
+    message "${MESSAGE_COLOR}No md5sum conflicts with ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR} detected.${DEFAULT_COLOR}" > /dev/stderr
+    return 0
+  fi
+
+}
+
+function alter_gather_md5s() {
+
+  [ -n "$MASTER_MD5S" ] && return 0
+
+  TOTAL=$(gaze installed | wc -l)
+
+  message "${MESSAGE_COLOR}Gathering md5sums from $TOTAL spells...${DEFAULT_COLOR}" > /dev/stderr
+  MASTER_MD5S="$(
+    (
+      COUNT=0
+      for i in $(
+        gaze installed |
+        cut -d: -f1,4 | tr : -
+      ); do
+        cat "$MD5SUM_LOGS/$i" | sed -e 's/.*/'"$i"':&/'
+        progress_bar $((++COUNT)) $TOTAL 60 > /dev/stderr
+      done | sed -e 's/\(.*\):\(.*\)  \(.*\)/\3 \1/'
+      clear_line > /dev/stderr
+    )
+  )"
+
+}
+
+function alter_md5mend() {
+
+  [ -z "$1" ] && echo "Please provide spells to mend as arguments" > /dev/stderr && return 1
+
+  alter_gather_md5s
+
+  for spell in $*; do
+    alter_md5_mend "$spell"
+  done
+  return 0
+
+}
+
+function alter_gather_bins() {
+
+  if [ ! -f "/etc/prelink.conf" ]; then
+    message "${MESSAGE_COLOR}Gathering binary directories for altering (this could take a long while)...${DEFAULT_COLOR}"
+    find / -perm +001 2> /dev/null |
+    while read LINE; do
+      [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
+      grep -q ELF && echo "$LINE"
+    done |
+    grep -v '/src/\|/lib/modules\|/root/\|/home/' |
+    sed -e 's/[^/]*$//' | uniq |
+    sort | uniq > /etc/prelink.conf
+  fi
+
+}
+
+function alter_pre_link() {
+
+  ARGS="$@"
+
+  alter_gather_bins
+
+  alter_alter -n smgl-prelink '
+    /usr/sbin/prelink -v '"$ARGS"' | tee /tmp/prelink.$$.output
+    grep "Prelinking\\|Linking" /tmp/prelink.$$.output |cut -d" " -f2 | 
+    sort | uniq |
+    while read PRELINKED; do
+       touch "$PRELINKED"
+    done
+    rm /tmp/prelink.$$.output
+  '
+
+}
+
+function alter_prelink {
+
+  if gaze -q installed prelink | grep -q 'not installed'; then
+    cast prelink || (
+      message "${MESSAGE_COLOR}Unable to statisfy prelink dependency, quitting.${DEFAULT_COLOR}"
+      return 1
+    )
+  fi
+
+  if [ -z "$1" ]; then
+    alter_pre_link -afmR
+  else
+    alter_pre_link "$@"
+  fi
+  alter_md5mend smgl-prelink
+
+}
+
+function alter_strip_all_do() {
+
+  ARGS="$@"
+
+  alter_gather_bins
+
+  alter_alter -n smgl-strip '
+    find $(cat /etc/prelink.conf) -perm +001 2> /dev/null |
+    while read LINE; do
+      [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
+      grep -q ELF && echo "$LINE"
+    done |
+    while read STRIPFILE; do
+      cp "$STRIPFILE" /tmp/tostrip.$$
+      strip '"$ARGS"' /tmp/tostrip.$$
+      if [ "$(md5sum < /tmp/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
+        echo "$STRIPFILE" already stripped, skipping.
+        rm /tmp/tostrip.$$
+      else 
+        if [ "$(ldd /tmp/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
+          echo "$STRIPFILE stripped and verified."
+          # uncomment the following to make backups before mving stripped bins
+          # mkdir -p "/var/log/sorcery/tmp/smgl-strip.$$/${STRIPFILE%/*}"
+          # cp "$STRIPFILE" "/var/log/sorcery/tmp/smgl-strip.$$/$STRIPFILE"
+          mv /tmp/tostrip.$$ "$STRIPFILE"
+        else
+          echo "$STRIPFILE corrupted by strip, skipping"
+          rm /tmp/tostrip.$$
+        fi
+      fi
+    done
+  '
+
+}
+
+function alter_strip_do() {
+
+  SPELL="$1"; shift
+  ARGS="$@"
+
+  if [ "${SPELL% *}" != "$SPELL" ]; then
+    NAME=smgl-strip
+    VERSION=$$
+  else
+    NAME="$SPELL"
+    VERSION="$(gaze -q installed "$NAME")"
+  fi
+
+  alter_alter -n "$NAME" -v "$VERSION" '
+    for sp in '"$SPELL"'; do gaze install "$sp"; done 2> /dev/null |
+    while read LINE; do
+      [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
+      grep -q ELF && echo "$LINE"
+    done |
+    while read STRIPFILE; do
+      cp "$STRIPFILE" /tmp/tostrip.$$
+      strip '"$ARGS"' /tmp/tostrip.$$
+      if [ "$(md5sum < /tmp/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
+        echo "$STRIPFILE" already stripped, skipping.
+        rm /tmp/tostrip.$$
+      else 
+        if [ "$(ldd /tmp/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
+          echo "$STRIPFILE stripped and verified."
+          # uncomment the following to make backups before mving stripped bins
+          # mkdir -p "/var/log/sorcery/tmp/smgl-strip.$$/${STRIPFILE%/*}"
+          # cp "$STRIPFILE" "/var/log/sorcery/tmp/smgl-strip.$$/$STRIPFILE"
+          mv /tmp/tostrip.$$ "$STRIPFILE"
+        else
+          echo "$STRIPFILE corrupted by strip, skipping"
+          rm /tmp/tostrip.$$
+        fi
+      fi
+    done
+  '
+
+}
+
+function alter_strip_all {
+
+  if [ -z "$1" ]; then
+    alter_strip_all_do
+  else
+    alter_strip_all_do "$@"
+  fi
+  alter_md5mend smgl-strip
+
+}
+
+function alter_strip {
+
+  if [ -z "$1" ]; then
+    alter_strip_do
+  else
+    alter_strip_do "$@"
+  fi
+  [ "$1" != "$NAME" ] && alter_md5mend "$NAME"
+
+}
+
+function alter_about() {
+
+cat <<EOF | less && exit 0
+alter: about: alter is a utility to modify and add to spells' installs.
+
+(C) 2004 Seth Alan Woolley and The Source Mage Team, initial release.
+LICENSE: GPL v2 or higher.
+
+Run alter without arguments to see a basic syntax guide.
+
+Alter has two main uses:
+
+"alter":  
+    This is the basic use of alter.  Any command run on its command line
+will be run as if it was run at the end of the cast, inside the cast of
+the spell that is being altered.  By default, it operates on the spell
+"alter".  If the spell doesn't exist, it is "created".  This is useful
+for adding files to spells.  See md5mend to modify files in spells by
+replacing them with in an alter session.  When used together, with alter
+run first, then md5mend run second, you should end up with a rather
+clean system.  Running alter to touch a file, then md5mending, then
+dispelling the alter spell will remove a file from the sytem cleanly. 
+In all, any modification of an installed spell couild be done while
+maintaining somewhat logical md5sum logs.
+
+"md5mend":
+    This is a secondary use of alter.  Any spells specified on its
+command line get analyzed in the order specified.  If "environmental"
+spells installed on the machine have conflicting md5 entries with the
+"analyzed" spell, md5mend will remove them from the environmental spells
+but keep them in the analyzed spell.  For example, if you run it on
+coreutils, psmisc and util-linux will have their /bin/kill purged from
+their md5sum records.  This however leaves them in the install logs of
+the environmental spells because they actually were installed by the
+spell.  The purpose is to enable a more intelligent cast --fix.  a
+forced dispel -d env_spell env_version will restore the environmental
+md5log and restore the binary from the environmental spell, so this is
+undoable piecemeal, or, you can use the shotgun undo cache created,
+however if more than three spells had the same file, it will use the
+version appearing in the environmental spell that is first in
+alphabetical order.
+
+Alter has three shortcut uses:
+
+"prelink", "strip-all", or "strip":
+    These are two commonly used alter shortcuts.  Prelinking optimizes
+the link space among all the binaries on the system.  Strip-all strips 
+all the binaries on the system one by one, and confirms that they are 
+sane before installing them.
+    The first time you run either prelink or strip, alter creates the
+/etc/prelink.conf file if you don't already have one.  This part can
+take up to an hour depending on processor speed and how full your disks
+are, or as little as five minutes.  The content of the file is merely a
+listing, one directory per line, of all the directories that contain
+binaries that should be touched by prelink or this version of strip.  
+Feel free to ctrl-c this process and make it yourself if you are 
+impatient. The script, however, is very thorough and accurate, so it's 
+not a bad idea to simply let the script run its course.
+    Both prelink and strip take quite a while to run everything through
+because the md5mend process will essentially have to touch every archive
+and md5sum file on your system.  Be sure you have plenty of space
+available for the caches (if you have ARCHIVE=on).  1.5 times the
+installed uncompressed binary size (averages about 1-2 gigs on most
+installs, less for servers, more for desktops).
+    If you want to both strip and prelink, strip before you prelink 
+seems to work better.
+    If you run prelink and get lots of -fPIC warnings, try upgrading
+some of the spells, if it doesn't work, file a bug and CC
+seth@tautology.org on it and he will add -fPIC to the CFLAGS of the spell
+(alternatively, do this yourself and append an attachment to the bug).  
+zlib needs -DPIC -fPIC.  Prelinking doesn't like non-PIC'd binaries.  It 
+won't hurt anything, it will just ignore them.
+    In my experience (Seth), stripping decreases file size, but doesn't
+increase the speed, and prelink makes the files slightly bigger
+(negligible), but decreases load time, often dramatically for C++ apps
+with many links (read: KDE).
+
+    For further study, RTFS or drop into the freenode #sourcemage 
+channel and ask swoolley or the room for some urls or questions.
+
+FAQ:
+
+    Q: How do I prelink my whole system?
+    A: alter -p
+
+    Q: How do I strip debugging info from my whole system?
+    A: alter -z
+    
+    Q: I recompiled some libraries, and it slowed down.
+    A: Recompiling makes prelinking pointless, rerun alter -p upon each update.
+
+    Q: How do I add a file /bin/file to a spell coreutils?
+    A: mv /tmp/file /bin/file; alter -n coreutils touch /bin/file
+
+    Q: How do I delete a file /bin/file from coreutils?
+    A: alter -n coreutils-removed touch /bin/file; alter -m coreutils-removed; dispel coreutils-removed
+
+    Q: How do I modify a file /bin/file from coreutils?
+    A: patch /bin/file < /tmp/file.patch; alter -n coreutils touch /bin/file
+
+    Q: How do I undo an alter?
+    A: There's no exact undo, but it's good enough if you've been using
+       only spells and alter:
+       
+       # you did this but regretted it
+       alter -n alter-to-remove -v 31337 touch /bin/file # an alter
+       alter -m alter-to-remove              # md5mend it
+
+       # undo the above
+       dispel alter-to-remove                # do this step only if the files 
+                                             # it touched aren't critical.  If
+                                             # they are, set REAP=no before.
+       dispel -d alter-to-remove-undo 31337  # to unpack the undo cache
+
+    Q: How do I prelink just one file and its dependents?
+    A: alter -p -fmR /bin/kill
+
+    Q: How do I prelink just one spell and its dependents?
+    A: alter -p -fmR \$(gaze install coreutils)
+
+    Q: How do I prelink two spells and their dependents?
+    A: alter -p -fmR \$(for sp in coreutils psmisc; do gaze install \$sp; done)
+
+    Q: How do I strip just one file?
+    A: alter -n smgl-strip strip /bin/kill
+
+    Q: How do I strip just one spell?
+    A: alter -s coreutils
+
+    Q: How do I strip two spells?
+    A: alter -s 'coreutils psmisc'
+
+EOF
+
+}
+
+function main() {
+
+  [ -z "$1" ] && cat <<EOF > /dev/stderr && exit 1
+alter: usage: 
+  alter [ { -a | --alter   } ] # -a/--alter are ignored as this is default
+        [ { -n | --spell   } spell:=alter ]
+        [ { -v | --version } version:=<installed> ] command [ args  ... ]
+  alter   { -m | --md5mend        }     spell     [ spell ... ]
+  alter   { -p | --prelink        }     [ prelink_args:=-afmR ]
+  alter   { -z | --strip-all      } # shortcut to strip all binaries
+        [ strip_args:=        ]
+  alter   { -s | --strip          } # shortcut to strip binaries in spell(s)
+        spell_list                  # space-delimited list of spells as one arg
+        [ strip_args:=        ]
+  alter   { -h | --help | --about } # learn about alter and what it does
+
+  default environment variables:
+    STORE_BASE=/var/log/sorcery/tmp
+  To drastically save space, turn ARCHIVE=off in /etc/sorcery/local/config
+  To undo with ARCHIVE=on:
+    dispel -d <spell-name>-undo <spell-version>
+    alter -m <spell-name>-undo
+  NOTE:  Never directly dispel an alter with REAP=on unless
+  ****:  you want to delete everything the alter touched!
+  ****:  Use the undo archives as they have no install log.
+EOF
+
+  case "$1" in
+	-m|--md5mend              ) shift; alter_md5mend   "$@" ;;
+	-p|--prelink              ) shift; alter_prelink   "$@" ;;
+	-s|--strip                ) shift; alter_strip     "$@" ;;
+	-z|--strip-all            ) shift; alter_strip_all "$@" ;;
+	-a|--alter                ) shift; alter_alter     "$@" ;;
+	-h|--about|--help         ) shift; alter_about     "$@" ;;
+	-n|--spell|-v|--version|* )        alter_alter     "$@" ;;
+  esac
+
+}
+
+#include sorcery configuration (and thus subroutines)
+. /etc/sorcery/config
+
+#check if root. If not, become root
+if    [  "$UID"  ==  0  ] ; then
+  if  [[  $NICE != "0"  ]] ; then
+    renice $NICE -p $$  >/dev/null
+  fi
+
+  main  "$@"
+elif  [[  "$1" == -h       ]]  ||
+      [[  "$1" == --about  ]]  ||
+      [[  "$1" == --help   ]]  ||
+      [[       -z "$1"     ]]; then
+  main "$1"
+else  
+  echo  "Enter the root password, please."  1>&2
+  su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
+fi
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

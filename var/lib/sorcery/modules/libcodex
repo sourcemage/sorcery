@@ -74,8 +74,8 @@ function codex_remove_duplicates() {
   local  ALREADY_SEEN=""
 
  
-  touch  $INSTALL_ROOT$GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
 #  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
 
@@ -92,10 +92,10 @@ function codex_remove_duplicates() {
 
   done
 
-  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
+  lock_commit_transaction $GRIMOIRE_LIST
 
   unset GRIMOIRE_DIR
-  .  $INSTALL_ROOT$GRIMOIRE_LIST 
+  .  $GRIMOIRE_LIST 
 
 }
 
@@ -120,8 +120,8 @@ function codex_add_grimoire() {
   local  OVERWRITE=$3
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  touch  $INSTALL_ROOT$GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
 #  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
   
@@ -171,9 +171,9 @@ function codex_add_grimoire() {
 
   fi
 
-  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
+  lock_commit_transaction $GRIMOIRE_LIST
   unset GRIMOIRE_DIR
-  .  $INSTALL_ROOT$GRIMOIRE_LIST 
+  .  $GRIMOIRE_LIST 
 
   if [ "$OVERWRITE" == "overwrite"  ]; then
     codex_remove_duplicates
@@ -192,9 +192,9 @@ function codex_remove_grimoire() {
   local  GRIMOIRE_TO_DELETE="$1"
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
-  touch  $INSTALL_ROOT$GRIMOIRE_LIST
-  cp     $INSTALL_ROOT$GRIMOIRE_LIST  $INSTALL_ROOT$GRIMOIRE_LIST_BACKUP
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
 
   local  CURRENT_GRIMOIRE
@@ -206,9 +206,9 @@ function codex_remove_grimoire() {
     (( GRIMOIRE_COUNT++ ))
   done
 
-  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
+  lock_commit_transaction $GRIMOIRE_LIST
   unset GRIMOIRE_DIR
-  .  $INSTALL_ROOT$GRIMOIRE_LIST 
+  .  $GRIMOIRE_LIST 
 }
 
 
@@ -236,11 +236,11 @@ function codex_set_grimoires() {
       GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$NEW_GRIMOIRE
     else
       
-      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$INSTALL_ROOT$CODEX_ROOT/$NEW_GRIMOIRE
+      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$CODEX_ROOT/$NEW_GRIMOIRE
     fi 
 
   done
-  popd
+  popd >/dev/null
 }
 
 
@@ -582,12 +582,12 @@ function codex_set_current_spell()  {
 
   # Directories
   SCRIPT_DIRECTORY=$SPELL_DIRECTORY
-  SECTION_DIRECTORY=`dirname $SPELL_DIRECTORY`
-  GRIMOIRE=`dirname $SECTION_DIRECTORY`
+  SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
+  GRIMOIRE=${SECTION_DIRECTORY%/*}
 
   # Names
-  SECTION=`basename $SECTION_DIRECTORY`
-  SPELL=`basename $SPELL_DIRECTORY`
+  SECTION=${SECTION_DIRECTORY##*/}
+  SPELL=${SPELL_DIRECTORY##*/}
   
   SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
   if  [ -f  $SPELL_CONFIG  ]; then
@@ -597,6 +597,7 @@ function codex_set_current_spell()  {
   debug "libcodex" "looking around for API_VERSION"
   [[ -x $GRIMOIRE/API_VERSION ]] && . $GRIMOIRE/API_VERSION
   [[ -x $SECTION_DIRECTORY/API_VERSION ]] && . $SECTION_DIRECTORY/API_VERSION
+
   debug "libcodex" "sourcing DETAILS"
   persistent_load
   .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
@@ -666,12 +667,12 @@ function codex_get_spell_keywords()  {
 #---------------------------------------------------------------------
 function codex_cache_spell_lookup()  {
 
-	debug "libcodex" "looking up $1 in ${2}'s cache"
 	local SECTION=""
 	local spell="$1"
 	shift
 
 	while [ $# -gt 0 ] ; do
+	        debug "libcodex" "looking up $spell in ${1}'s cache"
 	
 		codex_check_cache $1
 	

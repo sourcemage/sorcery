@@ -1,23 +1,39 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
+## @Synopsis Functions for dealing with account and group generation etc.
+## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+## A library to help deal with managing accounts, particularly creating 
+## new accounts.
 ##
-## Functions for dealing with account and group generation etc.
-##
-##=head1 DESCRIPTION
-##
-##=head1 COPYRIGHT
-##
-## Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
-##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
+## Tests account and group list if there are no duplicate ID's. In
+## case there are, exits since this is serious problem
+#---------------------------------------------------------------------
+function sanity_checks() {
+  local COUNT1=$( cut -d : -f2 "$ACCOUNT_LIST" | wc -l )
+  local COUNT2=$( cut -d : -f2 "$ACCOUNT_LIST" | sort -u | wc -l )
+  if [ $COUNT1 != $COUNT2 ]; then
+    message "${PROBLEM_COLOR}Fatal error, $ACCOUNT_LIST contains duplicate UID's${DEFAULT_COLOR}"
+    exit 1
+  fi
+
+  COUNT1=$( cut -d : -f2 "$GROUP_LIST" | wc -l )
+  COUNT2=$( cut -d : -f2 "$GROUP_LIST" | sort -u | wc -l )
+  if [ $COUNT1 != $COUNT2 ]; then
+    message "${PROBLEM_COLOR}Fatal error, $GROUP_LIST contains duplicate GID's${DEFAULT_COLOR}"
+    exit 1
+  fi
+}
+
+#---------------------------------------------------------------------
 ## @param system account
-## @param [home directory]
-## @param [shell]
+## @param [home directory] - default used when not defined or empty
+## @param [shell] - default used when not defined or empty
+## @param [secondary gids] - comma separated list with
+##                           no intervening whitespace
 ##
 ## Creates account (if account has been defined).
 ## @return 0 if success (or account already exists).
@@ -26,49 +42,55 @@
 #---------------------------------------------------------------------
 function create_account() {
 
-        HOME_DIR=/var/run/$1
-        if [ -n "$2" ]; then
-                HOME_DIR="$2"
-        fi
+#  sanity_checks
 
-        USER_SHELL=/bin/false
-        if [ -n "$3" ]; then
-                USER_SHELL="$3"
-        fi
+  local HOME_DIR=/var/run/$1
+  if [ -n "$2" ]; then
+    HOME_DIR="$2"
+  fi
+
+  local USER_SHELL=/bin/false
+  if [ -n "$3" ]; then
+    USER_SHELL="$3"
+  fi
+
+  local SECONDARY_GIDS=''
+  if [ -n "$4" ]; then
+    SECONDARY_GIDS="-G $4"
+  fi
 
   if ! exists_account "$1" ; then
     debug "libgrimoire" "create_account() - $1 not defined!"
     return 0  # should return 0 to gracefully continue casting.
   fi
 
-  ACCOUNT_UID=`get_uid_for_account $1`
-  PRIMARY_GID=`get_primary_gid_for_account $1`
-  PRIMARY_GNAME=`get_group_name $PRIMARY_GID`
+  local ACCOUNT_UID=`get_uid_for_account $1`
+  local PRIMARY_GID=`get_primary_gid_for_account $1`
+  local PRIMARY_GNAME=`get_group_name $PRIMARY_GID`
 
-  debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME, HOME=$HOME_DIR, SHELL=$USER_SHELL"
+  debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME, HOME=$HOME_DIR, SHELL=$USER_SHELL, SECONDARY_GIDS=$4"
 
   groupadd -g $PRIMARY_GID -f $PRIMARY_GNAME
 
-        # check for adding user problems and try to notify user.
-        useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d "$HOME_DIR" -s "$USER_SHELL" $1
-        USERADD_RETURN=$?
-        debug "libgrimoire.create_account()" "useradd return code was: $USERADD_RETURN"
+  # check for adding user problems and try to notify user.
+  useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME $SECONDARY_GIDS -d "$HOME_DIR" -s "$USER_SHELL" $1
+  local USERADD_RETURN=$?
+  debug "libgrimoire.create_account()" "useradd return code was: $USERADD_RETURN"
 
   if    [  $USERADD_RETURN  ==  0  ] ; then
-                message "${MESAGE_COLOR}The user id $ACCOUNT_UID created!${DEFAULT_COLOR}"
-        elif  [  $USERADD_RETURN  ==  4  ] ; then
-                message "${MESAGE_COLOR}The user id $ACCOUNT_UID already exists, so continuing...${DEFAULT_COLOR}"
-                return 0
-        elif  [  $USERADD_RETURN  ==  9  ] ; then
-                message "${MESAGE_COLOR}The user name $1 already exists, so continuing...${DEFAULT_COLOR}"
-                return 0
-        else
-                debug "libgrimoire.create_account()"  "useradd fails with strange code : $USERADD_RETURN"
-                message "${MESAGE_COLOR}Something went wrong with adding the user $1 with uid $ACCOUNT_UID"
-                message "and gid $PRIMARY_GNAME so going to stop here...${DEFAULT_COLOR}"
-                return 1
-        fi
-
+    message "${MESAGE_COLOR}The user id $ACCOUNT_UID created!${DEFAULT_COLOR}"
+  elif  [  $USERADD_RETURN  ==  4  ] ; then
+    message "${MESAGE_COLOR}The user id $ACCOUNT_UID already exists, so continuing...${DEFAULT_COLOR}"
+    return 0
+  elif  [  $USERADD_RETURN  ==  9  ] ; then
+    message "${MESAGE_COLOR}The user name $1 already exists, so continuing...${DEFAULT_COLOR}"
+    return 0
+  else
+    debug "libgrimoire.create_account()"  "useradd fails with strange code : $USERADD_RETURN"
+    message "${MESAGE_COLOR}Something went wrong with adding the user $1 with uid $ACCOUNT_UID"
+    message "and gid $PRIMARY_GNAME so going to stop here...${DEFAULT_COLOR}"
+    return 1
+  fi
 }
 
 #---------------------------------------------------------------------

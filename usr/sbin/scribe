@@ -16,96 +16,101 @@
 #Add descriptions of each method
 #Details of Parameters
 ########################################
-
-help()        {
-
+help() {
   cat  <<  EOF
 
 Scribe is a utility for controlling the grimoires in your codex,
 and the spells in your grimoires.
 
-Usage:    scribe a[dd]|r[emove]|u[pdate]|f[ix] subject [[from] source locations]
-          scribe [re]index
-          scribe swap <grimoire1> <grimoire2>
+Invoke scribe with the desired command followed by the target.
+Note that most options can be called with the beginning of the command.
 
-Optional Parameters:
+Command		Arguments	Description
+add		grimoire [from source]	Adds a new grimoire
+				 (optionally from a different URL)
+remove		grimoire	Removes a grimoire
+update		[grimoire]	Updates a grimoire or all grimoires
 
-       from : define urls or locations to find the subject tarball
+fix		grimoire	Attempts to fix metadata for grimoire
+reindex		[grimoire]	Recreates the list of spells
+index				Prints list of grimoires
+
+swap		grim1 grim2 	Swaps two grimoires
+set		grim1 grim2	puts grim1 before grim2
+
+localize	grimoire	Makes a grimoire local
+				 (so scribe won't try to update it)
+unlocalize	grimoire	Makes a grimoire nonlocal
 
 EOF
 
   exit  1
-
 }
+
 
 ##########################
 # Function: Index
 # Display installed grimoires
 #########################
-
 index() {
+  echo "Codex Listing"
+  echo "-------------"
+  echo ""
 
-echo "Codex Listing"
-echo "-------------"
-echo ""
+  #get installed grimoires
+  grimoires=`codex_get_all_grimoires`
 
-#get installed grimoires
-grimoires=`codex_get_all_grimoires`
+  #for each grimoire
+  let c=0
+  for j in $grimoires; do
+    i=`basename "$j"`
+    echo " [$c] : $i : $j"
+    c=$((c+1))
+  done
 
-#for each grimoire
-let c=0
-for j in $grimoires; do
- i=`basename "$j"`
-echo " [$c] : $i : $j"
- c=$((c+1))
-done
-
-#echo ""
-#echo "The number in [] is the ID of the grimoire."
-#echo "Grimoires are searched in ascending order when looking for spells."
-#echo ""
-#echo "The second item is the \"basename\" of the grimoire,"
-#echo "or what it is referred to as."
-#echo ""
-#echo "The final item is the full path location of the grimoire."
-#echo "This will usually be in /var/lib/sorcery/codex"
-
+  #echo ""
+  #echo "The number in [] is the ID of the grimoire."
+  #echo "Grimoires are searched in ascending order when looking for spells."
+  #echo ""
+  #echo "The second item is the \"basename\" of the grimoire,"
+  #echo "or what it is referred to as."
+  #echo ""
+  #echo "The final item is the full path location of the grimoire."
+  #echo "This will usually be in /var/lib/sorcery/codex"
 }
+
 
 #######################################
 #swap()
 #######################################
-swap(){
+swap() {
+  #get installed grimoires
+  grimoires=`codex_get_all_grimoires`
 
-#get installed grimoires
-grimoires=`codex_get_all_grimoires`
-    
-#for each grimoire
-let c=0
-for j in $grimoires; do
- i=`basename "$j"`
-if [ "$i" = "${ITEMS[0]}" ]; then
-   let p1=$c
-   i1=$j
-elif [ "$i" = "${ITEMS[1]}" ]; then
-   let p2=$c
-   i2=$j
-fi
- c=$((c+1))
-done
+  #for each grimoire
+  let c=0
+  for j in $grimoires; do
+    i=`basename "$j"`
+    if [ "$i" = "${ITEMS[0]}" ]; then
+      let p1=$c
+      i1=$j
+    elif [ "$i" = "${ITEMS[1]}" ]; then
+      let p2=$c
+      i2=$j
+    fi
+    c=$((c+1))
+  done
 
-if [ -z "$p1" ]; then
- echo "Error: ${ITEMS[0]} not found in codex"
-elif [ -z "$p2" ]; then
- echo "Error: ${ITEMS[1]} not found in codex"
-else
-echo -n "swapping "
- echo "${ITEMS[0]} with ${ITEMS[1]}"
-codex_add_grimoire $i1 $p2
-codex_add_grimoire $i2 $p1
-fi
-
-
+  if [ -z "$p1" ]; then
+    echo "Error: ${ITEMS[0]} not found in codex"
+  elif [ -z "$p2" ]; then
+    echo "Error: ${ITEMS[1]} not found in codex"
+  else
+    echo -n "swapping "
+    echo "${ITEMS[0]} with ${ITEMS[1]}"
+    codex_add_grimoire $i1 $p2
+    codex_add_grimoire $i2 $p1
+  fi
 }
 
 
@@ -113,36 +118,34 @@ fi
 #scribe_set()
 ######################################
 scribe_set(){
+  #get installed grimoires
+  grimoires=`codex_get_all_grimoires`
 
-#get installed grimoires
-grimoires=`codex_get_all_grimoires`
-    
-#for each grimoire
-let c=0
-movemode="n"
-for j in $grimoires; do
- i=`basename "$j"`
-#echo "testing $i"
- if [ "$i" = "${ITEMS[0]}" ]; then
-   movemode="t"
-   tmove=$j
-#   echo "movemode = $movemode"
- fi
-# if [ ! "${ITEMS[0]}" -ne "$c" ]; then
-#   nmove="$i"
-# fi
- c=$((c+1))
-done
+  #for each grimoire
+  let c=0
+  movemode="n"
+  for j in $grimoires; do
+    i=`basename "$j"`
+    #echo "testing $i"
+    if [ "$i" = "${ITEMS[0]}" ]; then
+      movemode="t"
+      tmove=$j
+      #   echo "movemode = $movemode"
+    fi
+    # if [ ! "${ITEMS[0]}" -ne "$c" ]; then
+    #   nmove="$i"
+    # fi
+    c=$((c+1))
+  done
 
-echo -n "moving "
-#if [ $movemode == "n" ]; then
-# echo "id ${ITEMS[0]} ($nmove) to position ${ITEMS[1]}"
-#else
- echo "${ITEMS[0]} to position ${ITEMS[1]}"
-codex_add_grimoire $tmove ${ITEMS[1]}
+  echo -n "moving "
+  #if [ $movemode == "n" ]; then
+  # echo "id ${ITEMS[0]} ($nmove) to position ${ITEMS[1]}"
+  #else
+  echo "${ITEMS[0]} to position ${ITEMS[1]}"
+  codex_add_grimoire $tmove ${ITEMS[1]}
 
-#fi
-
+  #fi
 }
 
 
@@ -156,119 +159,95 @@ codex_add_grimoire $tmove ${ITEMS[1]}
 #More error checking
 #make sure add doesnt overwrite existing grimoire
 #######################################
-
 add() {
-
-#
-#For each item listed add it
-#
-
-for  ((x=0; x <= $i_count-1; x++))
- do
- 
- #If the associated FROM is not empty, check it for validity
-  if  [ -n "${SOURCES[$x]}" ];  then
-
-   if  url_is_valid "${SOURCES[$x]}";  then
-  
-     #if valid, use the FROM.
-     FROM_LOC="${SOURCES[$x]}"
-  
-   else
-
-     #if not valid, use $CODEX_URL
-     echo  "Error: ${SOURCES[$x]} is not a recognized url. Using default."
-     FROM_LOC="$CODEX_URL/${ITEMS[$x]}.tar.bz2"
-
-   fi
-
- else
-
-   #FROM is empty - use the default
-   FROM_LOC="$CODEX_URL/${ITEMS[$x]}.tar.bz2"
-
- fi
-
- echo "Adding grimoire ${ITEMS[$x]} from $FROM_LOC"
-
- if ! [ -d $INSTALL_ROOT$CODEX_ROOT ] ; then
-   echo "Main codex directory not present. Creating $INSTALL_ROOT$CODEX_ROOT."
-   mkdir -p $INSTALL_ROOT$CODEX_ROOT
- fi
-
- #switch to and work in the codex
- pushd $INSTALL_ROOT$CODEX_ROOT > /dev/null
-
- #download the grimoire using subroutines
- NO_FUZZ=on
- url_set_options nocache
- url_download $FROM_LOC
-
- #check the success of the download
- if [ $? != 0 ]; then
-
-   #grimoire was not downloaded. Error message.
-   echo "GRIMOIRE NOT FOUND"
-
- else
-
-   #if the grimoire is an archive, untar it
- if [ -e ${ITEMS[$x]}.tar.bz2 ]; then
- 
-  #if successfuly downloaded, untar it and remove the zip
-  bzcat ${ITEMS[$x]}.tar.bz2 | tar -x  1>/dev/null 2>&1 
-  rm ${ITEMS[$x]}.tar.bz2
-
-   fi
-
-   #make sure that it untarred to the proper dir.
-   if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
-
-        GRIMOIRE_TMP="$INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}"
-
-   else
-
-     if  [ -d $INSTALL_ROOT$CODEX_ROOT/grimoire ]; then
-        mv -f $INSTALL_ROOT$CODEX_ROOT/grimoire $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}
-        GRIMOIRE_TMP="$INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}"
-
-     fi
-
-   fi  
-
-   if [ -n $GRIMOIRE_TMP ]; then
-
-       #success! create a GRIMOIRE file that stores where it was downloaded from
-       echo "FROM_URL=$FROM_LOC" > $GRIMOIRE_TMP/GRIMOIRE
-       chmod +x $GRIMOIRE_TMP/GRIMOIRE
-
-       #check if we are dealing with a base grimoire
-       if [ -e $GRIMOIRE_TMP/BASE ]; then
-              OLD_BASE=`ls -l base-grimoire | awk '{print $NF}'`
-                   rm -f $INSTALL_ROOT$CODEX_ROOT/base-grimoire
-              ln -s $GRIMOIRE_TMP $INSTALL_ROOT$CODEX_ROOT/base-grimoire 
-       fi
-        
-       codex_add_grimoire \${INSTALL_ROOT}$CODEX_ROOT/${ITEMS[$x]} 0
-
-       codex_create_cache ${INSTALL_ROOT}$CODEX_ROOT/${ITEMS[$x]}
-       
-       echo "Grimoire \"${ITEMS[$x]}\" successfully added to your codex." 
-   else
-
-      #dir not found. error.
-      #FIXME- add a check for what dir it WAS and remove that
-      echo "ERROR: Grimoire tarball for ${ITEMS[$x]} not formated correctly!"
-
-   fi 
-
+  #For each item listed add it
+  if ! [ -d $CODEX_ROOT ] ; then
+    echo "Main codex directory not present. Creating $CODEX_ROOT."
+    mkdir -p $CODEX_ROOT
   fi
-#done. go back to directory being run from  
-popd >/dev/null
 
-done
+  for  ((x=0; x <= $i_count-1; x++)) ; do
+    #If the associated FROM is not empty, check it for validity
+    if  [ -n "${SOURCES[$x]}" ];  then
 
+      if  url_is_valid "${SOURCES[$x]}";  then
+        #if valid, use the FROM.
+        FROM_LOC="${SOURCES[$x]}"
+      else
+        #if not valid, use $CODEX_URL
+        echo  "Error: ${SOURCES[$x]} is not a recognized url. Using default."
+        FROM_LOC="$CODEX_URL/${ITEMS[$x]}.tar.bz2"
+      fi
+
+    else
+      #FROM is empty - use the default
+      FROM_LOC="$CODEX_URL/${ITEMS[$x]}.tar.bz2"
+    fi
+
+    echo "Adding grimoire ${ITEMS[$x]} from $FROM_LOC"
+
+    #switch to and work in the codex
+    pushd $CODEX_ROOT &> /dev/null
+
+    #download the grimoire using subroutines
+    local FILE
+    NO_FUZZ=on
+    url_set_options nocache
+    url_download $FROM_LOC
+
+
+    #check the success of the download
+    if [ $? != 0 ]; then
+      #grimoire was not downloaded. Error message.
+      echo "Error downloading grimoire..."
+    else
+      #if the grimoire is an archive, untar it
+      if [ -e ${ITEMS[$x]}.tar.bz2 ]; then
+        #if successfuly downloaded, untar it and remove the zip
+        bzcat ${ITEMS[$x]}.tar.bz2 | tar -x  1>/dev/null 2>&1 
+        rm ${ITEMS[$x]}.tar.bz2
+      fi
+
+      #make sure that it untarred to the proper dir.
+      if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
+        GRIMOIRE_TMP="$CODEX_ROOT/${ITEMS[$x]}"
+      else
+        if  [ -d $CODEX_ROOT/grimoire ]; then
+          mv -f $CODEX_ROOT/grimoire $CODEX_ROOT/${ITEMS[$x]}
+          GRIMOIRE_TMP="$CODEX_ROOT/${ITEMS[$x]}"
+        fi
+      fi  
+
+      if [ -n $GRIMOIRE_TMP ]; then
+
+        #success! create a GRIMOIRE file that stores where it was downloaded from
+        echo "FROM_URL=$FROM_LOC" > $GRIMOIRE_TMP/GRIMOIRE
+        chmod +x $GRIMOIRE_TMP/GRIMOIRE
+
+        #check if we are dealing with a base grimoire
+        if [ -e $GRIMOIRE_TMP/BASE ]; then
+          OLD_BASE=`ls -l base-grimoire | awk '{print $NF}'`
+          rm -f $CODEX_ROOT/base-grimoire
+          ln -s $GRIMOIRE_TMP $CODEX_ROOT/base-grimoire 
+        fi
+
+        codex_add_grimoire $CODEX_ROOT/${ITEMS[$x]} 0
+        codex_create_cache $CODEX_ROOT/${ITEMS[$x]}
+        echo "Grimoire \"${ITEMS[$x]}\" successfully added to your codex." 
+
+      else
+        #dir not found. error.
+        #FIXME- add a check for what dir it WAS and remove that
+        echo "ERROR: Grimoire tarball for ${ITEMS[$x]} not formated correctly!"
+      fi 
+    fi
+
+    #done. go back to directory being run from  
+    popd &>/dev/null
+
+  done
 }
+
 
 ###########################################
 #remove()
@@ -279,36 +258,30 @@ done
 #Remove Grimoire from CODEX list
 #More Error Checking - rm -rf is dangerous
 ###########################################
-
-
 remove() {
+  #remove all listed grimoires
+  for ((x=0; x <= $i_count-1; x++))
+  do
 
-#remove all listed grimoires
-for ((x=0; x <= $i_count-1; x++))
-do
+    #if a FROM is set, ignore it.
+    if [ -n "${SOURCES[$x]}" ]; then
+      echo  "Ignoring FROM: ${SOURCES[$x]}"
+    fi
 
- #if a FROM is set, ignore it.
- if [ -n "${SOURCES[$x]}" ]; then
-    echo  "Ignoring FROM: ${SOURCES[$x]}"
- fi
+    #if the grimoire exists, remove it
+    if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
+      #found. removed.
+      rm -rf $CODEX_ROOT/${ITEMS[$x]}
+      echo "Removing grimoire ${ITEMS[$x]} from codex"
+      codex_remove_grimoire $CODEX_ROOT/${ITEMS[$x]}
+    else
+      #not found - print error
+      echo "Grimoire ${ITEMS[$x]} does not exist in $CODEX_ROOT. No action."
+    fi
 
- #if the grimoire exists, remove it
- if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
-
-  #found. removed.
-  rm -rf $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}
-  echo "Removing grimoire ${ITEMS[$x]} from codex"
-  codex_remove_grimoire $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}
- else
-
-  #not found - print error
-  echo "Grimoire ${ITEMS[$x]} does not exist in $INSTALL_ROOT$CODEX_ROOT. No action."
-
- fi
-
-done
-
+  done
 }
+
 
 ##########################################
 #fix_metadata()
@@ -316,62 +289,55 @@ done
 #fixes the metadata on a grimoire based on user input
 ##########################################
 fix_metadata() {
+  fixPrompt="Repair Metadata for $1?"
+  metadataPrompt="Enter url to pull grimoire from"
 
-fixPrompt="Repair Metadata for $1?"
-metadataPrompt="Enter url to pull grimoire from"
-
-echo "No Metadata found for Grimoire $1"
-if  query "Repair Grimoire:$1's Metadata?" n; then
+  echo "No Metadata found for Grimoire $1"
+  if  query "Repair Grimoire:$1's Metadata?" n; then
     echo $metadataPrompt
     echo -n "[ $CODEX_URL/$1.tar.bz2 ]: "
     read URL
 
     if [ -z $URL ]; then
-        URL="$CODEX_URL/$1.tar.bz2"
+      URL="$CODEX_URL/$1.tar.bz2"
     fi   
 
     echo "Setting Metadata to: $URL"
     echo "If this is incorrect, run \"scribe fix $1\" and correct"
-    GRIMOIRE_TMP=$INSTALL_ROOT$CODEX_ROOT/$1
+    GRIMOIRE_TMP=$CODEX_ROOT/$1
     echo "FROM_URL=$URL" > $GRIMOIRE_TMP/GRIMOIRE
     chmod +x $GRIMOIRE_TMP/GRIMOIRE
     return 0
-fi
+  fi
 
-return 1
-
+  return 1
 }
+
 
 fix() {
+  for i in "${ITEMS[@]}"; do
 
-for i in "${ITEMS[@]}"; do
-
-  if ! [ -e $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE ]; then
-
-    if fix_metadata $i; then
-     echo "$i fixed."
-    else
-     echo "$i ignored."
-    fi
-
-  else
-
-    if query "Metadata for $i found. Fix anyway?" n; then
-
-        if fix_metadata $i; then
-         echo "$i fixed."
+    if ! [ -e $CODEX_ROOT/$i/GRIMOIRE ]; then
+      if fix_metadata $i; then
+        echo "$i fixed."
         else
-         echo "$i ignored."
-        fi
-
-    else
         echo "$i ignored."
+      fi
+    else
+      if query "Metadata for $i found. Fix anyway?" n; then
+        if fix_metadata $i; then
+          echo "$i fixed."
+        else
+          echo "$i ignored."
+        fi
+      else
+        echo "$i ignored."
+      fi
     fi
 
-  fi
-done
-
+  done
 }
+
 
 ##########################################
 #do_update()
@@ -382,76 +348,72 @@ done
 #
 #spell level update to preserve changes
 #########################################
-
 do_update() {
+  #switch to codex for update
+  local GRIMOIRE_NAME=$1
+  local FROM_URL=$2
+  local FILE
+  pushd $CODEX_ROOT &> /dev/null
 
-          #switch to codex for update
-          pushd $INSTALL_ROOT$CODEX_ROOT
- 
-          #download updated grimoire without fuzzy
-          NO_FUZZ=on
-          url_set_options nocache
-          url_download $2
+  #download updated grimoire without fuzzy
+  NO_FUZZ=on
+  url_set_options nocache
+  url_download $FROM_URL
 
-          #check the success of the download
-          if [ $? != 0 ]; then
+  #check the success of the download
+  if [ $? != 0 ]; then
+    #grimiore download failed
+    echo "GRIMOIRE NOT FOUND AT SOURCE"
+  else
+    #if the grimoire is an archive, untar it
+    if [ -e $1.tar.bz2 ]; then
+      #backup old version until successful untar
+      mv $1 temp_$1.old
 
-            #grimiore download failed
-            echo "GRIMOIRE NOT FOUND AT SOURCE"
+      #untar the new grimoire update and remove zip
+      bzcat $1.tar.bz2 | tar -x  1>/dev/null 2>&1 
+      rm $1.tar.bz2
+    fi
 
-          else
+    #check for a successful unzip
+    if [ -d $CODEX_ROOT/$1 ]; then
 
-            #if the grimoire is an archive, untar it
-          if [ -e $1.tar.bz2 ]; then
+      #success! create metadata
+      echo "FROM_URL=$2" > $CODEX_ROOT/$1/GRIMOIRE
+      chmod +x $CODEX_ROOT/$1/GRIMOIRE
 
-              #backup old version until successful untar
-              mv $1 temp_$1.old
+      #check if base grimoire
+      if [ -e $CODEX_ROOT/$1/BASE ]; then
+        OLD_BASE=`ls -l base-grimoire | awk '{print $NF}'`
+        rm -f $CODEX_ROOT/base-grimoire
+        ln -s $CODEX_ROOT/$1 $CODEX_ROOT/base-grimoire 
+      fi
 
-              #untar the new grimoire update and remove zip
-              bzcat $1.tar.bz2 | tar -x  1>/dev/null 2>&1 
-              rm $1.tar.bz2
+      #and remove backup version
+      if [ -e temp_$1.old ]; then
+        rm -rf temp_$1.old
+      fi
 
-            fi
+      #Confirm Success!
+      echo "$1 Updated!"
+      grimoire_history $CODEX_ROOT/$1
 
-              #check for a successful unzip
-              if [ -d $INSTALL_ROOT$CODEX_ROOT/$1 ]; then
+    else
 
-                  #success! create metadata
-                  echo "FROM_URL=$2" > $INSTALL_ROOT$CODEX_ROOT/$1/GRIMOIRE
-                  chmod +x $INSTALL_ROOT$CODEX_ROOT/$1/GRIMOIRE
-                  
-                  #check if base grimoire
-                  if [ -e $INSTALL_ROOT$CODEX_ROOT/$1/BASE ]; then
-                      OLD_BASE=`ls -l base-grimoire | awk '{print $NF}'`
-                      rm -f $INSTALL_ROOT$CODEX_ROOT/base-grimoire
-                      ln -s $INSTALL_ROOT$CODEX_ROOT/$1 $INSTALL_ROOT$CODEX_ROOT/base-grimoire 
-                  fi
+      #uh oh! bad unzip.
+      echo "ERROR: Grimoire tarball for $1 not formated correctly! Reverting."
 
-                  #and remove backup version
-              if [ -e temp_$1.old ]; then
-                  rm -rf temp_$1.old
-              fi
-                  
-                  #Confirm Success!
-                  echo "$1 Updated!"
-                  grimoire_history $INSTALL_ROOT$CODEX_ROOT/$1
+      #phew! we backed it up. restore backed up version
+      mv -f temp_$1.old $1
 
-              else
+    fi 
 
-                  #uh oh! bad unzip.
-                  echo "ERROR: Grimoire tarball for $1 not formated correctly! Reverting."
+  fi
 
-                  #phew! we backed it up. restore backed up version
-                  mv -f temp_$1.old $1
-              
-              fi 
-          
-          fi
-          
-          #return to directory scribe was run from
-          popd >/dev/null
-
+  #return to directory scribe was run from
+  popd &>/dev/null
 }
+
 
 #####################################
 #update()
@@ -463,127 +425,113 @@ do_update() {
 #Better Metadata
 #check for metadata on specific grimoires
 #####################################
-
 update() {
-
-#check if any grimoires are listed. If not, update all installed grimoires
-if [ $i_count == 0 ]; then
+  #check if any grimoires are listed. If not, update all installed grimoires
+  if [ $i_count == 0 ]; then
 
     #get installed grimoires
     grimoires=`codex_get_all_grimoires`
-    
+
     #for each grimoire
     for j in $grimoires; do
-        i=`basename "$j"`
+      i=`basename "$j"`
 
-        if codex_is_local $i; then
-            message "${SPELL_COLOR}$i${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
-            continue
-        fi
+      if codex_is_local $i; then
+        message "${SPELL_COLOR}$i${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+        continue
+      fi
 
-
-        #if it exists and has metadata
-        if [ -e $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE ] || fix_metadata $i; then
-            
-            #include metadata
-            . $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE
-            FROM_LOC=$FROM_URL
-            echo "Updating grimoire $i from $FROM_LOC"
-            do_update $i $FROM_LOC
-
-        else
-
-            #no metadata found. dont auto-update
-            echo "Not Updating $i."
-
-        fi
-    done
-
-else
-
-    #for each given grimoire, update
-    for ((x=0; x <= $i_count-1; x++))
-      do
-
-      
-      #if the codex exists
-      if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
-
-        if codex_is_local ${ITEMS[$x]}; then
-            message "${SPELL_COLOR}${ITEMS[$x]}${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
-            continue
-        fi
-          
-          #if a FROM is given, check its validity
-          if [ -n "${SOURCES[$x]}" ]; then
-
-              if url_is_valid "${SOURCES[$x]}"; then
-
-                  #valid url. use it.
-                  FROM_LOC="${SOURCES[$x]}"
-
-              else
-                  
-                  #invalid FROM. Use metadata instead.
-                  if [ -e $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
-                          . $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
-                          FROM_LOC=$FROM_URL
-                          echo "Error: ${SOURCES[$x]} is not a valid URL. Using: $FROM_LOC"
-                  else
-                          echo "${ITEMS[$x]} has invalid metadata. Not Updated"
-                  fi
-              fi
-          else
-
-              #no FROM given. Use metadata.
-                  if [ -e $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
-                          . $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
-                          FROM_LOC=$FROM_URL
-                  else
-                          echo "${ITEMS[$x]} has invalid metadata. Not Updated"
-                  fi
-          fi
-
-          echo "Updating grimoire ${ITEMS[$x]} from $FROM_LOC"
-          do_update ${ITEMS[$x]} $FROM_LOC
-          
+      #if it exists and has metadata
+      if [ -e $CODEX_ROOT/$i/GRIMOIRE ] || fix_metadata $i; then
+        #include metadata
+        . $CODEX_ROOT/$i/GRIMOIRE
+        FROM_LOC=$FROM_URL
+        echo "Updating grimoire $i from $FROM_LOC"
+        do_update $i $FROM_LOC
       else
-
-          #the grimoire doesnt exist to update!
-          echo "Grimoire ${ITEMS[$x]} not found in $INSTALL_ROOT$CODEX_ROOT"
-      
+        #no metadata found. dont auto-update
+        echo "Not Updating $i."
       fi
 
     done
 
-fi
+  else
 
-reindex
+    #for each given grimoire, update
+    for ((x=0; x <= $i_count-1; x++))
+    do
 
+      #if the codex exists
+      if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
+
+        if codex_is_local ${ITEMS[$x]}; then
+          message "${SPELL_COLOR}${ITEMS[$x]}${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+          continue
+        fi
+
+        #if a FROM is given, check its validity
+        if [ -n "${SOURCES[$x]}" ]; then
+
+          if url_is_valid "${SOURCES[$x]}"; then
+            #valid url. use it.
+            FROM_LOC="${SOURCES[$x]}"
+          else
+            #invalid FROM. Use metadata instead.
+            if [ -e $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
+              . $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
+              FROM_LOC=$FROM_URL
+              echo "Error: ${SOURCES[$x]} is not a valid URL. Using: $FROM_LOC"
+            else
+              echo "${ITEMS[$x]} has invalid metadata. Not Updated"
+            fi
+          fi
+
+        else
+
+          #no FROM given. Use metadata.
+          if [ -e $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
+            . $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
+            FROM_LOC=$FROM_URL
+          else
+            echo "${ITEMS[$x]} has invalid metadata. Not Updated"
+          fi
+        fi
+
+        echo "Updating grimoire ${ITEMS[$x]} from $FROM_LOC"
+        do_update ${ITEMS[$x]} $FROM_LOC
+
+      else
+        #the grimoire doesnt exist to update!
+        echo "Grimoire ${ITEMS[$x]} not found in $CODEX_ROOT"
+      fi
+    done
+  fi
+
+  reindex
 }
+
+
 ######################################
 #reindex()
 #
 #Update the spell index for grimoires
 #####################################
 reindex() {
-
   local paths=""
   if [ $i_count != 0 ]; then
     grimoires=`codex_get_all_grimoires`
-	
+
     for (( i=0  ; i<i_count ; i++ )) ; do
-		for j in $grimoires; do
-			[[ ${ITEMS[$i]} == `basename "$j"` ]] || continue
-	 		paths="$paths $j"
-		done
-	done
+      for j in $grimoires; do
+        [[ ${ITEMS[$i]} == `basename "$j"` ]] || continue
+        paths="$paths $j"
+      done
+    done
   fi
-  
+
   message -n "Reindexing spell list... "
   codex_create_cache $paths
   message "done."
-
 }
 
 
@@ -596,12 +544,11 @@ reindex() {
 #ToDo
 #Implement and plan
 #####################################
-
 transcribe() {
-    
     #not yet implemented. Give warning.
     echo "Transcribing not implemented"
 }
+
 
 ######################################
 #forget()
@@ -611,13 +558,11 @@ transcribe() {
 #ToDo
 #Implement and plan
 #####################################
-
 forget() {
-
     #not implement. give warning.
     echo "Forgetting not implemented"
-
 }
+
 
 ######################################
 #learn()
@@ -627,37 +572,35 @@ forget() {
 #ToDo
 #Implement and plan
 #####################################
-
 learn() {
-
     #not implmented. give warning.
     echo "Learning not implemented"
-
 }
 
+
 function localize() {
-    for (( k=0; k < i_count; k++ )); do 
-        grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
-        if ! [ $grimoire ]; then
-            message "No such grimoire"
-            continue
-        fi
-        modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "yes"
-        echo "Processed $grimoire"
-    done
+  for (( k=0; k < i_count; k++ )); do 
+    grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
+    if ! [ $grimoire ]; then
+      message "No such grimoire"
+      continue
+    fi
+    modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "yes"
+    echo "Processed $grimoire"
+  done
 }
 
 
 function unlocalize() {
-    for (( k=0; k < i_count; k++ )); do
-        grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
-        if ! [ $grimoire ]; then
-            message "No such grimoire"
-            continue
-        fi
-        modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "no"
-        echo "Processed $grimoire"
-    done
+  for (( k=0; k < i_count; k++ )); do
+    grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
+    if ! [ $grimoire ]; then
+      message "No such grimoire"
+      continue
+    fi
+    modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "no"
+    echo "Processed $grimoire"
+  done
 }
 
 
@@ -672,72 +615,66 @@ function unlocalize() {
 #Multiple TO's
 #Multiple FUNCTION's
 #####################################
-
 process_parameters()  {
+  case  $1  in
 
- #figure out what function scribe is meant to do this run.
- case  $1  in
+                              l|le|lea|lear|learn) FUNCTION="l" ;;
+                                     f|fi|fix) FUNCTION="f" ;;
+    t|tr|tra|tran|trans|transcr|transcri|transcrib|transcribe) FUNCTION="t" ;;
+                                     a|ad|add) FUNCTION="a" ;;
+                          rm|rem|remo|remov|remove) FUNCTION="r" ;;
+                         u|up|upd|upda|updat|update) FUNCTION="u" ;;
+                                   sw|swa|swap) FUNCTION="swap";;
+                                      se|set) FUNCTION="set";;
+                              i|in|ind|inde|index) FUNCTION="index";;
+                          rei|reind|reinde|reindex) FUNCTION="reindex";;
+                                     localize) FUNCTION="localize";;
+                                    unlocalize) FUNCTION="unlocalize";;
+                                          *) #unrecognized function. give help
+                                            help    ;;
+  esac
 
-                                         l|le|lea|lear|learn) FUNCTION="l" ;;
-                                                    f|fi|fix) FUNCTION="f" ;;
-   t|tr|tra|tran|trans|transcr|transcri|transcrib|transcribe) FUNCTION="t" ;;
-                                                    a|ad|add) FUNCTION="a" ;;
-                                    rm|rem|remo|remov|remove) FUNCTION="r" ;;
-                                  u|up|upd|upda|updat|update) FUNCTION="u" ;;
-                                                 sw|swa|swap) FUNCTION="swap";;
-                                                      se|set) FUNCTION="set";;
-                                         i|in|ind|inde|index) FUNCTION="index";;
-									rei|reind|reinde|reindex) FUNCTION="reindex";;
-                                                    localize) FUNCTION="localize";;
-                                                  unlocalize) FUNCTION="unlocalize";;
-                                                           *) #unrecognized function. give help
-                                                              help    ;;
- esac
+  #remove the function from the parameters being processed
+  shift 1
 
- #remove the function from the parameters being processed
- shift 1
+  #start looking for ITEMS (mode i)
+  PARAM_MODE='i'
 
- #start looking for ITEMS (mode i)
- PARAM_MODE='i'
+  #for every parameter, process
+  while  [  -n  "$1"  ];  do
+    case  $1  in
+      from)  PARAM_MODE='f';  shift 1  ;;
+      to)  PARAM_MODE='t';  shift 1  ;;
+      *) # This looks like an actual item to act on. 
+        # Record it in the right PARAM list.
+        case $PARAM_MODE in
+          i)  ITEMS[$i_count]=$1
+            shift 1
+            let i_count=i_count+1
+          ;;
 
- #for every parameter, process
- while  [  -n  "$1"  ];  do
-     case  $1  in
-       
-         from)  PARAM_MODE='f';  shift 1  ;;
+          f)  SOURCES[$f_count]=$1
+            shift 1
+            let f_count=f_count+1
+          ;;
 
-           to)  PARAM_MODE='t';  shift 1  ;;
+          t)  TARGETS[$t_count]=$1
+            shift 1
+            let t_count=t_count+1
+          ;;
 
-            *)  # This looks like an actual item to act on. 
-                # Record it in the right PARAM list.
-                case $PARAM_MODE in
-
-                   i)  ITEMS[$i_count]=$1
-                       shift 1
-                       let i_count=i_count+1
-                   ;;
-
-                   f)  SOURCES[$f_count]=$1
-                       shift 1
-                       let f_count=f_count+1
-                   ;;
-
-                   t)  TARGETS[$t_count]=$1
-                       shift 1
-                       let t_count=t_count+1
-                   ;;
-
-                   *) #if we get here it means we found an unknown param. 
-                      #this should be impossible. but we still want to panic if it happens.
-                      echo "Major error in param_processing: mode ="
-                      echo $PARAM_MODE
-                      exit 1
-                    ;;
-                esac
-     esac
- done
-
+          *) #if we get here it means we found an unknown param. 
+            #this should be impossible. but we still want to panic if it happens.
+            echo "Major error in param_processing: mode ="
+            echo $PARAM_MODE
+            exit 1
+          ;;
+        esac
+      ;;
+    esac
+  done
 }
+
 
 #########################################
 #main()
@@ -748,35 +685,34 @@ process_parameters()  {
 #Multiple Functions
 #
 #########################################
+main() {
+  #declare these here for the sake of scope
+  declare -i i_count=0 f_count=0 t_count=0
 
-main()        {
+  #move to the tmp folder in case we create junk
+  cd  /tmp
 
-    #declare these here for the sake of scope
-    declare -i i_count=0 f_count=0 t_count=0
-    
-    #move to the tmp folder in case we create junk
-    cd  /tmp
+  #check out what it is we are doing
+  process_parameters        $*
 
-    #check out what it is we are doing
-    process_parameters        $*
-
-    #now that we have a function, do it.
-    case $FUNCTION in
-      l) learn ;;
-      f) fix ;;
-      t) transcribe ;;
-      a) add ;;
-      r) remove ;;
-      u) update ;;
-      set) scribe_set ;;
-      swap) swap ;;
-      index) index ;;
-	  reindex) reindex ;;
-      localize) localize ;;
-      unlocalize) unlocalize ;;
-      *) help ;;
-    esac
+  #now that we have a function, do it.
+  case $FUNCTION in
+    l) learn ;;
+    f) fix ;;
+    t) transcribe ;;
+    a) add ;;
+    r) remove ;;
+    u) update ;;
+    set) scribe_set ;;
+    swap) swap ;;
+    index) index ;;
+    reindex) reindex ;;
+    localize) localize ;;
+    unlocalize) unlocalize ;;
+    *) help ;;
+  esac
 }
+
 
 #include sorcery configuration (and thus subroutines)
 . /etc/sorcery/config
@@ -786,12 +722,15 @@ if    [  "$UID"  ==  0  ] ; then
   if  [[  $NICE != "0"  ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
+
   main  $*
-elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
+elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then
+  help
 else  
   echo  "Enter the root password, please."  1>&2
   su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
 fi
+
 
 #---------------------------------------------------------------------
 ##=back

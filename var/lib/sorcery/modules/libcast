@@ -1,23 +1,12 @@
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## Functions for dealing with the actual compiling/installation of spells
-## and walking through casts 'pass 4' pipeline.
-##
-##=head1 DESCRIPTION
-##
+## @Synopsis Functions for dealing with the actual compiling/installation of spells and walking through casts 'pass 4' pipeline.
+## @Copyright Copyright (C) 2002 The Source Mage Team &lt;http://www.sourcemage.org&gt;
+## @Globals $SGL_LIBRARY_MODULES $GRIMOIRE $BUILD_API $USE_FUNCTIONS
 ## A spell follows the following path during its installation:
-## PREPARE -> DETAILS -> PRE_BUILD -> BUILD, or COMPILE/INSTALL ->
-## POST_BUILD -> POST_INSTALL -> TRIGGERS
+## PREPARE -&gt; DETAILS -&gt; PRE_BUILD -&gt; BUILD, or COMPILE/INSTALL -&gt;
+## POST_BUILD -&gt; POST_INSTALL -&gt; TRIGGERS
 ## Each of these steps, along with some interim steps of dealing with
-## conflicts and security are handled here as weell.
-##
-##=head1 COPYRIGHT
-##
-## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
-##
-##=head1 FUNCTIONS
+## conflicts and security are handled here as well.
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
@@ -25,7 +14,6 @@
 ## into the build api that it is specified to use. (ie split BUILD or
 ## no split BUILD).
 #---------------------------------------------------------------------
-
 function load_build_api() {
 
   debug "libcast" "Starting load_build_api"
@@ -34,7 +22,12 @@ function load_build_api() {
   case $BUILD_API in
     1) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
     2) source $SGL_LIBRARY_MODULES/build_api/api2 ;;
-    *) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
+    *) message "${PROBLEM_COLOR}Unknown build api version $BUILD_API, for" \
+               "$SPELL!!${DEFAULT_COLOR}"
+       message "Please update sorcery and see if the problem goes away."
+       message "If it doesnt this may be a bug, please contact" \
+               "the sorcery team. Thanks."
+       return 1 ;;
   esac
 
   # the following allows spell writers to override certain functions
@@ -48,6 +41,7 @@ function load_build_api() {
   elif [[ $USE_FUNCTIONS == "section" ]] ; then
     [ -x $SECTION_DIRECTORY/FUNCTIONS ] && . $SECTION_DIRECTORY/FUNCTIONS
   fi
+  return 0
 }
 
 
@@ -55,6 +49,7 @@ function load_build_api() {
 ## Loads up this environment with the special configuration values
 ## that the spell needs. Typically the mode of communication between
 ## CONFIGURE/DEPENDS to PRE_BUILD, BUILD, COMPILE, INSTALL, etc.
+## @Globals $SPELL_CONFIG $DEPENDS_CONFIG
 #---------------------------------------------------------------------
 function prepare_spell_config()  {
 
@@ -74,8 +69,8 @@ function prepare_spell_config()  {
 ## An optional depends is set on or off depending on whether or not
 ## the user wants to invoke a spell via xinetd
 #---------------------------------------------------------------------
-function use_xinetd()  { (
-
+function use_xinetd()  {
+  local SERVICES SERVICE ALL_SERVICES SERVICES_DISABLE
   debug "cast" "In use_xinetd()"
   
   if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
@@ -96,7 +91,7 @@ function use_xinetd()  { (
       then 
         SERVICES="$SERVICE $SERVICES"
       else
-        SERVICES_DISABLE="$SERVICE_DISABLE $SERVICES_DISABLE" 
+        SERVICES_DISABLE="$SERVICE $SERVICES_DISABLE" 
       fi
     done
 
@@ -104,47 +99,43 @@ function use_xinetd()  { (
     debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
     debug "cast" "setting up depends for services"
 
-    for  SERVICE  in  $SERVICES;  do
-      for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
-
-         if  grep  -q   "service $SERVICE"  $FILE   &&
-             grep  -q   "stunnel"           $FILE;  then
-           add_depends  "$SPELL"  "stunnel"  "on"  "optional"
-         fi
-
-      done
-    done
-
-    if    [  -n  "$SERVICES"  ]
-    then  add_depends  "$SPELL"  "xinetd"  "on"   "optional"
-    else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
+    if    [  -n  "$SERVICES"  ] ; then 
+      private_common_depends "xinetd" "on" "optional" "" ""
+    else
+      private_common_depends "xinetd" "off" "optional" "" ""
     fi
 
     echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
-		echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
+    echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
 
   fi
 
-) }
+}
 
 #---------------------------------------------------------------------
 ## Installs the services selected from use_xinetd
 #---------------------------------------------------------------------
 function install_xinetd() { (
-
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] 
-  then
-		
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] ; then
+    mkdir  -p  /etc/xinetd.d
     SERVICES=""          # services to be installed.
-		SERVICES_DISABLE=""  # services not to install.
+    SERVICES_DISABLE=""  # services not to install.
     . $SPELL_CONFIG
-    debug "cast" "use_xinetd: about to call install_xinetd_confs"
+    pushd "$SCRIPT_DIRECTORY/xinetd.d" >/dev/null
 
-		if  [  -n  "$SERVICES"  ] ; then
-  		# now we install the selected services.
-			install_xinetd_confs $SERVICES
-		fi
-	fi
+    # install and enable
+    for  FILE in  $SERVICES;  do
+      cp  $FILE  /etc/xinetd.d
+      chmod +x  /etc/xinetd.d/$FILE  
+    done
+
+    # install but disable
+    for  FILE in  $SERVICES_DISABLE;  do
+      cp  $FILE  /etc/xinetd.d
+      chmod -x  /etc/xinetd.d/$FILE  
+    done
+    popd >/dev/null
+  fi
 ) }
 
 #---------------------------------------------------------------------
@@ -164,14 +155,18 @@ function use_initd()  { (
 
     . $SPELL_CONFIG
 
-    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+    local ALL_INITSCRIPTS=`find "$SCRIPT_DIRECTORY/init.d/" -type f -not -name "*.conf" -printf '%f '`
     debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
 
-    for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
+    local INITSCRIPT
+    for  INITSCRIPT in $ALL_INITSCRIPTS  ;  do
+
       echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
           grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-      if  query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
+      local default_answer=n
+      grep -Fq 'ESSENTIAL=yes' "$SCRIPT_DIRECTORY/init.d/$INITSCRIPT" && default_answer=y
+      if  query  "Invoke $INITSCRIPT at boot via init?"  $default_answer  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
         init_prepare_install  $INITSCRIPT
       else
@@ -194,8 +189,8 @@ function use_initd()  { (
 ## started at bootup.
 #---------------------------------------------------------------------
 function install_initd() { (
-    debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
-    debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
+    debug "cast" "install_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
+    debug "cast" "install_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
     debug "cast" "saving initscripts"
     
     INITDSCRIPTS=""
@@ -205,13 +200,13 @@ function install_initd() { (
 #    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
     # now we install the selected scripts.
     if  [  -n  "$INITDSCRIPTS"  ] ; then
-      debug "cast" "use_initd: about to call install_initd_confs"
+      debug "cast" "install_initd: about to call install_initd_confs"
       install_initd_confs enabled $INITDSCRIPTS
     fi
 
     # and disable the others.
     if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
-      debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
+      debug "cast" "install_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
       install_initd_confs disabled $INITDSCRIPTS_DISABLED
     fi
     
@@ -219,7 +214,7 @@ function install_initd() { (
 
 
 #---------------------------------------------------------------------
-## Takes the compile log, created by activate_voyeur and stuffs it into
+## Takes the compile log and stuffs it into
 ## our compile log directory.
 #---------------------------------------------------------------------
 function create_compile_log()  {
@@ -248,23 +243,6 @@ function view_compile_log()  {
 
 
 #---------------------------------------------------------------------
-## Turns on logging of the output from BUILD/COMPILE/INSTALL
-## Needs to be run after each script finishes because tee stops writing
-## upon EOF.
-#---------------------------------------------------------------------
-function activate_voyeur()  {
-
-  if  [  -z  "$SILENT"  ];  then
-    case  $VOYEUR  in
-      on)  tee  -a  $C_LOG  <  $C_FIFO              &  ;;
-       *)  tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &  ;;
-    esac
-  else     tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &
-  fi
-
-}
-
-#---------------------------------------------------------------------
 ## @param spellname
 ## calls run_details and returns the returnvalue of
 ## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
@@ -280,12 +258,11 @@ function resurrect()  {  (
 
   debug "libcast" "resurrect - $*"
 
-  run_prepare   &&
   can_resurect
 #  run_details  run by can_resurect now
 
   # needed because of build splitification
-  load_build_api
+  load_build_api || return 1
 
   STATUS=installed
 
@@ -313,13 +290,17 @@ function resurrect()  {  (
   if  $CONTINUE
   then
     run_conflicts    &&
+    # can this please go away?
     satisfy_depends  &&
-		
+
+    # new tarballs are cached relative to $INSTALL_ROOT
+    pushd $INSTALL_ROOT/ &>/dev/null
     if  [  -n  "$EXTENSION"  ];  then
       $COMPRESSBIN   -cd   $CACHE_COMP  |  tar  -Pkx  1>/dev/null  2>&1
     else
       tar  -Pkxf  $CACHE_COMP  1>/dev/null  2>&1
     fi 
+    popd &>/dev/null
 
     # minor hack until I re-write this (afk 4/12/2004)
     if [ $BUILD_API == 2 ] ; then
@@ -332,7 +313,6 @@ function resurrect()  {  (
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
     pop_install_queue "$SPELL"
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    set_successful_cast  "$SPELL"
     clear_line
     message  "${RESURRECT_COLOR}Resurrected spell:"  \
              "${SPELL_COLOR}${SPELL}"                \
@@ -340,7 +320,7 @@ function resurrect()  {  (
              "version"                               \
              "${VERSION_COLOR}${VERSION}"            \
              "${DEFAULT_COLOR}"
-    cast  --fix  $SILENT  $SPELL && echo $SPELL >> $SUCCESS_LIST
+    cleanse --fix  $SILENT  $SPELL && echo $SPELL >> $SUCCESS_LIST
   else
     echo $SPELL >> $FAILED_LIST
     false
@@ -354,19 +334,23 @@ function resurrect()  {  (
 
 
 #---------------------------------------------------------------------
+## LC means "line count" why not just type line_count?
+## @TODO This function is dumb. It should be fixed.
+## @param download log file name
 #---------------------------------------------------------------------
 function show_download_progress()  {
 
-  if  [  -f  "$D_LOG"   ]   &&
+  local download_log=$1
+  if  [  -f  "$download_log"   ]   &&
       [  -z  "$SILENT"  ];  then
 
     LC_OLD=${LC_OLD:-0}
 
-    LC=`cat  $D_LOG  2>/dev/null  |  wc  -l  |  tr  -d ' '`
+    LC=`cat  $download_log  2>/dev/null  |  wc  -l  |  tr  -d ' '`
 
     if  [  "$LC"  !=  "$LC_OLD"  ];  then
       ((  LC_OLD++  ))
-      sed  -n ${LC_OLD},${LC}p  $D_LOG
+      sed  -n ${LC_OLD},${LC}p  $download_log
       LC_OLD=$LC
     fi
 
@@ -374,41 +358,73 @@ function show_download_progress()  {
 
 }
 
-
 #---------------------------------------------------------------------
+## Shows download progress. Waits for the download to start, and shows
+## the progress until the download is done.
+## Pawn most of the display out to <@function show_download_progress>
+## @TODO fix the old style ad-hoc IPC
+## @param Spell to show the download progress for
 #---------------------------------------------------------------------
 function show_downloading()  {
 
-#  COMPILE="y"
-  debug "cast" "Started show_downloading() on $SPELL"
-  while ! ( [[ $D_LOG ]] && 
-            [  -f "$D_LOG"  ] ) 
+  local SPELL=$1
+  local download_log=$(get_spell_dl_log $SPELL)
+  debug "cast" "Started show_downloading() on $SPELL from $download_log"
+
+  # poke around waiting for downloading to start
+  while ! ( [[ $download_log ]] && 
+            [  -f "$download_log"  ] ) 
   do
     sleep 1
   done
 
-  #The file is created in run_summon
-  until [  -f "${D_LOG}.done.$SPELL"  ] ;  do
-    show_download_progress
+  # isn't this out of band ipc great?
+  until [  -f "${download_log}.done"  ] ;  do
+    show_download_progress $download_log
     sleep 1
   done
   
-  rm "${D_LOG}.done.$SPELL"
-  show_download_progress
-
+  show_download_progress $download_log
+  debug "libcast" "Out of show_downloading"
 }
 
 
 #---------------------------------------------------------------------
+## Report that something got installed, and possibly display the report
+## Pawns the work off to <@function var.lib.sorcery.modules.libsorcery,report>
+## @Globals INST_LOG
 #---------------------------------------------------------------------
 function report_install()  {
 
-  local INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   debug "libcast" "In report_install, INST_LOG=$INST_LOG"
   report  $INST_LOG  "Install log"
 
 }
 
+#---------------------------------------------------------------------
+## Gets the filename of the download log file
+## @param Spell 
+## @Stdout file name
+#---------------------------------------------------------------------
+function get_spell_dl_log() {
+  echo "$TMP_DIR/download.$1"
+}
 
-
-
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

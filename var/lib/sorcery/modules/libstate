@@ -1,59 +1,90 @@
-#!/bin/bash
-
-
+#---------------------------------------------------------------------
+## Handles storage of state information, incluing depends and package
+## files. Also handles looking information up about what is installed
+## and what depends on what.
+##
+## @Copyright Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
+#---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
 ##
-## Adds a dependency to the DEPENDS_STATUS file.  Returns 1 is the 
+## Adds a dependency to the a depends database file.  Returns 1 is the 
 ## 3rd or 4th fields are not valid.
 ##
+## @param  Depends status file
 ## @param  Name of the "parent" spell
 ## @param  Name of the spell the parent spell depends on
 ## @param  "on" or "off" depending on whether the user installed the dependency
 ## @param  Type of dependency (required or optional)
-## @param  option to pass to C<configure> if the dependency is installed
-## @param  option to pass to C<configure> if the dependency is not installed
+## @param  option to pass to C&lt;configure&gt; if the dependency is installed
+## @param  option to pass to C&lt;configure&gt; if the dependency is not installed
 ##
 ## @Example add_depends kdelibs alsa-driver on optional --with-alsa --without-alsa
 ##
 #---------------------------------------------------------------------
 function add_depends()
-{ # $1=spell, $2=depends, $3=on/off, $4=optional/required, $5=on arg, $6=off arg
+{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
 	debug "libstate" "add_depends() - $*"
-	#Locking the file at the start to avoid multiple casts adding the same thing
-	#lock_file $DEPENDS_STATUS  Locking done in run_depends now
 
 	#already here for some reason
 	search_depends_status_exact "$@" >/dev/null  && return 0
 	
+        #probably not needed with commit on succeed
 	#remove stale depends info
 	search_depends_status "$@" >/dev/null && remove_depends_status "$@"
+
+        local depends_status=$1
+        shift
 	
 	#ensure the info is valid (perhaps add check that spells exist?)
 	if ( [[ $3 != on ]]       && [[ $3 != off ]]       )   ||
            ( [[ $4 != required ]] && [[ $4 != optional ]]  )
 	then
-	  # unlock_file $DEPENDS_STATUS  Locking done in run_depends now
 	  return 1 
 	fi
 	
-	echo "$1:$2:$3:$4:$5:$6" >> $DEPENDS_STATUS
-	#unlock_file $DEPENDS_STATUS  Locking done in run_depends now
+	echo "$1:$2:$3:$4:$5:$6" >> $depends_status
 	
 	return 0	
 
 }
 
+#---------------------------------------------------------------------
+## Sets up the uncommitted depends file. If the name isn't
+## found in the hash table create it. If the file already exists
+## move it to the abandoned depends directory and start with a new one.
+## The uncommitted_hash hash table should be hash_export'ed to
+## make it through the call to make.
+##
+## @param spell
+## @param variable name to put the filename name in (pass by reference)
+##
+#---------------------------------------------------------------------
+function get_uncommitted_depends_file() {
+    local SPELL=$1
+    local temp_spell_depends=$(hash_get "uncommitted_hash" $SPELL)
+    if ! [[ $temp_spell_depends ]] ; then
+      temp_spell_depends="$UNCOMMITTED_DEPENDS/$SPELL"
+      hash_put "uncommitted_hash" "$SPELL" "$temp_spell_depends"
+    fi
+    eval "$2=\"$temp_spell_depends\""
+    if [ -e $temp_spell_depends ]; then
+      mkdir -p "$ABANDONED_DEPENDS"
+      mv "$temp_spell_depends" "$ABANDONED_DEPENDS"
+    fi
+    mkdir -p "$UNCOMMITTED_DEPENDS"
+    touch "$temp_spell_depends"
+}
 
 #---------------------------------------------------------------------
 ##
-## In case you want to search in all the fields of the 
-## DEPENDS_STATUS
+## In case you want to search in all the fields of the $1
 ##
 ## Arguments can be regexp
 ##
 ## Prints out the matching line(s)
 ## @Stdout the matching line(s)
+## @param depends file
 ## @param spell
 ## @param depends
 ## @param on/off
@@ -63,22 +94,25 @@ function add_depends()
 ##
 #---------------------------------------------------------------------
 function search_depends_status_exact()
-{ # $1=spell, $2=depends, $3=on/off, $4=optional/required, $5=on arg, $6=off arg
+{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
+
+        local depends_status=$1
+        shift
 
 	local a1 a2 a3 a4 a5 a6
 	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
-debug "DB" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
-	grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $DEPENDS_STATUS
+        debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
+	grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $depends_status
 
 }
 
 
 #---------------------------------------------------------------------
+## @param depends file
 ## @param spell
 ## @param depends (optional)
 ## @Stdout mathing lines
-## In case you want to search by spell or dependency in 
-## DEPENDS_STATUS
+## In case you want to search by spell or dependency in $1
 ##
 ## Arguments can be regexp
 ##
@@ -86,10 +120,13 @@ debug "DB" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 ##
 #---------------------------------------------------------------------
 function search_depends_status()
-{ # $1=spell, $2=(opt)depends
+{ # $1=depends file $2=spell, $3=(opt)depends
 
-  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $DEPENDS_STATUS
-  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $DEPENDS_STATUS
+  local depends_status=$1
+  shift
+
+  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $depends_status
+  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $depends_status
 
 }
 
@@ -97,11 +134,12 @@ function search_depends_status()
 
 #---------------------------------------------------------------------
 ## 
+## @param depends file
 ## @param spell
 ## @param dependency spell
 ## @Stdout list of options
 ##
-## Returns a list of options for ./configure from DEPENDS_STATUS
+## Returns a list of options for ./configure from $1
 ## If the second argument is given, returns options for the
 ## matching pair of spell:dependency
 ## Primarily aimed at generating $OPTS contents
@@ -109,7 +147,11 @@ function search_depends_status()
 ## Prints out one line of output
 #---------------------------------------------------------------------
 function get_depends_options()
-{ # $1=spell [$2]=dependency spell
+{ # $1=depends_status $2=spell [$3]=dependency spell
+
+  local depends_status=$1
+  shift
+
   [ -z "$1" ] && {
     message "${PROBLEM_COLOR}${1:-<null>} is not a spell name${DEFAULT_COLOR}"
     return
@@ -118,7 +160,7 @@ function get_depends_options()
   local START="$(esc_str $1):"
   [ -n "$2" ] && START="${START}$(esc_str $2):"
   debug "libstate" "get_depends_options() - START=$START"
-  awk -F ':' "/^$START/ { if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $DEPENDS_STATUS
+  awk -F ':' "/^$START/ { if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status
 }
 
 
@@ -126,6 +168,7 @@ function get_depends_options()
 ##
 ## Arguments can be regexp, and all but the spell are optional
 ##
+## @param depends file
 ## @param spell
 ## @param depends
 ## @param on/off
@@ -135,7 +178,10 @@ function get_depends_options()
 ##
 #---------------------------------------------------------------------
 function remove_depends_status()
-{ # $1=spell, $2=(OPT)depends, $3=(OPT)on/off, $4=(OPT)optional/required, $5=(OPT)on arg, $6=(OPT)off arg
+{ # $1=depends file $2=spell, $3=(OPT)depends, $4=(OPT)on/off, $5=(OPT)optional/required, $6=(OPT)on arg, $7=(OPT)off arg
+
+        local depends_status=$1
+        shift
 
 	local a1 a2 a3 a4 a5 a6
 	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3` ; a4=`esc_str $4`; a5=`esc_str $5`; a6=`esc_str $6`
@@ -148,10 +194,173 @@ function remove_depends_status()
 
 	[[ "$a5" == "[none]" ]] && a5="\\[none\\]"
 
-	sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" $DEPENDS_STATUS
+	sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" $depends_status
 
 }
 
+#---------------------------------------------------------------------
+# Default depends and default provider api
+# default depends examples:
+#
+# default xfree86 provider to ImageMagick is xfree86
+# ImageMagick:X11-LIBS:xfree86
+#
+# default answer to optional_depends graphviz for ImageMagick is "no"
+# ImageMagick:graphviz:off
+#
+#
+# default provider examples:
+# use xorg as X11-LIBS even if its optional
+# xorg:X11-LIBS:on
+# 
+# use xfree86 as X11-LIBS unless the [none] option exists (and use that instead)
+# xfree86:X11-LIBS:off
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##
+## add default depends entry, if $3 is a spell $4 must be on/off
+## if $3 is a PROVIDER $4 must be a spell
+##
+## @param depends file
+## @param spell
+## @param depends/PROVIDER
+## @param on/off
+##
+#---------------------------------------------------------------------
+function add_default_depends() {
+        debug "libstate" "add_default_depends() - $*"
+
+        #already here
+        search_default_depends "$@" >/dev/null  && return 0
+
+        local file=$1
+        shift
+        # ensure the info is valid... (this is redundant if calling
+        # from sorcery, but that may not always be the case...
+        if [[ $3 != on ]] && [[ $3 != off ]] ; then
+          return 1
+        fi
+
+        { [[ ! $1 ]] && [[ ! $2 ]] ; } && return 1
+
+        if [[ $1 ]] && ! codex_does_spell_exist $1 &>/dev/null; then
+          return 1
+        fi
+
+        if [[ $2 ]] && ! codex_does_spell_exist $2; then
+          return 1
+        fi
+
+        tfile=`lock_start_transaction $file`
+        remove_default_depends $tfile $1 $2
+        echo "$1:$2:$3" >> $tfile
+        lock_commit_transaction $file
+       
+       return 0
+
+}
+
+#---------------------------------------------------------------------
+##
+## Arguments can be regexp, $2, $3 and $4 are optional
+## Caller must lock the file
+##
+## @param depends file
+## @param spell
+## @param depends/PROVIDER
+## @param on/off/spell
+##
+#---------------------------------------------------------------------
+function remove_default_depends() {
+
+        local file=$1
+        shift
+
+	local a1 a2 a3
+	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3`
+	
+	a1=${a1:-.*}
+	a2=${a2:-.*}
+	a3=${a3:-.*}
+
+	sedit "/^$a1:$a2:$a3$/D" $file
+}
+
+#---------------------------------------------------------------------
+##
+## Arguments can be regexp, $2 $3 and $4 are optional
+##
+## @param depends file
+## @param spell
+## @param depends/PROVIDER
+## @param on/off/spell
+##
+#---------------------------------------------------------------------
+function search_default_depends() {
+
+        local default_depends=$1
+        shift
+        [[ -s $default_depends ]] || return
+
+	local a1 a2 a3
+	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
+
+	a1=${a1:-.*}
+	a2=${a2:-.*}
+	a3=${a3:-.*}
+
+        debug "libstate" "search_default_depends: [$a1:$a2:$a3]"
+	grep "^$a1:$a2:$a3$" $default_depends
+}
+
+
+#---------------------------------------------------------------------
+##
+## Arguments can be regexp, $3 and $4 are optional
+##
+## @param depends file
+## @param spell
+## @param PROVIDER
+## @param on/off
+##
+#---------------------------------------------------------------------
+function add_default_provider() {
+	debug "libstate" "add_default_depends() - $*"
+
+	#already here
+	search_default_provider "$@" >/dev/null  && return 0
+
+        local file=$1
+        shift
+
+	#ensure the info is valid...
+        { [[ ! $1 ]] && [[ ! $2 ]] ; } && return 1
+        { [[ $3 != on ]] && [[ $3 != off ]] ; } && return 1
+        if [[ $1 ]] && ! codex_does_spell_exist $1 &>/dev/null ; then
+          return 1
+        fi
+        if [[ $2 ]] && ! codex_does_service_exist $2 &>/dev/null ; then
+          return 1
+        fi
+
+        tfile=`lock_start_transaction $file`
+        remove_default_provider $tfile $1
+	echo "$1:$2:$3" >> $tfile
+        lock_commit_transaction $file
+	
+	return 0	
+}
+
+# these are the same, as their countparts but are here for completeness
+# and incase they do someday diverge
+function remove_default_provider() {
+        remove_default_depends "$@"
+}
+
+function search_default_provider() {
+        search_default_depends "$@"
+}
 
 #---------------------------------------------------------------------
 ##
@@ -194,10 +403,8 @@ function add_spell_status()
 ##
 #---------------------------------------------------------------------
 function add_spell()  {
-
   remove_spell  $1
   add_spell_status $1 $2 $3
-
 }
 
 
@@ -232,6 +439,8 @@ function query_spell_status()
 ## @Stdout status
 ## Returns the given spell's status (installed, held, exiled, etc.)
 ##
+## Why is this needed, the cut is useless, and i cant see how we'd get
+## to the else case and then succeed  (afk 8/7/04)
 #---------------------------------------------------------------------
 function get_status()  {
 
@@ -259,7 +468,18 @@ function real_spell_installed() {
 ## @return 0 if the given spell's status is "held"
 ##
 #---------------------------------------------------------------------
-function spell_held()      {
+function real_spell_held()      {
+  [  "$(  get_status  $1  )"  ==  "held"       ];
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+##
+## @return 0 if the given spell's status is "installed" or "held"
+#---------------------------------------------------------------------
+function real_spell_ok() {
+  [  "$(  get_status  $1  )"  ==  "installed"  ] ||
   [  "$(  get_status  $1  )"  ==  "held"       ];
 }
 
@@ -297,16 +517,11 @@ function remove_spell_status()
 ##
 #---------------------------------------------------------------------
 function remove_spell()  {
-
   debug  "libsorcery" "Running remove_spell() on $1"
-
   remove_spell_status $1
-
   if  [  -n  "$EXILE"  ];  then
-    add_spell_status $1 "." "exiled" "0.0"
-    remove_depends_status ".*" $1
+    add_spell_status $1 "exiled" "0.0"
   fi
-
 }
 
 
@@ -326,7 +541,7 @@ function all_spell_status()
 
 #---------------------------------------------------------------------
 ## @param spells
-## sets <spells>'s status to held
+## sets &lt;spells&gt;'s status to held
 ##
 #---------------------------------------------------------------------
 function set_held () {
@@ -439,6 +654,41 @@ function modify_config()  {
   # put new value and justification in
   echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
+  lock_commit_transaction $FILE
+    
+}
+
+#---------------------------------------------------------------------
+## @param Filename
+## @param variable
+## @param command (optional)
+##
+## Modifies (or adds) an entry in the local/config.
+## If "command" is the third argument, a space will separate the 
+## variable and value rather than the equals sign.
+##
+#---------------------------------------------------------------------
+function remove_config()  {
+
+  debug "libstate" "remove_config() - $*"
+  local FILE=$1
+  shift;
+  
+  if ! [[ $1 ]]; then
+    debug "libstate" "remove_config() - Warning: No name given for config option."
+    return 1
+  fi
+  
+  local TEMP separator EQUALS_COL VARIABLE
+  
+  # what to use as separator?
+  if [[ $2 == command ]] 
+  then separator=" " 
+  else separator="=" ; fi
+  
+  # remove previous reference
+  tFILE=`lock_start_transaction $FILE`
+  grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
   lock_commit_transaction $FILE
     
 }

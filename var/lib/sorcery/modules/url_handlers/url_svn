@@ -3,74 +3,60 @@
 ##
 ##=head1 SYNOPSIS
 ## 
-## Url handler functions for grabbing cvs urls.
+## Url handler functions for grabbing svn urls.(subversion)
 ##
 ##=head1 DESCRIPTION
 ##
-## This file contains functions for I<downloading> files through cvs.
+## This file contains functions for I<downloading> files through svn.
 ##
-## In order for cvs urls to be downloaded, the I<cvs> spell must have been
-## cast. This script first determines if cvs has been installed before 
-## attempting to download a cvs url.
+## In order for svn urls to be downloaded, the I<subversion-client> spell 
+## must have been cast. This script first determines if subversion has been 
+## installed before attempting to download a svn url.
 ##
-##=head1 CVS URL Format
+##=head1 SVN URL Format
 ##
-## There is no standard (that I know of) for cvs urls so we use a 
+## There is no standard (that I know of) for svn urls so we use a 
 ## source mage specific format:
 ##
-##      cvs://CVSROOT:MODULE_NAME
+##      svn://SVNURL:DIR_NAME
 ##
 ## The above url will download the latest version of the specified
 ## module (i.e., the HEAD revision).  To specify a specific revision,
 ## the following format can be used:
 ##
-##      cvs://CVSROOT:MODULE_NAME:REVISION_TAG
+##      svn://SVNURL:DIR_NAME:REVISION_TAG
 ##
-## The CVSROOT portion of the url may include information such as type of cvs 
-## server, port number for the server, user name, password, cvs repository 
-## directory, etc.  The CVSROOT syntax is defined by cvs and is as follows:
-## 
-##      :method:[[user][:password]@]hostname[:[port]]/path/to/repository
+## The SVNURL portion of the url will appear as a normail http url.
+## The DIR_NAME will be the tail element of the SOURCE_DIRECTORY.
 ##
-## For more details, see the CVS manual at 
-## http://www.cvshome.org/docs/manual/cvs.html
+## For more details, see the SVN manual at 
+## http://svnbook.red-bean.com/svnbook/ch03s04.html
 ##
 ##=head1 EXAMPLES
 ##
 ## Suppose we want to download the latest version of the sorcery
-## scripts from cvs.  We'd use the following url:
+## scripts from svn.  We'd use the following url:
 ##
-##      cvs://:pserver:anoncvs@subversions.gnu.org:/cvsroot/sorcerer:sorcery
+##      svn://svn.pld-linux.org/svn/bmp-plugins/trunk:bmp-plugins-svn
 ##
-## If we want the 0.1.4 release instead (i.e., those files tagged with
-## release-0_1_4, we would use the following url:
+## If we want the 4474 revision number we would use the following url:
 ##
-##      cvs://:pserver:anoncvs@subversions.gnu.org:/cvsroot/sorcerer:sorcery:release-0_1_4
+##      svn://svn.pld-linux.org/svn/bmp-plugins/trunk:bmp-plugins-svn:4474
 ##
-## Some cvs repositories require passwords.  One such repository is the
-## cvs repository for the ROOT package (an object-oriented data analysis 
-## framework, see L<http://root.cern.ch/root/>). The CVSROOT, without the 
-## password, would look like this:
+## The assumption is made that the svn url is actually an http url.
+## ie. you could use your web browser to access:
+## http://svn.pld-linux.org/svn/bmp-plugins/trunk
 ##
-##      :pserver:cvs@root.cern.ch:/user/cvs
-##
-## The password for their cvs repository is I<cvs>.  Adding the password would
-## make the CVSROOT look like this:
-## 
-##      :pserver:cvs:cvs@root.cern.ch:/user/cvs
-##
-## Thus, the full cvs url, including the password, would be:
-##
-##       cvs://:pserver:cvs:cvs@root.cern.ch:/user/cvs:root
+## (Note about svn repositories requiring passwords? Haven't seen one yet)
 ##
 ##=head1 IMPLEMENTATION NOTE
 ##
-## Downloading is supported but CVS url verification is not
+## Downloading is supported but SVN url verification is not
 ## currently supported.
 ##
 ##=head1 COPYRIGHT
 ##
-## Copyright 2002 by the Source Mage Team
+## Copyright 2004 by the Source Mage Team
 ##
 ##=head1 FUNCTIONS
 ##
@@ -80,36 +66,35 @@
 
 
 #---------------------------------------------------------------------
-#=item url_cvs_strip_prefix <url>
+#=item url_svn_strip_prefix <url>
 # 
-# Private function.  Strips off the cvs:// prefix from cvs urls
+# Private function.  Strips off the svn:// prefix from svn urls
 #
 #---------------------------------------------------------------------
-function url_cvs_strip_prefix() {
-  echo $1 | sed 's/^cvs:\/\///'
+function url_svn_strip_prefix() {
+  echo $1 | sed 's/^svn:\/\///'
 }
 
 
 #---------------------------------------------------------------------
 ##=item url_file_download <url>
 ## 
-## Fetch the specified cvs url.
+## Fetch the specified svn url.
 ##
 #---------------------------------------------------------------------
-function url_cvs_download() { 
-  if [ ! -x /usr/bin/cvs ]; then
+function url_svn_download() { 
+  if [ ! -x /usr/bin/svn ]; then
     return 1;
   fi
 
-  local             URL=`url_cvs_strip_prefix "$1"`
-  local        CVS_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  local  CVS_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  local      CVS_MODULE=`echo $CVS_MODULE_TAG | cut -d : -f2` 
-  local     CVS_TAGNAME=`echo $CVS_MODULE_TAG | cut -d : -f3`
-  local         CVS_TAG=${CVS_TAGNAME:=HEAD}
-  local CVS_COMPRESSION="-z3"
+  local             URL=`url_svn_strip_prefix "$1"`
+  local        SVN_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
+  local  SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
+  local      SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2` 
+  local     SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
+  local         SVN_TAG=${SVN_TAGNAME:=HEAD}
 
-  if [ -z "$CVS_ROOT" -o -z "$CVS_MODULE" ]; then
+  if [ -z "$SVN_ROOT" -o -z "$SVN_MODULE" ]; then
     return 1;
   fi
 
@@ -125,14 +110,15 @@ function url_cvs_download() {
   if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
     message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
     tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
-    message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
     if cd $S_FILE ; then
-        cvs $CVS_COMPRESSION -q update -dP -r $CVS_TAG
+        svn update -q --non-interactive -r $SVN_TAG
         cd ..
 	fi
   else
-    message "${MESSAGE_COLOR}Running cvs checkout...${DEFAULT_COLOR}"
-	cvs $CVS_COMPRESSION -q -d$CVS_ROOT checkout -r $CVS_TAG -d $S_FILE $CVS_MODULE
+    message "${MESSAGE_COLOR}Running svn checkout...${DEFAULT_COLOR}"
+    #NOTE: hardcoded http:// on next line
+	svn checkout -q -r $SVN_TAG http://$SVN_ROOT $SVN_MODULE
   fi
 
   if [[ $nocache == 1 ]] ; then
@@ -151,48 +137,50 @@ function url_cvs_download() {
 
 
 #---------------------------------------------------------------------
-##=item url_cvs_verify <url>
+##=item url_svn_verify <url>
 ## 
-## Verifies the specified cvs url exists.  Returns true for now until
+## Verifies the specified svn url exists.  Returns true for now until
 ## I get around to implementing it.
 ##
 #---------------------------------------------------------------------u
-function url_cvs_verify() {
+function url_svn_verify() {
   true
 }
 
 
 #---------------------------------------------------------------------
-##=item url_cvs_set_options <option>
+##=item url_svn_set_options <option>
 ##
 ## Set options for url handling
+## NOTE!: I dunno what this should do for svn...
 ##
 #---------------------------------------------------------------------
-function url_cvs_set_options() {
+function url_svn_set_options() {
   eval "$1=1"
 }
 
 #---------------------------------------------------------------------
-##=item url_cvs_hostname <url>
+##=item url_svn_hostname <url>
 ##
 ## Get the hostname of the url
+## NOTE!: I dunno what this should do for svn...
 ##
 #---------------------------------------------------------------------
-function url_cvs_hostname() {
-  echo $1|sed 's/^[^@]*@\([^:]*\):.*$/\1/'
+function url_svn_hostname() {
+  echo $1|sed 's#^svn://\([^/:]*\)[/:].*$#\1#'
 }
 
 #---------------------------------------------------------------------
-##=item url_cvs_netselect <url>
+##=item url_svn_netselect <url>
 ##
 ## Gets a netselect type output for the url
 ##
 #---------------------------------------------------------------------
-function url_cvs_netselect() {
+function url_svn_netselect() {
   local tmp_hostname url_speed each
 
   for each in $@ ; do
-    tmp_hostname=$(url_cvs_hostname $each)
+    tmp_hostname=$(url_svn_hostname $each)
     # since we had to pull the url appart to give netselect
     # something it can understand we'll just pretend like
     # multiple A records wont exist for this host...
@@ -221,4 +209,3 @@ function url_cvs_netselect() {
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
-

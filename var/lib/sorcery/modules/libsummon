@@ -1,0 +1,96 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Internal api for summoning/printing spell file information. Mainly for use by cast and summon, who both need to "summon".
+##
+## This just wraps up calls to run_details, get_spell_files_and_urls
+## and download_files. Along with doing the logging and other stuff.
+## This is mainly to reduce duplication of code between cast and summon
+## and to make it so cast doesn't have to actually run the summon script.
+##
+## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+##
+## @Contributors Andrew Stitt <astitt@sourcemage.org)
+## @Contributors Paul Mahon <pmahon@sourcemage.org)
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## @param Spell name to summon
+## @return 0 if all the source urls were downloaded/found
+##         1 if any of them failed.
+## As the name would imply, summon a spell given its name.
+## The spell is sourced in a subshell and thus no variable leakage
+## will occur to the caller (although the function could be effected
+## by leakage from other places). This function will take care of
+## locking out other processes from downloading the same spell.
+## Also takes care of making entries in the activity log
+##
+#---------------------------------------------------------------------
+function summon_spell() {
+  local SPELL=$1
+  if [ -n "${SPELL}" ] && trylock_resources "summon" "${SPELL}"; then
+    # run in a subshell rather than try to unset_details
+    # and instead jump through hoops to get the return code correctly
+    ( run_details    &&
+      get_spell_files_and_urls | download_files && rc=0
+      # save the rc, then unlock
+      unlock_resources "summon" "${SPELL}"
+      if [ ${rc:-1}==0 ]; then
+        activity_log "summon" "$SPELL"  "$VERSION" "success"
+      else
+        activity_log "summon" "$SPELL"  "$VERSION" "failure"
+      fi
+      # this actually only returns from the subshell, not the function
+      return ${rc}
+    ) && return 0
+  fi
+  return 1
+}
+
+#---------------------------------------------------------------------
+## @param A list of spells
+## Will call summon_spell for each spell found in "$*"
+##
+#---------------------------------------------------------------------
+function summon_spells() {
+  local SPELLS="$*"
+  local SPELL
+  [ -z "$SPELLS" ] && return 1
+  for  SPELL  in  $SPELLS;  do
+    summon_spell $SPELL
+  done
+}
+
+#---------------------------------------------------------------------
+## @param A list of spells
+## @global PRINT_TYPE
+## This is mainly for summon, but might be useful for gaze as its
+## an information query function.
+#---------------------------------------------------------------------
+function summon_print_spells() {
+  local SPELLS="$*"
+  [ -z "$SPELLS" ] && return 1
+
+  for  SPELL  in  $SPELLS;  do
+    # run in a subshell rather than try to unset_details
+    # its a fork either way, and this way leaves us less open for surprises
+    ( run_details  &&
+      get_spell_files_and_urls|while read -a dl_array; do
+        if [ "$PRINT_TYPE" == source ]; then
+          echo "${dl_array[0]}"
+        elif [ "$PRINT_TYPE" == one_url ]; then
+          [ -n "${dl_array[1]}" ] && echo "${dl_array[1]}"
+        elif [ "$PRINT_TYPE" == all_urls ]; then
+          unset dl_array[0]
+          [ -n "${dl_array[*]}" ] && echo "${dl_array[*]}"
+        elif [ "$PRINT_TYPE" == raw ]; then
+          echo "${dl_array[*]}"
+        else
+          echo "unknown value of PRINT_TYPE $PRINT_TYPE we shouldn't get here"
+          echo "please file a bug if you see this, thanks."
+          exit 1
+        fi
+      done
+    )
+  done
+}
+

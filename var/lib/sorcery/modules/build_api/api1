@@ -25,11 +25,17 @@
 function run_build_spell() {
   debug "build_api/api1" "run_build_spell"
   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
+  C_FIFO=/dev/stdout
+  if [ "$VOYEUR" == "on" -a -z "$SILENT" ]; then
+    VOYEUR_STDOUT=/dev/stdout
+    VOYEUR_STDERR=/dev/stderr
+  else
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
+  fi
   rm -f $C_LOG
-  rm -f $C_FIFO
   touch $C_LOG
-  mkfifo $C_FIFO
+  # should OPTS get set here?
 
   # This is an experiment, If we have actual interesting return codes
   # from here, the caller can figure out what to do
@@ -53,6 +59,8 @@ function run_pre_build() {
            "${SPELL_COLOR}${SPELL}"    \
            "${DEFAULT_COLOR}"
 
+  rm_source_dir
+  mkdir -p  $BUILD_DIRECTORY
   cd  $BUILD_DIRECTORY
 
   persistent_load &&
@@ -68,7 +76,7 @@ function run_pre_build() {
 
 
 #---------------------------------------------------------------------
-## Starts up the compile logs and fifo, turns on the various environment
+## Starts up the compile logs, turns on the various environment
 ## settings that need to be on, eventually gets around to running
 ## BUILD or default_build, then does other things it shouldn't do.
 #---------------------------------------------------------------------
@@ -76,10 +84,8 @@ function run_build()  {
 
   debug "build_api/api1" "Starting run_build()"
 
-  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
-
-  activate_voyeur
 
   # slight bug here if SOURCE_DIRECTORY doesnt exist
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
@@ -95,14 +101,15 @@ function run_build()  {
   message "$SPELL    $VERSION"
 
   run_config_loc
-
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    .  $SCRIPT_DIRECTORY/BUILD
-  else
-    default_build
-  fi &&
-  persistent_save &&
+  (
+    persistent_load &&
+    if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
+      .  $SCRIPT_DIRECTORY/BUILD
+    else
+      default_build
+    fi &&
+    persistent_save
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) && # see bug 7201
 
   install_xinetd &&
   install_initd
@@ -111,8 +118,9 @@ function run_build()  {
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
              "${DEFAULT_COLOR}"
-    false
-  fi
+    return 1
+  fi 
+  echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
 
 }
 
@@ -189,7 +197,7 @@ function real_default_pre_build() {
 ##
 #---------------------------------------------------------------------
 function real_default_build() {
-(
+
   debug "build_api/api1" "Starting real_default_build()"
 #If these switches are used, they stop distcc and ccache from working
 #  We could write wrappers for all of the possible binaries
@@ -205,7 +213,6 @@ function real_default_build() {
   prepare_install                            &&
   make    install
 
-) > $C_FIFO 2>&1
 }
 
 
@@ -221,7 +228,6 @@ function real_default_post_build() {
   debug "build_api/api1" "Starting real_default_post_build()"
 
   install_pam_confs
-  install_services
   gather_docs
   devoke_installwatch
   init_post_install

@@ -1,0 +1,329 @@
+#!/bin/bash
+#-------------------------------------------------------------------------
+## This should be home to everything download related until liburl
+##
+## The basic layout is:
+##
+## spell -&gt; frontend -&gt; <file + url1 url2 ...&gt; -&gt;
+##  download_files
+##  -&gt; local
+##  -&gt; internet
+##    -&gt; leap forward -&gt; url_download
+##    -&gt; < url1 url2 ... &gt; -&gt; url_download
+##    -&gt; fall back -&gt; url_download
+##
+## in other words, you have some frontend, such as get_spell_files_and_urls
+## put lists of a file and urls lists on stdout, then you pass that as
+## the input to download_files. Download_files will first check locally
+## then try to get the file from the internet, possibly in 3 different
+## attempts
+##
+#-------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------
+## Helper routine to dump out the files and urls for a spell given that
+## the caller has run run_details.
+##
+## @Stdout multiple lines, one per SOURCE/SOURCEx as "SOURCE SOURCE_URL[0] SOURCE_URL[1]"
+#-------------------------------------------------------------------------
+function get_spell_files_and_urls() {
+
+  debug "libdownload" "get_file_and_urls - SPELL=$SPELL"
+  local url src
+  for src in $( compgen -v SOURCE | grep '^SOURCE[[:digit:]]*$' ) ; do
+    url="$src"'_URL[*]'
+	src=${!src}
+	[[ ${src%%[^[:graph:]]*} ]] && echo ${src} ${!url}
+  done
+}
+
+#-------------------------------------------------------------------------
+## @Stdin one or more lines like this: "file url1 url2 ..."
+## @param reason (optional, default "for spell $SPELL")
+## @param check local (optional, default yes)
+## @param final location (optional, default $SOURCE_CACHE)
+## @param use lf or fb (optional, default "both", can be "both" "lf" "fb" or "neither")
+## @param url_options (optional)
+#
+## Each line is read from the standard input. for each line try to download
+## the file listed, do checks first on disk, then the leap forward url
+## then the urls given, then the fallbacks before failing.
+##
+## This is the do-it-all-be-it-all of downloading in sorcery
+## If you find yourself needing to use one of the lower level functions
+## please see if this can do it for you, and if it can't see your
+## sorcery lead about making it do what you want, or adapting
+## your application to use it.
+##
+## The reason for this is so the routines beneath this one can remain
+## low level and we can have a single consistant interface.
+##
+#-------------------------------------------------------------------------
+function download_files() {
+  local rc=0
+  local REASON=$1
+  local FINAL_DIR=$2
+  local CHECK_LOCAL=$3
+  local USE_LF_FB=$4
+  local URL_OPTIONS=$5
+  local FILE URLS
+
+  REASON=${REASON:-"for spell ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"}
+  CHECK_LOCAL=${CHECK_LOCAL:-"yes"}
+  FINAL_DIR=${FINAL_DIR:-"$SOURCE_CACHE"}
+  USE_LF_FB=${USE_LF_FB:-"both"}
+
+  pushd /tmp &>/dev/null
+  while read -a dl_array; do 
+
+    # the input is defined as "file url1 url2 ..."
+    # but download_from_local wants just the file
+    # and download_from_internet needs all the urls, but not the file
+    REAL_FILE=${dl_array[0]}
+
+    # be very very paranoid about getting an actual filename...
+    [ -z "$REAL_FILE" ] && continue
+
+    unset dl_array[0]
+    URLS=${dl_array[*]}
+
+    # some spells dont give us any actual urls...
+    # we may want to defer complaining here until later though...
+    [ -z "$URLS" ] && continue
+
+    debug "libdownload" "download_files FILE = $REAL_FILE"
+    debug "libdownload" "download_files URLS = $URLS"
+
+    # maybe we already have the file
+    [[ "$CHECK_LOCAL" == "yes" ]] &&
+    download_from_local "$FINAL_DIR/$REAL_FILE" &&
+    message  "${MESSAGE_COLOR}Found source file"             \
+             "${FILE_COLOR}${REAL_FILE}${DEFAULT_COLOR}"     \
+             "${REASON} in"                                  \
+              "${FILE_COLOR}${FINAL_DIR}${DEFAULT_COLOR}"   &&
+    continue
+    # if not, time to download it
+    message  "${MESSAGE_COLOR}Downloading source file"       \
+             "${FILE_COLOR}${REAL_FILE}${DEFAULT_COLOR}"     \
+             "${REASON}"
+    # slight bug with connect if we aren't using summon...
+    connect                                                                 &&
+    pushd /tmp &>/dev/null
+    download_from_internet "$REAL_FILE" "$URLS" "$USE_LF_FB" "$URL_OPTIONS" &&
+    # make sure some filename exists...probably not needed
+    { [ -z "$FILE" ] && FILE=$REAL_FILE || true;}                           &&
+    # if the final dir is /tmp we dont need to mv the file
+    { [ "$FINAL_DIR" == "/tmp" ] || mv  $FILE  $FINAL_DIR;}                 ||
+    {
+      message  "${PROBLEM_COLOR}Download of"            \
+               "${FILE_COLOR}${FILE}${DEFAULT_COLOR}"   \
+               "${PROBLEM_COLOR}${REASON}"              \
+               "${PROBLEM_COLOR}failed${DEFAULT_COLOR}"
+      rc=1
+      # maybe do some more stuff here...
+    }
+    popd &>/dev/null
+  done
+  return $rc
+}
+
+
+
+
+#-------------------------------------------------------------------------
+## The point of this if to look locally, and decide if we need to go out to
+## the network
+##
+## @param file
+#-------------------------------------------------------------------------
+function download_from_local() {
+  if  [  -n  "$1"  ] ;  then
+    local FILE="$1"
+    remove_old_file $FILE   #Removes if it's lifespan is over
+    if  ! file_exists $FILE  ||  [  -n  "$FORCE_DOWNLOAD"  ]
+    then
+      return 1
+    fi
+  fi
+  return 0
+}
+
+
+#-------------------------------------------------------------------------
+## @param file
+## @param url list
+## @param use lf, fb, both or neither (see download_files)
+## @param url options
+#-------------------------------------------------------------------------
+function download_from_internet()  {
+
+  debug "libdownload" "download_from_internet() $*"
+
+  # FILE goes back up the stack
+  FILE="$1"
+  local URLS="$2"
+  local USE_LF_FB="$3"
+  local URL_OPTIONS="$4"
+
+  debug "libdownload" " download_from_internet FILE = $REAL_FILE"
+  debug "libdownload" " download_from_internet URLS = $URLS"
+  debug "libdownload" " download_from_internet USE_LF_FB = $USE_LF_FB"
+  debug "libdownload" " download_from_internet URL_OPTIONS = $URL_OPTIONS"
+
+  [ -n "$URL_OPTIONS" ] && url_set_options "$URL_OPTIONS"
+  
+  # first try a leap forward
+  if [ "$USE_LF_FB" == "lf" ] || [ $USE_LF_FB == "both" ]; then
+    if [ -n "$LEAPFORWARD_URL" ]; then
+      # i was never very good at coloring...
+      message "${MESSAGE_COLOR}Attempting to get file from" \
+              "leap-forward mirror ${DEFAULT_COLOR}${LEAPFORWARD_URL}"
+      url_download "$LEAPFORWARD_URL/$FILE" && return 0
+    fi
+  fi
+
+  # failing that try the real urls
+  NEW_URLS=$(expand_mirrors $URLS)
+
+  # paranoia
+  if [ -z "$NEW_URLS" ]; then
+    # and explode them too
+    url_download "$URLS" && return 0
+  else
+    url_download "$NEW_URLS" && return 0
+  fi
+
+  # failing that try a fallback
+  if [ "$USE_LF_FB" == "fb" ] || [ "$USE_LF_FB" == "both" ]; then
+    message "${MESSAGE_COLOR}"                              \
+            "Attempting to get file from fall-back mirrors" \
+            "${DEFAULT_COLOR}"
+    # slow and painful buildup of all fallback mirrors in quasi random order
+    local i idx
+    # must be local or else we inherit the previous source's fallback list
+    local FALL_BACKS
+    local offset=$[${RANDOM} % $FURLNUM]
+    for (( i=0; $i < $FURLNUM; i++ ));  do
+      idx=$[($i + $offset) % $FURLNUM]
+      FALL_BACKS="$FALL_BACKS ${FALLBACK_URL_MIRROR[$idx]}/$FILE"
+    done
+    [ -n "$FALL_BACKS" ] && url_download "$FALL_BACKS" && return 0
+  fi
+
+  # we get here only if all else fails
+  return 1
+}
+
+#-------------------------------------------------------------------------
+## this nonsense is to get us connected to the outside world
+## it should eventually be a seperate, userdefinable script, with
+## this as the default of course
+#-------------------------------------------------------------------------
+function connect()  {
+
+  debug "libdownload" "connect()"
+
+  if !  ifconfig  |  grep  -q  "^eth"   &&
+     !  ifconfig  |  grep  -q  "^wlan"  &&
+     !  ifconfig  |  grep  -q  "^bnep"  &&
+     !  ifconfig  |  grep  -q  "^tr"    &&
+     !  ifconfig  |  grep  -q  "^atml"  &&
+     !  ifconfig  |  grep  -q  "^ppp";  then
+    if which pon &> /dev/null ; then
+      pon
+    else
+      message "${PROBLEM_COLOR}Cannot find or initiate network connection"
+      message " (pon program is missing) ${DEFAULT_COLOR}"
+      exit 1
+    fi
+
+    # Timeout in deciseconds to wait for Interface to come up.
+    TIMEOUT=30
+
+    until  ifconfig  |  grep  -q  eth   ||
+           ifconfig  |  grep  -q  atml   ||
+           ifconfig  |  grep  -q  ppp   ||
+           [  $TIMEOUT == 0  ]
+    do
+      sleep  10
+      (( TIMEOUT-- ))
+    done
+
+    disconnect
+  fi
+}
+
+#-------------------------------------------------------------------------
+## this clever function disconnects us if we aren't summoning something
+## too bad scribe and sorcery may also download stuff, so really this should
+## be using liblock or something
+#-------------------------------------------------------------------------
+function disconnect()  {
+
+  debug "libdownload" "disconnect()"
+
+  if    ps  -C disconnect  >  /dev/null
+  then  return
+  fi
+
+  rm  -rf          /tmp/disconnect
+  cat  <<  EOF  >  /tmp/disconnect
+#!/bin/bash
+
+while  ps  -A  |  egrep  -q  "summon";  do  sleep  120;  done
+poff
+rm  /tmp/disconnect
+EOF
+
+chmod  a+x  /tmp/disconnect
+            /tmp/disconnect  &
+
+}
+
+
+#-------------------------------------------------------------------------
+## check if the file exists, or one with a similar compression exists
+## @param file
+#-------------------------------------------------------------------------
+function file_exists()  {
+  guess_filename  $1  >  /dev/null
+}
+
+#-------------------------------------------------------------------------
+## if a file's lifespan is up, remove it
+## currently works only on files in SOURCE_CACHE just to be overly
+## difficult and paranoid
+## @param file
+#-------------------------------------------------------------------------
+function remove_old_file()  {
+    # This can be pretty dangerous so for /now/ I'll make sure it only
+    # deals with files in SOURCE_CACHE
+    [  -n  "$LIFESPAN"  ] && [ -n "$1" ] && echo $1|grep -q $SOURCE_CACHE &&
+    rm  -f  $( find $1 -mmin +$LIFESPAN 2>/dev/null|grep $SOURCE_CACHE )
+}
+
+#-------------------------------------------------------------------------
+## expand a url to ALL of the mirrors we think may be related
+## Take the url, find its hostname, if a file in $MIRRORS matches
+## generate new urls from all the mirrors in the file, the original url
+## is kept at the top of the list and not duplicated
+##
+## @param a list of urls
+## @stdout the expanded form of those urls
+#-------------------------------------------------------------------------
+function expand_mirrors() {
+  local A=$'\a'
+  local URL rep tgt my_hostname each
+  # put the requested url first
+  echo $@
+  for URL in $@ ; do 
+    my_hostname=$(url_get_hostname ${URL})
+    for each in $(grep -l ://$my_hostname/ $MIRRORS/*); do
+      rep=$(grep "://$my_hostname/" $each|awk '{print $NF; exit 0; }')
+      for tgt in $(awk '{print $NF}' $each); do
+         echo ${URL}|sed "s$A${rep}$A${tgt}$A"
+      done
+    done |grep -v $my_hostname
+  done
+}

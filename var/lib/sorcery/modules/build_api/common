@@ -92,9 +92,12 @@ function run_security() {
 #---------------------------------------------------------------------
 function run_config_loc () {
   debug "build_api/common" "Starting run_config_loc() on $SPELL"
-  if  [ -x ./configure ] || [ -x ./src/configure ] ; then
-		
-    if  [[  $CONFIG_LOC  == on  ]]; then
+  pushd . > /dev/null # may have been somewhere else
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY   # we need to be in here for this function to work
+  if  [[  $CONFIG_LOC  == on  ]]; then
+
+    if  [ -x ./configure ] || [ -x ./src/configure ] ; then
 
       if  [  !  -d  $SM_CONFIG_OPTION_CACHE  ] ; then
         mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
@@ -129,13 +132,16 @@ function run_config_loc () {
 
       # load custom OPTS
       if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
+        OPTS="$OPTS $(< $SM_CONFIG_OPTION_CACHE/$SPELL)"
         message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
       fi
 
     fi
 
   fi
+
+  popd &>/dev/null
+
 }
 
 #---------------------------------------------------------------------
@@ -164,20 +170,59 @@ function run_triggers() {
 function run_spell_success() {
     debug "build_api/common" "cast of $SPELL-$VERSION was successful"
 
+    local INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+    local MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+    local TMP_INST_LOG="$TMP_DIR/$SPELL-$VERSION.install"
+    local TMP_MD5_LOG="$TMP_DIR/$SPELL-$VERSION.md5"
+    local CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+    local C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+
     sound  SUCCESS
+
+    create_compile_log
+    view_compile_log
 
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     add_spell $SPELL installed $VERSION
     echo $SPELL >> $SUCCESS_LIST
 
-    track
-    md5list $INST_LOG $MD5_LOG
-    archive
+    debug "build_api/common" "Merging depends info"
+    local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
+    # none of the old values are valid, only the new, uncommitted values are
+    remove_depends_status $t_DEPENDS_STATUS $SPELL
+    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    if [ -e $spell_depends ] ; then
+      cat  $spell_depends >> $t_DEPENDS_STATUS
+      rm -f $spell_depends &>/dev/null 
+    fi
+    lock_commit_transaction $DEPENDS_STATUS
+
+    # since the database is now accurate, no reason to keep old answers
+    # floating around
+    [ -e "$ABANDONED_DEPENDS/$SPELL" ] &&
+    rm -f $ABANDONED_DEPENDS/$SPELL &>/dev/null
+
+    # this will make the raw log that needs post processing to strip
+    # INSTALL_ROOT and insert TRACK_ROOT in its place
+    
+    message  "${MESSAGE_COLOR}Creating install log" \
+             "${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
+    track $TMP_INST_LOG
+    install_log_filter $INSTALL_ROOT $TRACK_ROOT < $TMP_INST_LOG > $INST_LOG
+
+    message  "${MESSAGE_COLOR}Creating MD5 log"        \
+             "${FILE_COLOR}${MD5_LOG}${DEFAULT_COLOR}"
+    md5list $TMP_INST_LOG $TMP_MD5_LOG
+    md5_log_filter $INSTALL_ROOT $TRACK_ROOT < $TMP_MD5_LOG > $MD5_LOG
+
+    # archives are relative to / in their own environment, and thus
+    # INSTALL_ROOT is stripped
+    sed "s:^$INSTALL_ROOT/::" $TMP_INST_LOG | archive $INSTALL_ROOT 
 
     report_install
 
     rm_source_dir
-    rm  -f  $IW_LOG  $TMP_LOG  $CASTING $C_LOG $C_FIFO
+    rm  -f  $IW_LOG  $TMP_LOG  $CASTING $C_LOG
 }
 
 #---------------------------------------------------------------------
@@ -186,18 +231,26 @@ function run_spell_success() {
 #---------------------------------------------------------------------
 function run_spell_failure() {
     debug "build_api/common" "cast of $SPELL-$VERSION failed"
+    local rc=$1
 
     sound  FAILURE
 
+    if [ $rc != 1 ] ; then
+      create_compile_log
+      view_compile_log
+    fi
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     echo $SPELL >> $FAILED_LIST
+
+    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    [ -e $spell_depends ] && rm $spell_depends
 
     # This may have been locked if there was a failure during the install
     unlock_resources "libgrimoire" "install"
 
     IW_LOG="$INSTALLWATCHFILE"
     INSTALLWATCHFILE=""
-    rm  -f  $IW_LOG  $TMP_LOG  $CASTING $C_LOG $C_FIFO
+    rm  -f  $IW_LOG  $TMP_LOG  $CASTING $C_LOG
 
     [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1

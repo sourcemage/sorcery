@@ -1,18 +1,8 @@
 #!/bin/bash
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## Functions for dealing with tracking of files, and other installwatch
-## related things.
-##
-##=head1 DESCRIPTION
-##
-##=head1 COPYRIGHT
-##
-## Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
-##
-##=head1 FUNCTIONS
+## @Synopsis Functions for dealing with tracking of files, and other installwatch related things.
+## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+## Functions for dealing with tracking of files, and other installwatch related things.
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
@@ -87,6 +77,8 @@ function devoke_installwatch()  {
 ## First argument is a file containing a list of files.  Checks for
 ## broken symbolic links.
 ##
+## This function is depreciated....
+##
 #---------------------------------------------------------------------
 function syms_not_owned()  {
 
@@ -125,11 +117,10 @@ function parse_iw()  {
   # tab character and not some number of spaces. Otherwise BAD THINGS
   # will happen.
   local TAB="	"
-  OMIT="^$INSTALL_ROOT/dev\|^$INSTALL_ROOT/tmp\|^$INSTALL_ROOT/usr/src"
   OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
 
-  grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep -v "$OMIT"
-  cat                $IW_LOG | cut -f4 | grep -v "$OMIT" | grep "^/"
+  grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep "^/"
+  cat                $IW_LOG | cut -f4 | grep "^/"
 
 }
 
@@ -140,47 +131,36 @@ function parse_iw()  {
 ##
 #---------------------------------------------------------------------
 function track()  {
+  debug  "libtrack" "Running track() on $SPELL"
+  local TMP_LOG=$1
 
-  debug  "libsorcery" "Running track() on $SPELL"
+  parse_iw                           |
+  sort                               |
+  uniq                               |
+  install_log_filter $INSTALL_ROOT "" |
+  grep -v -x ""                      |
+  filter  "$EXCLUDED"                |
+  filter  "$LOCAL_EXCLUDED"          |
+  install_log_filter "" $INSTALL_ROOT |
+  exists                             >  $TMP_LOG
 
-  message  "${MESSAGE_COLOR}Creating install log ${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
-
-  parse_iw                   |
-  sort                       |
-  uniq                       |
-  filter  "$EXCLUDED"        |
-  filter  "$LOCAL_EXCLUDED"  |
-  exists                     >  $TMP_LOG
-
-  echo  "$C_LOG_COMP"       >>  $TMP_LOG
-  echo  "$MD5_LOG"          >>  $TMP_LOG
-  echo  "$INST_LOG"         >>  $TMP_LOG
-
-  MISOWNED_SYMLINKS=`syms_not_owned  $TMP_LOG
-                     echo  -n  "/dev/null"`
-
-  if    [  "$MISOWNED_SYMLINKS"  ==  "/dev/null"  ]
-  then  cp  $TMP_LOG  $INST_LOG
-  else  grep  -v  "$MISOWNED_SYMLINKS"  $TMP_LOG  >  $INST_LOG
-  fi
-
-  rm  -f  $IW_LOG  $TMP_LOG
+  echo  "$C_LOG_COMP"               >>  $TMP_LOG
+  echo  "$MD5_LOG"                  >>  $TMP_LOG
+  echo  "$INST_LOG"                 >>  $TMP_LOG
 
 }
 
-# this may not be the best place for these, but it seems the most relavent
 #---------------------------------------------------------------------
 ## Makes a list of files with the md5sum
 #---------------------------------------------------------------------
 function md5list() {
   local INPUT=$1
   local OUTPUT=$2
-  message  "${MESSAGE_COLOR}Creating MD5 log ${FILE_COLOR}${OUTPUT}${DEFAULT_COLOR}"
-  debug  "libsorcery" "Running md5list() on $SPELL"
+  debug  "libtrack" "Running md5list() on $SPELL"
   while read LINE ; do
-                debug "archive()" "Checking file $LINE"
+    debug "libtrack" "Checking file $LINE"
     if  [ !  -p "$LINE" ] && [ ! -d "$LINE" ] && [ -e "$LINE" ] ; then
-                        debug "archive()" "Running md5 on $LINE"
+      debug "libtrack" "Running md5 on $LINE"
       md5sum "$LINE"
     fi
   done < $INPUT 2>/dev/null > $OUTPUT
@@ -189,30 +169,40 @@ function md5list() {
 #---------------------------------------------------------------------
 ##
 ## Creates a bzip/gzip'ed tar file containing an archived backup of
-## every file installed by a spell.
+## file specified on standard input
+## @stdin files, one per line, to put into the archive
+## @param directory input files are relative to
 ##
 #---------------------------------------------------------------------
 function archive()  {
 
-  debug  "libsorcery" "Running archive() on $SPELL"
-
+  debug  "libtrack" "Running archive() on $SPELL"
   if    [  "$ARCHIVE"  ==  "off"  ]; then
-    debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
+    debug "libtrack" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
     return
   fi
+  debug "libtrack" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-  debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
-
-  message  "${MESSAGE_COLOR}Creating cache file ${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
-
+  message  "${MESSAGE_COLOR}Creating cache file" \
+           "${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
+  pushd $1 &>/dev/null
   if  [  "$COMPRESSBIN" == "tar"  ]; then
-    tar --no-recursion -cPf "$CACHE_COMP" -T $INST_LOG
+    tar --no-recursion -cPf "$CACHE_COMP" -T -
   else
-    tar --no-recursion --"$COMPRESSBIN" -cPf "$CACHE_COMP" -T $INST_LOG
+    tar --no-recursion --"$COMPRESSBIN" -cPf "$CACHE_COMP" -T -
   fi
+  popd &>/dev/null
 
 }
 
+# this is to filter the install log from one form to another
+# for install_root/track_root conversions
+function install_log_filter() {
+  sed "s:^$1:$2:"
+}
+function md5_log_filter() {
+  sed "s:  $1:  $2:"
+}
 
 
 

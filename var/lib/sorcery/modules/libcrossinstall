@@ -1,182 +1,229 @@
+#--------------------------------------------------------------------
+## Library for doing cross-install stuff. It is used to cast spells
+## into a non-ordinary location, for chroot servers, for example.
+## @Copyright Copyright (C) 2004 The Source Mage Team 
+## @Note The description may be wrong.
+#--------------------------------------------------------------------
 #!/bin/bash
 #
 # Where is the documentation of this lib??? (erics)
 #
 
 #---------------------------------------------------------------------
-#-item cross_install_menu
 ##
 ## This menu function is called only if the CROSS_INSTALL is turned on,
-## it provides the user with a choice of the default INSTALL_ROOT (see
-## invoke_cross_environment() for default location) or fill in his/her
-## desired INSTALL_ROOT location.
+## it provides the user with a choice of the default INSTALL_ROOT,
+## TRACK_ROOT, STATE_ROOT, and someday CODEX_ROOT
 ##
-## sorcery menu function
 #---------------------------------------------------------------------
-function cross_install_menu() {
+function install_root_menu() {
 
   debug "libcrossinstall" "cross_install_menu is being built now..."
 
   while
 
-    D_HELP="Select the default install root (/opt/cross-install/\$HOST)."
-    C_HELP="Fill in your own preferred install root location."
+    C_HELP="Fill in your own preferred track root location."
+    I_HELP="Fill in your own preferred install root location."
+    S_HELP="Fill in your own preferred state root location."
+    T_HELP="Fill in your own preferred track root location."
 
-    COMMAND=`eval $DIALOG '  --title "Cross Install Menu"                     \
-                             --item-help                                      \
-                             --ok-label      "Select"                         \
-                             --cancel-label  "Exit"                           \
-                             --menu                                           \
-                             ""                                               \
-                             0 0 0                                            \
-                             "D"  "Default install root location"  "$D_HELP"  \
-                             "C"  "Set install root location"      "$C_HELP"'`
+    COMMAND=`eval $DIALOG '  --title "Install Root Menu"                     \
+                             --item-help                                     \
+                             --ok-label      "Select"                        \
+                             --cancel-label  "Exit"                          \
+                             --menu                                          \
+                             ""                                              \
+                             0 0 0                                           \
+                             "C"  "Set install cache location"     "$C_HELP" \
+                             "I"  "Set install root location"      "$I_HELP" \
+                             "S"  "Set state root location"        "$S_HELP" \
+                             "T"  "Set track root location"        "$T_HELP"'`
 
   do
 
     case $COMMAND in
-      D)  modify_local_config "INSTALL_ROOT" "/opt/cross-install/${HOST}"  &&
-          msg_set_install_root  ;;
-      C)  set_install_root_menu     ;;
+      C)  set_install_cache_menu  ;;
+      I)  set_install_root_menu   ;;
+      S)  set_state_root_menu     ;;
+      T)  set_track_root_menu     ;;
     esac
 
   done
 
 }
 
-
 #---------------------------------------------------------------------
-#-item msg_set_install_root_menu
 ##
-## This menu function shows the user that the INSTALL_ROOT location
-## has been set and then exits sorcery.
+## This menu function allows the user to fill in an INSTALL_CACHE location.
 ##
 #---------------------------------------------------------------------
-function msg_set_install_root() {
+function set_install_cache_menu() {
 
-  eval $DIALOG '  --msgbox "Your install root has been set to the following \
-	                          value, happy compiling:  $INSTALL_ROOT"  0 0'
-	goodbye
-
+  debug "libcrossinstall" "set_install_cache_menu - is starting..."
+  PROMPT="Please enter the install cache location where cache tarballs will be stored"
+  if  INSTALL_CACHE=`eval $DIALOG '  --ok-label  "Commit"         \
+                                    --inputbox                   \
+                                    "$PROMPT"                    \
+                                    0 0  "$INSTALL_CACHE"'`
+  then
+    INSTALL_CACHE=${INSTALL_CACHE%/}
+    remove_config $LOCAL_CONFIG "INSTALL_CACHE"
+    modify_config  $LOCAL_ROOTS_CONFIG "INSTALL_CACHE"  "$INSTALL_CACHE" 
+  fi
 }
-		
-			
+
 #---------------------------------------------------------------------
-#-item set_install_root_menu
 ##
 ## This menu function allows the user to fill in an INSTALL_ROOT location.
 ##
 #---------------------------------------------------------------------
 function set_install_root_menu() {
 
-  PROMPT="Please enter the install root location where you want to compile."
-
   debug "libcrossinstall" "set_install_root_menu - is starting..."
-	
+  PROMPT="Please enter the install root location where you want file installed"
   if  INSTALL_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
                                     --inputbox                   \
                                     "$PROMPT"                    \
                                     0 0  "$INSTALL_ROOT"'`
-
   then
-
-    modify_local_config  "INSTALL_ROOT"  "$INSTALL_ROOT"  &&
-    msg_set_install_root
-
+    INSTALL_ROOT=${INSTALL_ROOT%/}
+    remove_config  $LOCAL_CONFIG "INSTALL_ROOT"
+    modify_config  $LOCAL_ROOTS_CONFIG "INSTALL_ROOT"  "$INSTALL_ROOT" 
   fi
+}
 
+#---------------------------------------------------------------------
+##
+## This menu function allows the user to fill in an STATE_ROOT location.
+##
+#---------------------------------------------------------------------
+function set_state_root_menu() {
+
+  debug "libcrossinstall" "set_state_root_menu - is starting..."
+  PROMPT="Please enter location where you want state files to be"
+  if  STATE_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
+                                    --inputbox                 \
+                                    "$PROMPT"                  \
+                                    0 0  "$STATE_ROOT"'`
+  then
+    STATE_ROOT=${STATE_ROOT%/}
+    remove_config  $LOCAL_CONFIG "STATE_ROOT"
+    modify_config  $LOCAL_ROOTS_CONFIG "STATE_ROOT"  "$STATE_ROOT"
+  fi
+}
+
+#---------------------------------------------------------------------
+##
+## This menu function allows the user to fill in an TRACK_ROOT location.
+##
+#---------------------------------------------------------------------
+function set_track_root_menu() {
+
+  debug "libcrossinstall" "set_track_root_menu - is starting..."
+  PROMPT="Please enter the location where you want files tracked relative to"
+  if  TRACK_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
+                                    --inputbox                 \
+                                    "$PROMPT"                  \
+                                    0 0  "$TRACK_ROOT"'`
+  then
+    TRACK_ROOT=${TRACK_ROOT%/}
+    modify_config  $LOCAL_ROOTS_CONFIG "TRACK_ROOT"  "$TRACK_ROOT"
+  fi
 }
 
 
-invoke_cross_environment() 
-{
+#------------------------------
+## Will install sorcery in install_root directory, by running
+## the install script bundled with the tarball
+#------------------------------
+function replicate_sorcery() {
+  SOURCE=sorcery-$SORCERY_BRANCH.tar.bz2
+  SOURCE_DIRECTORY=$INSTALL_ROOT/$BUILD_DIRECTORY/sorcery
 
-	if  [[ $CROSS_INSTALL == on ]]; then
+  mk_source_dir  $SOURCE_DIRECTORY              &&
+  cd $INSTALL_ROOT/usr/src                     &&
+  bzip2  -cdf   $FILENAME                       |
+  tar --owner=root --group=root -xf /dev/stdin  &&
+  cd      $SOURCE_DIRECTORY                     &&
+  echo `pwd`                                    &&
+  ./install  $INSTALL_ROOT
 
-           # Set directory options.
-
-            INSTALL_ROOT=${INSTALL_ROOT:-/opt/cross-install/${HOST}}
-
-          DEPENDS_CONFIG=${INSTALL_ROOT}/etc/sorcery/local/depends
-          LOCAL_EXCLUDED=${INSTALL_ROOT}/etc/sorcery/local/excluded
-  SM_CONFIG_OPTION_CACHE=${INSTALL_ROOT}/etc/sorcery/local/config_option_cache
-
-            ACTIVITY_LOG=${INSTALL_ROOT}/var/log/sorcery/activity
-            SECURITY_LOG=${INSTALL_ROOT}/var/log/sorcery/security
-            INSTALL_LOGS=${INSTALL_ROOT}/var/log/sorcery/install
-            COMPILE_LOGS=${INSTALL_ROOT}/var/log/sorcery/compile
-             MD5SUM_LOGS=${INSTALL_ROOT}/var/log/sorcery/md5sum
-           INSTALL_QUEUE=${INSTALL_ROOT}/var/log/sorcery/queue/install
-            REMOVE_QUEUE=${INSTALL_ROOT}/var/log/sorcery/queue/remove
-
-          DEPENDS_STATUS=${INSTALL_ROOT}/var/state/sorcery/depends
-   DEPENDS_STATUS_BACKUP=${INSTALL_ROOT}/var/state/sorcery/depends.backup
-            SPELL_STATUS=${INSTALL_ROOT}/var/state/sorcery/packages
-     SPELL_STATUS_BACKUP=${INSTALL_ROOT}/var/state/sorcery/packages.backup
-            TRIGGER_LIST=${INSTALL_ROOT}/var/state/sorcery/triggers
-             MENU_STATUS=${INSTALL_ROOT}/var/state/sorcery/menus
-      MENU_STATUS_BACKUP=${INSTALL_ROOT}/var/state/sorcery/menus.backup
-
-           INSTALL_CACHE=${INSTALL_ROOT}/var/cache/sorcery
-
-         BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
-      DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/share/doc
-
-  	debug "libcrossinstall" "Install root is ${INSTALL_ROOT}"
-
-  	# Set environment for cross-compilation.
-       PATH=${PATH}:/opt/cross-build/bin
-         CC=${HOST}-gcc
-  	BUILDCC=gcc
-
-  	export PATH CC BUILDCC
-
-		# check if sorcery needs to be installed.
-		if  [  !  -d  ${INSTALL_ROOT}/etc/sorcery  ]; then
-			cross_install_sorcery 
-		fi
-	fi
+  if [ $? -eq 0 ] ; then
+    rm_source_dir
+  else
+    if [[  $CLEAN_SOURCE == on ]]; then
+      rm_source_dir
+    fi
+  fi
 }
 
+#-------------
+## Do we know why this is commented out?
+## Do we know why it's still here?
+##
+## Its commented out because it was a product of the old way
+## install_root/cross_install was put together. I left it commented out
+## just to be more conservative than killing it out-right. Its also
+## basically implemented in a more robust way above.
+##
+## I suspect I'll remove it in 1.12 since no one has even mentioned the
+## idea of installing sorcery itself somewhere else and running it from
+## there. (afk 2004-9-30)
+#-------------
+#cross_install_sorcery()
+#{
+	#
+	#message -n "${MESSAGE_COLOR}Setting up Sorcery for cross-install environment."
+	#message -n "${DEFAULT_COLOR}"
+	#
+	#mkdir -p ${INSTALL_ROOT}/etc/init.d/runlevels/{%DEV,%1,%2,%3,%4,%5,%S}
+	#mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig/network}
+	#mkdir -p ${INSTALL_ROOT}/{boot,home,root,dev,lib,bin,sbin,mnt,proc}
+	#mkdir -p -m 1777 ${INSTALL_ROOT}/tmp
+	#mkdir -p ${INSTALL_ROOT}/var/state/sorcery
+	#mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
+	#mkdir -p ${INSTALL_ROOT}/usr/{src,sbin,bin,lib}
+	#mkdir -p ${INSTALL_ROOT}/usr/share/info
+        #ln -sf ./share/info ${INSTALL_ROOT}/usr/info
+	#mkdir -p ${INSTALL_ROOT}/usr/share/man/{man1,man2,man3,man4,man5,man6,man7,man8}
+        #ln -sf ./share/man ${INSTALL_ROOT}/usr/man
+  #mkdir -p ${INSTALL_ROOT}/var/lock
+  #mkdir -p ${INSTALL_ROOT}/var/run
+	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/compile/
+	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/install/
+	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/md5sum/
+	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
+	#mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/codex/
+	#mkdir -p ${INSTALL_ROOT}/var/spool/{mail,sorcery}
+	#mkdir -p -m 1777 ${INSTALL_ROOT}/var/tmp
+	#cp -ruv /etc/sorcery/{accounts,config,groups,mirrors,version,cabal,dialogrc,licenses,uid,compile_config,gid,update} ${INSTALL_ROOT}/etc/sorcery
+        #mkdir -p ${INSTALL_ROOT}/etc/sorcery/local/depends
+        #cp -f /etc/sorcery/local/depends/README ${INSTALL_ROOT}/etc/sorcery/local/depends
+        #cp /etc/sysconfig/init ${INSTALL_ROOT}/etc/sysconfig
+        #touch ${INSTALL_ROOT}/var/state/sorcery/{depends,packages,triggers}
+        #cp -ruv /var/lib/sorcery/{archspecs,excluded,protected,subroutines,build,modules,solo,sustained} ${INSTALL_ROOT}/var/lib/sorcery/
+        #cp -p /usr/sbin/{cast,dispel,gaze,invoke,scribbler,scribe,sorcery,summon,vcast,xsorcery} ${INSTALL_ROOT}/usr/sbin
+        #cp -p /usr/share/man/man8/{cast.8*,dispel.8*,invoke.8*,scribbler.8*,scribe.8*,sorcery.8*,summon.8*} ${INSTALL_ROOT}/usr/share/man/man8
+        #cp -p /usr/share/man/man1/gaze.1* ${INSTALL_ROOT}/usr/share/man/man1/
+        #cp -p /usr/share/man/man5/grimoire.5* ${INSTALL_ROOT}/usr/share/man/man5/
 #
-# Will install sorcery in cross-install directories, by copying from
-# the existing sorcery install on the machine using this function.
-#
-cross_install_sorcery()
-{
-	
-	message -n "${MESSAGE_COLOR}Setting up Sorcery for cross-install environment."
-	message -n "${DEFAULT_COLOR}"
-	
-	mkdir -p ${INSTALL_ROOT}/etc/init.d/runlevels/{%DEV,%1,%2,%3,%4,%5,%S}
-	mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig/network}
-	mkdir -p ${INSTALL_ROOT}/{boot,home,root,dev,lib,bin,sbin,mnt,proc}
-	mkdir -p -m 1777 ${INSTALL_ROOT}/tmp
-	mkdir -p ${INSTALL_ROOT}/var/state/sorcery
-	mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
-	mkdir -p ${INSTALL_ROOT}/usr/{src,sbin,bin,lib}
-	mkdir -p ${INSTALL_ROOT}/usr/share/info
-        ln -sf ./share/info ${INSTALL_ROOT}/usr/info
-	mkdir -p ${INSTALL_ROOT}/usr/share/man/{man1,man2,man3,man4,man5,man6,man7,man8}
-        ln -sf ./share/man ${INSTALL_ROOT}/usr/man
-  mkdir -p ${INSTALL_ROOT}/var/lock
-  mkdir -p ${INSTALL_ROOT}/var/run
-	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/compile/
-	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/install/
-	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/md5sum/
-	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
-	mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/codex/
-	mkdir -p ${INSTALL_ROOT}/var/spool/{mail,sorcery}
-	mkdir -p -m 1777 ${INSTALL_ROOT}/var/tmp
-	cp -ruv /etc/sorcery/{accounts,config,groups,mirrors,version,cabal,dialogrc,licenses,uid,compile_config,gid,update} ${INSTALL_ROOT}/etc/sorcery
-        mkdir -p ${INSTALL_ROOT}/etc/sorcery/local/depends
-        cp -f /etc/sorcery/local/depends/README ${INSTALL_ROOT}/etc/sorcery/local/depends
-        cp /etc/sysconfig/init ${INSTALL_ROOT}/etc/sysconfig
-        touch ${INSTALL_ROOT}/var/state/sorcery/{depends,packages,triggers}
-        cp -ruv /var/lib/sorcery/{archspecs,excluded,protected,subroutines,build,modules,solo,sustained} ${INSTALL_ROOT}/var/lib/sorcery/         
-        cp -p /usr/sbin/{cast,dispel,gaze,invoke,scribbler,scribe,sorcery,summon,vcast,xsorcery} ${INSTALL_ROOT}/usr/sbin
-        cp -p /usr/share/man/man8/{cast.8*,dispel.8*,invoke.8*,scribbler.8*,scribe.8*,sorcery.8*,summon.8*} ${INSTALL_ROOT}/usr/share/man/man8
-        cp -p /usr/share/man/man1/gaze.1* ${INSTALL_ROOT}/usr/share/man/man1/
-        cp -p /usr/share/man/man5/grimoire.5* ${INSTALL_ROOT}/usr/share/man/man5/
+#}
 
-}
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

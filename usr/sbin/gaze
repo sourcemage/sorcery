@@ -1,32 +1,14 @@
 #!/bin/bash
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## gaze - view sorcery spell management information
+## @Synopsis gaze - view sorcery spell management information
 ## (gaze into the crystal ball)
-##
-##=head1 DESCRIPTION
-##
-## ...
-##
-##=head1 COPYRIGHT
-##
-## First version of gaze written & copyrighted 2001 by Brian Peterson
-## 
-## Current version contains none of Brian Peterson's code and is 
-## Copyright 2001 by Kyle Sallee
-##
-## Other additions/corrections Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
-##
+## @Copyright First version of gaze written & copyrighted 2001 by Brian Peterson
+## @Copyright Current version contains none of Brian Peterson's code and is Copyright 2001 by Kyle Sallee
+## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
 #---------------------------------------------------------------------
 
 
-help() {
+function help() {
 cat << EOF
 
 Invoke gaze with desired command followed by arguments.
@@ -34,88 +16,105 @@ Please note that anything in brackets [] is optional.
 
 Command		Arguments	Description
 
--q		<empty>		disable human style output
+-q		<empty>		disables human style output
 
-alien		<empty>		Discover untracked files.
-from		path/file	Discover what installed a file.
+alien		<empty>		Discovers untracked files.
+from		path/file	Discovers what installed a file.
 
-search		"phrase"	Searches for "phrase" in the long and 
-				  short spell descriptions and in the spell name.
-search      -name  "phrase" Searches for "phrase" in the spell name.
-search      -short "phrase" Searches for "phrase" in the short spell 
-                            descriptions
+search		"phrase"	Searches for "phrase" in the long and short
+				spell descriptions and in the spell name.
+search -name  	"phrase" 	Searches for "phrase" in the spell name.
+search -short 	"phrase" 	Searches for "phrase" in the short spell 
+				descriptions
 
 service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
-what		spell		Print the spell's description.
-short           spell           Print the spell's short description.
-where		spell		Print the spell's section.
-website | url	spell		Print the spell's website.
-install		spell		View an install log.
-installed	[spell]		View/query installed spells.
-version		spell		View version of spell installed, and version in 
-				the grimoire.
-license		spell [spell]	View the license of the given spell(s)
-license		section [section]	View the licenses of spells in the given
-					section(s)
-license		license [license]	View information about the given license(s).
-compile		spell		View a compile log.
-sources		spell		List the source files for a spell.
-history		spell		Show history for a spell.
+what		spell		Prints the spell's description.
+short           spell           Prints the spell's short description.
+where		spell		Prints the spell's section.
+website | url	spell		Prints the spell's website.
+install		spell		Views an install log.
+installed	[spell]		Views installed spells.
+version		spell		Views version of spell installed,
+				 and version in the grimoire.
+versions	spell		Views version of spell in the in all grimoires
+license		spell		Views the license of the given spell(s)
+license		section		Views the licenses of spells in the given
+				 section(s)
+license		license		Views information about the given license(s).
+compile		spell [version]	Views a compile log. If no optional version
+				 was given, try the installed version,
+				 if the spell is not installed use the
+				 version in the grimoire.
+sources		spell		Lists the source files for a spell.
+source_urls	spell		Lists the source urls for a spell.
+history		spell		Shows history for a spell.
 
-sum			[spell]		Prints checksums.
+sum		[spell]		Prints checksums.
 md5sum		[spell]		Prints md5sums.
-export					Make snapshot of box's configuration.
-import		snapshot	Restore snapshot.
+size		spell		Prints total size of all files installed
+				 by this spell
+export				Makes snapshot of box's configuration.
+import		snapshot	Restores snapshot.
 
-section		[section]	List grimoire sections.
-maintainer	[section]	See who is the maintainer for a section
-grimoire	[grimoire]	View a text listing of all grimoires.
-                        Or of the specified grimoire.
-grimoires				View list of installed grimoires (Grimoire names only).
-html	[-s]	[grimoire]	View a html listing of all grimoires.
-                        Or of the specified grimoire.
-                        Additionally displays links to the source files 
-                        when -s is given.
+section		[section]	Lists grimoire sections.
+maintainer	[section]	Lists who is the maintainer for a section
+grimoire	[grimoire]	Views a text listing of all grimoires.
+                	         Or of the specified grimoire.
+grimoires			Views list of installed grimoires' names
+html	[-s]	[grimoire]	Views a html listing of all grimoires.
+                        	 Or of the specified grimoire.
+                        	 Additionally displays links to the source
+				 files when -s is given.
 
-newer		20020521	Show available spells newer than May 21, 2002.
-older		20010521	Show spells installed before May 21, 2001.
+newer		20020521	Shows available spells newer than May 21, 2002.
+older		20010521	Shows spells installed before May 21, 2001.
 
 prune		<empty>		Removes all old sources from $SOURCE_CACHE
 				  and removes all old backups from 
 				  $INSTALL_CACHE.
+				  (deprecated: use cleanse --sweep)
 
 voyeur		[delay or spell]  
-				Peek into spell compilation.
+				Peeks into spell compilation.
 
-pam		<empty>		Display installed or held spells that are
+pam		<empty>		Displays installed or held spells that are
 				  Linux-PAM aware.
 
 
-orphans		<empty>		Display installed spells that have no
-				  explicit dependencies on them.
+orphans		<empty>		Displays installed spells that no installed
+				  spells explicitly depend on.
 
-depends        spell [level]       Displays the spells that explicitly or
-                   recursively depend on this spell, up to $level levels.
-                    $level is kinda infinity if omitted.
+depends		spell [level]	Displays the spells that explicitly or
+                   		 recursively depend on this spell,
+				 up to $level levels (infinity if omitted)
 
-dependencies    spell [level]     Displays the spells $spell explicitly or 
-                        recursively depends on, up to $level levels.
-                        $level is kinda infinity if omitted.
+dependencies    spell [level]	Displays the spells this spell explicitly or 
+                        	 recursively depends on,
+				 up to $level levels (infinity if omitted)
 
-\$SPELL_SCRIPT	spell	will print the spell script for that spell.
+SCRIPT NAME	spell		will print the spell script for that spell.
+
+activity	<empty>		View the activity log
 
 install-queue	<empty>		View the install queue
 
 remove-queue	<empty>		View the remove queue
 
-checkmd5s       spell/section/<empty> Print a md5 check of spells
+checkmd5s       [spell|section]	Print a md5 check of spells
+
+show-held          		Shows all held spells.
+
 EOF
 }
-#' Just ignore this... it's so my poor syntax hilighting works.'
 
-export_snapshot()  {
+#-----
+## Make building multiple identical systems easy with exporint of a 
+## snapshot of the current state.
+## <p>Is this actualy used for anything still? Does it work?
+#-----
+function export_snapshot()  {
 
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
   mk_source_dir          $SOURCE_DIRECTORY
@@ -145,8 +144,12 @@ export_snapshot()  {
 
 }
 
-
-import_snapshot()  {
+#-----
+## To make the <@function export_snapshot> actualy be useful, an import
+## is quite handy.
+## @param snapshot file
+#-----
+function import_snapshot()  {
 
           SNAPSHOT=$1
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
@@ -184,12 +187,25 @@ import_snapshot()  {
 
 }
 
+#-----
+## Run a simple checksum of a list of files in a file
+## Is this used anywhere?
+## @param File with list of files the sum
+#-----
+function checksum()      { for FILE in `cat $1 | files`; do sum -s  $FILE; done; }
 
-checksum()      { for FILE in `cat $1 | files`; do sum -s  $FILE; done; }
-md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  "$FILE"; done; }
+#-----
+## Run an md5sum of a list of files in a file
+## Is this used anywhere?
+## @param File with list of files the sum
+#-----function
+function md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  "$FILE"; done; }
 
-
-alien()  {
+#-----
+## Find all files on the system not installed by a spell
+## This can be quite time consuming.
+#-----
+function alien()  {
 
   message  "In a few minutes I will print files found on this disk"
   message  "that were not installed by sorcery.  This is not a"
@@ -216,8 +232,13 @@ alien()  {
 
 }
 
-
-gaze_catalog()  {
+#-----
+## Lists sections and spells in a grimoire.
+## Used by <code>gaze grimoire</code>
+## @param Grimoire name
+## @Stdout catalog
+#-----
+function gaze_catalog()  {
 
   local grimoire
 
@@ -255,8 +276,12 @@ gaze_catalog()  {
 
 }
 
-
-gaze_catalog_html()  {
+#-----
+## Lists all sections and spells, output is in HTML format
+## @param Grimoire
+## @Stdout HTML Catalog
+#-----
+function gaze_catalog_html()  {
 
   local grimoire COLS=4
 
@@ -429,14 +454,21 @@ gaze_catalog_html()  {
   echo  "</table></body></html>"
 }
 
+#-----
+## Display a file. Decompresses it if necessary.
+## @Note We may want to move this function as it is a generaly handy function
+## @param File to display
+## @param Message to display if file doesn't exist
+#-----
+function display()  {
 
-display()  {
-
-  if  [  -f  "$1"  ];  then
-    case  `file  -b  $1  |  cut -d ' ' -f1`  in
-      ASCII)       cat  $1  |  $PAGER  ;;
-      bzip2)     bzcat  $1  |  $PAGER  ;;
-      gzip)   gzip -cd  $1  |  $PAGER  ;;
+  if  [  -s  "$1"  ];  then
+    case  "$(file  -b  $1)"  in
+      *text)       cat  $1  |  $PAGER  ;;
+      bzip2*)     bzcat  $1  |  $PAGER  ;;
+      gzip*)   gzip -cd  $1  |  $PAGER  ;;
+	  *) message "Unknown file type."
+	    return 1 ;;
     esac
   else
     message  "$2"
@@ -445,8 +477,11 @@ display()  {
 
 }
 
-
-newer()  {
+#-----
+## List spells created more recently than the given date
+## @param Date
+#-----
+function newer()  {
 
   DATE=$1
   if  [  -n  "$DATE"  ];  then
@@ -468,8 +503,11 @@ newer()  {
 
 }
 
-
-older()  {
+#-----
+## List spells created less recently than the given date
+## @param Date
+#-----
+function older()  {
 
   DATE=$1
   if  [  -n  "$DATE"  ];  then
@@ -491,16 +529,24 @@ older()  {
 
 }
 
-
-show_from()  {
+#-----
+## Find all install logs that mention the given string
+## @param Search string
+## @Stdout grep results
+#-----
+function show_from()  {
 
   cd  $INSTALL_LOGS
   grep  "`esc_str $1`$"  *
 
 }
 
-
-show_spell_component()  {
+#-----
+## Generalized show component of a spell, BUILD, DEPENDS, etc...
+## @param Component
+## @param Spell
+#-----
+function show_spell_component()  {
 
   local        COMPONENT=$1
   local       SPELL_NAME=$2
@@ -513,15 +559,11 @@ show_spell_component()  {
 
 
 #-----------------------------------------------------------------------
-#
-# gaze_search 
-#
-# parameter processing for the search routines.
-# the case statement should be self-explanatory 
-#
+## parameter processing for the search routines.
+## the case statement should be self-explanatory 
 #-----------------------------------------------------------------------
 
-gaze_search() {
+function gaze_search() {
     case $1 in
 
      -name) shift; real_name_search  "$@"  ;;
@@ -531,17 +573,15 @@ gaze_search() {
     esac
 }
 
-
 #-----------------------------------------------------------------------
-#
-# real_name_search pattern(s) 
-#
-# searches for pattern(s) in the name of all spells.
-# it searches in the codex.index files for the sake of speed 
-#
+##
+## searches for pattern(s) in the name of all spells.
+## it searches in the codex.index files for the sake of speed 
+##
+## @Args Patterns
+##
 #-----------------------------------------------------------------------
-
-real_name_search() {
+function real_name_search() {
     local grimoire pattern
 
     for grimoire in $(codex_get_all_grimoires); do
@@ -566,20 +606,17 @@ real_name_search() {
 
 
 #-----------------------------------------------------------------------
-#
-# grep_find_grimoire path filename pattern
-#
-# path should be a grimoire, since it only searches files in a specific
-# depth
-# filename is the filename it searches for in path
-# pattern is the pattern it searches for in the files
-#
-# returns the full path to the matching files
-# eg /var/lib/sorcery/codex/grimoire/games/coal/DETAILS
-#
+##
+## Searches for something in a specified grimoire. Not really sure what
+## it looks for or why. 
+##
+## @param Path to grimoire
+## @param Spell to look for
+## @param Patern to find in the files
+## @Stdout The full path to the file, /var/lib/sorcery/codex/grimoire/games/coal/DETAILS
+##
 #-----------------------------------------------------------------------
-
-grep_find_grimoire() {
+function grep_find_grimoire() {
         local path=$1
         local name=$2
         local pattern="$3"
@@ -587,17 +624,15 @@ grep_find_grimoire() {
         codex_find_in_grimoire "$path" "$name" | xargs grep -il -- "${pattern}"
 }
 
-
 #-----------------------------------------------------------------------
-#
-# real_short_search pattern(s) 
-#
-# searches for pattern(s) in the SHORT field of every SPELL in every 
-# grimoire
-#
+##
+## searches for pattern(s) in the SHORT field of every SPELL in every 
+## grimoire
+##
+## @Args Patterns
+##
 #-----------------------------------------------------------------------
-
-real_short_search() {
+function real_short_search() {
     local pattern grimoire spell spellname
 
     for pattern in "$@"; do
@@ -620,7 +655,15 @@ real_short_search() {
 
 
 
-real_long_search()  {
+#-----------------------------------------------------------------------
+##
+## searches for pattern(s) in the long description of every SPELL in every 
+## grimoire
+##
+## @Args Patterns
+##
+#-----------------------------------------------------------------------
+function real_long_search()  {
   local atSpell=0
   local file
   local SEARCH
@@ -669,8 +712,11 @@ unset SEARCH_RESULTS
 
 }
 
-
-service()  {
+#-----
+## Search for providers of a service in all spells
+## @param service name
+#-----
+function service()  {
 	
   for  SPELL  in  `codex_get_all_spells`;  do
     if    [  -f  $SPELL/services  ]  &&
@@ -683,7 +729,6 @@ service()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_provides <feature>
 ##
 ## Given a feature, shows a list of spells that provide the feature
 ## or functionality.  For example:
@@ -695,6 +740,8 @@ service()  {
 ##
 ## This output indicates that alsa-driver, linux-devel, and linux-dj
 ## all provide the alsa-drivers feature.
+##
+## @param feature
 ##
 #---------------------------------------------------------------------
 gaze_provides()  {
@@ -713,32 +760,41 @@ local spell
   done
 }
 
-
-specific_voyeur()
+#-----
+## Watches a specific exhibisionist
+## @param PID of exhibitionist
+#-----
+function specific_voyeur()
 {
-  if ! [ -d "${LOCK_DIR}/cast.$1" ]
+  if ! [ -d "/tmp/liblock-0/cast.$1" ]
   then
     return 1
   fi
   nice -n +20			\
    tail /tmp/$1.compile.log	\
-    --follow=name --pid=`ls "${LOCK_DIR}/cast.$1"` 2>/dev/null
+    --follow=name --pid=`ls "/tmp/liblock-0/cast.$1"` 2>/dev/null
 }
 
-
-any_voyeur()
+#-----
+## Watches the first exhibisionist found
+## @param PID of exhibitionist
+#-----
+function any_voyeur()
 {
-  local FILE=`find $LOCK_DIR -maxdepth 1 -mindepth 1 -name "cast.*" |
+  local FILE=`find /tmp/liblock-0 -maxdepth 1 -mindepth 1 -name "cast.*" |
          sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
   [ $FILE ] || return 1
   debug "voyeur" "Looking at spell \"$FILE\""
     nice -n +20				\
        tail /tmp/$FILE.compile.log	\
-           --follow=name --pid=`ls "${LOCK_DIR}/cast.$FILE"` 2>/dev/null
+           --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
 }
 
-
-activate_voyeur()  {
+#-----
+## Start waiting for an exhibisionist.
+## @param (optional) Not sure if this is used... specifies a section or something
+#-----
+function gaze_activate_voyeur()  {
 
   if  [  -n  "$1"  ]  &&
       !  find_section  $1  >  /dev/null
@@ -768,29 +824,28 @@ activate_voyeur()  {
 
 }
 
-
-show_orphans()  {
-
-  for  SPELL  in  `grep -v exiled  $SPELL_STATUS  |  cut  -d :  -f1`;  do
-    if    !  cut  -d :  -f2-  $DEPENDS_STATUS  |
-             grep             "^`esc_str $SPELL`:"       |
-             grep  -q         ":on:"
-    then     echo   $SPELL
-    fi
-  done
-
+#-----
+## Show spells that have no other spell depending on them
+#-----
+function show_orphans()  {
+  compute_reverse_installed_depends my_hash
+  for each in $(get_all_spells_with_status 'installed';get_all_spells_with_status 'held'); do
+  if [[ ! $(hash_get my_hash $each) ]] ; then
+    echo "$each"
+  fi
+  done|sort
 }
 
 
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_website <spell>
 ##
 ## Shows the website/home page for the given spell.
+## @param Spell
 ##
 #---------------------------------------------------------------------
-gaze_show_website()  {
+function gaze_show_website()  {
 
   for spell in $@; do
     if  codex_set_current_spell_by_name  $spell;  then
@@ -820,7 +875,13 @@ gaze_show_website()  {
   done
 }
 
-show_maintainer()  {
+#---------------------------------------------------------------------
+##
+## Shows the maintainer for the given spell.
+## @param Spell
+##
+#---------------------------------------------------------------------
+function show_maintainer()  {
 
   for section in $@; do
     ! [[ $GAZE_VERBOSE == 0 ]] &&
@@ -845,7 +906,13 @@ show_maintainer()  {
 }
 
 
-show_history()  {
+#---------------------------------------------------------------------
+##
+## Shows the HISTORY for the given spell.
+## @param Spell
+##
+#---------------------------------------------------------------------
+function show_history()  {
 
   local SPELL=`codex_find_spell_by_name  $1`
 
@@ -866,13 +933,14 @@ show_history()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_section [<section> [<section>...]]
 ##
 ## Given a section name, shows a table of spells in that section along
 ## with their grimoire version and installed verion
+## @param Section
+## @param ...
 ##
 #---------------------------------------------------------------------
-gaze_show_section()  {
+function gaze_show_section()  {
 
   local SECTION_NAME
 
@@ -895,13 +963,13 @@ gaze_show_section()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_section_version_table <section>
 ##
 ## Given a section name, shows a table of spells in that section along
 ## with their grimoire version and installed verion
+## @param Section
 ##
 #---------------------------------------------------------------------
-gaze_show_section_version_table()  {
+function gaze_show_section_version_table()  {
 
    local  SPELLS=`codex_get_spells $1`
 
@@ -924,13 +992,14 @@ gaze_show_section_version_table()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_spell_version_table <spell> [<spell> ...]
 ##
 ## Shows the versions of spells, both the version in the grimoire and
 ## the version installed on the system.  
+## @param Spell
+## @param ...
 ##
 #---------------------------------------------------------------------
-gaze_show_spell_version_table()  {
+function gaze_show_spell_version_table()  {
 
   (
 	echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
@@ -950,13 +1019,14 @@ gaze_show_spell_version_table()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_version <spell or section> [<spell or section> ...]
 ##
 ## Shows the versions of spells, both the version in the grimoire and
 ## the version installed on the system.  
+## @param Spell or section
+## @param ...
 ##
 #---------------------------------------------------------------------
-gaze_show_version()  {
+function gaze_show_version()  {
     
   local SPELLS_AND_SECTIONS=$@
   local SPELLS=
@@ -992,13 +1062,13 @@ gaze_show_version()  {
 }
 
 #---------------------------------------------------------------------
-##=item gaze_show_versions <spell>
 ##
 ## Shows the all versions of spell, all versions in all grimoires and 
 ## the version installed on the system.
+## @param Spell
 ##
 #---------------------------------------------------------------------
-gaze_show_versions()  {
+function gaze_show_versions()  {
 
   local SPELL=$1
   local SPELL_DIRECTORY=
@@ -1046,13 +1116,13 @@ gaze_show_versions()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_section_license_table <section>
 ##
 ## Given a section name, shows a table of spells in that section along
 ## with their licenses.
+## @param Section
 ##
 #---------------------------------------------------------------------
-gaze_show_section_license_table()  {
+function gaze_show_section_license_table()  {
 
    local  SPELLS=`codex_get_spells $1`
 
@@ -1074,12 +1144,13 @@ gaze_show_section_license_table()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_spell_license_table <spell> [<spell> ...]
 ##
 ## Shows the licenses of spells
+## @param Spell
+## @param ...
 ##
 #---------------------------------------------------------------------
-gaze_show_spell_license_table()  {
+function gaze_show_spell_license_table()  {
 
   (
     echo  "Spell|License(s)"
@@ -1098,14 +1169,13 @@ gaze_show_spell_license_table()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_license_table <license> [<license> ...]
 ##
-## Shows the information about the given licenses. 
+## Shows the information about the given licenses.
+## @param Licence
+## @param ... 
 ##
 #---------------------------------------------------------------------
-gaze_show_license_table()  {
-
-  
+function gaze_show_license_table()  {
   (
     echo  "Abbr|License Full Name|URL"
     echo  "----|-----------------|---"
@@ -1122,12 +1192,11 @@ gaze_show_license_table()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_grimories 
 ##
 ## Shows lising of installed grmoires by grimoire name only.
 ##
 #---------------------------------------------------------------------
-gaze_show_grimoires()  {
+function gaze_show_grimoires()  {
 
 	echo  ""
 	echo  ""
@@ -1140,13 +1209,14 @@ gaze_show_grimoires()  {
 
 
 #---------------------------------------------------------------------
-##=item gaze_show_license <spell, section, or license> [<spell, section, or license> ...]
 ##
 ## Shows the licenses of spells if a spell or section name is given.
 ## Shows info a license if a license name is given.
+## @param Spell, section, or license
+## @param ...
 ##
 #---------------------------------------------------------------------
-gaze_show_license()  {
+function gaze_show_license()  {
     
   local SPELLS_AND_SECTIONS_AND_LICENSES=$@
   local SPELLS=
@@ -1188,7 +1258,14 @@ gaze_show_license()  {
 
 }
 
-gaze_show_installed() {
+#-----
+##
+## Displays the installed version of spells
+## @param Spell
+## @param ...
+##
+#-----
+function gaze_show_installed() {
 
   if    [  -z  "$1"    ]
         then  $PAGER   $SPELL_STATUS
@@ -1206,7 +1283,14 @@ gaze_show_installed() {
   fi
 }
 
-gaze_show_short_description() {
+#-----
+##
+## Display the SHORT description of spells
+## @param Spell
+## @param ...
+##
+#-----
+function gaze_show_short_description() {
 
   for spell in $@; do
         ! [[ $GAZE_VERBOSE == 0 ]] &&
@@ -1219,7 +1303,14 @@ gaze_show_short_description() {
   done
 }
 
-gaze_show_long_description() {
+#-----
+##
+## Display the long description of spells
+## @param Spell
+## @param ...
+##
+#-----
+function gaze_show_long_description() {
 
   for spell in $@; do
         ! [[ $GAZE_VERBOSE == 0 ]] &&
@@ -1232,7 +1323,14 @@ gaze_show_long_description() {
   done
 }
 
-gaze_show_where() {
+#-----
+##
+## Display the section spells are located in
+## @param Spell
+## @param ...
+##
+#-----
+function gaze_show_where() {
 	for spell in $@; do
 		SECTION=$(codex_get_spell_section_name  $spell)
                 if ! [[ $GAZE_VERBOSE == 0 ]]; then
@@ -1247,15 +1345,27 @@ gaze_show_where() {
 	done
 }
 
-gaze_show_depends() {
+#-----
+##
+## Display what spells depend on the given spell
+## @param The given spell
+##
+#-----
+function gaze_show_depends() {
     local spell="$1"
     local MAX_DEPTH=$2 #as a global for show_depends.
 
     codex_does_spell_exist "$spell" && show_depends "$spell" | sort | uniq
 }
 
-
-gaze_show_dependencies() {
+#-----
+##
+## @See <@function gaze_show_depends>
+## @param Spell
+## @param (optional) depth to recurse for
+##
+#-----
+function gaze_show_dependencies() {
     local SPELL=$1
     [[ $# == 2 ]] && MAX_DEPTH=$2
 
@@ -1305,7 +1415,14 @@ gaze_show_dependencies() {
     )
 }
 
-gaze_show_size () {
+#-----
+##
+## Display the space an installed spell uses
+## @param Spell
+## @param ...
+##
+#-----
+function gaze_show_size () {
     local spell
     for spell in "$@"; do
         local version=$(installed_version $spell)
@@ -1314,6 +1431,19 @@ gaze_show_size () {
             awk '{ x += $5 } 
                 END { print "'$spell' -> " x " bytes in " NR " files." }'
     done
+}
+
+#---------------------------------------------------------------------
+##
+## prints all held spells.
+##
+#---------------------------------------------------------------------
+function gaze_show_held_spells () {
+    message -n "${MESSAGE_COLOR}The following spells are set to"
+    message -n "${DEFAULT_COLOR} hold"
+    message    "${SPELL_COLOR}"
+    get_held | sort | column
+    message -n "${DEFAULT_COLOR}"
 }
 
 
@@ -1357,14 +1487,16 @@ parse()  {
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
-		 versions)  shift; gaze_show_versions $@         ;;
+	versions)  shift; gaze_show_versions $@         ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
+        activity)  display $ACTIVITY_LOG                 ;;
             from)  show_from         $2                  ;;
            newer)  newer             $2                  ;;
            older)  older             $2                  ;;
            prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
+     source_urls)  source_urls       $SPELL              ;;
         grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
        grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
@@ -1372,11 +1504,12 @@ parse()  {
         provides)  shift; gaze_provides $@               ;;
          depends)  shift; gaze_show_depends  "$@"        ;;
     dependencies)  shift; gaze_show_dependencies  "$@"   ;;
-         orphans)  show_orphans        |  sort  |  uniq  ;;
+         orphans)  show_orphans                          ;;
          history)  show_history  "$2"                    ;;
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
        installed)  shift; gaze_show_installed         $@ ;;
+       show-held)  gaze_show_held_spells                 ;;
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
@@ -1384,11 +1517,13 @@ parse()  {
        checkmd5s)  shift; gaze_md5check               $@ ;;
 
 
-    compile)  if  [  -z  "$VERSION"  ];  then
+    compile)  if  [  -n  "$3"        ];  then
+                  VERSION=$3
+              elif  [  -z  "$VERSION"  ];  then
                   codex_set_current_spell_by_name  $2
               fi
               display  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION   \
-                       "Compile log for $SPELL does not exist"
+                       "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
     install)  display  $INSTALL_LOGS/$SPELL-$VERSION   \
@@ -1406,7 +1541,7 @@ parse()  {
              md5sum_files  "$INSTALL_LOGS/*"
              ;;
 
-   voyeur)  shift  1;  activate_voyeur  $@  ;;
+   voyeur)  shift  1;  gaze_activate_voyeur  $@  ;;
 
       pam)  find_pam_aware  ;;
 

@@ -152,9 +152,9 @@ function debug()  {
 ##
 #---------------------------------------------------------------------
 function progress_spinner()  {
-
-  ((  PROGRESS_SPINNER=$PROGRESS_SPINNER+1  ))
-  if ((  PROGRESS_SPINNER>((  ${#PROGRESS_SPINNER_CHARS}-1  ))  )); then
+  local PROGRESS_SPINNER
+  let  PROGRESS_SPINNER=$PROGRESS_SPINNER+1 
+  if ((  PROGRESS_SPINNER > ${#PROGRESS_SPINNER_CHARS}-1  )); then
     PROGRESS_SPINNER=0;
   fi
   echo -en "\b${PROGRESS_SPINNER_CHARS:$PROGRESS_SPINNER:1}"
@@ -348,7 +348,6 @@ function parent_PIDs()
 ##
 #---------------------------------------------------------------------
 function get_basenames() {
-debug "DB" "basename - $*"
   local DIRECTORY=''
   while read DIRECTORY; do
     basename "$DIRECTORY"
@@ -532,10 +531,11 @@ function real_list_remove () {
     local i
     
     for i in $@; do
-        eval "$var=\`echo \"\$$var \" | sed  \
+        eval "$var=\`echo \" \$$var \" | sed  \
                -e \"s/[[:space:]]\\+/ /g\"   \
                -e \"s/ $i / /g\"             \
-               -r -e \"s/^ (.+) $/\\1/\"\`"
+               -e \"s/^ *//\"                \
+               -e \"s/ *$//\"\`"
     done
 }
 
@@ -549,17 +549,23 @@ function real_list_remove () {
 ##
 #---------------------------------------------------------------------
 function real_list_add () {
-    local var=$1
-    shift
-  
-    local i
-  
-    for i in $@; do
-        eval "$var=\`echo \" \$$var \" | sed \
-               -e \"s/[[:space:]]\\+/ /g\"   \
-               -e \"s/ $i / /g\"             \
-               -e \"s/^ //\"\`\"$i\""
-    done
+  local var=$1
+  shift
+  local i
+  for i in $@; do
+    local j
+    local found=0
+    function list_add_sub() {
+      if [ "$i" = "$j" ]; then
+        found=1
+      fi
+    }
+    iterate list_add_sub " " "$(eval "echo \$$var")"
+    if [ $found -eq 0 ]; then
+      eval "$var=\`echo \"\$$var $i\"\`"
+      eval "$var=\"\${$var/# /}\""
+    fi
+  done
 }
 
 
@@ -616,7 +622,8 @@ function real_persistent_remove () {
 function real_persistent_load () {
     if [ -f "$SPELL_CONFIG.p" ]; then
         . "$SPELL_CONFIG.p"
-        persistent_add `awk 'BEGIN{FS="="}{print $1}' < "$SPELL_CONFIG.p"`
+        local line
+        persistent_add `while read line; do echo ${line%%=*}; done < "$SPELL_CONFIG.p"`
     fi
 }
 
@@ -755,7 +762,7 @@ function config_set_option () {
 #---------------------------------------------------------------------
 function real_config_query () {
     local ANSWER
-    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
+    if config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
   
@@ -775,22 +782,35 @@ function real_config_query () {
 ## @param config file variable
 ## @param question
 ## @param default answer [y|n]
-## @param option_yes
-## @param option_no
+## @param option_yes - can't be empty string
+## @param option_no - can't be empty string
 ##
 ## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## The string is added to the variable
-## Return variable is also marked as persistent
+## If you want to use empty string, place there dummy string and remove
+## it later by list_remove function. Also for one config variable, all
+## option_yes and option_no have to be different.
 ##
+## Return variable is also marked as persistent
 #---------------------------------------------------------------------
 function real_config_query_option () {
     local ANSWER
   
-    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
-        # option allready ANSWERed in config
-        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
+    # If the option exists
+    # If the option contains option_yes or option_no
+    if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
+        # Then option allready ANSWERed in config
+
+        # Find out if the option was 'y' or 'n'
+        list_find "$ANSWER" $4 && key=y
+        list_find "$ANSWER" $5 && key=n
+
+        if [ $key != error ]; then
+            echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
+            return 0
+        fi
     fi
   
     if query "$2" $3; then
@@ -817,9 +837,8 @@ function real_config_query_option () {
 #---------------------------------------------------------------------
 function real_config_query_string () {
     local ANSWER
-    local RET=0
     
-    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
+    if config_get_option "$1" ANSWER; then
         # option allready answered in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
     else
@@ -848,7 +867,7 @@ function real_config_query_list () {
   shift
   shift
 
-  if [ -z "$RECONFIGURE" ] && config_get_option "$VARIABLE" ANSWER; then
+  if config_get_option "$VARIABLE" ANSWER; then
     # option allready ANSWERed in config
     (
         for foo in $@; do

@@ -1,31 +1,32 @@
-#!/bin/bash
-#---------------------------------------------------------------------
-# vim:set ts=2 sw=2 et:
 #---------------------------------------------------------------------
 ##
 ## @Synopsis Functions for automatic init-script installation.
 ##
 ## Installation steps performed by this script:
-##
+## <pre>
 ## pre install:
-##  * Determine if the script is a facility provider, if it is then
+##    <li>Determine if the script is a facility provider, if it is then
 ##    ask the user whether it should be the default provider.
 ##
 ## install:
-##  * Determine which runlevel the script should be placed in.
-##  * Make a backup if there already is a different version of the script in
+##  <ul>
+##   <li>Determine which runlevel the script should be placed in.
+##   <li>Make a backup if there already is a different version of the script in
 ##    the target location.
-##  * Install the script with permissions 754.
-##  * Determine if the script sources any config file from /etc/sysconfig.
-##  * For each config file:
-##    * Install the config file if there is no existing copy installed.
-##    * Otherwise merge new options into existing copy.
+##   <li>Install the script with permissions 754.
+##   <li>Determine if the script sources any config file from /etc/sysconfig.
+##   <li>For each config file:
+##    <ul>
+##      <li>Install the config file if there is no existing copy installed.
+##      </li>Otherwise merge new options into existing copy.
+##   </ul></ul>
 ##
 ## post install:
-##  * When the spell has been installed successfully then change the
+##
+##  <li> When the spell has been installed successfully then change the
 ##    /etc/sysconfig/facilities-file if the user wanted the script to be a
 ##    default provider.
-##
+## </pre>
 ## @Copyright Copyright (C) 2003 The Source Mage Team <http://www.sourcemage.org>
 ##
 ##
@@ -127,7 +128,7 @@ function _init_install_conf_files()
 {
 
   for file in "$@" ; do
-    local target_file=$INSTALL_ROOT/etc/sysconfig/$file
+    local target_file=${INSTALL_ROOT}/etc/sysconfig/$file
     local file=$SCRIPT_DIRECTORY/init.d/$file.conf
 
     if [ ! -f "$file" ] ; then
@@ -228,10 +229,11 @@ function init_install()
       _init_make_backup $script_path $runlevel_dir/$script_name
       if [ "$enable_script" == "enabled" ] ; then
         install -m 754 $script_path $runlevel_dir
-        message "  script $script_name installed and enabled.  Disable with 'telinit disable $script_name'."
+        message "  script $script_name installed and ${MESSAGE_COLOR}enabled${DEFAULT_COLOR}. Disable with 'telinit disable $script_name'."
+        message "${MESSAGE_COLOR}If you want to [re]start the service now${DEFAULT_COLOR}, issue 'telinit run $script_name [re]start'."
       else
         install -m 644 $script_path $runlevel_dir
-        message "  script $script_name installed and disabled.  Enable with 'telinit enable $script_name'."
+        message "  script $script_name installed and ${MESSAGE_COLOR}disabled${DEFAULT_COLOR}. Enable with 'telinit enable $script_name'."
       fi
       _init_install_conf_files $( _init_get_conf_files $script_path )
     fi
