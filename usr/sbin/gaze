@@ -450,12 +450,18 @@ newer()  {
 
   DATE=$1
   if  [  -n  "$DATE"  ];  then
-    for  SPELL  in  `codex_get_all_spells`;  do
-      codex_set_current_spell  $SPELL
+  (
+    echo "Grimoire|Section|Spell|Grimoire Version|Installed Version|Added"
+    echo "--------|-------|-----|----------------|-----------------|-----"
+    for  SPELL_DIR  in  `codex_get_all_spells`;  do
+      unset ENTERED
+      .  "$SPELL_DIR/DETAILS" 1>/dev/null 2>&1
       if  [  "$ENTERED"  ]  &&  [  $ENTERED  -gt  $DATE  ];  then
-        echo  $SPELL
+        codex_set_current_spell  $SPELL_DIR
+        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
+  ) | column -t -s "|"
   else
     help  |  $PAGER
   fi
@@ -466,22 +472,24 @@ newer()  {
 older()  {
 
   DATE=$1
-
   if  [  -n  "$DATE"  ];  then
-    for  LINE  in `cat  $SPELL_STATUS`;  do
-      CAST_DATE=`echo  $LINE  |  cut  -d  :  -f2`
-      if  [  $CAST_DATE  -gt  $DATE  ]  2>/dev/null;  then
-        true
-      else
-        echo  $LINE  |  cut  -d  :  -f1
+  (
+    echo "Grimoire|Section|Spell|Grimoire Version|Installed Version|Added"
+    echo "--------|-------|-----|----------------|-----------------|-----"
+    for  SPELL_DIR  in  `codex_get_all_spells`;  do
+      unset ENTERED
+      .  "$SPELL_DIR/DETAILS" 1>/dev/null 2>&1
+      if  [  "$ENTERED"  ]  &&  [  $ENTERED  -lt  $DATE  ];  then
+        codex_set_current_spell  $SPELL_DIR
+        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
+  ) | column -t -s "|"
   else
     help  |  $PAGER
   fi
 
 }
-
 
 
 show_from()  {
