@@ -329,6 +329,15 @@ gaze_catalog_html()  {
         if [[ $COLS -eq 5 ]]; then
             echo "<td>"
             echo "<a href=\"$SOURCE_URL\">$(echo $SOURCE | cut -c-25)</a>"
+
+	    i=2
+	    ii=SOURCE${i}
+	    while  [  -n "${!ii}"  ];  do
+		    iii="${ii}_URL"
+		    echo "<br><a href=\"${!iii}\">$(echo ${!ii} | cut -c-25)</a>"
+		    i=$(($i+1))
+		    ii=SOURCE${i}
+	    done
             echo "</td>"
         fi
         echo  "</tr>"
@@ -337,8 +346,7 @@ gaze_catalog_html()  {
     done
   done
 
-
-  echo  "<tr><th colspan=4>Total spells:  $COUNT</th></tr>"
+  echo  "<tr><th colspan=${COLS}>Total spells:  $COUNT</th></tr>"
   echo  "</table></body></html>"
 }
 
