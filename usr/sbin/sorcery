@@ -371,6 +371,7 @@ update_pkgs() {
 
   message  "${CHECK_COLOR}Updating ... please wait ... ${DEFAULT_COLOR}"
 
+  local UPDATE_SCRIPT=$TMP_DIR/sorcery.update
   rm -rf $UPDATE_SCRIPT
   cat  << EOF >  $UPDATE_SCRIPT
 #!/bin/bash
@@ -446,11 +447,12 @@ if [[ \$1 ]]; then
   SORCERY_BRANCH=\$1
 fi
 
-if  cd /tmp                                                 &&
+if  cd /usr/src                                             &&
     bunzip2 -c \$SORCERY_SPOOL/sorcery-\$SORCERY_BRANCH.tar.bz2 | tar xf - &&
     cd sorcery                                              &&
   ./install;                                              then
-  rm -rf /tmp/sorcery
+  cd ..
+  rm -rf /usr/src/sorcery
   echo  "Sorcery was successfully restored."
 else
   echo  "Unable to restore sorcery.  Try running this file with"
