@@ -102,12 +102,12 @@ swap() {
   done
 
   if [ -z "$p1" ]; then
-    echo "Error: ${ITEMS[0]} not found in codex"
+    message "Error: ${ITEMS[0]} not found in codex"
   elif [ -z "$p2" ]; then
-    echo "Error: ${ITEMS[1]} not found in codex"
+    message "Error: ${ITEMS[1]} not found in codex"
   else
-    echo -n "swapping "
-    echo "${ITEMS[0]} with ${ITEMS[1]}"
+    message -n "swapping "
+    message "${ITEMS[0]} with ${ITEMS[1]}"
     codex_add_grimoire $i1 $p2
     codex_add_grimoire $i2 $p1
   fi
@@ -138,11 +138,11 @@ scribe_set(){
     c=$((c+1))
   done
 
-  echo -n "moving "
+  message -n "moving "
   #if [ $movemode == "n" ]; then
   # echo "id ${ITEMS[0]} ($nmove) to position ${ITEMS[1]}"
   #else
-  echo "${ITEMS[0]} to position ${ITEMS[1]}"
+  message "${ITEMS[0]} to position ${ITEMS[1]}"
   codex_add_grimoire $tmove ${ITEMS[1]}
 
   #fi
@@ -162,7 +162,7 @@ scribe_set(){
 add() {
   #For each item listed add it
   if ! [ -d $CODEX_ROOT ] ; then
-    echo "Main codex directory not present. Creating $CODEX_ROOT."
+    message "Main codex directory not present. Creating $CODEX_ROOT."
     mkdir -p $CODEX_ROOT
   fi
 
@@ -175,7 +175,7 @@ add() {
         FROM_LOC="${SOURCES[$x]}"
       else
         #if not valid, use $CODEX_URL
-        echo  "Error: ${SOURCES[$x]} is not a recognized url. Using default."
+        message  "Error: ${SOURCES[$x]} is not a recognized url. Using default."
         FROM_LOC="$CODEX_URL/${ITEMS[$x]}.tar.bz2"
       fi
 
@@ -184,7 +184,7 @@ add() {
       FROM_LOC="$CODEX_URL/${ITEMS[$x]}.tar.bz2"
     fi
 
-    echo "Adding grimoire ${ITEMS[$x]} from $FROM_LOC"
+    message "Adding grimoire ${ITEMS[$x]} from $FROM_LOC"
 
     #switch to and work in the codex
     pushd $CODEX_ROOT &> /dev/null
@@ -199,7 +199,7 @@ add() {
     #check the success of the download
     if [ $? != 0 ]; then
       #grimoire was not downloaded. Error message.
-      echo "Error downloading grimoire..."
+      message "Error downloading grimoire..."
     else
       #if the grimoire is an archive, untar it
       if [ -e ${ITEMS[$x]}.tar.bz2 ]; then
@@ -233,12 +233,12 @@ add() {
 
         codex_add_grimoire $CODEX_ROOT/${ITEMS[$x]} 0
         codex_create_cache $CODEX_ROOT/${ITEMS[$x]}
-        echo "Grimoire \"${ITEMS[$x]}\" successfully added to your codex." 
+        message "Grimoire \"${ITEMS[$x]}\" successfully added to your codex." 
 
       else
         #dir not found. error.
         #FIXME- add a check for what dir it WAS and remove that
-        echo "ERROR: Grimoire tarball for ${ITEMS[$x]} not formated correctly!"
+        message "ERROR: Grimoire tarball for ${ITEMS[$x]} not formated correctly!"
       fi 
     fi
 
@@ -265,18 +265,18 @@ remove() {
 
     #if a FROM is set, ignore it.
     if [ -n "${SOURCES[$x]}" ]; then
-      echo  "Ignoring FROM: ${SOURCES[$x]}"
+      message  "Ignoring FROM: ${SOURCES[$x]}"
     fi
 
     #if the grimoire exists, remove it
     if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
       #found. removed.
       rm -rf $CODEX_ROOT/${ITEMS[$x]}
-      echo "Removing grimoire ${ITEMS[$x]} from codex"
+      message "Removing grimoire ${ITEMS[$x]} from codex"
       codex_remove_grimoire $CODEX_ROOT/${ITEMS[$x]}
     else
       #not found - print error
-      echo "Grimoire ${ITEMS[$x]} does not exist in $CODEX_ROOT. No action."
+      message "Grimoire ${ITEMS[$x]} does not exist in $CODEX_ROOT. No action."
     fi
 
   done
@@ -292,7 +292,7 @@ fix_metadata() {
   fixPrompt="Repair Metadata for $1?"
   metadataPrompt="Enter url to pull grimoire from"
 
-  echo "No Metadata found for Grimoire $1"
+  message "No Metadata found for Grimoire $1"
   if  query "Repair Grimoire:$1's Metadata?" n; then
     echo $metadataPrompt
     echo -n "[ $CODEX_URL/$1.tar.bz2 ]: "
@@ -302,8 +302,8 @@ fix_metadata() {
       URL="$CODEX_URL/$1.tar.bz2"
     fi   
 
-    echo "Setting Metadata to: $URL"
-    echo "If this is incorrect, run \"scribe fix $1\" and correct"
+    message "Setting Metadata to: $URL"
+    message "If this is incorrect, run \"scribe fix $1\" and correct"
     GRIMOIRE_TMP=$CODEX_ROOT/$1
     echo "FROM_URL=$URL" > $GRIMOIRE_TMP/GRIMOIRE
     chmod +x $GRIMOIRE_TMP/GRIMOIRE
@@ -319,19 +319,19 @@ fix() {
 
     if ! [ -e $CODEX_ROOT/$i/GRIMOIRE ]; then
       if fix_metadata $i; then
-        echo "$i fixed."
+        message "$i fixed."
         else
-        echo "$i ignored."
+        message "$i ignored."
       fi
     else
       if query "Metadata for $i found. Fix anyway?" n; then
         if fix_metadata $i; then
-          echo "$i fixed."
+          message "$i fixed."
         else
-          echo "$i ignored."
+          message "$i ignored."
         fi
       else
-        echo "$i ignored."
+        message "$i ignored."
       fi
     fi
 
@@ -362,8 +362,8 @@ do_update() {
 
   #check the success of the download
   if [ $? != 0 ]; then
-    #grimiore download failed
-    echo "GRIMOIRE NOT FOUND AT SOURCE"
+    #grimoire was not downloaded. Error message.
+    message "Error downloading grimoire..."
   else
     #if the grimoire is an archive, untar it
     if [ -e $1.tar.bz2 ]; then
@@ -395,13 +395,13 @@ do_update() {
       fi
 
       #Confirm Success!
-      echo "$1 Updated!"
+      message "$1 Updated!"
       grimoire_history $CODEX_ROOT/$1
 
     else
 
       #uh oh! bad unzip.
-      echo "ERROR: Grimoire tarball for $1 not formated correctly! Reverting."
+      message "ERROR: Grimoire tarball for $1 not formated correctly! Reverting."
 
       #phew! we backed it up. restore backed up version
       mv -f temp_$1.old $1
@@ -446,11 +446,11 @@ update() {
         #include metadata
         . $CODEX_ROOT/$i/GRIMOIRE
         FROM_LOC=$FROM_URL
-        echo "Updating grimoire $i from $FROM_LOC"
+        message "Updating grimoire $i from $FROM_LOC"
         do_update $i $FROM_LOC
       else
         #no metadata found. dont auto-update
-        echo "Not Updating $i."
+        message "Not Updating $i."
       fi
 
     done
@@ -480,9 +480,9 @@ update() {
             if [ -e $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
               . $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
               FROM_LOC=$FROM_URL
-              echo "Error: ${SOURCES[$x]} is not a valid URL. Using: $FROM_LOC"
+              message "Error: ${SOURCES[$x]} is not a valid URL. Using: $FROM_LOC"
             else
-              echo "${ITEMS[$x]} has invalid metadata. Not Updated"
+              message "${ITEMS[$x]} has invalid metadata. Not Updated"
             fi
           fi
 
@@ -493,16 +493,16 @@ update() {
             . $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
             FROM_LOC=$FROM_URL
           else
-            echo "${ITEMS[$x]} has invalid metadata. Not Updated"
+            message "${ITEMS[$x]} has invalid metadata. Not Updated"
           fi
         fi
 
-        echo "Updating grimoire ${ITEMS[$x]} from $FROM_LOC"
+        message "Updating grimoire ${ITEMS[$x]} from $FROM_LOC"
         do_update ${ITEMS[$x]} $FROM_LOC
 
       else
         #the grimoire doesnt exist to update!
-        echo "Grimoire ${ITEMS[$x]} not found in $CODEX_ROOT"
+        message "Grimoire ${ITEMS[$x]} not found in $CODEX_ROOT"
       fi
     done
   fi
@@ -586,7 +586,7 @@ function localize() {
       continue
     fi
     modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "yes"
-    echo "Processed $grimoire"
+    message "Processed $grimoire"
   done
 }
 
@@ -599,7 +599,7 @@ function unlocalize() {
       continue
     fi
     modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "no"
-    echo "Processed $grimoire"
+    message "Processed $grimoire"
   done
 }
 

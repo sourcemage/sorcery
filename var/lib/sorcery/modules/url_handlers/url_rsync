@@ -66,10 +66,10 @@ function url_rsync_run_rsync() {
   local COUNT=0
   local position="a"
   
-  if [ ! -e "$2" ] || [ "$2" -ef / ] || [ "$2" -ef /tmp ] ; then
-    TOTAL=0 #Don't try to count these, takes too long
+  if [ "$dl_file" == 1 ]; then
+    TOTAL=0 # downloading a single file, not a source tree
   else
-    TOTAL=`find $2 -type f | wc -l`
+    let TOTAL=$(find $2 -type f | wc -l)+10
   fi
   
   message "${MESSAGE_COLOR}Running rsync...${DEFAULT_COLOR}"
@@ -77,20 +77,22 @@ function url_rsync_run_rsync() {
     rsync -rz --delete --stats --progress "$1" "$2" #few files - big files
   else
     rsync -rz --delete --stats -vv "$1" "$2" | tee /tmp/rsyncout$$ |
-     while read line
-     do
-       if [ "$position" == "c" ] ;then
-         #make the progress bar - as quick as possible
-         progress_bar $((++COUNT)) $TOTAL 50
-       elif [ "$position" == "a" ] ;then
-         echo "$line" | grep -q 'receiving file list ...' && position="b"
-         echo "$line" #print welcome message until filelist almost starts
-       elif [ "$position" == "b" ] ;then
-         echo "$line" | grep -q 'done' && position="c"
-         echo "$line" #only now look for done = only filenames following
-       fi
-     done
-    retcode=$? #save return code - although nobody seems to care
+    while read line ; do
+      if [ "$position" == "c" ] ;then
+        #make the progress bar - as quick as possible
+        progress_bar $((++COUNT)) $TOTAL 50
+      elif [ "$position" == "a" ] ;then
+        echo "$line" | grep -q 'receiving file list ...' && position="b"
+        echo "$line" #print welcome message until filelist almost starts
+      elif [ "$position" == "b" ] ;then
+        echo "$line" | grep -q 'done' && position="c"
+        echo "$line" #only now look for done = only filenames following
+      fi
+    done
+    retcode=$?
+    [[ $retcode == 0 ]] &&
+    progress_bar $TOTAL $TOTAL 50 # make the progress bar show 100, on success
+
     echo
     tail -n 25 /tmp/rsyncout$$ | head -n 12 #stats w/o useless stack stats
     echo
@@ -108,7 +110,9 @@ function url_rsync_run_rsync() {
 #---------------------------------------------------------------------
 function url_rsync_download() { 
   if ! spell_installed rsync; then
-    return 1;
+    message "${PROBLEM_COLOR}rsync is not installed, please cast it..." \
+            "${DEFAULT_COLOR}"
+    return 1
   fi
 
   local  URL=`url_rsync_strip_prefix "$1"`
@@ -118,12 +122,9 @@ function url_rsync_download() {
 
 
   if  echo  $URL  |  grep  -q  sourcemage.org;  then
-
     local  WWW="sourcemage.org::"
-    
     # check for which url to codex is to be used... based on rsync module given.
     case  $DEST  in
-    
       test)       URL="${WWW}sourcemage/codex/test/"
                   DEST="$CODEX_ROOT/$DEST/"
                   ;;
@@ -140,7 +141,6 @@ function url_rsync_download() {
                   return 1
                   ;;
     esac
-    
   else
     if echo $DEST | grep -q \/;  then
       DEST=\.
@@ -152,27 +152,42 @@ function url_rsync_download() {
           sed "s/\.tgz$//"      |
           sed "s/\.tar\.bz2$//"`
 
-  if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
+  local dl_file
+  if [[ "$FILE" == "$S_FILE" ]] ; then
+    dl_file=0 # if it doesnt look like we're getting a file then we're probably
+              # getting a source tree...
+  else
+    dl_file=1
+  fi
+
+  local rc
+  # why isnt this using the uncompress functions?
+  if [ ! $dl_file ] && [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ] ; then
     message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
     tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
     if cd $S_FILE ; then
         url_rsync_run_rsync "$URL" .
+        rc=$?
         cd ..
-	fi
+    else
+      message "Failed to unpack $SOURCE_CACHE/$S_FILE.tar.bz2 into $S_FILE..."
+      rc=1
+    fi
   else
-	url_rsync_run_rsync "$URL" "$DEST"
+    url_rsync_run_rsync "$URL" "$DEST"
+    rc=$?
   fi
 
   if [[ $nocache == 1 ]] ; then
-    return $?
+    return $rc
   fi
 
-  if [ $? == 0 ]; then
+  if [ $rc == 0 ]; then
     message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
     tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE
     FILE=$S_FILE.tar.bz2
   else
-    false;
+    false
   fi
 }
 
