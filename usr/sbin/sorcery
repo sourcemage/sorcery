@@ -52,6 +52,9 @@ review-queue		Review the install queue for each spell's history
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
 
+exile   <spell|s>   Sets spells' status to exiled.
+unexile <spell|s>   Removes spells' exiled status (to not installed at all).
+
 
 default add spell_1 spell_2 on/off	If "spell_1" optionally depends
 					on "spell_2" the default answer
@@ -648,7 +651,7 @@ hold_pkgs()  {
                         0 0 0                  \
                         '$CHECKLIST`
   then
-        set_unheld $(get_held)
+        set_unheld $(get_all_spells_with_status "held")
         set_held   $OUTLIST
   fi
 
@@ -1730,8 +1733,9 @@ main() {
            -r|rebuild)  rebuild                                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
+                exile) shift; set_exiled $@                     ;;
+              unexile) shift; set_unexiled $@                   ;;
               default*) shift; sorcery_cli_defaults "$@"        ;;
-
 
             -h|--help)  help                                    ;;
          -v|--version)  echo $SORCERY_VERSION                   ;;

@@ -1,3 +1,4 @@
+#!/bin/bash
 #---------------------------------------------------------------------
 ## Handles storage of state information, incluing depends and package
 ## files. Also handles looking information up about what is installed
@@ -590,6 +591,60 @@ function set_held () {
 
 #---------------------------------------------------------------------
 ## @param spells
+## sets &lt;spells&gt;'s status to exiled
+##
+#---------------------------------------------------------------------
+function set_exiled () {
+    local TO_DISPELL=""
+    local TO_EXILE
+    local MY_STATUS
+
+    for TO_EXILE in $@; do
+        MY_STATUS=$(query_spell_status "$TO_EXILE")
+        case "$MY_STATUS" in
+            "" )
+                add_spell_status $TO_EXILE exiled 0.0
+                message "Spell '$TO_EXILE' exiled."
+                ;;
+            "exiled" )
+                message "${MESSAGE_COLOR}Spell '$TO_EXILE' is allready exiled.${DEFAULT_COLOR}"
+                ;;
+            "installed" )
+                query "'$TO_EXILE' is installed. Do you want to dispel and exile it ?" &&
+                TO_DISPELL="$TO_DISPELL $TO_EXILE"
+                ;;
+            * )
+                message "${PROBLEM_COLOR}Can't exile spell '$TO_EXILE' which has status '$MY_STATUS'${DEFAULT_COLOR}"
+                ;;
+        esac
+    done
+    if [ -n "$TO_DISPELL" ]; then
+        dispel -e $TO_DISPELL
+    fi
+}
+
+
+#---------------------------------------------------------------------
+## @param spells
+## resets <spells>'s 'exiled' status
+##
+#---------------------------------------------------------------------
+function set_unexiled () {
+    local MY_STATUS
+    local TO_UNEXILE
+    for TO_UNEXILE in $@; do
+        MY_STATUS=$(query_spell_status "$TO_UNEXILE")
+        if [ x"$MY_STATUS" == x"exiled" ]; then
+            remove_spell $TO_UNEXILE
+        else
+            message "${MESSAGE_COLOR}Can't unexile spell '$TO_UNEXILE' - it's not exiled${DEFAULT_COLOR}"
+        fi
+    done
+}
+
+
+#---------------------------------------------------------------------
+## @param spells
 ## sets <spells>'s status to installed
 ##
 #---------------------------------------------------------------------
@@ -614,16 +669,6 @@ function get_all_spells_with_status () {
     gawk -F: 'BEGIN { status="'$1'" }
               ($3 == status) { print $1 }' $SPELL_STATUS
     unlock_file $SPELL_STATUS
-}
-
-
-#---------------------------------------------------------------------
-## @Stdout all held spells
-## returns all held spells
-##
-#---------------------------------------------------------------------
-function get_held () {
-    get_all_spells_with_status "held"
 }
 
 
@@ -763,3 +808,4 @@ function codex_is_local () {(
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
+# vim: filetype=sh:tabstop=4:shiftwidth=4:expandtab

@@ -101,6 +101,8 @@ checkmd5s       [spell|section]	Print a md5 check of spells
 
 show-held          		Shows all held spells.
 
+show-exiled        		Shows all exiled spells.
+
 EOF
 }
 
@@ -1452,17 +1454,18 @@ function gaze_show_size () {
 
 #---------------------------------------------------------------------
 ##
-## prints all held spells.
+## prints all spells of a given status.
+## @param status - what are we looking for
+## @param describe - how is that staus described in english
 ##
 #---------------------------------------------------------------------
-function gaze_show_held_spells () {
+function gaze_show_spells_by_status () {
     message -n "${MESSAGE_COLOR}The following spells are set to"
-    message -n "${DEFAULT_COLOR} hold"
+    message -n "${DEFAULT_COLOR} $2"
     message    "${SPELL_COLOR}"
-    get_held | sort | maybe_column
+    get_all_spells_with_status $1 | sort | maybe_column
     message -n "${DEFAULT_COLOR}"
 }
-
 
 parse()  {
 
@@ -1534,7 +1537,8 @@ parse()  {
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
        installed)  shift; gaze_show_installed         $@ ;;
-       show-held)  gaze_show_held_spells                 ;;
+       show-held)  gaze_show_spells_by_status held hold  ;;
+     show-exiled)  gaze_show_spells_by_status exiled exiled ;;
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
