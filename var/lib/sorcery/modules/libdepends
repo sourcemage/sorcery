@@ -75,7 +75,9 @@ function run_depends()
                "${SPELL_COLOR}${SPELL}"                   \
                "${DEFAULT_COLOR}"
 
+      persistent_load
       .  $SCRIPT_DIRECTORY/DEPENDS
+      persistent_save
 
     fi
 }
@@ -88,7 +90,9 @@ function run_configure()
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
+    persistent_load
     . $SCRIPT_DIRECTORY/CONFIGURE
+    persistent_save
     true  # otherwise if CONFIGURE returns `false' DEPENDS is not executed
   fi
 }

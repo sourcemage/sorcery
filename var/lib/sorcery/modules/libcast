@@ -32,7 +32,11 @@ function run_conflicts() {
   debug "cast" "Starting run_conflicts() on $SPELL"
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-    local CONFLICTS=$( . $SCRIPT_DIRECTORY/CONFLICTS )
+    local CONFLICTS=$(
+        persistent_load
+        . $SCRIPT_DIRECTORY/CONFLICTS
+        persistent_save
+    )
 
     local tmp to_dispel=""
     for  tmp  in  $CONFLICTS  ;  do
@@ -270,7 +274,9 @@ function run_pre_build() {
   verify_sources &&
   if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
     debug "cast" "run_pre_build() - Prebuild script exists, now sourcing "
+    persistent_load
     . $SCRIPT_DIRECTORY/PRE_BUILD
+    persistent_save
   else
     debug "cast" "run_pre_build() - Prebuild script not found, using default"
     default_pre_build
@@ -406,7 +412,9 @@ function run_build()  {
   run_config_loc
 
   if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
+    persistent_load
     .  $SCRIPT_DIRECTORY/BUILD
+    persistent_save
   else
     default_build
   fi &&
@@ -459,7 +467,9 @@ function run_compile()  {
   run_config_loc
 
   if  [  -x  $SCRIPT_DIRECTORY/COMPILE  ];  then
+    persistent_load
     .  $SCRIPT_DIRECTORY/COMPILE
+    persistent_save
   else
     default_compile
   fi
@@ -479,7 +489,9 @@ function run_install() {
   activate_voyeur
 
   if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
+    persistent_load
     .  $SCRIPT_DIRECTORY/INSTALL 
+    persistent_save
   else
     default_install
   fi &&
@@ -507,7 +519,9 @@ function run_install() {
 function run_post_build() {
 
   if  [  -x  $SCRIPT_DIRECTORY/POST_BUILD  ];  then
+           persistent_load
            . $SCRIPT_DIRECTORY/POST_BUILD
+           persistent_save
   else
     default_post_build
   fi
@@ -526,7 +540,10 @@ function run_post_build() {
 function run_post_install() {
 
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]
-  then       . $SCRIPT_DIRECTORY/POST_INSTALL
+  then
+    persistent_load
+    . $SCRIPT_DIRECTORY/POST_INSTALL
+    persistent_save
   fi
 }
 
@@ -537,7 +554,10 @@ function run_post_install() {
 function run_triggers() {
 
   if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
-  then       . $SCRIPT_DIRECTORY/TRIGGERS
+  then
+    persistent_load
+    . $SCRIPT_DIRECTORY/TRIGGERS
+    persistent_save
   fi
 
 }
