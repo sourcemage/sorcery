@@ -106,7 +106,7 @@ url_cvs_download() {
   local  CVS_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
   local      CVS_MODULE=`echo $CVS_MODULE_TAG | cut -d : -f2` 
   local     CVS_TAGNAME=`echo $CVS_MODULE_TAG | cut -d : -f3`
-  local         CVS_TAG=${CVS_TAGNAME:="HEAD"}
+  local         CVS_TAG=${CVS_TAGNAME:=HEAD}
   local CVS_COMPRESSION="-z3"
 
   if [ -z "$CVS_ROOT" -o -z "$CVS_MODULE" ]; then
@@ -123,7 +123,7 @@ url_cvs_download() {
     tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
     message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
     if cd $S_FILE ; then
-	    cvs $CVS_COMPRESSION -q update -Pd
+        cvs $CVS_COMPRESSION -q update -dP -r $CVS_TAG
         cd ..
 	fi
   else
