@@ -99,14 +99,15 @@ function run_build()  {
   message "$SPELL    $VERSION"
 
   run_config_loc
-
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    .  $SCRIPT_DIRECTORY/BUILD
-  else
-    default_build
-  fi &&
-  persistent_save &&
+  (
+    persistent_load &&
+    if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
+      .  $SCRIPT_DIRECTORY/BUILD
+    else
+      default_build
+    fi &&
+    persistent_save
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) && # see bug 7201
 
   install_xinetd &&
   install_initd
@@ -194,7 +195,7 @@ function real_default_pre_build() {
 ##
 #---------------------------------------------------------------------
 function real_default_build() {
-(
+
   debug "build_api/api1" "Starting real_default_build()"
 #If these switches are used, they stop distcc and ccache from working
 #  We could write wrappers for all of the possible binaries
@@ -210,7 +211,6 @@ function real_default_build() {
   prepare_install                            &&
   make    install
 
-) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) # see bug 7201
 }
 
 
