@@ -614,8 +614,10 @@ function real_persistent_remove () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_load () {
-    . "$SPELL_CONFIG"
-	 persistent_add `awk 'BEGIN{FS="="}{print $1}' < "$SPELL_CONFIG"`
+    if [ -f "$SPELL_CONFIG.p" ]; then
+        . "$SPELL_CONFIG.p"
+        persistent_add `awk 'BEGIN{FS="="}{print $1}' < "$SPELL_CONFIG.p"`
+    fi
 }
 
 
@@ -627,10 +629,10 @@ function real_persistent_load () {
 function real_persistent_save () {
     local VAR
 	 local TMP
-	 > "$SPELL_CONFIG"
+	 > "$SPELL_CONFIG.p"
     for VAR in $PERSISTENT_VARIABLES; do
         config_get_option $VAR TMP
-        echo "$VAR=\"$TMP\"" >> "$SPELL_CONFIG"
+        echo "$VAR=\"$TMP\"" >> "$SPELL_CONFIG.p"
     done
 }
 
