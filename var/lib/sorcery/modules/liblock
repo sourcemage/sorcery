@@ -106,6 +106,7 @@ function lock_resources()
 	local i ALL_LOCKED="no"
 	local rType="${1//\//^}"
 	local rName="${2//\//^}"
+	local wait;
 
 	while [[ $ALL_LOCKED == no ]] ; do
 		lock_clean_locklist
@@ -118,9 +119,13 @@ function lock_resources()
 			if [ $(( ${#A}-${#B}+1 )) -gt 1 ] ; then
 				ALL_LOCKED="no"
 				rm "$lockfile" "${good_locks[@]}" 2>/dev/null
-				echo "Trying to lock $rType ($rName), with $$ ($(ls -l $LOCK_DIR/$rType.$rName.*.lock))."
+				ls $LOCK_DIR/$rType.$rName.*.lock | 
+					awk -F. '{gsub("\\^", "/"); printf("Trying to lock %s(%s), but PID %s has it.\n", $1, $2, $3);}'
+				wait=$(( RANDOM % MAX_SLEEP ))
+				echo -ne "\tTrying again in $wait second"
+				[[ $wait -eq 1 ]] && echo "." || echo "s."
 				good_locks=()
-				sleep $(( RANDOM % MAX_SLEEP ))
+				sleep $wait
 				break
 			fi
 			good_locks=("${good_locks[@]}" "$lock_file")
