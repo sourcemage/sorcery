@@ -72,13 +72,13 @@
 #---------------------------------------------------------------------
 function codex_canonicalize_grimoire_name() {
   local grimoire=$1
-  if [ ${grimoire:0:1} == "/" ] ; then
+  if [ "${grimoire:0:1}" == "/" ] ; then
     # already a full path
     echo $1
     return 0
   fi
 
-  if [ $2 == "lookup" ] ; then
+  if [ "$2" == "lookup" ] ; then
     codex_find_grimoire $1
   else
     echo "$CODEX_ROOT/$grimoire"
@@ -125,7 +125,7 @@ function codex_find_grimoire() {
 
   # prepend a / so things like "able" dont match
   # /var/lib/sorcery/codex/stable
-  [[ ${cfg_lookup:0:1} == "/" ]] || cfg_lookup="/$cfg_lookup"
+  [[ "${cfg_lookup:0:1}" == "/" ]] || cfg_lookup="/$cfg_lookup"
 
   local cfg_idx
   let cfg_idx=0
@@ -134,7 +134,7 @@ function codex_find_grimoire() {
     match=$(eval echo ${cfg_grimoire%%*$cfg_lookup})
     # if empty, echo and succeed
     if [ -z "$match" ] ; then
-      if [ $use_refs == yes ] ; then
+      if [ "$use_refs" == yes ] ; then
         eval "$position_var=\$cfg_idx"
         eval "$grim_var=\$cfg_grimoire"
       else
@@ -213,7 +213,7 @@ function codex_add_grimoire() {
       done
     fi
     # if the range is beyond the total number of grimoires add it now
-    if [ $PAST_END == "true" ] ; then
+    if [ "$PAST_END" == "true" ] ; then
       GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE
       let GRIMOIRE_COUNT++
     fi
