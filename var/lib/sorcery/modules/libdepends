@@ -354,7 +354,7 @@ function private_should_cast()
   elif [[ "$RECAST_DOWN" ]] ; then
     # user gave -R so recast...
     return 0
-  elif echo "$UP_DEPENDS" | grep -q " $1 " ; then
+  elif echo "${UP_DEPENDS[*]}" | grep -q "\<$1\>" ; then
     # if someone has determined this is an upward depend (-B)
     return 0
   elif spell_installed $1 ; then
@@ -375,12 +375,12 @@ function private_upward_depends() {
     local tmp
     tmp=$(search_depends_status $DEPENDS_STATUS '.*' "$1"|cut -f1 -d:|tr "\n" " ")
     local j each
-    let j=0
+    let j=${#UP_DEPENDS[*]}
     for each in $tmp; do
       UP_DEPENDS[$j]=$each
       let j++
     done
-    spells=( $spells[*] $UP_DEPENDS[*] )
+    spells=( ${spells[*]} ${UP_DEPENDS[*]} )
   fi
 }
 
