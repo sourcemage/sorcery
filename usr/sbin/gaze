@@ -602,62 +602,50 @@ real_short_search() {
 
 
 real_long_search()  {
-
-  local numSpells=`codex_get_all_spells|wc -l`
   local atSpell=0
   local file
+  local SEARCH
 
   if ! [[ $GAZE_VERBOSE == 0 ]] ; then
 	echo  "Searching...   "
   fi
 
   let j=0	
-  for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
 
-    if ! [[ $GAZE_VERBOSE == 0 ]] ; then
-     progress_bar $((atSpell++)) "$numSpells" 40
-    fi
-
-#	SPELL=`basename $SPELL_DIRECTORY`
-	file="$SPELL_DIRECTORY/DETAILS"
-	
-    for pattern in "$@"; do
-		grep -iq -- "$pattern" $file || continue
-		SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
-			/'"${pattern}"'/{
-				if(/^[[:blank:]]*SPELL/)	{print "(Name Match)";			exit 0;}
-				if(/^[[:blank:]]*SHORT/)	{print "(Short Description)";	exit 0;}
-				if(inLongDesc)	{print "(Description)";			exit 0;}
-			}
-			/cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
-			/^EOF$/{inLongDesc=0;} ' $file)
-    	
-		if [[ ${SEARCH_RESULTS[$j]} ]]; then 
-			SEARCH_RESULTS[$j]="$pattern ->  $(basename $SPELL_DIRECTORY) ${SEARCH_RESULTS[$j]}"
-			if [[ $GAZE_VERBOSE == 0 ]]; then
-				basename $SPELL_DIRECTORY
-			else
-				clear_line
-				echo ${SEARCH_RESULTS[$j]}
-			fi
-			let j++
-    	fi
-    
-    done  
-  
+  SEARCH=''
+  for pattern in "$@"; do
+    SEARCH="$SEARCH -e $pattern"
   done
 
-if ! [ "$GAZE_VERBOSE" == "0" ]; then
-	clear_line
-fi
+  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -l $SEARCH`; do
+     for pattern in "$@"; do
+       SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
+         /'"${pattern}"'/{
+           if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
+           if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
+           if(inLongDesc) {print "(Description)";       exit 0;}
+         }
+         /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
+         /^EOF$/{inLongDesc=0;} ' $file)
 
-#This dumps the array at the end of the search
-#redundant at the moment. Left for future use -rha
-#  let dump_count=0
-#  while [ $dump_count -lt $j ]; do
-#   echo "${SEARCH_RESULTS[$dump_count]}"
-#   let dump_count++
-#  done
+      if [[ ${SEARCH_RESULTS[$j]} ]]; then
+        SEARCH_RESULTS[$j]="$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS[$j]}"
+        if [[ $GAZE_VERBOSE == 0 ]]; then
+          basename $SPELL_DIRECTORY
+        else
+          clear_line
+          echo ${SEARCH_RESULTS[$j]}
+        fi
+        let j++
+      fi
+
+    done
+  done
+
+  if ! [ "$GAZE_VERBOSE" == "0" ]; then
+    clear_line
+  fi
+
 unset SEARCH_RESULTS
 
 }
