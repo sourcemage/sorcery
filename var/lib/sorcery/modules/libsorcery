@@ -1089,20 +1089,22 @@ function source_urls()  { (
 ## Returns a list of files that should not be pruned.
 ##
 #---------------------------------------------------------------------
-function generate_keep_list()  { (
-
-  for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
+function generate_keep_list()  {
+  #echo /var/lib/sorcery/codex/test/utils/tree/|
+  codex_get_all_spells|
   (
-    codex_set_current_spell  $SPELL_DIRECTORY
-    sources  $SPELL
-    echo     $SPELL-$VERSION-$BUILD.tar$EXTENSION
-  )
+  while read SPELL_DIRECTORY ; do
+    codex_set_current_spell_quick  $SPELL_DIRECTORY &>/dev/null
+    sources 2>/dev/null
+    ls /var/cache/sorcery/$SPELL-$VERSION-* 1>&2 2>/dev/null
+    unset VERSION SPELL ${!SOURCE*}
   done
+  ) 2> $2 > $1
 
   #Add the README in the cache to list of files to keep
-  echo  README
+  echo  README >> $2
 
-) }
+}
 
 
 #---------------------------------------------------------------------
@@ -1110,52 +1112,73 @@ function generate_keep_list()  { (
 ## Removes unnecessary files from the source cache and install cache.
 ## 
 #---------------------------------------------------------------------
-function prune()  { (
+function prune()  {
 
   debug  "libsorcery" "Running prune()"
-  local NO_KEEP KEEP
+  local NO_KEEP
   local NUM_NO_KEEP=0
   
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
-  KEEP="$TMP_DIR/prune.keep"
-  rm -rf $KEEP
-  generate_keep_list  >  $KEEP
+  local SOURCE_KEEP="$TMP_DIR/prune-keep-source"
+  local CACHE_KEEP="$TMP_DIR/prune-keep-cache"
+  rm -rf $CACHE_KEEP
+  rm -rf $SOURCE_KEEP
+  generate_keep_list  $SOURCE_KEEP $CACHE_KEEP
 
-  message "${MESSAGE_COLOR}Cleaning up source cache (${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
-  NO_KEEP=$( find $SOURCE_CACHE -mindepth 1 -maxdepth 1 -type f  | awk -F/ 'BEGIN { 
-				while (getline < "'$KEEP'") 
-					Installed[$1] = 1; 
-			}
-			{
-				if(!Installed[$NF]) 
-					print $0;
-			}' )
-  if [[ ${NO_KEEP} ]] ; then
-    NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
-    if query "Remove $NUM_NO_KEEP files from $SOURCE_CACHE?" "y" ; then
-      rm $NO_KEEP
+  message "${MESSAGE_COLOR}Cleaning up source cache" \
+          "(${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
+  local SOURCE_RM="$TMP_DIR/prune.rm.source"
+  find $SOURCE_CACHE -follow -type f -mindepth 1 -maxdepth 1|
+  awk -F/ 'BEGIN {
+             while ( getline < ARGV[1] ) {
+               keep[$NF] = 1;
+             }
+             while ( getline < ARGV[2] ) {
+               if ( keep[$NF] != 1 ) {
+                 print $0;
+               }
+             }
+           }' $SOURCE_KEEP - |sort|uniq > $SOURCE_RM
+  if test -s $SOURCE_RM ; then
+    NUM_NO_KEEP=$(cat $SOURCE_RM|wc -l)
+    
+    message "There are $NUM_NO_KEEP files that can be removed"
+    if query "Edit the list?" "n" ; then
+      $EDITOR $SOURCE_RM
+    fi
+    if query "Remove the files?" "y" ; then
+      rm $SOURCE_CACHE
     fi
   fi
   
-  message "${MESSAGE_COLOR}Cleaning up install cache (${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
-  NO_KEEP=$( find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f  | awk -F/ 'BEGIN { 
-				while (getline < "'$KEEP'") 
-					Installed[$1] = 1; 
-			}
-			{
-				if(!Installed[$NF]) 
-					print $0;
-			}' )
-  if [[ ${NO_KEEP} ]] ; then
-    NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
-    if query "Remove $NUM_NO_KEEP files from $INSTALL_CACHE?" "y" ; then
-  	  rm $NO_KEEP
+  message "${MESSAGE_COLOR}Cleaning up install cache" \
+          "(${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
+  local CACHE_RM="$TMP_DIR/prune.rm.cache"
+  find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f|
+  awk -F/ 'BEGIN { 
+             while ( getline < ARGV[1] ) {
+               keep[$NF] = 1;
+             }
+             while ( getline < ARGV[2] ) {
+               if ( keep[$NF] != 1 ) {
+                 print $0;
+               }
+             }
+           }' $CACHE_KEEP - |sort|uniq > $CACHE_RM
+  if test -s $CACHE_RM ; then
+    NUM_NO_KEEP=$( cat $CACHE_RM | wc -l )
+    message "There are $NUM_NO_KEEP files that can be removed"
+    if query "Edit the list?" "n" ; then
+      $EDITOR $CACHE_RM
+    fi
+    if query "Remove the files?" "y" ; then
+      rm $CACHE_CACHE
     fi
   fi
-  
-  rm  -f  $KEEP
 
-) }
+  rm  -f  $SOURCE_KEEP $CACHE_KEEP $SOURCE_RM $CACHE_RM
+
+}
 
 
 #---------------------------------------------------------------------
