@@ -38,7 +38,7 @@ create_account() {
   ACCOUNT_UID=`get_uid_for_account $1`
   PRIMARY_GID=`get_primary_gid_for_account $1`
   PRIMARY_GNAME=`get_group_name $PRIMARY_GID`
-  PRIMARY_GNAME=$1
+  # PRIMARY_GNAME=$1  the previous line and this one kinda conflict... commenting this one (Duff 03/01/24)
 
   debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME"
 
@@ -159,7 +159,9 @@ guess_compressor()  {
 ##
 #---------------------------------------------------------------------
 uncompress() {
-
+  debug "libgrimoire" "uncompress - $*"
+  set +x #This is here so Duff's super debugging info doesn't screw the next step up
+  
   # Outer subshell is necessary to redirect stderr to stdout
   (
     #Inner subshell decompresses archive to stdout
@@ -178,11 +180,11 @@ uncompress() {
     ) | tee /dev/stderr | md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing 
   ) 2>&1
   
-
   #This temp file is here because this function MUST NOT send
   # anything to stdout or stderr, and upack needs a way to get the success or
   # failure of this function.
   local a=$?
+  [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
   echo "$a"  > /tmp/libgrimoire.uncompress.$$
   return $a
   
@@ -204,6 +206,7 @@ unpack() {
   FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
   COMPRESSOR=`guess_compressor $FILENAME`
 #  UNCOMPRESSED=""
+
   uncompress $FILENAME $COMPRESSOR $2 | \
   {
 
@@ -443,17 +446,28 @@ default_pre_build() {
 #---------------------------------------------------------------------
 make() {
 
-  [ $MAKE_NJOBS -gt 0 ] || $MAKE_NJOBS=1
+  local JOBS=""
 
-  /usr/bin/make -j $MAKE_NJOBS "$@"
+  if  [[ $MAKE_NJOBS == 0 ]]; then
+    # Zero jobs has the effect of unlimiting the number of make processes
+    JOBS=""
+  else
+    # Check there is a reasonable value.
+    [ $MAKE_NJOBS -gt 0 ] &&
+    JOBS="$MAKE_NJOBS"    || 
+    JOBS="1" # Use default of one when MAKE_NJOBS is nonsense.
+  fi
+
+  debug  "libgrimoire"  "make: running with $JOBS jobs"
+  /usr/bin/make -j $JOBS "$@"
   
   # Cache the result
   local  STATUS=$?
   
-  if [ $STATUS -ne 0 ] && [ $MAKE_NJOBS -gt 1 ] ; then
+  if [[ $STATUS -ne 0 ]] && [[ $JOBS != 0 ]] ; then
     query "Running make with $MAKE_NJOBS jobs failed. Attempt to run with a single job?" y &&
     # Try again
-    /usr/bin/make "$@"
+    /usr/bin/make -j1 "$@"
     STATUS=$?
   fi
 

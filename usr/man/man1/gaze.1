@@ -1,15 +1,23 @@
 .TH GAZE "1" "August 2002" "Source Mage GNU Linux" "User Commands"
 .SH NAME
 gaze \- query/view sorcery package management information
+.PP
 .SH SYNOPSIS
-.B gaze
-alien|prune|pam
 .PP
 .B gaze
-what|where|website|sources|maintainer <spell>
+-q
 .PP
 .B gaze
-compile|install|sum|md5sum <spell>
+alien|prune|pam|orphans
+.PP
+.B gaze
+what|where|website|url|sources|maintainer <spell>
+.PP
+.B gaze
+compile|install|version|sum|md5sum <spell>
+.PP
+.B gaze
+license  spell|section|license [spell|section|license] 
 .PP
 .B gaze
 export|import [snapshot]
@@ -22,6 +30,12 @@ search "phrase"
 .PP
 .B gaze
 newer|older [yyyymmdd]
+.PP
+.B gaze
+service port|acronym
+.PP
+.B gaze
+provides feature
 .PP
 .B gaze
 from <path/file>
@@ -42,6 +56,9 @@ $SPELL_SCRIPT <spell>
 history <spell>
 .PP
 .B gaze
+depends <spell>
+.PP
+.B gaze
 spider [nothing|section|spell]
 .SH "DESCRIPTION"
 .I gaze
@@ -54,6 +71,11 @@ are installed, finding when spells were created and packages in the
 software catalogue. It can even take and retrieve snap shots of currently
 installed packages for easy duplication.
 .SH "OPTIONS"
+.PP
+.B -q
+.IP
+disable human style output.
+.PP
 .B alien
 .IP
 find and display all files which are not currently tracked by the
@@ -69,6 +91,20 @@ versions. This does not delete sources that are up to date, but not installed.
 .IP
 display spells installed that are pam aware
 .PP
+.B orphans
+.IP
+display installed spells that have no explicit dependencies on them
+.PP
+.B service
+port|acronym
+.IP
+displays spells that provide that service
+.PP
+.B provides
+feature
+.IP
+displays spells that provide the feature
+.PP
 .B what
 spell
 .IP
@@ -79,7 +115,7 @@ spell
 .IP
 display the section a spell belongs to
 .PP
-.B website
+.B website|url
 spell
 .IP
 display the URL for the specified spell
@@ -105,6 +141,12 @@ spell
 .IP
 used to determine what files were installed by a spell and where
 those files are located
+.PP
+.B license
+spell|section|license [spell|section|license]
+.IP
+view the license(s) of the given spell(s), or spells in given section(s),
+or view the information about given license(s)
 .PP
 .B sum
 <spell>
@@ -192,6 +234,11 @@ POST_REMOVE to show spell scripts for the
 <spell>
 .IP
 show history for a spell
+.PP
+.B depends
+<spell>
+.IP
+shows the spells that explicitly or recursively depend on this spell.
 .PP
 .B spider
 [nothing|section|spell]
