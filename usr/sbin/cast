@@ -932,8 +932,16 @@ function process_parameters()  {
                        if  [  -s $INSTALL_QUEUE  ]; then
                          message -n "${MESSAGE_COLOR}Casting install queue..."
                          message    "${DEFAULT_COLOR}"
+
+                         # remove possible empty lines from queue.
+                         grep -Ev '^$' $INSTALL_QUEUE >"$INSTALL_QUEUE.new"
+                         rm -f "$INSTALL_QUEUE"
+                         mv "$INSTALL_QUEUE.new" "$INSTALL_QUEUE"
+
+                         # cast the queue.
                          cast -c `cat $INSTALL_QUEUE 2>/dev/null`
-                         #rm $INSTALL_QUEUE
+												 
+                         # report spells still in queue.
                          if  [  -s  $INSTALL_QUEUE  ] ; then
                            message "${MESSAGE_COLOR}The install queue is not empty, "
                            message "it still contains the following spells: "
