@@ -555,11 +555,12 @@ function real_list_add () {
   for i in $@; do
     local j
     local found=0
-    for j in $(eval "echo \$$var"); do
+    function list_add_sub() {
       if [ "$i" = "$j" ]; then
         found=1
       fi
-    done
+    }
+    iterate list_add_sub " " "$(eval "echo \$$var")"
     if [ $found -eq 0 ]; then
       eval "$var=\`echo \"\$$var $i\"\`"
       eval "$var=\"\${$var/# /}\""
