@@ -57,10 +57,9 @@
 #    spell_installed        (libstate)
 #    spell_ok               (libstate)
 #    track_manual           (libtrack)
-#    unpack_file            (libunpack)   
-#    unpack                 (libunpack)   
-#    unpack_gpg             (libunpack)   
-#    unpack_hash            (libunpack)
+#    unpack_file            (libunpack)
+#    unpack                 (libunpack) (deprecated)
+#    guess_compressor       (libunpack)
 #    uncompress             (libunpack)
 #
 # Read-only variable that might be of use to a spell:
@@ -875,39 +874,6 @@ function unpack_file () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param file to unpack 
-## @param public key file ":" signature file
-## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_gpg> for more details.
-##
-## Given a file, unpack_gpg runs the decompression program for that file,
-## as well as untar'ing the file if appropriate and if the GPG signature
-## matches.
-## Note: zip is a special case because it doesn't work with streams.
-##
-#---------------------------------------------------------------------
-function unpack_gpg () {
-    debug "libapi" "unpack_gpg - $*"
-    real_unpack_gpg "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @param file to unpack 
-## @param md5sum
-## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_gpg> for more details.
-##
-## Given a file, unpack_md5 runs the decompression program for that file,
-## as well as untar'ing the file if appropriate and if the md5sum matches.
-## Note: zip is a special case because it doesn't work with streams.
-##
-#---------------------------------------------------------------------
-function unpack_hash () {
-    debug "libapi" "unpack_hash - $*"
-    real_unpack_hash "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
 ## @param file to uncompress
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_uncompress> for more details.
 ##
@@ -918,6 +884,21 @@ function unpack_hash () {
 function uncompress () {
     debug "libapi" "uncompress - $*"
     real_uncompress "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param filename
+## @Stdout compressor
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_guess_compressor> for more details.
+##
+## Guesses what program was used to compress a file
+## Return value is always success due to `file' workings
+##
+#---------------------------------------------------------------------
+function guess_compressor () {
+    debug "libapi" "guess_compressor - $*"
+    real_guess_compressor "$@"
 }
 
 #---------------------------------------------------------------------
