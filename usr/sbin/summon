@@ -80,45 +80,51 @@ fuzzy_wget()  {
 
 disconnect()  {
 
-  if    ps  -C disconnect  >  /dev/null
-  then  return
-  fi
+  echo "disconnect() is disabled" >> $DEBUG
 
-  rm  -rf          /tmp/disconnect
-  cat  <<  EOF  >  /tmp/disconnect
-#!/bin/sh
-
-while  ps  -A  |  egrep  -q  "summon|leach";  do  sleep  120;  done
-poff
-rm  /tmp/disconnect
-EOF
-
-chmod  a+x  /tmp/disconnect
-            /tmp/disconnect  &
+  ## Disabled on account of suckage (bug #23)
+  #  if    ps  -C disconnect  >  /dev/null
+  #  then  return
+  #  fi
+  #
+  #  rm  -rf          /tmp/disconnect
+  #  cat  <<  EOF  >  /tmp/disconnect
+  ##!/bin/sh
+  #
+  #while  ps  -A  |  egrep  -q  "summon|leach";  do  sleep  120;  done
+  #poff
+  #rm  /tmp/disconnect
+  #EOF
+  #
+  #chmod  a+x  /tmp/disconnect
+  #            /tmp/disconnect  &
 
 }
 
 
 connect()  {
 
-  if  !  ifconfig  |  grep  -q  "^eth"   &&
-      !  ifconfig  |  grep  -q  "^wlan"  &&
-      !  ifconfig  |  grep  -q  "^ppp";  then
-    pon
+  echo "connect() is disabled" >> $DEBUG
 
-    # Timeout in deciseconds to wait for Interface to come up.
-    TIMEOUT=30
-
-    until  ifconfig  |  grep  -q  eth   ||
-           ifconfig  |  grep  -q  ppp   ||
-           [  $TIMEOUT == 0  ]
-    do
-      sleep  10
-      (( TIMEOUT-- ))
-    done
-    disconnect
-
-  fi
+  # Disabled on account of suckage (bug #23)
+  #if  !  ifconfig  |  grep  -q  "^eth"   &&
+  #    !  ifconfig  |  grep  -q  "^wlan"  &&
+  #    !  ifconfig  |  grep  -q  "^ppp";  then
+  #  pon
+  #
+  #    # Timeout in deciseconds to wait for Interface to come up.
+  #    TIMEOUT=30
+  #
+  #    until  ifconfig  |  grep  -q  eth   ||
+  #           ifconfig  |  grep  -q  ppp   ||
+  #           [  $TIMEOUT == 0  ]
+  #    do
+  #      sleep  10
+  #      (( TIMEOUT-- ))
+  #    done
+  #    disconnect
+  #
+  #  fi
 
 }
 
@@ -208,9 +214,19 @@ dl_source()  {
       for  URL  in  $*;  do
         if  get  $URL;  then
 	  activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
+          local SUCCESS=true
 	  break
 	fi
       done
+
+      if  [  -z  "$SUCCESS"  ];  then
+        message  "${PROBLEM_COLOR}Download of"            \
+                 "${FILE_COLOR}${FILE}${DEFAULT_COLOR}"   \
+                 "${PROBLEM_COLOR}for spell"              \
+                 "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+                 "${PROBLEM_COLOR}failed${DEFAULT_COLOR}"
+      fi
+
 
     fi
 
