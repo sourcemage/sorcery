@@ -56,6 +56,7 @@ install		spell		View an install log.
 installed	[spell]		View/query installed spells.
 version		spell		View version of spell installed, and version in 
 				the grimoire.
+size        spell       View the size of the installed spell.
 license		spell [spell]	View the license of the given spell(s)
 license		section [section]	View the licenses of spells in the given
 					section(s)
@@ -1173,7 +1174,16 @@ gaze_show_dependencies() {
     )
 }
 
-
+gaze_show_size () {
+    local spell
+    for spell in "$@"; do
+        local version=$(installed_version $spell)
+        local file="$INSTALL_LOGS/$spell-$version"
+        cat $file | xargs ls -lgd 2> /dev/null |grep '^[^dl]' | \
+            awk '{ x += $5 } 
+                END { print "'$spell' -> " x " bytes in " NR " files." }'
+    done
+}
 
 parse()  {
 
@@ -1233,6 +1243,7 @@ parse()  {
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
+            size)  shift; gaze_show_size              $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
