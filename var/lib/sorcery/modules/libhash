@@ -45,6 +45,7 @@
 #---------------------------------------------------------------------
 ## @param table name
 ## @param field name
+## @param returning variable
 ## @Type Private
 ## Given a table and field name, bulds the name of
 ## the variable into which a value will be stored.  Also changes '+',
@@ -53,54 +54,59 @@
 ##
 #---------------------------------------------------------------------
 function hash_build_variable_name() {
-  local TABLE="$1"
-  local FIELD="$2"
+  local ___TABLE="$1"
+  local ___FIELD="$2"
 
-#  debug "libhash" "hash_build_variable_name() - TABLE=$TABLE:FIELD=$FIELD"
+#  debug "libhash" "hash_build_variable_name() - TABLE=$___TABLE:FIELD=$___FIELD"
 
-  TABLE=${TABLE//\+/_P_}
-  TABLE=${TABLE//\-/_M_}
-  TABLE=${TABLE//\./_D_}
-  TABLE=${TABLE//[/_OSB_}
-  TABLE=${TABLE//]/_CSB_}  
+  ___TABLE=${___TABLE//\+/_P_}
+  ___TABLE=${___TABLE//\-/_M_}
+  ___TABLE=${___TABLE//\./_D_}
+  ___TABLE=${___TABLE//[/_OSB_}
+  ___TABLE=${___TABLE//]/_CSB_}  
   
-  if [[ $FIELD ]] ; then
-    FIELD=${FIELD//\+/_P_}
-    FIELD=${FIELD//\-/_M_}
-    FIELD=${FIELD//\./_D_}
-    FIELD=${FIELD//]/_CSB_}
-    FIELD=${FIELD//]/_OSB_}
+  if [[ $___FIELD ]] ; then
+    ___FIELD=${___FIELD//\+/_P_}
+    ___FIELD=${___FIELD//\-/_M_}
+    ___FIELD=${___FIELD//\./_D_}
+    ___FIELD=${___FIELD//]/_CSB_}
+    ___FIELD=${___FIELD//]/_OSB_}
   fi
 
   # If this format is changed, modify hash_get_table_fields to suite
-  if [[ $FIELD ]] ; then echo "HASH_${TABLE}_${FIELD}_"
-  else echo "HASH_${TABLE}_" ; fi
+  if [[ $___FIELD ]] ; then ___FIELD="HASH_${___TABLE}_${___FIELD}_"
+  else ___FIELD="HASH_${___TABLE}_" ; fi
+
+  eval $3=\"$___FIELD\"
 }
 
 
 #---------------------------------------------------------------------
 ## @param field name
 ## @param table name
+## @param returning variable
 ## @Type Private
 ## most likely reverses hash_build_field_name
 ##
 #---------------------------------------------------------------------
 function hash_unbuild_field_name() {
-  local TABLE="$2"
-  local FIELD=${1#$TABLE}
-  FIELD=${FIELD%_*}
+  local ___TABLE="$2"
+  local ___FIELD=${1#$___TABLE}
+  ___FIELD=${___FIELD%_*}
 #  `echo "$1" | sed -n "s/^$2\(.*\)_$/\1/p"`
   
-#  debug "libhash" "hash_unbuild_field_name() - TABLE=$TABLE:FIELD=$FIELD"
+#  debug "libhash" "hash_unbuild_field_name() - TABLE=$___TABLE:FIELD=$___FIELD"
 
-  FIELD=${FIELD//_P_/\+}
-  FIELD=${FIELD//_M_/\-}
-  FIELD=${FIELD//_D_/\.}
-  FIELD=${FIELD//_CSB_/]}
-  FIELD=${FIELD//_OSB_/[}
+  ___FIELD=${___FIELD//_P_/\+}
+  ___FIELD=${___FIELD//_M_/\-}
+  ___FIELD=${___FIELD//_D_/\.}
+  ___FIELD=${___FIELD//_CSB_/]}
+  ___FIELD=${___FIELD//_OSB_/[}
 
-  echo $FIELD
+  eval $3=\"$___FIELD\"
 }
+
+
 #---------------------------------------------------------------------
 ## @param table name
 ## @param field name
@@ -110,7 +116,8 @@ function hash_unbuild_field_name() {
 ##
 #---------------------------------------------------------------------
 function hash_put() {
-  local VARIABLE_NAME=`hash_build_variable_name "$1" "$2"`
+  local VARIABLE_NAME
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
   eval "${VARIABLE_NAME}=\"${3}\""
   debug "libhash" "hash_put() - VARIABLE_NAME=$VARIABLE_NAME, data=$3"
 }
@@ -127,7 +134,8 @@ function hash_put() {
 ##
 #---------------------------------------------------------------------
 function hash_get() {
-  local VARIABLE_NAME=`hash_build_variable_name "$1" "$2"`
+  local VARIABLE_NAME
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
   echo ${!VARIABLE_NAME}
 }
 
@@ -140,7 +148,8 @@ function hash_get() {
 ##
 #---------------------------------------------------------------------
 function hash_unset() {
-  local VARIABLE_NAME=`hash_build_variable_name "$1" "$2"`
+  local VARIABLE_NAME
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
   eval unset ${VARIABLE_NAME}
 }
 
@@ -152,8 +161,8 @@ function hash_unset() {
 ##
 #---------------------------------------------------------------------
 function hash_reset()  {
-
-  local TABLE_NAME=`hash_build_variable_name "$1"`
+  local TABLE_NAME
+  hash_build_variable_name "$1" '' TABLE_NAME
   local VARIABLES=`eval 'echo ${!'${TABLENAME}'*}'`
   unset $VARIABLES   
 
@@ -169,7 +178,8 @@ function hash_reset()  {
 #---------------------------------------------------------------------
 function hash_get_table()  {
 
-  local TABLE_NAME=`hash_build_variable_name "$1"`
+  local TABLE_NAME
+  hash_build_variable_name "$1" '' TABLE_NAME
   local VARIABLES i
   local separator="$2"
   separator=${separator:-$'\n'}
@@ -193,14 +203,17 @@ function hash_get_table()  {
 #---------------------------------------------------------------------
 function hash_get_table_fields()  {
 
-  local TABLE_NAME=`hash_build_variable_name "$1"`
+  local TABLE_NAME
+  hash_build_variable_name "$1" '' TABLE_NAME
   local VARIABLES i
   local separator="$2"
   separator=${separator:-$'\n'}
   VARIABLES=`eval 'echo ${!'${TABLE_NAME}'*}'`
   
+  local FIELD
   for i in $VARIABLES ; do
-    echo $(hash_unbuild_field_name $i $TABLE_NAME)${separator}
+    hash_unbuild_field_name "$i" "$TABLE_NAME" FIELD
+    echo ${FIELD}${separator}
   done
   
 }

@@ -74,8 +74,8 @@ function codex_remove_duplicates() {
   local  ALREADY_SEEN=""
 
  
-  touch  $GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  touch  $INSTALL_ROOT$GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
 #  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
 
@@ -92,10 +92,10 @@ function codex_remove_duplicates() {
 
   done
 
-  lock_commit_transaction $GRIMOIRE_LIST
+  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
 
   unset GRIMOIRE_DIR
-  .  $GRIMOIRE_LIST 
+  .  $INSTALL_ROOT$GRIMOIRE_LIST 
 
 }
 
@@ -120,8 +120,8 @@ function codex_add_grimoire() {
   local  OVERWRITE=$3
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  touch  $GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  touch  $INSTALL_ROOT$GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
 #  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
   
@@ -171,9 +171,9 @@ function codex_add_grimoire() {
 
   fi
 
-  lock_commit_transaction $GRIMOIRE_LIST
+  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
   unset GRIMOIRE_DIR
-  .  $GRIMOIRE_LIST 
+  .  $INSTALL_ROOT$GRIMOIRE_LIST 
 
   if [ "$OVERWRITE" == "overwrite"  ]; then
     codex_remove_duplicates
@@ -192,9 +192,9 @@ function codex_remove_grimoire() {
   local  GRIMOIRE_TO_DELETE="$1"
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
-  touch  $GRIMOIRE_LIST
-  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
+  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
+  touch  $INSTALL_ROOT$GRIMOIRE_LIST
+  cp     $INSTALL_ROOT$GRIMOIRE_LIST  $INSTALL_ROOT$GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
 
   local  CURRENT_GRIMOIRE
@@ -206,9 +206,9 @@ function codex_remove_grimoire() {
     (( GRIMOIRE_COUNT++ ))
   done
 
-  lock_commit_transaction $GRIMOIRE_LIST
+  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
   unset GRIMOIRE_DIR
-  .  $GRIMOIRE_LIST 
+  .  $INSTALL_ROOT$GRIMOIRE_LIST 
 }
 
 
@@ -224,6 +224,10 @@ function codex_remove_grimoire() {
 #---------------------------------------------------------------------
 function codex_set_grimoires() {
   unset GRIMOIRE_DIR
+  # We need to be somewhere empty because if the user put in "test"
+  # for the grimoire name and we happen to be in a directory where
+  # that is a valid subdirectory things act stupidly.
+  pushd "/var/empty" >/dev/null
 
   local  NEW_GRIMOIRE
   for    NEW_GRIMOIRE  in  "$*";  do
@@ -231,10 +235,12 @@ function codex_set_grimoires() {
     if  [  -d  $NEW_GRIMOIRE  ];  then
       GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$NEW_GRIMOIRE
     else
-      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$CODEX_ROOT/$NEW_GRIMOIRE
+      
+      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$INSTALL_ROOT$CODEX_ROOT/$NEW_GRIMOIRE
     fi 
 
   done
+  popd
 }
 
 
@@ -554,7 +560,7 @@ function codex_clear_current_spell()  {
   unset GRIMOIRE SECTION SECTION_DIRECTORY SPELL 
   unset SPELL_DIRECTORY SCRIPT_DIRECTORY SPELL_DESCRIPTION
   unset VERSION SHORT UPDATED SOURCE WEB_SITE ENTERRED MAINTAINER
-  unset MD5 LICENSE
+  unset MD5 LICENSE BUILD_API
 }
 
 
@@ -570,6 +576,7 @@ function codex_clear_current_spell()  {
 #---------------------------------------------------------------------
 function codex_set_current_spell()  {
 
+  debug "libcodex" "runing codex_set_current_spell"
   codex_clear_current_spell
   SPELL_DIRECTORY=$1
 
@@ -586,8 +593,18 @@ function codex_set_current_spell()  {
   if  [ -f  $SPELL_CONFIG  ]; then
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
+
+  debug "libcodex" "looking around for API_VERSION"
+  [[ -x $GRIMOIRE/API_VERSION ]] && . $GRIMOIRE/API_VERSION
+  [[ -x $SECTION_DIRECTORY/API_VERSION ]] && . $SECTION_DIRECTORY/API_VERSION
+  debug "libcodex" "sourcing DETAILS"
   .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
-  
+
+  # set a default build api if there isn't one already
+  # this isn't strictly necessary as other code should be able to handle the
+  # lack of this variable, but I want to play it safe.
+  [[ -z $BUILD_API ]] && BUILD_API=1
+  true
 }
 
 
@@ -601,9 +618,11 @@ function codex_set_current_spell()  {
 ##
 #---------------------------------------------------------------------
 function codex_set_current_spell_by_name()  {
+  debug "libcodex" "codex_set_current_spell_by_name -- $1"
   local SPELL_NAME=`codex_find_spell_by_name "$1"`
+  debug "libcodex" $SPELL_NAME
 
-  [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  "$SPELL_NAME"
+  [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  $SPELL_NAME
 }
 
 

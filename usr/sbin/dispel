@@ -89,16 +89,33 @@ downgrade()  {
 
   SPELL=$1
   REQUESTED_VERSION=$2
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$REQUESTED_VERSION-$BUILD.tar.bz2"
- 
-  if  [      -e   $CACHE_BZ  ]  &&
-      bzip2  -tf  $CACHE_BZ;    then
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$REQUESTED_VERSION-$BUILD.tar$EXTENSION"
+  CONTINUE=false 
 
-    if  spell_installed  $SPELL;  then
+  if    [  !  -f  $CACHE_COMP   ];  then
+    false
+  elif  [  -z  "$EXTENSION"  ];  then
+    if  $COMPRESSBIN  -tf  $CACHE_COMP  1>/dev/null
+    then
+      CONTINUE=true;
+    fi
+  elif  $COMPRESSBIN  -tf  $CACHE_COMP
+  then
+    CONTINUE=true;
+  fi
+
+  if  $CONTINUE  
+  then  
+
+		if  spell_installed  $SPELL;  then
       dispel  $SPELL
     fi
 
-    bzcat   $CACHE_BZ  |  tar  -Pkx  2>/dev/null
+    if  [  -n  "$EXTENSION"  ];  then
+      $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Pkx  2>/dev/null
+    else
+      tar  -Pkxf  $CACHE_COMP  2>/dev/null
+    fi
 
     codex_set_current_spell_by_name  $SPELL
 
@@ -123,7 +140,7 @@ downgrade()  {
 
   else
 
-    message  "${FILE_COLOR}$CACHE_BZ"          \
+    message  "${FILE_COLOR}$CACHE_COMP"        \
              "${PROBLEM_COLOR}was not found."  \
              "${DEFAULT_COLOR}"
 

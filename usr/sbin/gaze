@@ -130,11 +130,16 @@ export_snapshot()  {
     fi
   done
 
-  SNAPSHOT="/root/snapshot-$HOSTNAME-`date  -u  +%Y%m%d`.tar.bz2"
+  SNAPSHOT="/root/snapshot-$HOSTNAME-`date  -u  +%Y%m%d`.tar$EXTENSION"
 
   cd  $BUILD_DIRECTORY
-  tar    -c  snapshot     |
-  bzip2  -9  >  $SNAPSHOT
+  if  [  -n  "$EXTENSION"  ];  then
+    tar    -c  snapshot     |
+    $COMPRESSBIN      >  $SNAPSHOT
+  else
+    tar  -cf  $SNAPSHOT  snapshot
+  fi
+  
   rm_source_dir          $SOURCE_DIRECTORY
   echo  "$SNAPSHOT created."
 
@@ -151,7 +156,12 @@ import_snapshot()  {
     cd  $BUILD_DIRECTORY
     mk_source_dir          $SOURCE_DIRECTORY
 
-    bzcat $SNAPSHOT  |  tar  -x
+    if  [  -n  "$EXTENSION"  ];  then
+      $COMPRESSBIN -dc $SNAPSHOT  |  tar  -x
+    else
+      tar  -xf  $SNAPSHOT
+    fi
+
     cd  $SOURCE_DIRECTORY
 
     for  LINE  in  `cat  install`;  do
@@ -176,7 +186,7 @@ import_snapshot()  {
 
 
 checksum()      { for FILE in `cat $1 | files`; do sum -s  $FILE; done; }
-md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  $FILE; done; }
+md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  "$FILE"; done; }
 
 
 alien()  {
@@ -424,8 +434,9 @@ display()  {
 
   if  [  -f  "$1"  ];  then
     case  `file  -b  $1  |  cut -d ' ' -f1`  in
-      ASCII)    cat  $1  |  $PAGER  ;;
-      bzip2)  bzcat  $1  |  $PAGER  ;;
+      ASCII)       cat  $1  |  $PAGER  ;;
+      bzip2)     bzcat  $1  |  $PAGER  ;;
+      gzip)   gzip -cd  $1  |  $PAGER  ;;
     esac
   else
     message  "$2"
@@ -439,12 +450,18 @@ newer()  {
 
   DATE=$1
   if  [  -n  "$DATE"  ];  then
-    for  SPELL  in  `codex_get_all_spells`;  do
-      codex_set_current_spell  $SPELL
+  (
+    echo "Grimoire|Section|Spell|Grimoire Version|Installed Version|Added"
+    echo "--------|-------|-----|----------------|-----------------|-----"
+    for  SPELL_DIR  in  `codex_get_all_spells`;  do
+      unset ENTERED
+      .  "$SPELL_DIR/DETAILS" 1>/dev/null 2>&1
       if  [  "$ENTERED"  ]  &&  [  $ENTERED  -gt  $DATE  ];  then
-        echo  $SPELL
+        codex_set_current_spell  $SPELL_DIR
+        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
+  ) | column -t -s "|"
   else
     help  |  $PAGER
   fi
@@ -455,22 +472,24 @@ newer()  {
 older()  {
 
   DATE=$1
-
   if  [  -n  "$DATE"  ];  then
-    for  LINE  in `cat  $SPELL_STATUS`;  do
-      CAST_DATE=`echo  $LINE  |  cut  -d  :  -f2`
-      if  [  $CAST_DATE  -gt  $DATE  ]  2>/dev/null;  then
-        true
-      else
-        echo  $LINE  |  cut  -d  :  -f1
+  (
+    echo "Grimoire|Section|Spell|Grimoire Version|Installed Version|Added"
+    echo "--------|-------|-----|----------------|-----------------|-----"
+    for  SPELL_DIR  in  `codex_get_all_spells`;  do
+      unset ENTERED
+      .  "$SPELL_DIR/DETAILS" 1>/dev/null 2>&1
+      if  [  "$ENTERED"  ]  &&  [  $ENTERED  -lt  $DATE  ];  then
+        codex_set_current_spell  $SPELL_DIR
+        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
+  ) | column -t -s "|"
   else
     help  |  $PAGER
   fi
 
 }
-
 
 
 show_from()  {
@@ -1365,7 +1384,7 @@ parse()  {
     compile)  if  [  -z  "$VERSION"  ];  then
                   codex_set_current_spell_by_name  $2
               fi
-              display  $COMPILE_LOGS/$SPELL-$VERSION.bz2   \
+              display  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION   \
                        "Compile log for $SPELL does not exist"
               ;;
 

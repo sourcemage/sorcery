@@ -30,7 +30,7 @@ function add_depends()
 	search_depends_status "$@" >/dev/null && remove_depends_status "$@"
 	
 	#ensure the info is valid (perhaps add check that spells exist?)
-	if ( [[ $3 != on ]]       && [[ $3 != off ]]       && [[ $3 != providedby ]]       )   ||
+	if ( [[ $3 != on ]]       && [[ $3 != off ]]       )   ||
            ( [[ $4 != required ]] && [[ $4 != optional ]]  )
 	then
 	  # unlock_file $DEPENDS_STATUS  Locking done in run_depends now
@@ -77,7 +77,7 @@ debug "DB" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 ## @param spell
 ## @param depends (optional)
 ## @Stdout mathing lines
-## In case you want to search by spell or dependancy in 
+## In case you want to search by spell or dependency in 
 ## DEPENDS_STATUS
 ##
 ## Arguments can be regexp
@@ -88,8 +88,8 @@ debug "DB" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 function search_depends_status()
 { # $1=spell, $2=(opt)depends
 
-	[ $# -eq 1 ] && grep "^`esc_str $1`:" $DEPENDS_STATUS
-	[ $# -gt 1 ] && grep "^`esc_str $1`:`esc_str $2`:" $DEPENDS_STATUS
+  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $DEPENDS_STATUS
+  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $DEPENDS_STATUS
 
 }
 
@@ -172,7 +172,7 @@ function add_spell_status()
   if [ $# -eq 1 ] ; then
     spell="$SPELL"
     action="$1"
-    version="$version"
+    version="$VERSION"
   else
     spell=$1
     action=$2
@@ -186,6 +186,19 @@ function add_spell_status()
 
 }
 
+#---------------------------------------------------------------------
+## @param spell name
+##
+## Given a spell, status (installed, held, etc), and version, add_spell
+## adds the spell to the /var/state/sorcery/packages file
+##
+#---------------------------------------------------------------------
+function add_spell()  {
+
+  remove_spell  $1
+  add_spell_status $1 $2 $3
+
+}
 
 
 #---------------------------------------------------------------------
@@ -214,6 +227,53 @@ function query_spell_status()
 
 }
 
+#---------------------------------------------------------------------
+## @param spell name
+## @Stdout status
+## Returns the given spell's status (installed, held, exiled, etc.)
+##
+#---------------------------------------------------------------------
+function get_status()  {
+
+  if    query_spell_status $1    >/dev/null
+  then  query_spell_status $1    |  cut  -d : -f3
+  else  query_spell_status "$1-" |  cut  -d : -f3
+  fi
+
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+##
+## @return 0 if the given spell's status is "installed"
+#---------------------------------------------------------------------
+function real_spell_installed() {
+  [  "$(  get_status  $1  )"  ==  "installed"  ];
+}
+
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+## @return 0 if the given spell's status is "held"
+##
+#---------------------------------------------------------------------
+function spell_held()      {
+  [  "$(  get_status  $1  )"  ==  "held"       ];
+}
+
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+##  @return 0 if the given spell's status is "exiled"
+##
+#---------------------------------------------------------------------
+function spell_exiled()    {
+  [  "$(  get_status  $1  )"  ==  "exiled"     ];
+}
+
 
 #---------------------------------------------------------------------
 ## @param spell to remove status of
@@ -227,6 +287,26 @@ function remove_spell_status()
   grep  -v  "^$1:" $SPELL_STATUS  >  $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
     
+}
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+## Removes the given spell from the /var/state/sorcery/packages file.
+## if C<EXILE> is set, the spell is changed to "exiled" in the file.
+##
+#---------------------------------------------------------------------
+function remove_spell()  {
+
+  debug  "libsorcery" "Running remove_spell() on $1"
+
+  remove_spell_status $1
+
+  if  [  -n  "$EXILE"  ];  then
+    add_spell_status $1 "." "exiled" "0.0"
+    remove_depends_status ".*" $1
+  fi
+
 }
 
 
@@ -308,16 +388,35 @@ function get_held () {
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
-function modify_local_config()  {
+function modify_local_config() {
+    debug "libstate" "modify_local_config() - $*"
+    modify_config $LOCAL_CONFIG "$@"
+}
 
-  debug "libstate" "modify_local_config() - $*"
+
+#---------------------------------------------------------------------
+## @param Filename
+## @param variable
+## @param value
+## @param command (optional)
+##
+## Modifies (or adds) an entry in the local/config.
+## If "command" is the third argument, a space will separate the 
+## variable and value rather than the equals sign.
+##
+#---------------------------------------------------------------------
+function modify_config()  {
+
+  debug "libstate" "modify_config() - $*"
+  local FILE=$1
+  shift;
   
   if ! [[ $1 ]]; then
-    debug "libstate" "modify_local_config() - Warning: No name given for config option."
+    debug "libstate" "modify_config() - Warning: No name given for config option."
     return 1
   fi
   
-  local TEMP separator EQUALS_COL
+  local TEMP separator EQUALS_COL VARIABLE
   
   # what to use as separator?
   if [[ $3 == command ]] 
@@ -325,8 +424,8 @@ function modify_local_config()  {
   else separator="=" ; fi
   
   # remove previous reference
-  tLOCAL_CONFIG=`lock_start_transaction $LOCAL_CONFIG`
-  grep  -v  "^[[:blank:]]*${1}${separator}" $LOCAL_CONFIG >  $tLOCAL_CONFIG
+  tFILE=`lock_start_transaction $FILE`
+  grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
 
   # justifying...
   EQUALS_COL=$((20-${#1}))
@@ -336,13 +435,31 @@ function modify_local_config()  {
     TEMP="$TEMP "
   done
   
-  debug "libstate" "modify_local_config() - entering new value into $tLOCAL_CONFIG"
+  debug "libstate" "modify_config() - entering new value $VARIABLE $seperator $@ into $tFILE"
   # put new value and justification in
-  echo  "${TEMP}${1}${separator}\"${2}\""  >>  $tLOCAL_CONFIG
+  echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
-  lock_commit_transaction $LOCAL_CONFIG
+  lock_commit_transaction $FILE
     
 }
+
+#---------------------------------------------------------------------
+## @param grimoire-name
+##
+## returns 0 if the grimoire is set local, 0 otherwise.
+#---------------------------------------------------------------------
+function codex_is_local () {(
+    g_name=$1
+
+    grimoire=$(codex_find_grimoire_by_name $g_name)
+    if ! [[ $grimoire ]]; then
+        return 1
+    fi
+
+    . "$grimoire/GRIMOIRE"
+
+    [[ $CODEX_IS_LOCAL == "yes" ]]
+)}
 
 
 #---------------------------------------------------------------------
