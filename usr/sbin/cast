@@ -179,7 +179,7 @@ use_initd()  { (
     debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
 
     for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
-      echo  "$INITDSCRIPTS"  |  grep  -q  "$INITSCRIPT"  &&  continue
+      echo  "$INITDSCRIPTS"  |  grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
       if    query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
