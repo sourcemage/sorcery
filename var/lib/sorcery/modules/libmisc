@@ -759,13 +759,8 @@ function real_config_query () {
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
   
-        [ "$ANSWER" == "y" ] && return 0
-        [ "$ANSWER" == "n" ] && return 1
-        # until we get variable leakage solved this exit isn't helping anyone..
-        # of course if a variable is missing or wrong from a guru changing
-        # something we should deal nicely with malformed data
-        #echo "Wrong value !!!"
-        #exit 1
+        # already have a reasonable value...
+        [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
     fi
   
     if query "$2" $3; then
@@ -822,7 +817,6 @@ function real_config_query_option () {
 #---------------------------------------------------------------------
 function real_config_query_string () {
     local ANSWER
-    local RET=0
     
     if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
         # option allready answered in config
@@ -831,7 +825,7 @@ function real_config_query_string () {
         query_string ANSWER "$2" "$3"
         config_set_option "$1" "$ANSWER"
     fi
-    
+    return 0
 }
 
 
@@ -848,7 +842,6 @@ function real_config_query_string () {
 #---------------------------------------------------------------------
 function real_config_query_list () {
   local ANSWER
-  local RET=0
   local VARIABLE="$1"
   local QUESTION="$2"
   shift
@@ -868,12 +861,11 @@ function real_config_query_list () {
   else
     # we have to ask user
     select_list ANSWER $@
-    RET=$?
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 
   eval $VARIABLE=\"$ANSWER\"
-  return $RET
+  return 0
 }
 
 #---------------------------------------------------------------------
