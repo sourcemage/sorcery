@@ -64,20 +64,33 @@ EOF
 }
 
 
-function set_failed_cast() {
+
+function set_failed_cast() {     # function never called??? erics (2003-01-28)
+
+  debug "cast" "Function : set_failed_cast"
+
   if [[ $FAILED_CASTS ]] ; then
     FAILED_CASTS="$FAILED_CASTS $SPELL"
   else
     FAILED_CASTS="$SPELL"
   fi
+
+  debug "set_failed_cast" "Value for FAILED CASTS : '$FAILED_CASTS'"
+
 }
 
 function set_successful_cast() {
+  
+  debug "cast" "Function : set_successful_cast"
+
   if [[ $SUCCESSFUL_CASTS ]] ; then
     SUCCESSFUL_CASTS="$SUCCESSFUL_CASTS $SPELL"
   else
     SUCCESSFUL_CASTS="$SPELL"
   fi
+
+  debug "set_successful_cast" "Value for SUCCESSFUL CASTS : '$SUCCESSFUL_CASTS'"
+
 }
 
 function run_conflicts() {
@@ -914,8 +927,16 @@ function process_parameters()  {
                          message -n "${MESSAGE_COLOR}Casting install queue..."
                          message    "${DEFAULT_COLOR}"
                          cast -c `cat $INSTALL_QUEUE`
-                         rm $INSTALL_QUEUE
-                       fi;                               shift 1  ;;
+                         #rm $INSTALL_QUEUE
+                         if  [  -s  $INSTALL_QUEUE  ] ; then
+                           message "${MESSAGE_COLOR}The install queue is not empty, "
+                           message "it still contains the following spells: "
+                           message "---------------------------------${PROBLEM_COLOR}"
+                           message "`cat $INSTALL_QUEUE`"
+                           message "${DEFAULT_COLOR}"
+                         fi
+                       fi;                               
+                       shift 1                                ;;
                    *)  help                                   ;;
       esac
 
@@ -971,6 +992,8 @@ function can_resurect()  {
 	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
 	debug "cast" "I am able to resurect."
 }
+
+
 function resurrect()  {  (  
 
   debug "cast" "resurect - $*"
@@ -1009,6 +1032,7 @@ function resurrect()  {  (
              "${DEFAULT_COLOR}"
     cast  --fix  $SILENT  $SPELL && echo $SPELL >> $SUCCESS_LIST
   else
+    echo $SPELL >> $FAILED_LIST
     false
   fi
 
@@ -1112,10 +1136,11 @@ function cast_spell()  { (
     unlock_resources "libgrimoire" "install"
 	
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
-	IW_LOG="$INSTALLWATCHFILE"
-	INSTALLWATCHFILE=""
+	  IW_LOG="$INSTALLWATCHFILE"
+	  INSTALLWATCHFILE=""
     rm  -f  $IW_LOG  $TMP_LOG  $CASTING
     [[  $CLEAN_SOURCE == on ]] && rm_source_dir
+    echo $SPELL >> $FAILED_LIST
     CAST_EXIT_STATUS=1
   fi
 
@@ -1282,7 +1307,7 @@ function pass_four()  {
     cast_spell $*
   fi
 
-  #We only want to trigger if the cast ot resurect completed properly
+  # We only want to trigger if the cast or resurect completed properly
   [ $? -eq 0 ] && trigger "cast"
   
 }
@@ -1291,6 +1316,10 @@ function pass_four()  {
 # Report generation
 function pass_five()  {
 
+  debug "cast" "Function : pass_five"
+
+  debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST`"
+  debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST`"
   
   if [ -e $SUCCESS_LIST ] ; then
 
@@ -1305,18 +1334,26 @@ function pass_five()  {
    
     set_term_title "Casting successfull."
     message "${DEFAULT_COLOR}"
-    return 0
 
-  else 
+  fi 
   
+  #
+  # To check for failed spells, we only need to see what is remaining in the 
+  # install queue.
+  #
+  if  [  -e  $FAILED_LIST   ] ; then
+    
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that encountered problems:"
     message "---------------------------------${PROBLEM_COLOR}"
     
-    for item in $* ; do
-      if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
-        message "$item"
-	    fi
+    # for item in $* ; do
+    #  if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
+    #    message "$item"
+	  #  fi
+
+    for item in `cat $FAILED_LIST`; do
+      message "$item"
     done | column
 
     set_term_title "Casting failed."
@@ -1324,7 +1361,9 @@ function pass_five()  {
     return 1
   
   fi 
-   
+  
+  debug "cast" "End of pass_five"
+
 }
 
 function pass_zero()  {
@@ -1334,9 +1373,12 @@ function pass_zero()  {
   export  D_LOG="/tmp/sorcery.downloading.$$.$RANDOM"
   rm -f $D_LOG 2>/dev/null
 
+  debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
+  debug "pass_zero" "   and with spells : '$SPELLS'"
   export  CAST_PASS="one";    pass_one $*  &&
   export  CAST_PASS="two";    pass_two $SPELLS
-#pass_three and _four are hidden inside the makefile
+  #pass_three and _four are hidden inside the makefile
+  debug "pass_zero" "Starting pass 5 with: '$@'"
   export  CAST_PASS="five";  pass_five "$@"
 
   rm  -f   $D_LOG*
@@ -1368,32 +1410,33 @@ function main()	{
 
   else
 
-	for spell in $SPELLS ; do
-		codex_does_spell_exist $spell
-		if [ $? -eq 0 ] ; then
-			T_SPELLS="$T_SPELLS $spell"
-		fi
-	done
-	SPELLS=$T_SPELLS
+	  for spell in $SPELLS ; do
+		  codex_does_spell_exist $spell
+		  if [ $? -eq 0 ] ; then
+			  T_SPELLS="$T_SPELLS $spell"
+		  fi
+	  done
+	  SPELLS=$T_SPELLS
 	
-	if ! [[ $SPELLS ]]; then
-		return 1
-	fi
+	  if ! [[ $SPELLS ]]; then
+		  return 1
+	  fi
 	
-	MAKEFILE="/tmp/Makefile.cast.$$"
-	SUCCESS_LIST="$0.success_list"
-	export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
-	echo "$SUCCESS_LIST $0 $ENV_CACHE" >> $RM_AT_END
-	export RM_AT_END="$RM_AT_END"
-	BASE_SPELLS=" $SPELLS "
+	  MAKEFILE="/tmp/Makefile.cast.$$"
+	  SUCCESS_LIST="$0.success_list"
+    FAILED_LIST="$0.failed_list"
+	  export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
+	  echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
+	  export RM_AT_END="$RM_AT_END"
+	  BASE_SPELLS=" $SPELLS "
 
     case  $CAST_PASS  in
-        one)  pass_one    $SPELLS  ;; #Never matches
-        two)  pass_two    $SPELLS  ;; #Never matches
-	  three)  pass_three  $SPELLS  ;; #d/l sources, Never matches
-	   four)  pass_four   $SPELLS  ;; #real casting, Never matches
-	   five)  pass_five   $SPELLS  ;; #cast report
-          *)  pass_zero   $SPELLS  ;; #start everything
+       one)  pass_one    $SPELLS  ;; #Never matches
+       two)  pass_two    $SPELLS  ;; #Never matches
+     three)  pass_three  $SPELLS  ;; #d/l sources, Never matches
+      four)  pass_four   $SPELLS  ;; #real casting, Never matches
+      five)  pass_five   $SPELLS  ;; #cast report
+         *)  pass_zero   $SPELLS  ;; #start everything
     esac
 
   fi
@@ -1416,11 +1459,11 @@ elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
 
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
-	# and fill it up with stuff the feel the need to delete
+	  # and fill it up with stuff the feel the need to delete
     export RM_AT_END=${RM_AT_END:-"/tmp/cast.$$.tmplist"}
-	touch $RM_AT_END
-	chown root:root $RM_AT_END
-	echo -n '' > $RM_AT_END
+	  touch $RM_AT_END
+	  chown root:root $RM_AT_END
+	  echo -n '' > $RM_AT_END
   fi
   
   SAFE_CAST=/tmp/casting.$$
