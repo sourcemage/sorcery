@@ -1053,18 +1053,20 @@ current_sources()  {
 
 
 run_summon()  {
-  
-  if 	[[ $COMPILE ]] 			|| 
-  		[[ $FORCE_COMPILE ]] 	|| 
-		! current_sources 		|| 
-		! (spell_installed $SPELL || spell_held $SPELL) 
-  then
+
+# commented out per patch from benoit, bug #4235.
+#
+#  if 	[[ $COMPILE ]] 			|| 
+#  		[[ $FORCE_COMPILE ]] 	|| 
+#		! current_sources 		|| 
+#		! (spell_installed $SPELL || spell_held $SPELL) 
+#  then
     lock_file   $D_LOG
     
     ( . summon  $SPELL  >>  $D_LOG  2>&1 )
     
     unlock_file $D_LOG
-  fi
+#  fi
   
   #This is to notify show_downloading that it is done this source
   touch "${D_LOG}.done.$SPELL"
