@@ -204,7 +204,10 @@ dl_source()  {
                "for spell"                                \
                "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
-      if  get  $*;  then
+      if [ -n "$LEAPFORWARD_URL" ] ; then
+        LFURLFILE="$LEAPFORWARD_URL/$FILE"
+      fi
+      if  get  "$LFURLFILE" $*;  then
         activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
       else
         message  "${PROBLEM_COLOR}Download of"            \
@@ -1615,14 +1618,13 @@ prune()  { (
 ## Adds /var/lib/sorcery/build to the C<PATH>
 ##
 #---------------------------------------------------------------------
-invoke_build_dir()  {
 
-  if    [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache  ||
-        [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc
-  then  export  PATH="/var/lib/sorcery/build:$PATH"
-  fi
-
-}
+invoke_build_dir() { 
+  { 
+    { [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache ; }  || 
+    { [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc ; } 
+  }  &&  export  PATH="/var/lib/sorcery/build:$PATH" 
+} 
 
 
 #---------------------------------------------------------------------
