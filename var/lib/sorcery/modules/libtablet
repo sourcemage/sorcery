@@ -487,6 +487,90 @@ function tablet_set_spell() {
   return 0
 }
 
+
+############################ REPAIR files #############################
+function tablet_import_repair_files() {
+  local tablet_path=$1
+  local dir rc chapter page
+
+  for chapter in $tablet_path/* ; do
+    test -d $chapter || continue
+    for page in $chapter/*; do
+      test -d $page || continue
+      tablet_import_repair_files_page $page
+    done
+  done
+}
+
+function tablet_import_repair_files_page() { (
+  local page=$1
+  local spell=$(tablet_get_spell_name_from_path $page)
+  codex_set_current_spell_by_name $spell || return 1
+  local spell_version spell_updated codex_md5 repair_file tablet_file tablet_md5
+  local name key
+  tablet_get_version $page spell_version
+  tablet_get_updated $page spell_updated
+  for repair_file in $(find $SPELL_DIRECTORY -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
+    name=$(basename $repair_file|cut -f3- -d^)
+    key=$(basename $repair_file|cut -f2 -d^)
+    [[ $name ]] || continue 
+    [[ $key ]] || continue 
+    tablet_check_repair_file spell
+  done
+
+  for repair_file in $(find $SECTION_DIRECTORY -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
+    name=$(basename $repair_file|cut -f3- -d^)
+    key=$(basename $repair_file|cut -f2 -d^)
+    [[ $name ]] || continue 
+    [[ $key ]] || continue 
+    tablet_check_repair_file section
+  done
+
+  for repair_file in $(find $GRIMOIRE -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
+    name=$(basename $repair_file|cut -f3- -d^)
+    key=$(basename $repair_file|cut -f2 -d^)
+    [[ $name ]] || continue 
+    [[ $key ]] || continue 
+    tablet_check_repair_file grimoire
+  done
+) }
+
+function tablet_check_repair_file() {
+  local type=$1
+  local replace=0
+
+  case $type in
+    spell)  tablet_get_spell_file $page $name tablet_file;;
+    section)  tablet_get_section_file $page $name tablet_file;;
+    grimoire)  tablet_get_grimoire_file $page $name tablet_file;;
+    *) return 1
+  esac
+
+  if ! [[ $tablet_file ]] ; then
+    if [[ $key == none ]] ; then
+      # WARNING: tb_version specific path derivation here:
+      tablet_file=$page/$type/$name
+      replace=1
+    fi
+  else
+    codex_md5=$(md5sum $repair_file|cut -f1 -d' ')
+    tablet_md5=$(md5sum $tablet_file|cut -f1 -d' ')
+    if [[ $spell_version == $key ]] ||
+       [[ $spell_updated == $key ]] ||
+       [[ $key == $tablet_md5 ]] ; then
+      replace=2
+    fi
+  fi
+  if [[ $replace == 1 ]] || 
+     { [[ $replace == 2 ]] && [[ $codex_md5 != $tablet_md5 ]] ; } ; then
+    message "${MESSAGE_COLOR}Tablet Repair: replacing${DEFAULT_COLOR}" 
+    message "$tablet_file\nwith repair file \n$repair_file"
+    cp $repair_file $tablet_file
+  else
+    debug libtablet "Tablet Repair: not replacing $tablet_file with $repair_file ($repair, $codex_md5, $tablet_md5)"
+  fi
+}
+
 ############################ cleanse functions ########################
 
 #---------------------------------------------------------------------
@@ -523,13 +607,12 @@ function tablet_cleanse_chapter() {
   tablet_fix_duplicates $spell $sdir $backup_dir/duplicates
   test -d $sdir || return 0
 
-  # tablet_fix_duplicates has the side-effect of invoking a repair
-  # to all pages, so theres no need for a tablet_cleanse_page below
-
   for page in $sdir/*; do
     if ! test -d $page; then
       message "$dir is not a directory! backing it up in $backup_dir"
       mv $page $backup_dir/chapter_files/$page.$spell
+    else
+      tablet_import_repair_files_page $page
     fi
   done
 }
