@@ -82,11 +82,17 @@ function prepare_spell_config()  {
 ## FOO_INSTALLED. FOO_ENABLED and FOO_DISABLED have an empty intersection set.
 #---------------------------------------------------------------------
 function query_services() {
-  local XINETD_SCRIPTS=$(find $SCRIPT_DIRECTORY/xinetd.d -maxdepth 1 -type f)
-  local INIT_SCRIPTS=$(find $SCRIPT_DIRECTORY/init.d -maxdepth 1 -type f)
+  local XINETD_SCRIPTS
+  local INIT_SCRIPTS
   local btmp xtmp itmp 
   local tmp retvar
   local XINETD INIT BOTH found
+
+  test -d $SCRIPT_DIRECTORY/xinetd.d &&
+  XINETD_SCRIPTS=$(find $SCRIPT_DIRECTORY/xinetd.d -maxdepth 1 -type f)
+
+  test -d $SCRIPT_DIRECTORY/init.d &&
+  INIT_SCRIPTS=$(find $SCRIPT_DIRECTORY/init.d -maxdepth 1 -type f)
 
   local new_init_inst new_init_ninst new_init_enab new_init_disab
   local new_xinetd_inst new_xinetd_ninst new_xinetd_enab new_xinetd_disab
