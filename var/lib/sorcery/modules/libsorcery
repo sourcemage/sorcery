@@ -412,7 +412,7 @@ function save_libraries()  {
 
   if  [  "$SPELL"  ==  "glibc"         ]   ||
       [  "$SPELL"  ==  "glibc-custom"  ];  then
-    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  /lib/ld-linux.so.2
+    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld-linux.so.2
   fi
 
 }
@@ -1481,7 +1481,9 @@ function archive()  {
   debug  "libsorcery" "Running archive() on $SPELL"
 
   while read LINE ; do
+		debug "archive()" "Checking file $LINE"
     if  [ !  -p  "$LINE"  ] ; then
+			debug "archive()" "Running md5 on $LINE"
       md5sum "$LINE"
     fi
   done < $INST_LOG 2>/dev/null >> $MD5_LOG 
@@ -1493,11 +1495,8 @@ function archive()  {
 
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-	while read LINE ; do tar  --no-recursion  -rPf  "$CACHE"  "$LINE"; done < $INST_LOG
-
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
-  bzip2  -9f  <  $CACHE  >  $CACHE_BZ
-  rm     -f      $CACHE
+  tar --no-recursion --bzip -cPf "$CACHE_BZ" -T $INST_LOG
 
 }
 
