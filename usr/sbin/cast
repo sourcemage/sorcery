@@ -566,9 +566,11 @@ function pass_five()  {
   # must exist or we get problems with checks here.
   touch $SUCCESS_LIST
   touch $FAILED_LIST
+  touch $CONFLICT_LIST
   
   debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
   debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
+  debug "pass_five" "CONFLICT LIST is : `cat $CONFLICT_LIST 2>/dev/null`"
 
   if [ -s $SUCCESS_LIST ] ; then
 
@@ -596,6 +598,16 @@ function pass_five()  {
     message "${MESSAGE_COLOR}Spells that have been dropped:"
     message "------------------------------${QUERY_COLOR}"
     message "$NOT_CAST" | column
+    message "${DEFAULT_COLOR}"
+  fi
+
+  if  [  -s  $CONFLICT_LIST   ] ; then
+    message "${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spells that have been removed due to conflicts:"
+    message "-----------------------------------------------${QUERY_COLOR}"
+    for item in `cat $CONFLICT_LIST 2>/dev/null`; do
+      message "$item"
+    done | column
     message "${DEFAULT_COLOR}"
   fi
   
@@ -764,11 +776,12 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
   export SAFE_CAST=$TMP_DIR/casting.safe
   export SUCCESS_LIST="$TMP_DIR/success_list"
   export FAILED_LIST="$TMP_DIR/failed_list"
+  export CONFLICT_LIST="$TMP_DIR/conflict_list"
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
-  echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST" >> $RM_AT_END
+  echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST $CONFLICT_LIST" >> $RM_AT_END
   exec bash $SAFE_CAST "$@"
   
 else
