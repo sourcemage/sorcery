@@ -548,17 +548,21 @@ function real_list_remove () {
 ##
 #---------------------------------------------------------------------
 function real_list_add () {
-    local var=$1
-    shift
-  
-    local i
-  
-    for i in $@; do
-        eval "$var=\`echo \" \$$var \" | sed \
-               -e \"s/[[:space:]]\\+/ /g\"   \
-               -e \"s/ $i / /g\"             \
-               -e \"s/^ //\"\`\"$i\""
+  local var=$1
+  shift
+  local i
+  for i in $@; do
+    local j
+    local found=0
+    for j in $(eval "echo \$$var"); do
+      if [ "$i" = "$j" ]; then
+        found=1
+      fi
     done
+    if [ $found -eq 0 ]; then
+      eval "$var=\`echo \"\$$var $i\"\`"
+    fi
+  done
 }
 
 
@@ -615,7 +619,8 @@ function real_persistent_remove () {
 function real_persistent_load () {
     if [ -f "$SPELL_CONFIG.p" ]; then
         . "$SPELL_CONFIG.p"
-        persistent_add `awk 'BEGIN{FS="="}{print $1}' < "$SPELL_CONFIG.p"`
+        local line
+        persistent_add `while read line; do echo ${line%%=*}; done < "$SPELL_CONFIG.p"`
     fi
 }
 

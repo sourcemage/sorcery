@@ -1,4 +1,11 @@
-#!/bin/bash
+#---------------------------------------------------------------------
+## Handles storage of state information, incluing depends and package
+## files. Also handles looking information up about what is installed
+## and what depends on what.
+##
+## @Copyright Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
+#---------------------------------------------------------------------
+
 #---------------------------------------------------------------------
 ##
 ## Adds a dependency to the a depends database file.  Returns 1 is the 
@@ -9,8 +16,8 @@
 ## @param  Name of the spell the parent spell depends on
 ## @param  "on" or "off" depending on whether the user installed the dependency
 ## @param  Type of dependency (required or optional)
-## @param  option to pass to C<configure> if the dependency is installed
-## @param  option to pass to C<configure> if the dependency is not installed
+## @param  option to pass to C&lt;configure&gt; if the dependency is installed
+## @param  option to pass to C&lt;configure&gt; if the dependency is not installed
 ##
 ## @Example add_depends kdelibs alsa-driver on optional --with-alsa --without-alsa
 ##
@@ -192,6 +199,170 @@ function remove_depends_status()
 }
 
 #---------------------------------------------------------------------
+# Default depends and default provider api
+# default depends examples:
+#
+# default xfree86 provider to ImageMagick is xfree86
+# ImageMagick:X11-LIBS:xfree86
+#
+# default answer to optional_depends graphviz for ImageMagick is "no"
+# ImageMagick:graphviz:off
+#
+#
+# default provider examples:
+# use xorg as X11-LIBS even if its optional
+# xorg:X11-LIBS:on
+# 
+# use xfree86 as X11-LIBS unless the [none] option exists (and use that instead)
+# xfree86:X11-LIBS:off
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##
+## add default depends entry, if $3 is a spell $4 must be on/off
+## if $3 is a PROVIDER $4 must be a spell
+##
+## @param depends file
+## @param spell
+## @param depends/PROVIDER
+## @param on/off
+##
+#---------------------------------------------------------------------
+function add_default_depends() {
+        debug "libstate" "add_default_depends() - $*"
+
+        #already here
+        search_default_depends "$@" >/dev/null  && return 0
+
+        local file=$1
+        shift
+        # ensure the info is valid... (this is redundant if calling
+        # from sorcery, but that may not always be the case...
+        if [[ $3 != on ]] && [[ $3 != off ]] ; then
+          return 1
+        fi
+
+        { [[ ! $1 ]] && [[ ! $2 ]] ; } && return 1
+
+        if [[ $1 ]] && ! codex_does_spell_exist $1 &>/dev/null; then
+          return 1
+        fi
+
+        if [[ $2 ]] && ! codex_does_spell_exist $2; then
+          return 1
+        fi
+
+        tfile=`lock_start_transaction $file`
+        remove_default_depends $tfile $1 $2
+        echo "$1:$2:$3" >> $tfile
+        lock_commit_transaction $file
+       
+       return 0
+
+}
+
+#---------------------------------------------------------------------
+##
+## Arguments can be regexp, $2, $3 and $4 are optional
+## Caller must lock the file
+##
+## @param depends file
+## @param spell
+## @param depends/PROVIDER
+## @param on/off/spell
+##
+#---------------------------------------------------------------------
+function remove_default_depends() {
+
+        local file=$1
+        shift
+
+	local a1 a2 a3
+	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3`
+	
+	a1=${a1:-.*}
+	a2=${a2:-.*}
+	a3=${a3:-.*}
+
+	sedit "/^$a1:$a2:$a3$/D" $file
+}
+
+#---------------------------------------------------------------------
+##
+## Arguments can be regexp, $2 $3 and $4 are optional
+##
+## @param depends file
+## @param spell
+## @param depends/PROVIDER
+## @param on/off/spell
+##
+#---------------------------------------------------------------------
+function search_default_depends() {
+
+        local default_depends=$1
+        shift
+        [[ -s $default_depends ]] || return
+
+	local a1 a2 a3
+	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
+
+	a1=${a1:-.*}
+	a2=${a2:-.*}
+	a3=${a3:-.*}
+
+        debug "libstate" "search_default_depends: [$a1:$a2:$a3]"
+	grep "^$a1:$a2:$a3$" $default_depends
+}
+
+
+#---------------------------------------------------------------------
+##
+## Arguments can be regexp, $3 and $4 are optional
+##
+## @param depends file
+## @param spell
+## @param PROVIDER
+## @param on/off
+##
+#---------------------------------------------------------------------
+function add_default_provider() {
+	debug "libstate" "add_default_depends() - $*"
+
+	#already here
+	search_default_provider "$@" >/dev/null  && return 0
+
+        local file=$1
+        shift
+
+	#ensure the info is valid...
+        { [[ ! $1 ]] && [[ ! $2 ]] ; } && return 1
+        { [[ $3 != on ]] && [[ $3 != off ]] ; } && return 1
+        if [[ $1 ]] && ! codex_does_spell_exist $1 &>/dev/null ; then
+          return 1
+        fi
+        if [[ $2 ]] && ! codex_does_service_exist $2 &>/dev/null ; then
+          return 1
+        fi
+
+        tfile=`lock_start_transaction $file`
+        remove_default_provider $tfile $1
+	echo "$1:$2:$3" >> $tfile
+        lock_commit_transaction $file
+	
+	return 0	
+}
+
+# these are the same, as their countparts but are here for completeness
+# and incase they do someday diverge
+function remove_default_provider() {
+        remove_default_depends "$@"
+}
+
+function search_default_provider() {
+        search_default_depends "$@"
+}
+
+#---------------------------------------------------------------------
 ##
 ## Adds an entry to the SPELL_STATUS file
 ##
@@ -268,6 +439,8 @@ function query_spell_status()
 ## @Stdout status
 ## Returns the given spell's status (installed, held, exiled, etc.)
 ##
+## Why is this needed, the cut is useless, and i cant see how we'd get
+## to the else case and then succeed  (afk 8/7/04)
 #---------------------------------------------------------------------
 function get_status()  {
 
@@ -295,7 +468,18 @@ function real_spell_installed() {
 ## @return 0 if the given spell's status is "held"
 ##
 #---------------------------------------------------------------------
-function spell_held()      {
+function real_spell_held()      {
+  [  "$(  get_status  $1  )"  ==  "held"       ];
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+##
+## @return 0 if the given spell's status is "installed" or "held"
+#---------------------------------------------------------------------
+function real_spell_ok() {
+  [  "$(  get_status  $1  )"  ==  "installed"  ] ||
   [  "$(  get_status  $1  )"  ==  "held"       ];
 }
 
@@ -357,7 +541,7 @@ function all_spell_status()
 
 #---------------------------------------------------------------------
 ## @param spells
-## sets <spells>'s status to held
+## sets &lt;spells&gt;'s status to held
 ##
 #---------------------------------------------------------------------
 function set_held () {
@@ -470,6 +654,41 @@ function modify_config()  {
   # put new value and justification in
   echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
+  lock_commit_transaction $FILE
+    
+}
+
+#---------------------------------------------------------------------
+## @param Filename
+## @param variable
+## @param command (optional)
+##
+## Modifies (or adds) an entry in the local/config.
+## If "command" is the third argument, a space will separate the 
+## variable and value rather than the equals sign.
+##
+#---------------------------------------------------------------------
+function remove_config()  {
+
+  debug "libstate" "modify_config() - $*"
+  local FILE=$1
+  shift;
+  
+  if ! [[ $1 ]]; then
+    debug "libstate" "modify_config() - Warning: No name given for config option."
+    return 1
+  fi
+  
+  local TEMP separator EQUALS_COL VARIABLE
+  
+  # what to use as separator?
+  if [[ $2 == command ]] 
+  then separator=" " 
+  else separator="=" ; fi
+  
+  # remove previous reference
+  tFILE=`lock_start_transaction $FILE`
+  grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
   lock_commit_transaction $FILE
     
 }

@@ -1,27 +1,12 @@
 #!/bin/bash
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## Functions for dealing with dependencies as a non-cyclic directed
-## graph. Since that's such a mouthful, it will simply be referred to
-## as a tree, even though it's not.
-##
-##=head1 DESCRIPTION
-##
+## @Synopsis Functions for dealing with dependencies as a non-cyclic directed graph. Since that's such a mouthful, it will simply be referred to as a tree, even though it's not.
+## @Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
 ## A spell is represented as a node containing some pieces of data
 ## seperated by colons.
 ## spell:dependent spell:on/off:type:casting_flag:is_a_target_flag
-##
-##=head1 COPYRIGHT
-##
-## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
-##
-##=head1 CONTRIBUTORS
-## Chris Brien <christopher_brien@hotmail.com>
-## Paul Mahon <pmahon@sourcemage.org)
-##
-##=head1 FUNCTIONS
+## @Contributers Chris Brien (christopher_brien@hotmail.com)
+## @Contributers Paul Mahon (pmahon@sourcemage.org)
 #---------------------------------------------------------------------
 
 #
@@ -85,6 +70,12 @@
 
 
 ######################BEGIN CALLS TO OUTSIDE WORLD########################
+
+#---------------------------------------------------------------------
+## Run the spell's PREPARE script if it exists
+## @param Spell to prepare
+## @Globals SCRIPT_DIRECTORY
+#---------------------------------------------------------------------
 function run_prepare() 
 {
   local SPELL=$1
@@ -104,8 +95,11 @@ function run_prepare()
   
 }
 
-# this will be home to all "other" questions we are supposed to ask about
-# during this phase of things, right now its a placeholder
+#---------------------------------------------------------------------
+## This will be home to all "other" questions we are supposed to ask about
+## during this phase of things, right now its a placeholder
+## @param Spell
+#---------------------------------------------------------------------
 function run_other() {
   local SPELL=$1
   # ask the questions about xinetd/initd script installation
@@ -118,6 +112,10 @@ function run_other() {
 
 }
 
+#---------------------------------------------------------------------
+## Run the spell's CONFIGURE script if it exists
+## @param Spell to configure
+#---------------------------------------------------------------------
 function run_configure() 
 {
 
@@ -136,6 +134,10 @@ function run_configure()
   fi
 }
 
+#---------------------------------------------------------------------
+## Run a spell's DEPENDS if it exists
+## @param Spell
+#---------------------------------------------------------------------
 function run_depends() 
 { 
   local SPELL=$1
@@ -156,12 +158,13 @@ function run_depends()
 
 
 
-#-----------------------------------------------------------------------
-# Create a map of spells to their dependent spells.
-# Then for all installed or held spells, output a libhash command to
-# join the spell name and dependency info.
-# Then evaluate the output, thus filling a libhash with dependency info.
-#-----------------------------------------------------------------------
+#---------------------------------------------------------------------
+## Create a map of spells to their dependent spells.
+## Then for all installed or held spells, output a libhash command to
+## join the spell name and dependency info.
+## Then evaluate the output, thus filling a libhash with dependency info.
+## @param Name of hash table to put dependencies
+#---------------------------------------------------------------------
 function compute_installed_depends() {
   #$1==hash table to fill
   local hash=$1
@@ -185,12 +188,13 @@ function compute_installed_depends() {
   }' $DEPENDS_STATUS $SPELL_STATUS )
 }
 
-#-----------------------------------------------------------------------
-# Create a map of spells to their dependent spells.
-# Then for all installed or held spells, output a libhash command to
-# join the spell name and dependency info.
-# Then evaluate the output, thus filling a libhash with dependency info.
-#-----------------------------------------------------------------------
+#---------------------------------------------------------------------
+## Create a map of spells to their dependent spells.
+## Then for all installed or held spells, output a libhash command to
+## join the spell name and dependency info.
+## Then evaluate the output, thus filling a libhash with dependency info.
+## @param Name of hash table to fill with dependencies
+#---------------------------------------------------------------------
 function compute_reverse_installed_depends() {
   #$1==hash table to fill
   local hash=$1
@@ -213,21 +217,27 @@ function compute_reverse_installed_depends() {
   }' $DEPENDS_STATUS $SPELL_STATUS )
 }
 
-#-----------------------------------------------------------------------
-# calling this will accomplish several things:
-# 1) most importantly it finds the closure of all spells that need to
-#    be cast
-# 2) it builds a hash table mapping spells to their depends, possibly by
-#    asking the user for input
-# 3) it updates DEPENDS_STATUS, arguably it shouldn't be doing this.
-#
-# What happens: take all the spells we've been asked to resolve
-# for each one of them run its details file
-# the details file will call back to depends/optional_depends
-# at this point we determine/find/query for depends info
-# update the hash table, update DEPENDS_STATUS, and append to the
-# list of spells to resolve
-#-----------------------------------------------------------------------
+#---------------------------------------------------------------------
+## calling this will accomplish several things:
+## <ol>
+## <li> most importantly it finds the closure of all spells that need to
+##    be cast
+## <li> it builds a hash table mapping spells to their depends, possibly by
+##    asking the user for input
+## <li> it updates DEPENDS_STATUS, arguably it shouldn't be doing this.
+## </ol>
+##
+## What happens: take all the spells we've been asked to resolve
+## for each one of them run its details file
+## the details file will call back to depends/optional_depends
+## at this point we determine/find/query for depends info
+## update the hash table, update DEPENDS_STATUS, and append to the
+## list of spells to resolve
+##
+## @param Hashtable name for dependencies
+## @param Hashtable name for spells with problem in resolution (or something)
+## @param Hashtable name for spells which cannot cast
+#---------------------------------------------------------------------
 function compute_uninstalled_depends() 
 { 
 
@@ -267,6 +277,11 @@ function compute_uninstalled_depends()
   hash_export uncommitted_hash
 }
 
+#---------------------------------------------------------------------
+## A private function for running a spell's DEPENDS script.
+## No functions except libdepends functions should use this.
+## @param Spell
+#---------------------------------------------------------------------
 function private_run_depends()
 {
   debug "libdepends" "$FUNCNAME - $*"
@@ -315,8 +330,13 @@ function private_run_depends()
   return 0
 }
 
-# Perhaps this function is overly splayed out in elif's but its
-# easier to add to later than what we had before...
+#---------------------------------------------------------------------
+## Decides if a spell should be case. Check if the spell is installed
+## if it matters, etc...
+## Perhaps this function is overly splayed out in elif's but its
+## easier to add to later than what we had before...
+## @param Spell
+#---------------------------------------------------------------------
 function private_should_cast()
 {
   local decision
@@ -346,8 +366,8 @@ function private_should_cast()
 }
 
 #---------------------------------------------------------------------
-# @param Spell name
-# Find all the spells that depend on the spell given as $1
+## @param Spell name
+## Find all the spells that depend on the spell given as $1
 #---------------------------------------------------------------------
 function private_upward_depends() {
   if [[ "$RECAST_UP" ]] ; then
@@ -399,62 +419,102 @@ function real_optional_depends()
 
 }
 
-
-
+#---------------------------------------------------------------------
+## Asks the user what provider for a depends is desired if a choice
+## has not ben made before.
+## @param Service
+#---------------------------------------------------------------------
 function work_depends_provider()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
-
+  local default tmp installed=no
   local status=()
-  
-  # See if there are preferences already.
-  # Example: rxvt-unicode:xfree86(X11-LIBS):on:required::
-  explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
 
-  local provider=${status[1]%(*}    # Name of spell which provides $1
-  local provider_installed="yes"
-
-# since we are committing answers later on and blowing
-# all pre-existing entries away at that moment, we don't care anymore...
-#
-#  # If we used to depend on one spell but it no longer is installed then the
-#  # whole procedure with the asking and whatnot should happen again.
-#  if [[ $provider ]] && ( ! spell_installed $provider && ! spell_held $provider ) ; then
-#  if ( ! spell_installed $provider && ! spell_held $provider ) ; then
-#    provider_installed=""
-#
-#    # Remove the bad entry.
-#    remove_depends_status $SPELL ${status[1]}
-#  fi
-
-  if [[ $RECONFIGURE || ! $provider || ! $provider_installed ]] ; then
-    select_provider "provider" "$1"
+  if [[ $4 ]] ; then
+    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+            "${CHECK_COLOR}requires some${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}${1}${DEFAULT_COLOR} (for $4)."
   else
     message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}depends on" \
-            "${SPELL_COLOR}${provider}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}as a provider of" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+            "${CHECK_COLOR}requires some${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}${1}${DEFAULT_COLOR}."
+  fi
+  
+  local CANDIDATES=$( find_providers $1)
+  if [[ ! $CANDIDATES ]] ; then
+    message "${PROBLEM_COLOR}No providers of${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}$1${DEFAULT_COLOR}" \
+            "${PROBLEM_COLOR} can be found!${DEFAULT_COLOR}"
+    return 1
   fi
 
-  private_common_depends "$provider($1)" "on" "required" "$2" "$3"
+  # if not reconfiguring check if theres already an answer in DEPENDS_STATUS
+  if [[ ! $RECONFIGURE ]]; then
+    # notice the clever ignorance of optional/required depends for the
+    # provider case, if the user chose none, we would fall out during spell_ok
+    # and we transparently switch between optional and required without
+    # anyone noticing
+    explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
+    local tmp=${status[1]%(*}    # Name of spell which provides $1
+    if spell_ok $tmp &&
+       query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
+      private_common_depends "$tmp($1)" "on" "required" "$2" "$3"
+      return 0
+    fi
+  fi
 
+  # check if theres an abandoned answer, but only if its still a provider
+  if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
+    tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
+    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+  fi
+
+  # check if theres a default provider
+  if [[ ! $default ]]; then
+    explode "$(search_default_provider $DEFAULT_PROVIDERS "" "$1")" ":" "status"
+    tmp=${status[0]}
+    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+  fi
+
+  # check if we've already answered this question
+  if [[ ! $default ]]; then
+    for tmp in $CANDIDATES; do
+      echo $spells | grep -q "\<$tmp\>" && default=$tmp && break
+    done
+  fi
+
+  # check if theres a provider already installed
+  if [[ ! $default ]]; then
+    for tmp in $CANDIDATES; do
+      spell_ok $tmp && default=$tmp && break
+    done
+  fi
+
+  select_provider "provider" "$default" 0 $CANDIDATES
+
+  private_common_depends "$provider($1)" "on" "required" "$2" "$3"
 }
 
+#---------------------------------------------------------------------
+## One of the worker functions. Checks for exiled spell and passes
+## on to the common dependency function, <@function private_common_depends>
+## @param Spell
+#---------------------------------------------------------------------
 function work_depends_spell()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
+
+  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+          "${CHECK_COLOR}depends on" \
+          "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
 
   if spell_exiled $1 ; then
     hash_put $CANNOT_CAST_HASH "$1" "Exiled"
     message "${SPELL_COLOR}${1}${DEFAULT_COLOR} has been exiled!"
     return 1
   fi
-  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-          "${CHECK_COLOR}depends on" \
-          "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
   private_common_depends "$1" "on" "required" "$2" "$3"
 
 }
@@ -470,59 +530,73 @@ function work_optional_depends_provider()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
-
-  local install="off"
+  local default tmp installed=no
   local status=()
-  
-  # See if there are preferences already.
-  # Example when enabled:
-  #  GD:xfree86(X11-LIBS):on:optional:-options=JPG,FT,XPM:-options=JPG,FT
-  # Example when disabled:
-  #  GD:(X11-LIBS):off:optional:-options=JPG,FT,XPM:-options=JPG,FT
-  explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
 
-  local provider=${status[1]%(*}    # Name of spell which provides $1
-  local provider_installed="yes"
-
-# We dont care anymore.... (see previous)
-#  # If we used to depend on one spell but it no longer is installed then the
-#  # whole procedure with the asking and whatnot should happen again.
-#  if [[ ${status[2]} != off ]] && [[ $provider ]] \
-#        && ( ! spell_installed $provider && ! spell_held $provider ) ; then
-#    provider_installed=""
-#
-#    # Remove the old entry.
-#    remove_depends_status $SPELL ${status[1]}
-#  fi
-
-  if [[ $RECONFIGURE || ! ${status[2]} || ! $provider_installed ]] ; then
-
-    select_provider "provider" "$1" "$4" "optional"
-
-    if [[ $provider == "[none]" ]] ; then
-      provider=""       # User selected [none]. Disable dependency
-    elif ! spell_installed $provider && ! spell_held $provider ; then
-      if query "Do you want to cast ${SPELL_COLOR}$provider${DEFAULT_COLOR}?" n
-      then install="on"
-      else provider=""
-      fi
-    else
-      install="on"
-    fi
-  elif [[ ${status[2]} == on ]] ; then
-    install="on"
+  if [[ $4 ]] ; then
     message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}optionally depends on" \
-            "${SPELL_COLOR}${provider}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR} as a provider of" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+            "${CHECK_COLOR}optionally requires some${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}${1}${DEFAULT_COLOR} (for $4)."
+  else
+    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+            "${CHECK_COLOR}optionally requires some${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}${1}${DEFAULT_COLOR}."
+  fi
+  
+  local CANDIDATES=$( find_providers $1)
+  # if not reconfiguring check if theres already an answer in DEPENDS_STATUS
+  if [[ ! $RECONFIGURE ]]; then
+    explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
+    local tmp=${status[1]%(*}    # Name of spell which provides $1
+    if spell_ok $tmp &&
+          query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
+      private_common_depends "$tmp($1)" "on" "required" "$2" "$3"
+      return 0
+    fi
   fi
 
-  if [[ $provider == "" ]] ; then
-    install=off
+  # check if theres an abandoned answer, but only if its still a provider
+  if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
+    tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
+    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
   fi
 
-  private_common_depends "$provider($1)" "$install" "optional" "$2" "$3"
+  # check if theres a default provider
+  if [[ ! $default ]]; then
+    explode "$(search_default_provider $DEFAULT_PROVIDERS "" "$1")" ":" "status"
+    tmp=${status[0]}
+    if [[ ${status[2]} == on ]] ; then
+      # if the user said "on" use the default rather than none
+      # unless theres something wrong with the provider they chose 
+      # in which case fall back to none
+      [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" &&
+      default=$tmp || default=none
+    else
+      default=none
+    fi
+  fi
+
+  # check if we've already answered this question
+  if [[ ! $default ]]; then
+    for tmp in $CANDIDATES; do
+      echo $spells | grep -q "\<$tmp\>" && default=$tmp && break
+    done
+  fi
+
+  # check if theres a provider already installed
+  if [[ ! $default ]]; then
+    for tmp in $CANDIDATES; do
+      spell_ok $tmp && default=$tmp && break
+    done
+  fi
+
+  select_provider "provider" "$default" 1 $CANDIDATES
+
+  if [ $provider == "none" ] ; then
+    private_common_depends "($1)" "off" "optional" "$2" "$3"
+  else
+    private_common_depends "$provider($1)" "on" "optional" "$2" "$3"
+  fi
 
 }
 
@@ -538,38 +612,88 @@ function work_optional_depends_spell()
 
   debug "libdepends" "$FUNCNAME - $@"
   
+  # if $1 optionally depends on something exiled we always say no
   if spell_exiled $1 ; then 
-    message "${SPELL_COLOR}${1}${DEFAULT_COLOR} has been exiled!"
+    message "${SPELL_COLOR}${1}${DEFAULT_COLOR} has been exiled! not using as a depends"
     hash_put $CANNOT_CAST_HASH "$1" "Exiled"
-    return 1
+    private_common_depends "$1" "off" "optional" "$2" "$3"
+    return 0
   fi
   
-  local install="off"
-  local status=()
   
-  #See if there are preferences already
-  #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
-  explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" "$1")" ":" "status" 
-
-  if [[ $RECONFIGURE || ! ${status[2]} ]] ; then
-
-    message "${SPELL_COLOR}${1}${DEFAULT_COLOR}" \
-            "is an optional dependency for" \
-            " ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
-
-    # FIXME: work harder here
-    if spell_installed $1 || spell_held $1 ; then
-      query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "y" && 
-        install="on"
-    else
-      query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "n" && 
-        install="on"
+  if [[ ! $RECONFIGURE ]] ; then
+    # See if there are preferences already in DEPENDS_STATUS, but only if 
+    # not reconfiguring...
+    # example: icewm:imlib:off:optional:--with-imlib:--with-xpm
+    local status=()
+    explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" "$1")" ":" "status"
+    if [[ ${status[2]} ]] ; then
+      # ah there are! use them
+      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+              "${CHECK_COLOR}optionally depends on" \
+              "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      private_common_depends "$1" "${status[2]}" "optional" "$2" "$3"
+      return 0
     fi
-  elif [[ ${status[2]} == on ]] ; then
-    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}optionally depends on" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
-    install="on"
+  fi
+
+  # check for abandoned answers
+  if [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
+    debug "libdepends" "Checking in abandoned depends"
+    default=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" "$1"|awk -F: '{print $3;exit}')
+  fi
+
+  # check the defaults file...
+  # first for explicit $SPELL -> $2
+  if [[ ! $default ]]; then
+    debug "libdepends" "Checking in default answers"
+              search_default_depends $DEFAULT_DEPENDS $SPELL $1
+    default=$(search_default_depends $DEFAULT_DEPENDS $SPELL $1|awk -F: '{print $3; exit}')
+  fi
+
+  # then for anything -> $2
+  if [[ ! $default ]]; then
+    debug "libdepends" "Checking in default answers"
+    default=$(search_default_depends $DEFAULT_DEPENDS ".*" $1|awk -F: '{print $3; exit}')
+  fi
+
+  # then for $1 -> anything
+  if [[ ! $default ]]; then
+    debug "libdepends" "Checking in default answers"
+    default=$(search_default_depends $DEFAULT_DEPENDS $SPELL |awk -F: '{print $3; exit}')
+  fi
+
+  # check the install queue
+  if [[ ! $default ]]; then
+    debug "libdepends" "Checking in queue"
+    #\< and \> match the empty string at the start and end of a word
+    echo $spells | grep -q "\<$1\>" && default=on
+  fi
+
+  # check if installed/held
+  if [[ ! $default ]]; then
+    debug "libdepends" "Checking if already installed"
+    spell_ok $1 && default=on
+  fi
+
+  # otherwise default to no
+  [[ ! $default ]] && default=off
+
+  local install=off
+
+  local stuff
+  [[ $default == off ]] && stuff=n || stuff=y
+
+  message "${SPELL_COLOR}${1}${DEFAULT_COLOR}" \
+          "is an optional dependency for" \
+          "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
+
+  if spell_ok $1 ; then
+     query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "$stuff" && 
+          install="on"
+  else
+    query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "$stuff" && 
+        install="on"
   fi
 
   private_common_depends "$1" "$install" "optional" "$2" "$3"
@@ -578,84 +702,76 @@ function work_optional_depends_spell()
 
 #---------------------------------------------------------------------
 ## @param  name of return variable
-## @param  provider name
-## @param  reason text
-## @param  optional switch (set to "optional" to enable)
-## Gives the user some nice select list and puts the selected spell in
-## return_var.
+## @param  default answer
+## @param  0 if required 1 if optional
+## @param  list of possible providers
+## Present a list to the user complete with info about whats installed
+## and what isnt and allow a default value to be used
 #---------------------------------------------------------------------
 function select_provider()
 {
-    local INSTALLED=false
     local returnvar=$1
-    local provname=$2
-    local reasontext=$3
+    local default=$2
+    local optional=$3
+    shift 3
 
-    if [[ $4 == "optional" ]] ; then
-      local optional=true
-    fi
+    local each default_char=0 stuff=()
+    local char answer spell
 
-    if [[ $optional == true ]] ; then
-      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-              "optionally needs some " \
-              "${SPELL_COLOR}${2}${DEFAULT_COLOR}. ($reasontext)"
+    # we can only read one character so use every one we can, I dont expect
+    # there to be more than 62 providers
+
+    # in bash 3.0 this expands to all the numbers and letters
+    # stuff=({0..9} {a..z} {A..Z})
+    # but we're still on bash 2 which cant do that, if someone
+    # knows a better way to do this please tell me
+    stuff=(0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z)
+
+    if [ $optional == 1 ] ; then
+      hash_put CHAR_TO_SPELL 0 "none"
+      let i=1
+      message "\t${DEFAULT_COLOR}(0)\t${SPELL_COLOR}[none]${DEFAULT_COLOR}"
     else
-      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} needs some" \
-              "${SPELL_COLOR}${provname}${DEFAULT_COLOR} as a requirement."
+      let i=0
     fi
 
-    local INST_PROV_LIST temp spell spellversion
-    local CANDIDATES=$( find_providers $provname )
-
-    for spell in $CANDIDATES; do
-        if spell_installed $spell || spell_held $spell; then
-            [[ $INSTALLED == false ]] && INST_PROV="$spell"
-            INSTALLED=true
-        fi
-
-        if ! spell_exiled $spell; then
-            # setup for displaying spellversion in listing.
-            spellversion=$(
-                . $( codex_find_spell_by_name $spell )/DETAILS > /dev/null
-                echo $VERSION
-            )
-            temp="$temp ${spell}:${spellversion}"
-        fi
+    for each in $@; do
+      char=${stuff[$i]}
+      hash_put CHAR_TO_SPELL $char $each
+      
+      [[ $each == $default ]] && default_char=$char
+      if spell_ok $each ; then
+        message "\t${DEFAULT_COLOR}($char)\t${SPELL_COLOR}$each${DEFAULT_COLOR}\t (installed)"
+      else
+        message "\t${DEFAULT_COLOR}($char)\t${SPELL_COLOR}$each${DEFAULT_COLOR}"
+      fi
+      let i++
     done
 
-    if [[ $INSTALLED == true ]]; then
-        message "${SPELL_COLOR}${provname}${DEFAULT_COLOR}" \
-                " is already provided by " \
-                "${SPELL_COLOR}${INST_PROV}${DEFAULT_COLOR}"
-        if query "Do you want to use that?" "y"; then
-            eval ''$returnvar'='$INST_PROV''
-            return 0
-        fi 
-    fi
+    message -n "\n${QUERY_COLOR}Which one do you want? " \
+               "[$default_char]$DEFAULT_COLOR "
+    read   -t  $PROMPT_DELAY  -n  1 answer 
+    [[ $answer ]] || answer=$default_char
+    spell="$(hash_get CHAR_TO_SPELL $answer)"
 
-    if [[ ! $temp ]]; then
-        echo "Cannot satisfy requirements for $provname"
-        return 1
-    fi
-
-    local selected
-
-    if [[ $optional == true ]]; then
-        select_list "selected" "[none]" $temp
-    else
-        select_list "selected" $temp
-    fi
-
-    # Before returning selected item which is in form <spell>:<version>,
-    # need to clean off the ':<version>'.
-    eval ''$returnvar'='${selected%%:*}''
-
+    while [[ ! $spell ]] ; do
+      message -n "\n${QUERY_COLOR}Which one do you want? " \
+                 "[$default_char]$DEFAULT_COLOR "
+      read   -t  $PROMPT_DELAY  -n  1 answer 
+      [[ $answer ]] || answer=$default_char
+      spell=$(hash_get CHAR_TO_SPELL $answer)
+    done
+    echo
+    hash_unset CHAR_TO_SPELL
+    eval $returnvar=\"$spell\"
 }
 
-#
-# all the depends callbacks eventually bottom out here
-# if a spell depends or doesnt depend on some other spell
-#
+#---------------------------------------------------------------------
+## all the depends callbacks eventually bottom out here
+## if a spell depends or doesnt depend on some other spell
+## @param Spell
+## @param on/off 
+#---------------------------------------------------------------------
 function private_common_depends()
 {
   debug "libdepends" "$FUNCNAME - $@"
@@ -670,7 +786,9 @@ function private_common_depends()
   return 0
 }
 
-
+#---------------------------------------------------------------------
+## Adds the dependency to the hastable 
+#---------------------------------------------------------------------
 function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
@@ -688,6 +806,9 @@ function private_add_depends()
 
 #########################BEGIN OTHER STUFF############################
 
+#---------------------------------------------------------------------
+## Removes a dependency from the list.
+#---------------------------------------------------------------------
 function private_remove_dependees()
 {
 	local SPELL=$1
@@ -701,8 +822,10 @@ function private_remove_dependees()
         hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
 }
 
-
-
+#---------------------------------------------------------------------
+## Sets a spell's aux. config info.
+## @Globals SPELL 
+#---------------------------------------------------------------------
 function run_spell_config() 
 {
 
@@ -715,7 +838,9 @@ function run_spell_config()
   fi
 }
 
+#---------------------------------------------------------------------
 # i dont know if this should be here
+#---------------------------------------------------------------------
 function show_depends()  
 {
   debug "libdepends" "show_depends() - $@"
@@ -744,7 +869,9 @@ function show_depends()
   fi
 }
 
+#---------------------------------------------------------------------
 # this needs to go away :-/
+#---------------------------------------------------------------------
 function satisfy_depends()
 {
 

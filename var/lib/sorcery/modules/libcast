@@ -1,23 +1,12 @@
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## Functions for dealing with the actual compiling/installation of spells
-## and walking through casts 'pass 4' pipeline.
-##
-##=head1 DESCRIPTION
-##
+## @Synopsis Functions for dealing with the actual compiling/installation of spells and walking through casts 'pass 4' pipeline.
+## @Copyright Copyright (C) 2002 The Source Mage Team &lt;http://www.sourcemage.org&gt;
+## @Globals $SGL_LIBRARY_MODULES $GRIMOIRE $BUILD_API $USE_FUNCTIONS
 ## A spell follows the following path during its installation:
-## PREPARE -> DETAILS -> PRE_BUILD -> BUILD, or COMPILE/INSTALL ->
-## POST_BUILD -> POST_INSTALL -> TRIGGERS
+## PREPARE -&gt; DETAILS -&gt; PRE_BUILD -&gt; BUILD, or COMPILE/INSTALL -&gt;
+## POST_BUILD -&gt; POST_INSTALL -&gt; TRIGGERS
 ## Each of these steps, along with some interim steps of dealing with
-## conflicts and security are handled here as weell.
-##
-##=head1 COPYRIGHT
-##
-## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
-##
-##=head1 FUNCTIONS
+## conflicts and security are handled here as well.
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
@@ -25,7 +14,6 @@
 ## into the build api that it is specified to use. (ie split BUILD or
 ## no split BUILD).
 #---------------------------------------------------------------------
-
 function load_build_api() {
 
   debug "libcast" "Starting load_build_api"
@@ -55,6 +43,7 @@ function load_build_api() {
 ## Loads up this environment with the special configuration values
 ## that the spell needs. Typically the mode of communication between
 ## CONFIGURE/DEPENDS to PRE_BUILD, BUILD, COMPILE, INSTALL, etc.
+## @Globals $SPELL_CONFIG $DEPENDS_CONFIG
 #---------------------------------------------------------------------
 function prepare_spell_config()  {
 
@@ -345,6 +334,8 @@ function resurrect()  {  (
 
 #---------------------------------------------------------------------
 ## LC means "line count" why not just type line_count?
+## @TODO This function is dumb. It should be fixed.
+## @param download log file name
 #---------------------------------------------------------------------
 function show_download_progress()  {
 
@@ -366,8 +357,12 @@ function show_download_progress()  {
 
 }
 
-
 #---------------------------------------------------------------------
+## Shows download progress. Waits for the download to start, and shows
+## the progress until the download is done.
+## Pawn most of the display out to <@function show_download_progress>
+## @TODO fix the old style ad-hoc IPC
+## @param Spell to show the download progress for
 #---------------------------------------------------------------------
 function show_downloading()  {
 
@@ -394,6 +389,9 @@ function show_downloading()  {
 
 
 #---------------------------------------------------------------------
+## Report that something got installed, and possibly display the report
+## Pawns the work off to <@function var.lib.sorcery.modules.libsorcery,report>
+## @Globals INST_LOG
 #---------------------------------------------------------------------
 function report_install()  {
 
@@ -402,8 +400,30 @@ function report_install()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## Gets the filename of the download log file
+## @param Spell 
+## @Stdout file name
+#---------------------------------------------------------------------
 function get_spell_dl_log() {
   echo "$TMP_DIR/download.$1"
 }
 
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -1,21 +1,12 @@
 #!/bin/bash
 #---------------------------------------------------------------------
+## @Synopsis Dispel is the spell removal utility. It can be called by the user or by intone.
 ##
-##=head1 SYNOPSIS
+## @Copyright Original version Copyright 2001 by Kyle Sallee
+## @Copyright Additions/corrections Copyright 2002 by the Source Mage Team
 ##
-## Dispel is the spell removal utility
-## It can be called by the user or by intone
+## Dispel is the spell removal utility. It can be called by the user or by intone.
 ##
-##=head1 DESCRIPTION
-##
-## ...
-##
-##=head1 COPYRIGHT
-##
-## Original version Copyright 2001 by Kyle Sallee
-## Additions/corrections Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 
@@ -48,6 +39,11 @@ EOF
 
 }
 
+#-----
+## Downgrade a spell to a previously installed version
+## @param Spell
+## @param Previous version
+#-----
 function downgrade()  {
 
   SPELL=$1
@@ -98,7 +94,7 @@ function downgrade()  {
 
   codex_set_current_spell_by_name  $SPELL
 
-  add_spell  $SPELL installed $VERSION
+  add_spell  $SPELL installed $REQUESTED_VERSION
   if [[ $previously_installed ]] ; then
     message  "${RESURRECT_COLOR}Downgraded:"         \
              "${SPELL_COLOR}${SPELL}"                \
@@ -114,11 +110,14 @@ function downgrade()  {
              "${VERSION_COLOR}${REQUESTED_VERSION}"  \
              "${DEFAULT_COLOR}"
   fi
-  activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+  activity_log  "cast"  "$SPELL"  "$REQUESTED_VERSION"  "success"
   return 0
 }
 
-
+#-----
+## Parse the dispel script's parameters
+## @Args Parameters
+#-----
 function process_parameters()  {
   while  [  -n  "$1"  ];  do
     if  echo  ""  $1  |  grep  -q  "^ -";  then
@@ -139,7 +138,11 @@ function process_parameters()  {
   done
 }
 
-
+#-----
+## Remove the parsed parameters
+## This is a silly way to do it
+## @Args Parameters
+#-----
 function strip_parameters()  {
   while  [  -n  "$1"  ];  do
     if  echo  "" $1  |  grep  -q  "^ -";  then
@@ -158,6 +161,10 @@ function strip_parameters()  {
   done
 }
 
+#-----
+## Main loop for dispel
+## @Args Parameters
+#-----
 function main() {
 
   process_parameters        $*

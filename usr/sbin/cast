@@ -1,28 +1,15 @@
 #!/bin/bash
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## cast is the spell installation utility
-## It can be called by the user or by sorcery
-##
-##=head1 DESCRIPTION
-##
-## ...
-##
-##=head1 COPYRIGHT
-##
-## Original version Copyright 2001 by Kyle Sallee
-## Some parts copyright 2002 Anders Bruun Olsen et al
-## Other additions/corrections Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
-##
+## @Synopsis cast is the spell installation utility. It can be called by the user or by sorcery
+## @Copyright Original version Copyright 2001 by Kyle Sallee
+## @Copyright Some parts copyright 2002 Anders Bruun Olsen et al
+## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
+## Script to cast spells.
 #---------------------------------------------------------------------
 
-
+#-----
+## Help... hmm... I wonder what it does...
+#-----
 function help()	{
 
   cat  <<  EOF
@@ -71,7 +58,11 @@ EOF
 
 }
 
-
+#-----
+## Finds all dirs that have shard objects in
+## @Args directories to check for shared objects
+## @Stdout dirs with shared objects in
+#-----
 function lib_dirs()  {
 
   for  DIRECTORY  in  $*;  do
@@ -85,7 +76,10 @@ function lib_dirs()  {
 
 }
 
-
+#-----
+## Set the LD path to include all dirs with so's.
+## @Args Directories to potentialy add
+#-----
 function export_ld()  {
 
   if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
@@ -95,10 +89,12 @@ function export_ld()  {
   
   export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
 
-
 }
 
-
+#-----
+## Do the ldd check for cast --fix
+## @Deprecated Use cleanse
+#-----
 function ldd_check()  {  (
 
   if  [  "$LDD_CHECK"  ==  "off"    ] ;  then
@@ -151,7 +147,10 @@ function ldd_check()  {  (
 
 ) }
 
-
+#-----
+## Do the find check for cast --fix
+## @Deprecated Use cleanse
+#-----
 function find_check()  { (
 
   if  [  "$FIND_CHECK"  ==  "off"             ]   ||
@@ -243,7 +242,10 @@ function remove_line()  {
 
 }
 
-
+#-----
+## Do the symlink check for cast --fix
+## @Deprecated Use cleanse
+#-----
 function sym_check()  { (
 
   if  [  "$SYM_CHECK"  ==  "off"  ];  then
@@ -289,6 +291,10 @@ function sym_check()  { (
 
 ) }
 
+#-----
+## Do the md5sum check for cast --fix
+## @Deprecated Use cleanse
+#-----
 
 function md5sum_check()  { (
 
@@ -356,7 +362,10 @@ function md5sum_check()  { (
 
 ) }
 
-
+#-----
+## This function should be moved elsewhere. It's generaly handy.
+## It should also be added to the API.
+#-----
 function status_okay()  {
 
   spell_installed  "$1"  ||
@@ -365,7 +374,7 @@ function status_okay()  {
 }
 
 #---------------------------------------------------------------------
-## @Parameters SPELL
+## @param SPELL
 ## @Globals QUIET DOT_PROGRESS
 ## Runs all different sorts of checks.
 ## sym_check find_check ldd_check md5sum_check.
@@ -653,7 +662,9 @@ function acquire_cast_lock() {
 
 
 #---------------------------------------------------------------------
-## 
+## Cast a single spell. When this function is called, all dependencies
+## have been taken care of and we are allowed to cast this.
+## @Globals SPELL
 #---------------------------------------------------------------------
 function cast_spell()  { (
 
@@ -723,7 +734,7 @@ function cast_spell()  { (
 
 #---------------------------------------------------------------------
 ## @Globals SPELLS
-## @STDOUT User information ("Collating dependencies")
+## @Stdout User information ("Collating dependencies")
 ## @Globals SPELL MAKEFILE DEPS_ONLY 
 ##
 ## Basically only gathers all dependencies and creates the Makefile
@@ -769,6 +780,11 @@ function pass_one()  {
 
 }
 
+#-----
+## Take the depends hashtable and turn it into the Makefile used later
+## @param Dependencies of spells to cast
+## @param Dependencies of spells not to cast
+#-----
 function depends_to_Makefile()
 {
 	debug "cast" "depends_to_Makefile - $*"
@@ -998,6 +1014,7 @@ function int_trap()
 	cleanup
 	exit 1
 }
+
 #---------------------------------------------------------------------
 ## @Globals RM_AT_END
 ## RM_AT_END is being set in main.
@@ -1008,6 +1025,7 @@ function cleanup() {
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
   rm -rf $TMP_DIR
 }
+
 #---------------------------------------------------------------------
 ## Safely creates $TMP_DIR and exports the variable so we can use it
 ## even in subprocesses called through make.

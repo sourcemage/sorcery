@@ -308,9 +308,7 @@ function prune_depends()
         mv $TMPDIR/prune.1 $DEPENDS_STATUS
         ;;
 	  S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMPDIR/prune.1
-	  	#mv $TMPDIR/prune.1 $DEPENDS_STATUS
-		echo "$TMPDIR/prune.1"
-		read
+	  	mv $TMPDIR/prune.1 $DEPENDS_STATUS
 		echo $1 >>$TMPDIR/prune.cast
 		;;
       *)  message "We should never get here." 
@@ -457,16 +455,21 @@ function cleanse_fix()
   # but no more then necessary
   cleanse_fix_init_ldd_check $(make -f $MAKEFILE all)
 
-  local PASSED FIXED HOPELESS
-
+  local PASSED FIXED HOPELESS TOTALNR CURNR unused
+  
+  TOTALNR=0 #counting them like this doesn't seem to take substantial time
+  for unused in $SPELLS ; do let TOTALNR++ ; done
+  CURNR=0 #but is there a more elegant method?
+  
   if [ $FIX == quick ] ; then
     for SPELL in $SPELLS ; do
-      if cleanse_fix_run_checks $SPELL ; then
+      let CURNR++
+      if cleanse_fix_run_checks $SPELL $CURNR $TOTALNR; then
+        PASSED="${PASSED}${SPELL}"$'\n'
+      else
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
                  "is broken${DEFAULT_COLOR} and not being fixed\n"
         HOPELESS="${HOPELESS}${SPELL}"$'\n'
-      else
-        PASSED="${PASSED}${SPELL}"$'\n'
       fi
     done
   else
@@ -474,17 +477,20 @@ function cleanse_fix()
   fi
 
   if [[ $PASSED ]] ; then
-    message "${MESSAGE_COLOR}The following spells passed the check:${SPELL_COLOR}"
+    message "${MESSAGE_COLOR}The following spells passed the" \
+            "check:${SPELL_COLOR}"
     echo "$PASSED"|sort|uniq|column
     message "${DEFAULT_COLOR}"
   fi
   if [[ $FIXED ]] ; then
-    message "${MESSAGE_COLOR}The following spells were broken and fixed:${DISPEL_COLOR}"
+    message "${MESSAGE_COLOR}The following spells were broken and" \
+            "fixed:${DISPEL_COLOR}"
     echo "$FIXED"|sort|uniq|column
     message "${DEFAULT_COLOR}"
   fi
   if [[ $HOPELESS ]] ; then
-    message "${MESSAGE_COLOR}The following spells were and are broken:${PROBLEM_COLOR}"
+    message "${MESSAGE_COLOR}The following spells were broken and" \
+            "could not be fixed:${PROBLEM_COLOR}"
     echo "$HOPELESS"|sort|uniq|column
     message "${DEFAULT_COLOR}"
     return 1
@@ -499,7 +505,8 @@ function cleanse_fix_depends() {
   #for each spell
   for SPELL in ${FIX_ORDER}; do
     # check it
-    if cleanse_fix_run_checks $SPELL ; then
+    let CURNR++
+    if cleanse_fix_run_checks $SPELL $CURNR $TOTALNR; then
       PASSED="${PASSED}${SPELL}"$'\n'
     else
       if [ $FIX == fix ] ; then
@@ -543,19 +550,24 @@ function cleanse_fix_spell() {
 #--------------------------
 ##
 ## Run the checks on a spell.
-## @param Spell to check
+## @args Spell [check nr,total nr]
 ## @return Should return 0 if all the checks completed
 ##
 #--------------------------
 function cleanse_fix_run_checks()  {
 
-  message  "Checking ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
-  local VERSION=$(installed_version $1)
+  local SPELL=$1 #duff's idea, for clarification
+  if [ $# -eq 1 ] ;then
+    message  "Checking ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+  else
+    message  "Checking ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} ($2 of $3)"
+  fi
+  local VERSION=$(installed_version $SPELL)
 
-  cleanse_fix_ldd_check     $1  $VERSION    &&
-  cleanse_fix_sym_check     $1  $VERSION    &&
-  cleanse_fix_find_check    $1  $VERSION    &&
-  cleanse_fix_md5sum_check  $1  $VERSION
+  cleanse_fix_ldd_check     $SPELL  $VERSION    &&
+  cleanse_fix_sym_check     $SPELL  $VERSION    &&
+  cleanse_fix_find_check    $SPELL  $VERSION    &&
+  cleanse_fix_md5sum_check  $SPELL  $VERSION
 
 }
 
@@ -745,7 +757,10 @@ function cleanse_fix_md5sum_check() {
   fi
   local SPELL=$1
   local MD5_LOG="$MD5SUM_LOGS/$SPELL-$2"
-  local BADLIST=""
+  local BADLIST
+  local BROKEN1=/tmp/cleanse.md5sum.broken1.$SPELL.$$
+  local BROKEN2=/tmp/cleanse.md5sum.broken2.$SPELL.$$
+  local A=$'\a' # magic sed seperator, assume files dont have bells in the name
 
   message -n "\tChecking md5sums."
 
@@ -754,19 +769,101 @@ function cleanse_fix_md5sum_check() {
              "${PROBLEM_COLOR}is missing an md5 log.${DEFAULT_COLOR}"
     return 1;
   fi
+  touch $BROKEN1 $BROKEN2
 
   message -n '.'
 
-  BADLIST=$(md5sum --check $MD5_LOG 2>/dev/null |
-            grep ': FAILED$'                    |
-            awk -F: '{$NF=""; print $0;}')
+  # for some reason stuffing the output of this in a variable loses the
+  # newlines and thus files with spaces in them fail
+  md5sum --check $MD5_LOG 2>/dev/null | grep ': FAILED$' |
+            sed "s${A}: FAILED\$${A}${A}" > $BROKEN1
+  # cant use awk above with : as a seperator due to files with :'s in their name
 
   message -n '.'
 
-  #The md5sum log is always wrong
-  BADLIST=$(echo "$BADLIST" | grep -v "$FIX_IGNORE_PATHS\|^\(${MD5_LOG}\|${INSTALL_LOGS}\|${COMPILE_LOGS}\)" )
+  #The md5sum log is always wrong...
+  grep -v "$FIX_IGNORE_PATHS\|^\(${MD5_LOG}\|${INSTALL_LOGS}\|${COMPILE_LOGS}\)" < $BROKEN1 > $BROKEN2
+
+  # the files with bad md5s may be owned by another spell (either legitimatly
+  # or by spell writer oversight) if so remove the entry from
+  # the spell's install and md5sum logs, and enter it in the possessed
+  # log. Someday dispel et. al. will use this for stuff, for now
+  # its for informational purposes
+
+  # we have to dump out to a file because I cant use message
+  # inside $( ), and variables are stupid about spaces
+  local FOUND_IN REAL_MD5 possessed INSTALL_LOG
+  rm $BROKEN1
+  while read LINE; do
+    message -n '.'
+    [[ ! $LINE ]]  && continue
+    REAL_MD5=$(md5sum $LINE)
+    # find the file in some log somewhere...
+    FOUND_IN=$(grep -l "^$REAL_MD5\$" $MD5SUM_LOGS/*)
+
+    # remove anything from a non-current version of the spell
+    # this is ugly but the only reasonable way I know of to do this...
+    FOUND_IN=$(for each in $FOUND_IN; do
+                each_spell=$(basename $each|cut -f1 -d-)
+                each_version=$(installed_version $each_spell)
+                [[ $each_version ]] &&
+                [[ $MD5SUM_LOGS/${each_spell}-${each_version} == $each ]] &&
+                echo $each
+              done)
+
+    if [[ ! $FOUND_IN ]]; then
+      echo $LINE >> $BROKEN1
+      continue
+    fi
+
+    message "\n${PROBLEM_COLOR}Incorrect md5sum for" \
+            "${FILE_COLOR}$LINE${DEFAULT_COLOR}"
+    message "but matches in:\n$FOUND_IN"
+
+    if [ $FIX == fix ] || [ $FIX == quick ]; then
+      message "Removing from $SPELL's install and md5sum logs."
+
+      INSTALL_LOG=$INSTALL_LOGS/$SPELL-$2
+      # there is a slight bug with all these transactions due to
+      # the fact that we have no stdin, a future improvement would be
+      # to use iterate or some other method that is not naive to
+      # filenames with spaces in them
+      tfile=`lock_start_transaction $INSTALL_LOG`
+      sed "s${A}^$LINE\$${A}${A}" $INSTALL_LOG|tr -s '\n'  > $tfile
+      lock_commit_transaction $INSTALL_LOG
+      message -n '.'
+
+      tfile=`lock_start_transaction $MD5_LOG`
+      sed "s$A.*  $LINE\$${A}${A}"  $MD5_LOG|tr -s '\n'  > $tfile
+      lock_commit_transaction $MD5_LOG
+      message -n '.'
+
+      test -d $POSSESSED_LOGS || mkdir -p $POSSESSED_LOGS
+      
+      possessed=$POSSESSED_LOGS/$SPELL-$2
+      tfile=`lock_start_transaction $possessed`
+      echo $LINE >> $tfile
+      # remove duplicates
+      cp $tfile /tmp/$SPELL.possessed.$$
+      sort /tmp/$SPELL.possessed.$$|uniq > $tfile
+      rm  /tmp/$SPELL.possessed.$$
+      lock_commit_transaction $possessed
+
+      message -n '.'
+    fi
+  done  < $BROKEN2
+
+  message -n '.'
+
+  if test -s $BROKEN1 ; then
+    BADLIST=$(cat $BROKEN1)
+  else
+    BADLIST=""
+  fi
+  rm $BROKEN1 $BROKEN2 &>/dev/null
 
   message ''
+
 
   if [[ $BADLIST ]] ; then
     message "${PROBLEM_COLOR}The following files have been modified from"  \
