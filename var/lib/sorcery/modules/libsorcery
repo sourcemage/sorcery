@@ -63,6 +63,14 @@ function update_sorcery_scripts() {
 
   echo `pwd`                                    || return 1
 
+  # last chance to lock
+  message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}all" \
+             "${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to complete..." \
+             "${DEFAULT_COLOR}"
+  lock_resources "solo" "cast" # prevent other casts
+  excllock_resources "cast" "sorcery" # wait for other casts
+  message "done."
+
   # rough equivalent to prepare_install...
   rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
   rm $INSTALL_ROOT/etc/sorcery/licenses/*   2>/dev/null
@@ -73,10 +81,13 @@ function update_sorcery_scripts() {
 
   ./install                                     &&
 
-  cd /                                          &&
-  unlock_resources "libgrimoire" "install"      &&
+  cd /                                          && # (Bear, 2004-11-28)
+  unlock_resources "libgrimoire" "install"      && # where was this created?
 
   SORCERY_VERSION=`cat /etc/sorcery/version`
+
+  unlock_resources "solo" "cast"
+  unlock_resources "cast" "sorcery"
 
   if [ $? -eq 0 ] ; then
     activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "success"

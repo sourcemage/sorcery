@@ -203,17 +203,20 @@ function strip_parameters()  {
 function acquire_cast_lock() {
   # locking - blocks normal spells if a solo cast is running,
   # solo casts if any cast is running
-  message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR}" \
-          "casts to complete..."
+  message "${MESSAGE_COLOR}Waiting for any${DEFAULT_COLOR} ${FILE_COLOR}" \
+          "Solo${DEFAULT_COLOR} ${MESSAGE_COLOR}casts to complete..." \
+          "${DEFAULT_COLOR}"
   lock_resources "solo" "cast"
   if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
-    message -n "Waiting for ${SPELL_COLOR}all other${DEFAULT_COLOR}" \
-               "spells to complete..."
+    message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}" \
+               "all other${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to" \
+               " complete...${DEFAULT_COLOR}"
     excllock_resources "cast" "$SPELL"
   else
-    message -n "Waiting for any other casts of" \
-               "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} to complete..."
+    message -n "${MESSAGE_COLOR}Waiting for any other casts of" \
+               "${DEFAULT_COLOR} ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
+               " ${MESSAGE_COLOR}to complete...${DEFAULT_COLOR}"
     lock_resources "cast" "$SPELL"
     unlock_resources "solo" "cast"
   fi
