@@ -811,8 +811,7 @@ function build_install_queue()  {
 ##
 #---------------------------------------------------------------------
 function install_queue_history() {
-  local PAGER2
-  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  STTYSV="$(stty -g)" # saves stty state (for timeout_eval) less leaves consoles in funky states
   local spell=
   for spell in `cat $INSTALL_QUEUE`; do
     local date="`grep "^${spell}:" $SPELL_STATUS | cut -d':' -f2`"
@@ -823,7 +822,7 @@ function install_queue_history() {
       gaze history $spell
     ) |
       awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
-      $PAGER2
+        timeout_eval $PAGER_TIMEOUT $HISTORY_PAGER
     query "Would you like to ${RED} remove ${QUERY_COLOR} spell ${SPELL_COLOR} $spell ${QUERY_COLOR} from the install queue?" n &&
       sedit "s/^$spell$//" $INSTALL_QUEUE &&
       echo -e "${QUERY_COLOR} The spell ${SPELL_COLOR} $spell ${QUERY_COLOR} removed from $INSTALL_QUEUE.${DEFAULT_COLOR}"
@@ -838,12 +837,7 @@ function install_queue_history() {
 function grimoire_history() {
 
   if [ -e $grimoire/ChangeLog ] ; then 
-    local PAGER2
-    if [ "$PAGER" == "less" ] ; then 
-      PAGER2="more" 
-    else 
-      PAGER2="$PAGER" 
-    fi
+    STTYSV="$(stty -g)" # saves stty state (for timeout_eval) less leaves consoles in funky states.
     local grimoire="$1"
     local grimoirename="${grimoire##*/}"
     local date="`cat "$STATE_DIRECTORY/$grimoirename.lastupdate" 2> /dev/null`"
@@ -855,7 +849,7 @@ function grimoire_history() {
       cat "$grimoire/ChangeLog" 2> /dev/null
     ) |
     awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
-    $PAGER2
+      timeout_eval $PAGER_TIMEOUT $HISTORY_PAGER
   else
     echo  "No ChangeLog in the $grimoire Grimoire, skipping viewing..."
     echo  ""
@@ -870,8 +864,7 @@ function grimoire_history() {
 ##
 #---------------------------------------------------------------------
 function sorcery_history() {
-  local PAGER2
-  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  STTYSV="$(stty -g)" # saves stty state (for timeout_eval) less leaves consoles in funky states.
   local date="`cat "$STATE_DIRECTORY/sorcery.lastupdate" 2> /dev/null`"
   [ -z "$date" ] && date="20030818"
   local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
@@ -881,7 +874,7 @@ function sorcery_history() {
     cat "/usr/doc/sorcery/ChangeLog"
   ) |
     awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
-    $PAGER2
+      timeout_eval $PAGER_TIMEOUT $HISTORY_PAGER
   echo "`date +%Y%m%d`" > "$STATE_DIRECTORY/sorcery.lastupdate"
 }
 

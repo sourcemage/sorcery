@@ -1041,6 +1041,96 @@ function complain_sorcery_var() {
 }
 
 #---------------------------------------------------------------------
+## @param timeout
+## @param command
+## @param command arguments, ...
+## @stdout command arguments ... output with a timeout in seconds
+##
+## Optional STTYSV that comes from the caller (can't be called in here,
+## otherwise stty has issues with stdin):
+##   STTYSV="$(stty -g)"
+## The STTYSV is used to fix up broken tty states caused by ncurses.
+## ENTIRELY optional if you don't use this with an ncurses program.
+## Also introduces a global counter variable to prevent contention.
+#---------------------------------------------------------------------
+function timeout_eval() { # 1 = timeout, rest = command to timeout
+  (( timeout_global_counter++ ))
+  local NOTIFY="$(      # saves job reporting state
+    set +o |
+      grep notify
+                 )"
+  set -o notify         # sets realtime job reporting
+  (timeout_kill $1 $$ $timeout_global_counter) &
+  shift                 # pull off the first argument
+  SORCERY_BESURETOKILLME="$$:$timeout_global_counter" "$@"
+  kill $!               # kills the last job run
+  sleep .1
+  [ -n "$STTYSV" ] &&
+    eval stty $STTYSV   # resets stty values
+  timeout_pti clear     # clears screen
+  eval $NOTIFY          # resets realitime job reporting
+  true
+}
+ 
+#---------------------------------------------------------------------
+## @param timeout
+## @param ppid
+## @param global_counter
+##
+## Kills a process identified by SORCERY_BESURETOKILLME=$ppid that was
+## spawned by the process $ppid (so we don't kill processes we don't
+## intend to kill).  Really important for security reasons that we get
+## this part correct since we run as root.
+#---------------------------------------------------------------------
+function timeout_kill() { # 1 = timout, 2 = pid (for security reasons)
+  debug "timeout_kill" "begin" $1 $2 $3 # 3 = global counter
+  sleep $1
+  local PIDTOKILL="$(
+    grep -a "SORCERY_BESURETOKILLME=$2:$3" /proc/*/environ 2> /dev/null |
+    cut -d/ -f3     )"       
+                        # below we check to make sure we really own this
+  debug "timeout_kill" "PIDTOKILL: $PIDTOKILL 2: $2"
+  timeout_ppid "$PIDTOKILL" "$2" &&
+    kill -TERM  $PIDTOKILL 2> /dev/null
+  sleep 1
+}
+
+#---------------------------------------------------------------------
+## @param process_id_given
+## @param process_id_ppid
+##
+## true if ppid is any parent of the given pid, false otherwise
+#---------------------------------------------------------------------
+function timeout_ppid() {
+  local PARENT_PID="$(cut -d' ' -f4 /proc/$1/stat 2> /dev/null)"
+  debug "timeout_ppid" "$1:$2:$PARENT_PID"
+  [ "$PARENT_PID" == "0"  ] && return 1
+  [ -z "$PARENT_PID"      ] && return 1
+  [ "$PARENT_PID" == "$2" ] && return 0
+  timeout_ppid "$PARENT_PID" "$2"
+}
+ 
+#---------------------------------------------------------------------
+## @param terminfostring, ...
+##
+## Prints out terminfostrings to the console.  Used by timeout_eval()
+## infocmp is supplied by ncurses which is in the basesystem.
+## I'm not sure why we're not using something like this on all escape
+## sequences.  See CapNames in man terminfo for arguments to pass.
+#---------------------------------------------------------------------
+function timeout_pti() {        # print terminfo strings
+  local i
+  for i in $@; do
+    echo -en "$(
+      infocmp -1 |
+        grep $'\t'"$i"'=' |
+        cut -d= -f2 |
+        cut -d, -f1
+               )"
+  done
+}
+
+#---------------------------------------------------------------------
 ## @License
 ##
 ## This software is free software; you can redistribute it and/or modify

@@ -1171,6 +1171,36 @@ set_delay()  {
 }
 
 
+set_pager_timeout()  {
+
+  if  PAGER_TIMEOUT=`eval $DIALOG '  --ok-label  "Commit"  \
+                             --inputbox            \
+                             "Please enter the time in seconds to wait for a confirmation when displayed pager and history entries."  \
+                              0 0  "$PAGER_TIMEOUT"'`
+  then
+
+    modify_local_config "PAGER_TIMEOUT" "$PAGER_TIMEOUT"
+
+  fi
+
+}
+
+
+set_history_pager()  {
+
+  if  HISTORY_PAGER=`eval $DIALOG '  --ok-label  "Commit"  \
+                             --inputbox            \
+                             "Please enter the pager to use for history entries."  \
+                              0 0  "$HISTORY_PAGER"'`
+  then
+
+    modify_local_config "HISTORY_PAGER" "$HISTORY_PAGER"
+
+  fi
+
+}
+
+
 set_download_rate()  {
 
   PROMPT="Please enter the maximum bytes per second for summoning"
@@ -1468,6 +1498,8 @@ option_menu()  {
     U_HELP="Enter the permissions mask (umask value) to use for sorcery"
     S_HELP="Sorcery development options (debugging)"
     W_HELP="Enter maximum timeout (seconds) for summoning sources"
+    Y_HELP="Enter pager used when viewing histories"
+    P_HELP="Enter maximum timeout (seconds) for viewing histories"
     Z_HELP="Select sorcery sound scheme"
 
 
@@ -1494,6 +1526,8 @@ option_menu()  {
                       "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
+                      "Y"  "Set History Pager"        "$Y_HELP" \
+                      "P"  "Set Pager Timeout"        "$P_HELP" \
                       "Z"  "Select Sound Scheme"      "$Z_HELP"'`
 
   do
@@ -1516,6 +1550,8 @@ option_menu()  {
       S)  sorcery_devel_settings ;;
       T)  set_compression_type   ;;
       W)  set_http_ftp_timeout   ;;
+      Y)  set_history_pager      ;;
+      P)  set_pager_timeout      ;;
       Z)  sound_schemes_menu     ;;
 
     esac
