@@ -456,7 +456,7 @@ function work_depends_provider()
     # and we transparently switch between optional and required without
     # anyone noticing
     explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
-    local tmp=${status[1]%(*}    # Name of spell which provides $1
+    tmp=${status[1]%(*}    # Name of spell which provides $1
     if spell_ok $tmp &&
        query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
       private_common_depends "$tmp($1)" "on" "required" "$2" "$3"
@@ -563,16 +563,23 @@ function work_optional_depends_provider()
 
   # check if theres a default provider
   if [[ ! $default ]]; then
-    explode "$(search_default_provider $DEFAULT_PROVIDERS "" "$1")" ":" "status"
-    tmp=${status[0]}
-    if [[ ${status[2]} == on ]] ; then
-      # if the user said "on" use the default rather than none
-      # unless theres something wrong with the provider they chose 
-      # in which case fall back to none
-      [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" &&
-      default=$tmp || default=none
-    else
-      default=none
+    tmp=$(search_default_provider $DEFAULT_PROVIDERS "" "$1")
+
+    # make sure we found /something/ before trying to analyze it
+    # otherwise we'll fall into the else case and use 'none' as the
+    # provider, and short-circuit the other guesses
+    if [[ $tmp ]] ; then
+      explode "$tmp" ":" "status"
+      tmp=${status[0]}
+      if [[ ${status[2]} == on ]] ; then
+        # if the user said "on" use the default rather than none
+        # unless theres something wrong with the provider they chose 
+        # in which case fall back to none
+        [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" &&
+        default=$tmp || default=none
+      else
+        default=none
+      fi
     fi
   fi
 
@@ -611,6 +618,7 @@ function work_optional_depends_spell()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
+  local default
   
   # if $1 optionally depends on something exiled we always say no
   if spell_exiled $1 ; then 
