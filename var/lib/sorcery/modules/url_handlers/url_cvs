@@ -117,9 +117,21 @@ url_cvs_download() {
           sed "s/\.tar\.gz$//"  |
           sed "s/\.tgz$//"      |
           sed "s/\.tar\.bz2$//"`
-  rm  -f  $S_FILE.tar.gz  $S_FILE.tgz  $S_FILE.tar.bz2
 
-  if cvs $CVS_COMPRESSION -q -d$CVS_ROOT export -r $CVS_TAG -d $S_FILE $CVS_MODULE; then
+  if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
+    message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
+    tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
+    message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
+    if cd $S_FILE ; then
+	    cvs $CVS_COMPRESSION -q -d$CVS_ROOT update -r $CVS_TAG $CVS_MODULE -Pd
+        cd ..
+	fi
+  else
+    message "${MESSAGE_COLOR}Running cvs checkout...${DEFAULT_COLOR}"
+    cvs $CVS_COMPRESSION -q -d$CVS_ROOT checkout -r $CVS_TAG -d $S_FILE $CVS_MODULE
+  fi
+
+  if [ $? == 0 ]; then
     message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
     tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/
     rm -fr $S_FILE/
