@@ -9,9 +9,9 @@
 ##
 ##=head1 DESCRIPTION
 ##
-## In addition to being used in the core sorcery commands, many of 
+## In addition to being used in the core sorcery commands, many of
 ## these functions are useful in creating new spells.  These functions
-## can be used in the PRE_BUILD, BUILD, and POST_BUILD sections of 
+## can be used in the PRE_BUILD, BUILD, and POST_BUILD sections of
 ## spells.
 ##
 ##=head1 COPYRIGHT
@@ -41,7 +41,7 @@ update_sorcery_scripts() {
     #Keep this outer if until basesystem is in the grimoires properly. (2002/10/13)
     if [[ `codex_find_spell_by_name basesystem` ]] ; then
       if ! ( spell_installed basesystem ||
-             spell_held basesystem  ) 
+             spell_held basesystem  )
       then
         cast basesystem
       fi
@@ -54,7 +54,7 @@ update_sorcery_scripts() {
   CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
   FORCE_DOWNLOAD=1
   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo 
+  C_FIFO=/tmp/$SPELL.compile.fifo
   TMP_LOG="/tmp/$SPELL-$BRANCH"
   IW_LOG="/tmp/$SPELL.iw"
 
@@ -67,8 +67,8 @@ update_sorcery_scripts() {
   # pre build
   mk_source_dir  $SOURCE_DIRECTORY       &&
   cd /usr/src                            &&
-  bzip2  -cdf   $SOURCE_CACHE/$FILENAME | 
-  tar --owner=root --group=root -xf /dev/stdin   && 
+  bzip2  -cdf   $SOURCE_CACHE/$FILENAME |
+  tar --owner=root --group=root -xf /dev/stdin   &&
   cd      $SOURCE_DIRECTORY              &&
   invoke_installwatch                    &&
 
@@ -85,23 +85,23 @@ update_sorcery_scripts() {
   #archive                                &&
   track                                  &&
 
-  # post install 
+  # post install
 #  rm  -f  /var/lock/casting.sorcery      &&
 
   report  $INST_LOG  "Install log"       &&
   sound SUCCESS                          &&
 
-  SORCERY_VERSION=`cat /etc/sorcery/version` 
+  SORCERY_VERSION=`cat /etc/sorcery/version`
   if [ $? -eq 0 ] ; then
-    activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "success" 
+    activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "success"
     rm_source_dir
   else
-    activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "failure"  
+    activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "failure"
     if [[  $CLEAN_SOURCE == on ]]; then
       rm_source_dir
     fi
   fi
-    
+
   message "${MESSAGE_COLOR}Current ${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR} version ${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
 }
 
@@ -111,9 +111,9 @@ disconnect()  {
   debug "libsorcery" "disconnect()"
 
   if    ps  -C disconnect  >  /dev/null
-  then  return 
+  then  return
   fi
-  
+
   rm  -rf          /tmp/disconnect
   cat  <<  EOF  >  /tmp/disconnect
 #!/bin/bash
@@ -182,7 +182,7 @@ get() {
 ## - it's lifespan has expired
 ## - the user has requested a forced download
 ##
-## NOTE: This and get() should be moved into summon soon. 
+## NOTE: This and get() should be moved into summon soon.
 ## (duff, 2002/10/13)
 ##
 #---------------------------------------------------------------------
@@ -240,7 +240,7 @@ remove_old_cache_src()  {
 #---------------------------------------------------------------------
 ##=item report <filename>
 ##
-## Displays and/or mails the contents of the file given as the first 
+## Displays and/or mails the contents of the file given as the first
 ## argument.
 ##
 #---------------------------------------------------------------------
@@ -281,7 +281,7 @@ guess_filename()  {
   FILENAME=$1
 
   debug  "libsorcery" "Running guess_filename() on $FILENAME"
-  
+
   BASENAME=`echo  $FILENAME         |
             sed  "s/\.tar\.gz$//"   |
             sed  "s/\.tgz$//"       |
@@ -317,7 +317,7 @@ testpack() {
     COMPRESSOR=`$FILEPROG  -b  $FILENAME  |  cut  -d ' '  -f1`    &&
 
     debug  "libsorcery" "Compressor guessed to be $COMPRESSOR"    &&
-  
+
     case  $COMPRESSOR  in
           bzip2)  bzip2  -tf   $FILENAME   1>/dev/null 2>&1  ;;
            gzip)  gzip   -tf   $FILENAME   1>/dev/null 2>&1  ;;
@@ -328,7 +328,7 @@ testpack() {
               *)  ! filename_indicates_compression $FILENAME ;;
     esac
   fi
-  
+
 }
 
 
@@ -350,7 +350,7 @@ boost_locked()  {
 #---------------------------------------------------------------------
 ##=item save_libraries
 ##
-## Saves the current libraries associated with the spell, from /lib 
+## Saves the current libraries associated with the spell, from /lib
 ## and /usr/lib into $SOURCE_DIRECTORY/old.libraries/
 ## Also runs ldconfig with the saved libraries.
 ##
@@ -361,7 +361,7 @@ save_libraries()  {
   then  return
   fi
 
-  debug  "libsorcery" "Running save_libraries()" 
+  debug  "libsorcery" "Running save_libraries()"
 
   OLD_LIBS=$SOURCE_DIRECTORY/old.libraries
   mkdir  -p  $OLD_LIBS
@@ -418,19 +418,19 @@ save_libraries()  {
 ## Runs default ldconfig to stop using the saved libraries
 ##
 #---------------------------------------------------------------------
-release_saved_libraries()  {  
+release_saved_libraries()  {
   ldconfig
 }
 
 
 #---------------------------------------------------------------------
-##=item spell_recover 
+##=item spell_recover
 ##
 ## Recovers from a CTRL-C while casting a spell
 ##
 #---------------------------------------------------------------------
 spell_recover()  {
-  
+
   debug  "libsorcery" "Running spell_recover()"
 
   message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL}" \
@@ -438,17 +438,17 @@ spell_recover()  {
 
   CURRENT_VERSION=$(installed_version  $SPELL)
   CACHE_BZ="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$BUILD.tar.bz2"
-  
+
   if  [      -e   $CACHE_BZ  ]  &&
       bzip2  -tf  $CACHE_BZ;    then
-    
+
     bzcat   $CACHE_BZ  |  tar  -Pkx  2>/dev/null
     add_spell  $SPELL  installed  $CURRENT_VERSION
 
   fi
-  
+
   exit  130
-  
+
 }
 
 
@@ -461,9 +461,9 @@ spell_recover()  {
 find_section()  {
 
   debug  "libsorcery" "Running find_section() on $1"
-  
+
   codex_get_spell_section_name  $1
- 
+
 }
 
 
@@ -489,8 +489,8 @@ get_status()  {
 ## Returns true if the given spell's status is "installed"
 ##
 #---------------------------------------------------------------------
-spell_installed() {  
-  [  "$(  get_status  $1  )"  ==  "installed"  ];  
+spell_installed() {
+  [  "$(  get_status  $1  )"  ==  "installed"  ];
 }
 
 
@@ -500,8 +500,8 @@ spell_installed() {
 ## Returns true if the given spell's status is "held"
 ##
 #---------------------------------------------------------------------
-spell_held()      {  
-  [  "$(  get_status  $1  )"  ==  "held"       ];  
+spell_held()      {
+  [  "$(  get_status  $1  )"  ==  "held"       ];
 }
 
 
@@ -511,8 +511,8 @@ spell_held()      {
 ## Returns true if the given spell's status is "exiled"
 ##
 #---------------------------------------------------------------------
-spell_exiled()    {  
-  [  "$(  get_status  $1  )"  ==  "exiled"     ];  
+spell_exiled()    {
+  [  "$(  get_status  $1  )"  ==  "exiled"     ];
 }
 
 
@@ -526,8 +526,8 @@ spell_exiled()    {
 remove_spell()  {
 
   debug  "libsorcery" "Running remove_spell() on $1"
-  
-  remove_spell_status $1	  
+
+  remove_spell_status $1
 
   if  [  -n  "$EXILE"  ];  then
     add_spell_status $1 "." "exiled" "0.0"
@@ -611,8 +611,8 @@ symlinks()  {
 #---------------------------------------------------------------------
 ##=item filter
 ##
-## First argument is a file that contains filenames.  C<filter> will 
-## filter standard input to remove any filenames that match an entry 
+## First argument is a file that contains filenames.  C<filter> will
+## filter standard input to remove any filenames that match an entry
 ## in that file.  Used to filter out excluded or protected files from
 ## a list of files.
 ##
@@ -669,22 +669,22 @@ reap_modified_file()  {
 ## of each file.
 ##
 #---------------------------------------------------------------------
-dirnames()  {  
-  while  read  FILE;  do  dirname  "$FILE";  done;  
+dirnames()  {
+  while  read  FILE;  do  dirname  "$FILE";  done;
 }
 
 
 #---------------------------------------------------------------------
 ##=item reap_regular_files
 ##
-## Given a list of files from standard input, deletes each file.  
-## Performs a "rm -f" on each file given in standard input, so be 
+## Given a list of files from standard input, deletes each file.
+## Performs a "rm -f" on each file given in standard input, so be
 ## careful using this function!
 ##
 #---------------------------------------------------------------------
-reap_regular_files()  { 
+reap_regular_files()  {
   debug "libsorcery" "reap_regular_files()"
-  while  read  FILE;  do  rm  -f   "$FILE";  done;  
+  while  read  FILE;  do  rm  -f   "$FILE";  done;
 }
 
 
@@ -714,7 +714,7 @@ reap_config_files()  {
 #---------------------------------------------------------------------
 ##=item reaper
 ##
-## First argument is a file containing a list of files to reap.  
+## First argument is a file containing a list of files to reap.
 ## Second argument is a file containing md5 sums of those files, used
 ## to detect if a config file has been modified.  Config files are any
 ## files in /etc or any of its sub-directories.
@@ -803,7 +803,7 @@ pop_queue() {  (
 ##=item push_queue <queue filename> <item to add>
 ##
 ## The first argument is the name of the file containing the queue.
-## The second argument is an item to add to the end of the queue.  If 
+## The second argument is an item to add to the end of the queue.  If
 ## the item exists anywhere in the queue, the item is removed from the
 ## queue before being added at the end.
 ##
@@ -818,24 +818,24 @@ push_queue()  {
 #---------------------------------------------------------------------
 ##=item push_install_queue <spell>
 ##
-## Adds the given spell to the install queue and removes it from the 
+## Adds the given spell to the install queue and removes it from the
 ## remove queue.
 ##
 #---------------------------------------------------------------------
 push_install_queue() {
- 
+
   pop_queue   $REMOVE_QUEUE    "$1"
   pop_queue   $INSTALL_QUEUE   "$1"
   !  spell_installed           "$1"  &&
   push_queue  $INSTALL_QUEUE   "$1"
-    
+
 }
 
 
 #---------------------------------------------------------------------
 ##=item push_remove_queue <spell>
 ##
-## Adds the given spell to the remove queue and removes it from the 
+## Adds the given spell to the remove queue and removes it from the
 ## install queue.
 ##
 #---------------------------------------------------------------------
@@ -845,7 +845,7 @@ push_remove_queue() {
   pop_queue   $REMOVE_QUEUE   "$1"
   spell_installed             "$1"  &&
   push_queue  $REMOVE_QUEUE   "$1"
-    
+
 }
 
 
@@ -854,7 +854,7 @@ push_remove_queue() {
 ##
 ## Removes files installed by apprentice.
 ##
-## (2002/0929) Is there any more apprentice? 
+## (2002/0929) Is there any more apprentice?
 ##
 #---------------------------------------------------------------------
 apprentice_off()  { (
@@ -867,11 +867,11 @@ apprentice_off()  { (
 #---------------------------------------------------------------------
 ##=item optimize
 ##
-## Sets some environment variables (such as C<CFLAGS>) based on the 
-## option passed.  Options may be on or more of:  i386, i486, i586, 
-## pentium, pentium-mmx, i686, pentiumpro, pentium2, pentium3, 
-## pentium4, k6, k6-2, k6-3, athlon, athlon-tbird, athlon-4, 
-## athlon-xp, athlon-mp, powerpc, speedy, tiny, risky, strip, 
+## Sets some environment variables (such as C<CFLAGS>) based on the
+## option passed.  Options may be on or more of:  i386, i486, i586,
+## pentium, pentium-mmx, i686, pentiumpro, pentium2, pentium3,
+## pentium4, k6, k6-2, k6-3, athlon, athlon-tbird, athlon-4,
+## athlon-xp, athlon-mp, powerpc, speedy, tiny, risky, strip,
 ## combreloc
 ##
 #---------------------------------------------------------------------
@@ -917,10 +917,12 @@ optimize()  {
 
     esac
   done
-  
+
   export  CFLAGS
   export  CXXFLAGS="$CFLAGS"
   export  LDFLAGS
+
+  invoke_cross_environment
 
 }
 
@@ -928,13 +930,13 @@ optimize()  {
 #---------------------------------------------------------------------
 ##=item list_install_queue
 ##
-## List files in install queue, give user chance to modify it. 
+## List files in install queue, give user chance to modify it.
 ##
 #---------------------------------------------------------------------
 list_install_queue() {
   if  [  -f  $INSTALL_QUEUE  ];  then
     lock_file $INSTALL_QUEUE
-    
+
     message -n "The following spells will be updated:"
     message "${SPELL_COLOR}"
     cat  $INSTALL_QUEUE | column
@@ -947,7 +949,7 @@ list_install_queue() {
     if  [  -n  "`cat  $INSTALL_QUEUE`"  ];  then
       SPELLS=`cat $INSTALL_QUEUE`
     fi
-    
+
     unlock_file $INSTALL_QUEUE
   else
     message "${MESSAGE_COLOR}No spells listed in queue.${DEFAULT_COLOR}"
@@ -958,7 +960,7 @@ list_install_queue() {
 #---------------------------------------------------------------------
 ##=item update_install_queue
 ##
-## Checks all installed spells for newer versions, and creates an 
+## Checks all installed spells for newer versions, and creates an
 ## install queue.
 ##
 #---------------------------------------------------------------------
@@ -969,15 +971,15 @@ update_install_queue()  { (
 
   rm  -f  $INSTALL_QUEUE
   for  LINE  in  `all_spell_status`;  do
-  
+
   	#0=spell, 1=date, 2=status, 3=version
 	explode "$LINE" ":" "INFO"
-	
+
     if  [  "${INFO[2]}"  ==  "installed"  ]          &&
         codex_set_current_spell_by_name  ${INFO[0]};  then
 
-      if  [[ $VERSION != ${INFO[3]} ]]  || 
-          [[     -z ${INFO[1]}      ]]	|| 
+      if  [[ $VERSION != ${INFO[3]} ]]  ||
+          [[     -z ${INFO[1]}      ]]	||
 	  	  (( UPDATED  >  ${INFO[1]} ))
 	  then
 
@@ -1037,7 +1039,7 @@ fix_installed_spells()  {
 
   [  "$AUTOFIX"  ==  "on"  ]  &&  ANSWER=y  ||  ANSWER=n
   if  query  "Attempt to fix spells that may have become broken ?" $ANSWER;  then
-    cast  --fix;  
+    cast  --fix;
   fi
 
   if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
@@ -1079,7 +1081,7 @@ upgrade_install_queue()  {
 
   [  "$AUTOFIX"  ==  "on"  ]  &&  ANSWER=y  ||  ANSWER=n
   if  query  "Attempt to fix spells that may have become broken ?" $ANSWER;  then
-    cast  --fix;  
+    cast  --fix;
   fi
 
   if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
@@ -1116,7 +1118,7 @@ clean_logs()  {
   message "${CHECK_COLOR}Cleaning log files... ${DEFAULT_COLOR} "
 
   debug  "libsorcery" "Running clean_logs()"
-  
+
   LOGS=`log_list`
 
   for  FILE  in  `ls  $INSTALL_LOGS`;  do
@@ -1154,12 +1156,12 @@ clean_logs()  {
 ##=item activity_log
 ##
 ## Updates the activity log.
-##	
+##
 #---------------------------------------------------------------------
 activity_log()  { (
 
   lock_file $ACTIVITY_LOG
-  
+
      DATE=`date  -u  +%Y%m%d:%H%M\(%z\)`
   COMMAND=$1
     SPELL=$2
@@ -1194,7 +1196,7 @@ unset_details()  {
 
   local VARS="SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT"
   local TEMP=""
-  
+
   # Take care or SOURCEx and SOURCEx_URL
   for i in ${!SOURCE*} ; do
     TEMP=${TEMP}${i}\\n
@@ -1358,7 +1360,7 @@ track()  {
 #---------------------------------------------------------------------
 ##=item archive
 ##
-## Creates a bzip'ed tar file containing an archived backup of every 
+## Creates a bzip'ed tar file containing an archived backup of every
 ## file installed by a spell.
 ##
 #---------------------------------------------------------------------
@@ -1386,7 +1388,7 @@ archive()  {
 
   done
 
-  if    [  "$ARCHIVE"  ==  "off"  ]; then  
+  if    [  "$ARCHIVE"  ==  "off"  ]; then
     debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
     return
   fi
@@ -1397,7 +1399,7 @@ archive()  {
   ((  STOP   =  1024  ))
 
   for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
- 
+
     tar  --no-recursion  \
          -rPf  $CACHE    \
          $(  sed  -n ${START},${STOP}p  ${INST_LOG}  )
@@ -1409,7 +1411,7 @@ archive()  {
 
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
   bzip2  -9f  <  $CACHE  >  $CACHE_BZ
-  rm     -f      $CACHE  
+  rm     -f      $CACHE
 
 }
 
@@ -1419,13 +1421,13 @@ archive()  {
 ##
 ## Runs C<track> and C<archive> on the current spell.
 ##
-## NOTE: boost and boost_locked should be removed or renamed, due 
+## NOTE: boost and boost_locked should be removed or renamed, due
 ## to liblock being introduced
 ##
 #---------------------------------------------------------------------
 boost()	{ (
 
-  debug  "libsorcery" "Running boost() on $SPELL" 
+  debug  "libsorcery" "Running boost() on $SPELL"
 
      CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
   CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
@@ -1462,15 +1464,15 @@ find_pam_aware()  { (
 
   cat  $SPELL_STATUS    |
   while  read  LINE;  do
-                        
+
      SPELL="`echo  $LINE  |  cut  -d  :  -f1`"
     STATUS="`echo  $LINE  |  cut  -d  :  -f3`"
-                                              
+
     if  [  "$STATUS"  ==  "installed"  ]   ||
         [  "$STATUS"  ==  "held"       ];  then
 
       SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL`
-                                    
+
       if    [  -d  "$SPELL_DIRECTORY/pam.d"  ]  &&
             [  "$SPELL"  !=  "Linux-PAM"              ]
       then  echo  $SPELL
@@ -1534,7 +1536,7 @@ sources()  { (
     i=$(($i+1))
     ii=SOURCE$i
   done
-  
+
 ) }
 
 
@@ -1574,7 +1576,7 @@ prune()  { (
   KEEP="/tmp/prune.keep"
   generate_keep_list  >  $KEEP
 
-  message "${MESSAGE_COLOR}Cleaning up source cache (${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}" 
+  message "${MESSAGE_COLOR}Cleaning up source cache (${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
   ls  $SOURCE_CACHE  |
   while  read  FILE;  do
     local FILENAME=`guess_filename $SOURCE_CACHE/$FILE`
@@ -1584,7 +1586,7 @@ prune()  { (
     fi
   done
 
-  message "${MESSAGE_COLOR}Cleaning up install cache (${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}" 
+  message "${MESSAGE_COLOR}Cleaning up install cache (${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
   ls  $INSTALL_CACHE  |
   while  read  FILE;  do
     if  [  -f  $INSTALL_CACHE/$FILE  ];  then
@@ -1617,8 +1619,8 @@ invoke_build_dir()  {
 #---------------------------------------------------------------------
 ##=item find_providers
 ##
-## First argument is a category of spell.  Returns a list of spells 
-## that match that category.  For example, 
+## First argument is a category of spell.  Returns a list of spells
+## that match that category.  For example,
 ## C<find_providers email-client> returns evolution,althea,mutt,etc.
 ##
 #---------------------------------------------------------------------
@@ -1643,15 +1645,15 @@ find_providers()  {
 ## are missing.
 ##
 #---------------------------------------------------------------------
-verify_sources()  {  
-  verify_source  "`sources  $SPELL`";  
+verify_sources()  {
+  verify_source  "`sources  $SPELL`";
 }
 
 
 
 #---------------------------------------------------------------------
 ##=item filename_indicates_compression <filename>
-## 
+##
 ## Returns true if the name of the file indicates that it should be
 ## a compressed file.  In other words, this function returns true if
 ## the filename ends in .gz, .tgz, .bz2, .zip, .rpm, or .Z.
