@@ -981,24 +981,22 @@ cast_spell()  { (
     unlock_resources "castSOLO" "SOLO"
   fi
                                
-  run_pre_build               &&
-  run_build                   &&
-  run_post_build              &&
-  run_post_install            &&
-  add_spell $SPELL installed $VERSION &&
-  cd  /                       &&
-  report_install              &&
-  sound  SUCCESS
-  if [ $? -eq 0 ] ; then
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    rm_source_dir
-	echo $SPELL >> $SUCCESS_LIST
+  if	run_pre_build              			&&
+		run_build                   		&&
+		run_post_build              		&&
+		run_post_install            		&&
+		add_spell $SPELL installed $VERSION	&&
+		cd  /                       		&&
+		report_install						;
+  then
+		sound  SUCCESS
+		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+	    rm_source_dir
+		echo $SPELL >> $SUCCESS_LIST
   else
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     rm  -f  $CASTING
-    if [[  $CLEAN_SOURCE == on ]]; then
-      rm_source_dir
-    fi
+    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1
   fi
 
@@ -1164,7 +1162,10 @@ pass_four()  {
   else
     cast_spell $*
   fi
-  trigger "cast"
+
+  #We only want to trigger if the cast ot resurect completed properly
+  [ $? -eq 0 ] && trigger "cast"
+  
 }
 
 
