@@ -1107,6 +1107,13 @@ gaze_show_where() {
 		fi
 	done
 }
+
+gaze_show_depends() {
+    local spell="$@"
+
+    codex_does_spell_exist "$@" && show_depends "$spell" | sort | uniq
+}
+
 parse()  {
 
   if [ $1 == "-q" ]; then
@@ -1155,7 +1162,7 @@ parse()  {
           search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
-         depends)  show_depends  "$2"  |  sort  |  uniq  ;;
+         depends)  gaze_show_depends  "$2"               ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
          history)  show_history  "$2"                    ;;
      website|url)  shift; gaze_show_website           $@ ;;
