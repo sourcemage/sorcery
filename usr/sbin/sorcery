@@ -684,7 +684,10 @@ grep_install_logs() {
 
 optimize_architecture()  {
 
-  architecture_menu
+  architecture_menu  ARCHITECTURE  "Build system selection"
+  if [[ $CROSS_INSTALL == on ]]; then
+    architecture_menu  TARGET      "Target system selection"
+  fi
   optimization_menu
 
 }
@@ -705,7 +708,7 @@ architecture_menu() {
   done
   debug  "sorcery" "architecture_menu() - Dialog options are $LIST"
 
-  local ARCH_TITLE="Architecture Menu"
+  local ARCH_TITLE="$2"
   local ARCH_HELP="Please select a microprocessor category"
 
   if   ARCHITECTURE=`eval $DIALOG '  --title  "$ARCH_TITLE"     \
@@ -718,7 +721,7 @@ architecture_menu() {
 
     debug "sorcery" "architecture_menu() - ARCHITECTURE='$ARCHITECTURE'"
 
-    modify_local_config "ARCHITECTURE" "$ARCHITECTURE"
+    modify_local_config "$1" "$ARCHITECTURE"
 
   fi
 

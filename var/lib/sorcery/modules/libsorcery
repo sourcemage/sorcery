@@ -877,7 +877,9 @@ apprentice_off()  { (
 #---------------------------------------------------------------------
 optimize()  {
 
-  debug "libsorcery" "In optimize(), ARCHITECTURE='${ARCHITECTURE}' and OPTIMIZATIONS='${OPTIMIZATIONS}'"
+  debug "libsorcery" "In optimize(), ARCHITECTURE='${ARCHITECTURE}'"
+  debug "libsorcery" "TARGET='${TARGET}'"
+  debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
 
   unset  CFLAGS CXXFLAGS LDFLAGS
   unset  FAST SMALL SPEEDY TINY RISKY STRIP
@@ -887,6 +889,15 @@ optimize()  {
   [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
 
   BUILD=${HOST}
+
+  if  [[ $CROSS_INSTALL == on ]]; then
+    if  [[ $TARGET ]]; then
+      SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"`;
+      [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+    fi
+    invoke_cross_environment
+  fi
+  debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
 
   for  PARAM  in  $OPTIMIZATIONS;  do
     case  $PARAM  in
@@ -921,8 +932,6 @@ optimize()  {
   export  CFLAGS
   export  CXXFLAGS="$CFLAGS"
   export  LDFLAGS
-
-  invoke_cross_environment
 
 }
 
