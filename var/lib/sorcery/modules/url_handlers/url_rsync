@@ -68,20 +68,28 @@ url_rsync_download() {
 
   local             URL=`url_rsync_strip_prefix "$1"`
   local	            DEST=`echo $URL | cut -d':' -f 3-`
-	local             WWW="www.sourcemage.org::"
+  local             WWW="www.sourcemage.org::"
 
   [ -z "$FILE" ]  &&  FILE=`basename  $DEST`
 
 	# check for which url to codex is to be used... based on rsync module given.
 	case  $DEST  in
 
-		test) 			URL="${WWW}sourcemage/codex/test" ;;        # path to test. 
-		stable) 		URL="${WWW}sourcemage/codex/stable" ;;      # path to stable.
-    games) 			URL="${WWW}sourcemage/codex/games" ;;       # path to games.
-		z-rejected) URL="${WWW}sourcemage/codex/z-rejected" ;;  # path to z-rejected.
-		*)					message "${MESSAGE_COLOR}Not an available rsync package (test | stable | games | z-rejected), try again.${DEFAULT_COLOR}"
-								return 1
-								;;
+    test)       URL="${WWW}sourcemage/codex/test" 
+                DEST="$CODEX_ROOT"
+                ;;
+    stable)     URL="${WWW}sourcemage/codex/stable"
+                DEST="$CODEX_ROOT"
+                ;;
+    games)      URL="${WWW}sourcemage/codex/games"
+                DEST="$CODEX_ROOT"
+                ;;
+    z-rejected) URL="${WWW}sourcemage/codex/z-rejected"
+                DEST="$CODEX_ROOT"
+                ;;
+    *)          message "${MESSAGE_COLOR}Not an available rsync package (test | stable | games | z-rejected), try again.${DEFAULT_COLOR}"
+                return 1
+                ;;
 	esac
 	
   S_FILE=`echo $FILE            |
