@@ -1419,12 +1419,22 @@ function gaze_show_dependencies() {
 ##
 #-----
 function gaze_show_size () {
-    local spell
+    local spell each
     for spell in "$@"; do
+        if ! spell_ok $spell ; then
+          message "$spell is not installed"
+          continue
+        fi
         local version=$(installed_version $spell)
         local file="$INSTALL_LOGS/$spell-$version"
-        cat $file | xargs ls -lgd 2> /dev/null |grep '^[^dl]' | \
-            awk '{ x += $5 } 
+        if ! test -e $file ; then
+           message "No install log for $spell ($file)"
+           continue
+        fi
+        for each in $(<$file); do
+          test -f $each && echo $each
+        done | xargs du -b |
+            awk '{ x += $1 } 
                 END { print "'$spell' -> " x " bytes in " NR " files." }'
     done
 }
