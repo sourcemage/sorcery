@@ -346,8 +346,9 @@ function select_provider()
         fi
 
         if ! spell_exiled $spell; then
+            # setup for displaying spellversion in listing.
             spellversion=`gaze DETAILS $spell | grep VERSION= | cut -d = -f 2`
-            temp="$temp ${spell}-${spellversion}"
+            temp="$temp ${spell}:${spellversion}"
         fi
     done
 
@@ -373,7 +374,12 @@ function select_provider()
         select_list "selected" $temp
     fi
 
-    eval ''$returnvar'='$selected''
+    # Before returning selected item which is in form <spell>::<version>,
+    # need to clean off the ':<version>'.
+    local realspell
+    realspell=`echo $selected | cut -d : -f 1 `
+
+    eval ''$returnvar'='$realspell''
 
 }
 
