@@ -236,13 +236,13 @@ function real_depends()
 {
     local INST
     if ! codex_does_spell_exist $1 &> /dev/null; then
-        message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR needs some "
-        message "$SPELL_COLOR$1$DEFAULT_COLOR as a requirement."
-        select_provider "INST" "$@"
+        select_provider "INST" "$4" "$@"
         [[ $? ]]     || return 1
         [[ ! $INST ]] && return 1
+        local PROVIDERNAME=$1
         shift
         work_depends "$INST" "$@"
+        work_optional_depends "no_question" "$PROVIDERNAME" "$INST" ""
 
     else
         work_depends      "$@"
@@ -263,15 +263,16 @@ function real_optional_depends()
 
     if ! codex_does_spell_exist $1 &> /dev/null; then
 
-        message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR optionally needs some "
-        message "$SPELL_COLOR$1$DEFAULT_COLOR. ($4)"
-
-        select_provider "INST" "[none]" "$@"
+        select_provider "INST" "$4" "[none]" "$@"
         [[ $? ]] || return 1
         [[ ! $INST ]] && return 1
-        [[ $INST == "[none]" ]] && return 0
+        [[ $INST == "[none]" ]] &&
+          work_optional_depends "no_question" "$1" "$INST" "$3" && return 0
+        local PROVIDERNAME=$1
         shift
         work_optional_depends "no_question" "$INST" "$@"
+        work_optional_depends "no_question" "$PROVIDERNAME" "$INST" ""
+
     else
         work_optional_depends "$@" 
     fi
@@ -279,7 +280,7 @@ function real_optional_depends()
 
 
 #---------------------------------------------------------------------
-##=item select_provider <return_var> <elements,..>
+##=item select_provider <return_var> <provider> <reasontext> <elements,..>
 ## 
 ## gives the user some nice select list and puts the selected
 ## spell in return_var
@@ -289,44 +290,59 @@ function select_provider()
 {
     local INSTALLED=false
     local returnvar=$1
-    shift
+    local reasontext=$2
+    shift; shift
+
     if [[ $1 == '[none]' ]]; then
         local ASK_NONE=true
         shift
     fi
 
-    local INST_PROV_LIST temp spell TO_STORE
-    local CANDIDATES=$( find_providers $1 )
+    local TO_STORE="`grep "^$SPELL:$1:providedby:optional:.*:.*$" $DEPENDS_STATUS | cut -d':' -f 5 | tail -1`"
 
-    for spell in $CANDIDATES; do
-        if spell_installed $spell || spell_held $spell; then
-            [[ $INSTALLED == false ]] && INST_PROV="$spell"
-            INSTALLED=true
-        fi
+    if [ -z "$TO_STORE" ]; then
 
-        if ! spell_exiled $spell; then
-            temp="$temp $spell"
-        fi
-    done
+      if [[ "$ASK_NONE" == true ]]; then
+        message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR optionally needs some "
+        message "$SPELL_COLOR$1$DEFAULT_COLOR. ($reasontext)"
+      else
+        message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR needs some "
+        message "$SPELL_COLOR$1$DEFAULT_COLOR as a requirement."
+      fi
 
-    if [[ $INSTALLED == true ]]; then
-        message -n "$SPELL_COLOR$1$DEFAULT_COLOR is already provided " 
-        message   "by $SPELL_COLOR$INST_PROV$DEFAULT_COLOR"
-        if query "Do you want to use that?" "y"; then
-            eval ''$returnvar'='$INST_PROV''
-            return 0
-        fi 
-    fi
+      local INST_PROV_LIST temp spell
+      local CANDIDATES=$( find_providers $1 )
 
-    if [[ ! $temp ]]; then
-        echo "Cannot satisfy requirements for $1"
-        return 1
-    fi
+      for spell in $CANDIDATES; do
+          if spell_installed $spell || spell_held $spell; then
+              [[ $INSTALLED == false ]] && INST_PROV="$spell"
+              INSTALLED=true
+          fi
 
-    if [[ $ASK_NONE == true ]]; then
-        select_list "TO_STORE" "[none]" $temp
-    else
-        select_list "TO_STORE" $temp
+          if ! spell_exiled $spell; then
+              temp="$temp $spell"
+          fi
+      done
+
+      if [[ $INSTALLED == true ]]; then
+          message -n "$SPELL_COLOR$1$DEFAULT_COLOR is already provided " 
+          message   "by $SPELL_COLOR$INST_PROV$DEFAULT_COLOR"
+          if query "Do you want to use that?" "y"; then
+              eval ''$returnvar'='$INST_PROV''
+              return 0
+          fi 
+      fi
+
+      if [[ ! $temp ]]; then
+          echo "Cannot satisfy requirements for $1"
+          return 1
+      fi
+
+      if [[ $ASK_NONE == true ]]; then
+          select_list "TO_STORE" "[none]" $temp
+      else
+          select_list "TO_STORE" $temp
+      fi
     fi
     eval ''$returnvar'='$TO_STORE''
 }
@@ -364,7 +380,7 @@ function work_optional_depends()
   #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
   explode "`search_depends_status "$SPELL" "$1"`" ":" "status"
 	
-  if [[ $RECONFIGURE ]] || ! [[ ${status[2]} ]] ; then
+  if [[ $RECONFIGURE ]] || ! [[ ${status[2]} && ${status[2]} != "providedby" ]] ; then
 
 		if [[ $NOQUESTION == false ]]; then
 			message "${SPELL_COLOR}$1${DEFAULT_COLOR} is an optional dependency for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
@@ -377,7 +393,11 @@ function work_optional_depends()
 					install="on"
       fi
 		else
-			install="on"
+			if codex_does_spell_exist $1 >/dev/null; then
+				install="on"
+			else # in this case, it's a provider and they said [none]
+				install="providedby"
+			fi
   	fi
 
   elif [[ ${status[2]} == on ]] ; then
