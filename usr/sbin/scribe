@@ -191,9 +191,14 @@ add() {
 
     NO_FUZZ=on
 
-    # download using libdownload, the one function to rule them all
-    echo "${ITEMS[$x]}.tar.bz2" "$FROM_LOC" |
-    download_files "for scribe add" $CODEX_ROOT no neither nocache
+    #switch to and work in the codex
+    pushd $INSTALL_ROOT$CODEX_ROOT > /dev/null
+
+    #download the grimoire using subroutines
+    NO_FUZZ=on
+    url_set_options nocache
+    url_download $FROM_LOC
+
 
     #check the success of the download
     if [ $? != 0 ]; then
@@ -351,13 +356,12 @@ do_update() {
   #switch to codex for update
   local GRIMOIRE_NAME=$1
   local FROM_URL=$2
-  local GRIMOIRE_SOURCE=$GRIMOIRE_NAME.tar.bz2
   pushd $CODEX_ROOT &> /dev/null
 
   #download updated grimoire without fuzzy
   NO_FUZZ=on
-  echo "$GRIMOIRE_SOURCE" $FROM_URL |
-  download_files "for scribe update" $CODEX_ROOT no neither nocache
+  url_set_options nocache
+  url_download $FROM_URL
 
   #check the success of the download
   if [ $? != 0 ]; then
