@@ -1,0 +1,449 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Libgrimoire
+##
+## @Synopsis Set of functions containing the spell writing API.
+##
+##
+## These functions can be used in the PRE_BUILD, BUILD, POST_BUILD
+## and POST_INSTALL sections of spells.
+##
+## @Copyright
+## Original version Copyright 2001 by Kyle Sallee
+## Additions/Corrections Copyright 2002 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
+#===================== libunpack common ==============================
+
+#---------------------------------------------------------------------
+## @Type API
+## @param SOURCE suffix
+##
+## unpack_file takes the SOURCE suffix and figures out if it is supposed
+## to hash or gpg check it -- then it does its dirty work and runs unpack_hash
+## or unpack_gpg depending upon the circumstances.
+##
+## nine valid formats: vendor-provided gpg, guru-provided gpg, md5sum
+## compressed md5sum, sha1sum, sha256sum, sha384sum, sha512sum, ripemd160sum
+##
+##           SOURCE=blah
+##          SOURCE2=blah.asc
+##       SOURCE_URL=http://blah.com/$SOURCE
+##      SOURCE2_URL=http://blah.com/$SOURCE2
+##       SOURCE_GPG=blah.gpg:$SOURCE2
+##      SOURCE2_GPG=SIGNORE # for auditing purposes
+##
+##           SOURCE=blah
+##       SOURCE_URL=http://blah.com/$SOURCE
+##       SOURCE_GPG=swoolley.gpg:$SOURCE.asc
+##
+##           SOURCE=blah
+##       SOURCE_URL=http://blah.com/$SOURCE
+##           MD5[0]=d41d8cd98f00b204e9800998ecf8427e
+##
+##           SOURCE=blah
+##       SOURCE_URL=http://blah.com/$SOURCE
+##       SOURCE_HASH=md5:d41d8cd98f00b204e9800998ecf8427e
+##
+## hashes supported: sha1 md5 (more with hashsum installed ;) )
+##
+## In HASH mode:
+##   It puts "sum" after the algorithm name, then
+##   executes it, expecting md5sum-compatible behavior.
+##   see real_unpack_hash()
+##
+## In GPG mode:
+##   It finds the public key and signature using locate_spell_file,
+##   Then it validates it at the beginning.
+##   see real_unpack_gpg()
+##
+## Otherwise, it falls back to old uncompressed md5sum check with MD5[n].
+##   see real_unpack()
+##
+#---------------------------------------------------------------------
+function real_unpack_file() {
+  debug "libgrimoire" "real_unpack_file - $*"
+
+  local GPGNUM=$1
+
+  local crypto_func
+  for crypto_func in GPG HASH; do
+    local SVAR="SOURCE${GPGNUM}"
+    local AVAR="SOURCE${GPGNUM}_${crypto_func}"
+    [ -n "${!AVAR}" ] && {
+      local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
+      eval "real_unpack_$lcase_crypto_func ${!SVAR} ${!AVAR}"
+      return $?
+    }
+  done
+
+  message "${MESSAGE_COLOR}Falling back to regular MD5SUM.${DEFAULT_COLOR}"
+
+  local SOURCEVAR="SOURCE$GPGNUM"
+  local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo $(($GPGNUM - 1)))"
+  eval "real_unpack ${!SOURCEVAR} ${MD5[$MD5NUM]}"
+
+}
+
+
+#---------------------------------------------------------------------
+## @param filename 
+## @param compressor 
+## @Stdout uncompressed
+##
+## Just uncompresses the file, but does not expand it. i.e. bunzip
+## it, but don't untar it. It dumps the expanded file to stdout.
+##
+#---------------------------------------------------------------------
+function uncompress_core() {
+  debug "libgrimoire" "uncompress_core - $*"
+
+  case  $2  in
+          bzip2)  bzip2  -cdf   $1  ;;
+           gzip)  gzip   -cdf   $1  ;;
+      compress*)  gzip   -cdf   $1  ;;
+            Zip)  cat           $1  ;;
+            RPM)  rpmunpack  <  $1 | gzip  -cd    ;;
+            tar)  cat           $1  ;;
+              *)  cat           $1  ;;
+  esac
+
+}
+
+
+#---------------------------------------------------------------------
+## @param filename 
+## @param compressor 
+## @Stdout uncompressed
+##
+## unpack_core takes the uncompressed stream and turns it into the
+## fully unarchived form.
+##
+#---------------------------------------------------------------------
+function unpack_core() {
+  debug "libgrimoire" "unpack_core - $*"
+
+  case  $2  in
+            bzip2|gzip|compress*|tar)
+                    tar   --owner=root  --group=root  -xf  /dev/stdin 2> /dev/null || cat > /dev/null ;;
+              Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
+	            unzip  -q  $1                                      ;;
+              RPM)  cpio  -idm < /dev/stdin                            ;;
+                *)  cat > /dev/null                                    ;;
+  esac
+
+}
+
+
+#---------------------------------------------------------------------
+## @param filename
+## @Stdout compressor
+##
+## Guesses what program was used to compress a file
+## Return value is always success due to `file' workings
+##
+#---------------------------------------------------------------------
+function guess_compressor()  {
+  # NOTE: if the file doesn't exist, `file' still completes successfully
+  #       the COMPRESSOR value in this case will be "can't"
+
+  local OUTPUT=`$FILEPROG -b "$1"`
+  local COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f1`
+  [ "$COMPRESSOR" = "GNU" -o "$COMPRESSOR" = "POSIX" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
+  debug "libgrimoire" "guess_compressor() - guessed $1 compressor to be <$COMPRESSOR>"
+  echo $COMPRESSOR
+}
+
+
+#---------------------------------------------------------------------
+## @Type API
+##
+## alias function (was uncompress_md5)
+##
+## Used to be uncompress_md5(), now it is uncompress_core()
+##
+#---------------------------------------------------------------------
+function real_uncompress() { uncompress_core "$@"; }
+
+
+#===================== libunpack newworld ============================
+
+#---------------------------------------------------------------------
+## @Type API
+## @param file to unpack 
+## @param gpg public key file (.gpg) ":" gpg signature file  (.asc)
+##
+## Given a file, unpack checks the gpg signature for that file, and, if 
+## appropriate, runs the decompression program for that file, as well as 
+## untar'ing the file. Note: zip is a special case because it doesn't 
+## work with streams.
+##
+#---------------------------------------------------------------------
+function real_unpack_gpg() {
+
+  message -n "${MESSAGE_COLOR}GPG checking source file ${SPELL_COLOR}${1}"
+  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
+  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+
+  debug "libgrimoire" "Running unpack_gpg() on $1"
+
+  PFNAME="$(echo $2 | cut -d: -f1 )"
+  SFNAME="$(echo $2 | cut -d: -f2-)"
+
+  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
+  COMPRESSOR=`guess_compressor $FILENAME`
+#  UNCOMPRESSED=""
+
+  gpg_verify_signature "$(locate_spell_file $SFNAME)" $FILENAME "$(locate_spell_file $PFNAME)"
+  rc=$?
+  
+  gpg_user_query $rc $SPELL spell || return 1
+
+  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}" &&
+  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}" &&
+  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+
+  uncompress_core $FILENAME $COMPRESSOR | unpack_core $FILENAME $COMPRESSOR
+
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param file to unpack 
+## @param algorithm ":" hashsum
+##
+## Given a file, unpack checks the hash for that file, and, if 
+## appropriate, runs the decompression program for that file, as well as 
+## untar'ing the file. Note: zip is a special case because it doesn't 
+## work with streams.
+##
+#---------------------------------------------------------------------
+function real_unpack_hash() {
+
+  ALGORITHM="$(echo $2 | cut -d: -f1 )"
+  HASHSUM="$(echo $2 | cut -d: -f2-)"
+
+  message -n "${MESSAGE_COLOR}hash checking source file ${SPELL_COLOR}${1}"
+  message    "${DEFAULT_COLOR}${MESSAGE_COLOR} with ${ALGORITHM}.${DEFAULT_COLOR}"
+
+  debug "libgrimoire" "Running unpack_hash() on $1"
+
+  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
+  COMPRESSOR=`guess_compressor $FILENAME`
+#  UNCOMPRESSED=""
+
+  if [ "$MD5SUM_DL" != "off" ]; then
+    local HASH="$(${ALGORITHM}sum $FILENAME | cut -d' ' -f1)"
+    [ "$HASH" == "$HASHSUM" ]  || {
+      message "${PROBLEM_COLOR}$ALGORITHM check failed $HASH != $HASHSUM !${DEFAULT_COLOR}" &&
+      case $MD5SUM_DL in
+          ask_ignore)  query "Abort?" "n"         && return 1                ;;
+ ask_risky|ask_abort)  query "Abort?" "y"         && return 1                ;;
+      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+      esac
+    }
+  else
+    message "${RED}Continuing!${DEFAULT_COLOR}"
+  fi
+
+  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}" &&
+  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}" &&
+  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+
+  uncompress_core $FILENAME $COMPRESSOR | unpack_core $FILENAME $COMPRESSOR
+
+}
+
+
+#---------------------------------------------------------------------
+## @param absolute or relative file path
+## @Stdout the real path of the file (sometimes relative to CWD)
+##
+## Given a file, locate_spell_file finds out where it really is within
+## the spell hierarchy down to the grimoire root, and then tries cwd and
+## then the source cache.
+##
+#---------------------------------------------------------------------
+function locate_spell_file() {
+
+  [ -f    $SPELL_DIRECTORY/$1 ] && echo    $SPELL_DIRECTORY/$1 && return 0
+  [ -f  $SECTION_DIRECTORY/$1 ] && echo  $SECTION_DIRECTORY/$1 && return 0
+  [ -f $GRIMOIRE_DIRECTORY/$1 ] && echo $GRIMOIRE_DIRECTORY/$1 && return 0
+  [ -f                     $1 ] && echo                     $1 && return 0
+  [ -f       $SOURCE_CACHE/$1 ] && echo       $SOURCE_CACHE/$1 && return 0
+
+  message -n "${MESSAGE_COLOR}" > /dev/stderr
+  message -n "Problem: $1: file not found in spell hierarchy." > /dev/stderr
+  message -n "${DEFAULT_COLOR}" > /dev/stderr
+  echo  $1
+  return 1
+
+}
+
+
+#===================== libunpack oldworld ============================
+
+#---------------------------------------------------------------------
+## @Type API
+## @param file to unpack 
+## @param md5sum
+##
+## Given a file, unpack runs the decompression program for that file,
+## as well as untar'ing the file if appropriate and if the MD5
+## matches.
+## Note: zip is a special case because it doesn't work with streams.
+##
+#---------------------------------------------------------------------
+function real_unpack() {
+
+  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"
+  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
+  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+
+  debug "libgrimoire" "Running unpack on $1"
+  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
+  COMPRESSOR=`guess_compressor $FILENAME`
+#  UNCOMPRESSED=""
+
+  uncompress_md5 $FILENAME $COMPRESSOR $2 | unpack_core $FILENAME $COMPRESSOR &&
+  {
+
+    # This section takes care of what happens if the md5sum doesn't match.
+    # $TMP_DIR/libgrimoire.uncompress.$$ is set in uncompress. It's the only
+    # way to get the return value since it's in a pipe.
+    if ! [[ $2 ]] ; then
+
+      rm $TMP_DIR/libgrimoire.uncompress.$$
+      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
+      case $MD5SUM_DL in
+                 off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
+          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
+ ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
+      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+      esac
+
+    elif [[ $2 == "IGNORE" ]] ; then
+
+      rm $TMP_DIR/libgrimoire.uncompress.$$
+      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was purposefully left out for the uncompressed $1."
+      message "${QUERY_COLOR}Would you like to abort so you can validate the source yourself via some alternate method?"
+      case $MD5SUM_DL in
+                 off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
+ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
+      ask_abort|on|*)  query "Abort?" "y"         && return 1   ||  return 0 ;;
+           abort_all)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+      esac
+
+    elif [[  `cat $TMP_DIR/libgrimoire.uncompress.$$` != 0  ]]  ; then
+
+      rm $TMP_DIR/libgrimoire.uncompress.$$
+      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different for uncompressed $1."
+      case $MD5SUM_DL in
+                 off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
+          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
+ ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
+      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+      esac
+
+    fi
+    rm $TMP_DIR/libgrimoire.uncompress.$$
+
+  }
+
+  #By this point, the archive is unarchived, and we know the MD5 check was good.
+  return 0
+
+}
+
+
+#---------------------------------------------------------------------
+## @param filename 
+## @param compressor 
+## @param md5 
+## @Stdout uncompressed
+##
+## Uncompress_md5 dumps the expanded file via tee to md5_tar_check where it 
+## is gobbled up by the bitbucket.  It also dumps the main stream out to 
+## stdout.
+##
+#---------------------------------------------------------------------
+function uncompress_md5() {
+  debug "libgrimoire" "uncompress_md5 - $*"
+  set +x #This is here so Duff's super debugging info doesn't screw the next step up
+
+  # Outer subshell is necessary to redirect stderr to stdout
+  (
+    uncompress_core $1 $2 |
+      tee /dev/stderr |
+      md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing
+  ) 2>&1
+
+  #This temp file is here because this function MUST NOT send
+  # anything to stdout or stderr, and upack needs a way to get the success or
+  # failure of this function.
+  local a=$?
+  [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
+  echo "$a"  > $TMP_DIR/libgrimoire.uncompress.$$
+  return $a
+
+}
+
+
+#---------------------------------------------------------------------
+## @param md5
+##
+## Checks that the stdin matches the argument.
+## Note that DEBUG output may dissapear if it's /dev/stderr due to
+## uncompress' 2>/dev/null.
+##
+#---------------------------------------------------------------------
+function md5_tar_check()  {
+
+  local md5
+
+  debug "libgrimoire" "md5_tar_check() - Checking MD5 sum"
+
+  #Do the md5
+  md5=`md5sum /dev/stdin | awk '{print $1}'`
+  debug "libgrimoire" "md5_tar_check() - MD5 of tarball is $md5."
+  debug "libgrimoire" "md5_tar_check() - argument received is $1."
+
+  #See if they match
+  if [[ $1 == $md5 ]] ; then
+    debug "libgrimoire" "md5_tar_check() - MD5 Sum Success ( $1 == $md5 )"
+    return 0
+  fi
+
+  #See of we need to md5sum it at all
+  if [[ ${MD5SUM_DL:-on} == off ]] || ! [[  $1  ]] ; then
+    debug "libgrimoire" "md5_tar_check() - Skipping check"
+    return 0
+  fi
+
+  #If we get here, the md5's don't match, but should.
+  debug "libgrimoire" "md5_tar_check() - bad md5"
+  return 1
+
+}
+
+
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
