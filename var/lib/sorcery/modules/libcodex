@@ -290,7 +290,7 @@ codex_get_sections() {
 
   local GRIMOIRE="$1"
   
-  cut -d' ' -f2 $GRIMOIRE/$SPELL_INDEX_FILE
+  cut -d' ' -f2 $GRIMOIRE/$SPELL_INDEX_FILE | sort | uniq
   
 }
 
@@ -412,7 +412,7 @@ function codex_get_spells() {
     message "${PROBLEM_COLOR}${section:-<null>} is not a section directory!${DEFAULT_COLOR}"
     return  
   fi
-  grep -m 1 "/$section$" "$index"
+  grep "/$section$" "$index" | awk '{ printf("%s/%s\n",$2,$1); }'
 
 }
 
