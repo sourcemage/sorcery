@@ -400,7 +400,7 @@ gaze_spider_spells()  {
     (
        codex_set_current_spell  $SPELL_DIRECTORY
        local    URL_LIST=`gaze_get_spell_urls  $SPELL`
-       local    URL_COUNT=`echo $URL_LIST | wc -w | sed -e 's/ //g;'`
+       local    URL_COUNT=`echo $URL_LIST | wc -w | tr -d ' '`
        message  "Checking $URL_COUNT URLs for $SPELL"
        gaze_spider_check  $SPELL  $URL_LIST
     )
@@ -505,6 +505,7 @@ long_search()  {
 
   local numSpells=`codex_get_all_spells|wc -l`
   local atSpell=0
+  local file
 
   if ! [[ $GAZE_VERBOSE == 0 ]] ; then
 	echo  "Searching...   "
@@ -517,36 +518,24 @@ long_search()  {
      progress_bar $((atSpell++)) "$numSpells" 40
     fi
 
-	SPELL=`basename $SPELL_DIRECTORY`
-
-    for item in $*; do
+#	SPELL=`basename $SPELL_DIRECTORY`
+	file="$SPELL_DIRECTORY/DETAILS"
 	
-		if [[ ${SPELL//$item/} != $SPELL ]] ; then
-			SEARCH_RESULTS[$j]="$item -> $SPELL (Name Match)"
-		else
-			SEARCH_RESULTS[$j]=`sed -n -e '
-s/^[[:blank:]]*SHORT=.*'$item'.*$/'$item' -> '$SPELL' (Short Description)/ip
-t QUIT
-s/<<[[:blank:]]*EOF/EOF/
-t LONG
-D
-q
-:LONG
-n
-s/^.*'$item'.*$/'$item' -> '$SPELL' (Description)/ip		
-t QUIT
-s/^EOF$/EOF/
-b LONG
-:QUIT
-q' $SPELL_DIRECTORY/DETAILS`
-		fi
-	
-#    	elif codex_get_spell_keywords $SPELL_DIRECTORY  |  grep  -q  -i  "$item"; then
-#        	SEARCH_RESULTS[$j]="$item -> $SPELL (Keyword Match)"
-
-    	if [[ ${SEARCH_RESULTS[$j]} ]]; then 
+    for pattern in "$@"; do
+		grep -iq "$pattern" $file || continue
+		SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
+			/'${pattern}'/{
+				if(/^[[:blank:]]*SPELL/)	{print "(Name Match)";			exit 0;}
+				if(/^[[:blank:]]*SHORT/)	{print "(Short Description)";	exit 0;}
+				if(inLongDesc)	{print "(Description)";			exit 0;}
+			}
+			/cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
+			/^EOF$/{inLongDesc=0;} ' $file)
+    	
+		if [[ ${SEARCH_RESULTS[$j]} ]]; then 
+			SEARCH_RESULTS[$j]="$pattern ->  $(basename $SPELL_DIRECTORY) ${SEARCH_RESULTS[$j]}"
 			if [[ $GAZE_VERBOSE == 0 ]]; then
-				echo $SPELL
+				basename $SPELL_DIRECTORY
 			else
 				clear_line
 				echo ${SEARCH_RESULTS[$j]}
