@@ -1,0 +1,184 @@
+#!/bin/bash
+## ----------------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for grabbing tla urls.
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for I<downloading> files through tla.
+##
+## In order for tla urls to be downloaded, the I<tla> spell must have been
+## cast. This script first determines if tla has been installed before 
+## attempting to download a tla url.
+##
+##=head1 TLA URL Format
+##
+## There is no standard (that I know of) for tla urls so we use a 
+## source mage specific format:
+##
+##      tla://location%archive%revision
+##
+##
+## For more details, see the tla manual at 
+## http://www.gnu.org/software/gnu-arch/
+##
+##=head1 EXAMPLES
+##
+## Suppose we want to download the latest version of the emacs-wiki
+## scripts from tla.  We'd use the following url:
+##
+##      tla://http://sacha.free.net.ph/notebook/arch%sacha@free.net.ph--main%emacs-wiki--stable--1.0 
+##
+## If we want the 1.0.13 release instead (i.e., patch level 13)
+## we would use the following url:
+##
+##      tla://http://sacha.free.net.ph/notebook/arch%sacha@free.net.ph--main%emacs-wiki--stable--1.0--patch-13
+##      
+##=head1 COPYRIGHT
+##
+## Copyright 2005 by Maurizio Boriani for the Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+## ----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+#=item url_tla_strip_prefix <url>
+# 
+# Private function.  Strips off the tla:// prefix from tla urls
+#
+# -----------------------------------------------------------------------------
+url_tla_strip_prefix() {
+  echo $1 | sed 's/^tla:\/\///'
+}
+
+
+# -----------------------------------------------------------------------------
+##=item url_tla_download <url>
+## 
+## Fetch the specified tla url.
+##
+# -----------------------------------------------------------------------------
+url_tla_download() { 
+    if ! spell_installed tla; then
+	return 1;
+    fi
+    
+    local               URL=`url_tla_strip_prefix "$1"`
+    local      TLA_LOCATION=`echo $URL|cut -d"%" -f1`
+    local       TLA_ARCHIVE=`echo $URL|cut -d"%" -f2`
+    local      TLA_REVISION=`echo $URL|cut -d"%" -f3`
+
+    if [ -z "$TLA_LOCATION" -o -z "TLA_ARCHIVE" -o -z "TLA_REVISION" ];
+    then 
+	message "${PROBLEM_COLOR}Missing required url args...${DEFAULT_COLOR}"
+	return 1;
+    fi
+
+    S_FILE=`message $FILE         |
+            sed "s/\.tar\.gz$//"  |
+            sed "s/\.tgz$//"      |
+            sed "s/\.tar\.bz2$//"`
+
+    if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
+	message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
+	tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
+	message "${MESSAGE_COLOR}Running tla update...${DEFAULT_COLOR}"
+	if ! [ -d $S_FILE ];
+        then
+	    message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
+	    return 1
+        fi
+	if cd $S_FILE ; then
+	    tla register-archive $$TLA_ARCHIVE $TLA_LOCATION
+	    tla update $TLA_ARCHIVE/$TLA_REVISION
+	    tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION
+	    cd ..
+	fi
+    else
+	message "${MESSAGE_COLOR}Running tla get...${DEFAULT_COLOR}"
+	tla register-archive $TLA_ARCHIVE $TLA_LOCATION
+	tla get -A $TLA_ARCHIVE $TLA_REVISION $S_FILE
+	tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION
+	if ! [ -d $S_FILE ];
+        then
+	    message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
+	    return 1
+        fi
+    fi
+
+    if [[ $nocache == 1 ]] ; then
+      return $?
+    fi
+
+    if [ $? == 0 ]; then
+	message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
+	if ! [ -d $S_FILE ];
+        then
+	    message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
+	    return 1
+        fi
+	tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/
+	rm -fr $S_FILE/
+	FILE=$S_FILE.tar.bz2
+    else
+	false;
+    fi
+
+}
+
+
+# -----------------------------------------------------------------------------
+##=item url_tla_verify <url>
+## 
+## Verifies the specified tla url exists.  Returns true for now until
+## I get around to implementing it.
+##
+# ----------------------------------------------------------------------------
+url_tla_verify() {
+  true
+}
+
+
+# -----------------------------------------------------------------------------
+##=item url_tla_set_options <option>
+##
+## Set options for url handling
+##
+# -----------------------------------------------------------------------------
+url_tla_set_options() {
+  eval "$1=1"
+}
+
+
+# -----------------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## URL handler for tla archive downloads
+## Copyright (C) 2004 Free Software Foundation, Inc.
+## Written by Maurizio Boriani <baux@member.fsf.org>
+##
+## This file is part of the GNU sorcery.
+##
+## The GNU url_tla is free software; you can redistribute it and/or
+## modify it under the terms of the GNU Lesser General Public
+## License as published by the Free Software Foundation; either
+## version 2.1 of the License, or (at your option) any later version.
+##
+## The url_tla is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## Lesser General Public License for more details.
+##
+## You should have received a copy of the GNU Lesser General Public
+## License along with the GNU C Library; if not, write to the Free
+## Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+## 02111-1307 USA.
+## ---------------------------------------------------------------------------
