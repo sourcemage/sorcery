@@ -886,8 +886,20 @@ EOT
   if ! query  "CONTINUE casting?" n; then
     message ""
     message "${MESSAGE_COLOR}You chose to stop the installation, or you let the prompt timeout."
-	message "Maybe you'll be braver next time?${DEFAULT_COLOR}"
-    exit 1
+    message "Maybe you'll be braver next time?${DEFAULT_COLOR}"
+	
+   	# check for more spells to be cast before exiting.
+    if  [  -n  "$SPELLS"  ] ; then
+      message ""
+      message "${MESSAGE_COLOR}We will skip casting $SPELL, but still more spells to be cast so "
+      message "continuing on...${DEFAULT_COLOR}"
+      message ""
+
+      # now remove the spell from our list of spells to cast.
+      TEMP_SPELLS=$(echo "$SPELLS" |grep -v "$SPELL")
+      SPELLS=$TEMP_SPELLS
+      return 1
+    fi
   fi
 
   message ""
