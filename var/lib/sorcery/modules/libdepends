@@ -347,7 +347,10 @@ function select_provider()
 
         if ! spell_exiled $spell; then
             # setup for displaying spellversion in listing.
-            spellversion=`gaze DETAILS $spell | grep VERSION= | cut -d = -f 2`
+            spellversion=$(
+                . $( codex_find_spell_by_name $spell )/DETAILS > /dev/null
+                echo $VERSION
+            )
             temp="$temp ${spell}:${spellversion}"
         fi
     done
@@ -374,12 +377,9 @@ function select_provider()
         select_list "selected" $temp
     fi
 
-    # Before returning selected item which is in form <spell>::<version>,
+    # Before returning selected item which is in form <spell>:<version>,
     # need to clean off the ':<version>'.
-    local realspell
-    realspell=`echo $selected | cut -d : -f 1 `
-
-    eval ''$returnvar'='$realspell''
+    eval ''$returnvar'='${selected%%:*}''
 
 }
 
@@ -395,8 +395,18 @@ function work_depends_provider()
   explode "$(search_depends_status "$SPELL" ".*($1)")" ":" "status"
 
   local provider=${status[1]%(*}    # Name of spell which provides $1
+  local provider_installed="yes"
 
-  if [[ $RECONFIGURE || ! $provider ]] ; then
+  # If we used to depend on one spell but it no longer is installed then the
+  # whole procedure with the asking and whatnot should happen again.
+  if ( ! spell_installed $provider && ! spell_held $provider ) ; then
+    provider_installed=""
+
+    # Remove the bad entry.
+    remove_depends_status $SPELL ${status[1]}
+  fi
+
+  if [[ $RECONFIGURE || ! $provider || ! $provider_installed ]] ; then
     select_provider "provider" "$1"
   fi
 
@@ -442,8 +452,19 @@ function work_optional_depends_provider()
   explode "$(search_depends_status "$SPELL" ".*($1)")" ":" "status"
 
   local provider=${status[1]%(*}    # Name of spell which provides $1
+  local provider_installed="yes"
 
-  if [[ $RECONFIGURE || ! ${status[2]} ]] ; then
+  # If we used to depend on one spell but it no longer is installed then the
+  # whole procedure with the asking and whatnot should happen again.
+  if [[ ${status[2]} != off ]] \
+        && ( ! spell_installed $provider && ! spell_held $provider ) ; then
+    provider_installed=""
+
+    # Remove the old entry.
+    remove_depends_status $SPELL ${status[1]}
+  fi
+
+  if [[ $RECONFIGURE || ! ${status[2]} || ! $provider_installed ]] ; then
 
     select_provider "provider" "$1" "$4" "optional"
 
