@@ -336,7 +336,7 @@ function select_provider()
       message "$SPELL_COLOR$provname$DEFAULT_COLOR as a requirement."
     fi
 
-    local INST_PROV_LIST temp spell
+    local INST_PROV_LIST temp spell spellversion
     local CANDIDATES=$( find_providers $provname )
 
     for spell in $CANDIDATES; do
@@ -346,7 +346,8 @@ function select_provider()
         fi
 
         if ! spell_exiled $spell; then
-            temp="$temp $spell"
+            spellversion=`gaze DETAILS $spell | grep VERSION= | cut -d = -f 2`
+            temp="$temp ${spell}-${spellversion}"
         fi
     done
 
