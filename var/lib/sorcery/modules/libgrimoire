@@ -446,17 +446,29 @@ default_pre_build() {
 #---------------------------------------------------------------------
 make() {
 
-  [ $MAKE_NJOBS -gt 0 ] || $MAKE_NJOBS=1
+  local JOBS=""
 
-  /usr/bin/make -j $MAKE_NJOBS "$@"
+  if  [[ $MAKE_NJOBS == 0 ]]; then
+    # Zero jobs has the effect of unlimiting the number of make processes
+    JOBS=""
+  else
+    # Check there is a reasonable value.
+    [ $MAKE_NJOBS -gt 0 ] &&
+    JOBS="$MAKE_NJOBS"    || 
+    JOBS="1" # Use default of one when MAKE_NJOBS is nonsense.
+  fi
+
+  debug  "libgrimoire"  "make: running with $JOBS jobs"
+
+  /usr/bin/make -j $JOBS "$@"
   
   # Cache the result
   local  STATUS=$?
   
-  if [ $STATUS -ne 0 ] && [ $MAKE_NJOBS -gt 1 ] ; then
+  if [[ $STATUS -ne 0 ]] && [[ $JOBS != 0 ]] ; then
     query "Running make with $MAKE_NJOBS jobs failed. Attempt to run with a single job?" y &&
     # Try again
-    /usr/bin/make "$@"
+    /usr/bin/make -j1 "$@"
     STATUS=$?
   fi
 
