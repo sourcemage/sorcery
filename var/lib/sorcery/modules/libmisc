@@ -752,8 +752,7 @@ function config_set_option () {
 ## @param question
 ## @param default answer
 ##
-## @return 0 in when the answer is 'y'
-## @return 1 in when the answer is 'n'
+## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## Return variable is also marked as persistent
@@ -766,17 +765,15 @@ function real_config_query () {
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
   
         # already have a reasonable value...
-        [ "$ANSWER" == "y" ] && return 0
-        [ "$ANSWER" == "n" ] && return 1
+        [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
     fi
   
     if query "$2" $3; then
         config_set_option "$1" y
-        return 0
     else
         config_set_option "$1" n
-        return 1
     fi
+    return 0
 }
 
 #---------------------------------------------------------------------
@@ -807,7 +804,7 @@ function real_config_query_option () {
 
         if [ $key != error ]; then
             echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
-            return
+            return 0
         fi
     fi
   
