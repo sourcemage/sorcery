@@ -224,7 +224,7 @@ function install_initd() { (
 
 
 #---------------------------------------------------------------------
-## Takes the compile log, created by activate_voyeur and stuffs it into
+## Takes the compile log and stuffs it into
 ## our compile log directory.
 #---------------------------------------------------------------------
 function create_compile_log()  {
@@ -251,23 +251,6 @@ function view_compile_log()  {
     report $C_LOG  "Compile log"
 }
 
-
-#---------------------------------------------------------------------
-## Turns on logging of the output from BUILD/COMPILE/INSTALL
-## Needs to be run after each script finishes because tee stops writing
-## upon EOF.
-#---------------------------------------------------------------------
-function activate_voyeur()  {
-
-  if  [  -z  "$SILENT"  ];  then
-    case  $VOYEUR  in
-      on)  tee  -a  $C_LOG  <  $C_FIFO              &  ;;
-       *)  tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &  ;;
-    esac
-  else     tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &
-  fi
-
-}
 
 #---------------------------------------------------------------------
 ## @param spellname

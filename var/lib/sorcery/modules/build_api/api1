@@ -25,11 +25,16 @@
 function run_build_spell() {
   debug "build_api/api1" "run_build_spell"
   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
+  C_FIFO=/dev/stdout
+  if [ "$VOYEUR" == "on" -a -z "$SILENT" ]; then
+    VOYEUR_STDOUT=/dev/stdout
+    VOYEUR_STDERR=/dev/stderr
+  else
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
+  fi
   rm -f $C_LOG
-  rm -f $C_FIFO
   touch $C_LOG
-  mkfifo $C_FIFO
   # should OPTS get set here?
 
   # This is an experiment, If we have actual interesting return codes
@@ -69,7 +74,7 @@ function run_pre_build() {
 
 
 #---------------------------------------------------------------------
-## Starts up the compile logs and fifo, turns on the various environment
+## Starts up the compile logs, turns on the various environment
 ## settings that need to be on, eventually gets around to running
 ## BUILD or default_build, then does other things it shouldn't do.
 #---------------------------------------------------------------------
@@ -79,8 +84,6 @@ function run_build()  {
 
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
-
-  activate_voyeur
 
   # slight bug here if SOURCE_DIRECTORY doesnt exist
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
@@ -207,7 +210,7 @@ function real_default_build() {
   prepare_install                            &&
   make    install
 
-) > $C_FIFO
+) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) # see bug 7201
 }
 
 

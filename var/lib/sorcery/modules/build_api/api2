@@ -27,15 +27,19 @@ function run_build_spell() {
   debug "build_api/api2" "run_build_spell"
 
   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
+  C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
 
-  rm  -f $C_FIFO
-  mkfifo  $C_FIFO
   rm  -f $C_LOG
   touch $C_LOG
 
-  activate_voyeur                       
-
+  if [ "$VOYEUR" == "on" -a -z "$SILENT" ]; then
+    VOYEUR_STDOUT=/dev/stdout
+    VOYEUR_STDERR=/dev/stderr
+  else
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
+  fi
+                      
   (
   run_pre_build				|| return 1
   run_build                             &&
@@ -43,7 +47,8 @@ function run_build_spell() {
   run_install				|| return 2
   run_post_install			&&
   run_final				|| return 3
-  ) > $C_FIFO || return $?  # this is needed to pass $? up
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) || # see bug 7201
+                                           return $?  # this is needed to pass $? up
   run_triggers				|| return 4
   return 0
 }
@@ -75,7 +80,7 @@ function run_pre_build() {
 
 
 #---------------------------------------------------------------------
-## Starts up the compile logs and fifo, turns on the various environment
+## Starts up the compile logs, turns on the various environment
 ## settings that need to be on, eventually gets around to running
 ## BUILD or default_build.
 #---------------------------------------------------------------------
