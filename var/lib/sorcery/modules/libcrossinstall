@@ -10,7 +10,7 @@ invoke_cross_environment()
 
            # Set directory options.
 
-            INSTALL_ROOT="/opt/cross-install/${HOST}"
+            INSTALL_ROOT=${INSTALL_ROOT:-/opt/cross-install/${HOST}}
 
           DEPENDS_CONFIG=${INSTALL_ROOT}/etc/sorcery/local/depends
           LOCAL_EXCLUDED=${INSTALL_ROOT}/etc/sorcery/local/excluded
@@ -64,7 +64,7 @@ cross_install_sorcery()
 	message -n "${DEFAULT_COLOR}"
 	
 	mkdir -p ${INSTALL_ROOT}/etc/init.d/runlevels/{%1,%2,%3,%4,%5,%S}
-	mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig}
+	mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig/network}
 	mkdir -p ${INSTALL_ROOT}/{home,root,dev,lib,bin,sbin,mnt,tmp,proc}
 	mkdir -p ${INSTALL_ROOT}/var/state/sorcery
 	mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
@@ -75,14 +75,12 @@ cross_install_sorcery()
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/install/
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/md5sum/
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
-	mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/
+	mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/codex/
 	mkdir -p ${INSTALL_ROOT}/var/spool/sorcery/
 	mkdir -p -m 0666 ${INSTALL_ROOT}/var/tmp
 	cp -ruv /etc/sorcery/{accounts,config,groups,mirrors,version,cabal,dialogrc,licenses,uid,compile_config,gid,update} ${INSTALL_ROOT}/etc/sorcery
         mkdir -p ${INSTALL_ROOT}/etc/sorcery/local/depends
-        cp -pf /etc/sorcery/local/* ${INSTALL_ROOT}/etc/sorcery/local
-        rm -f $INSTALL_ROOT$GRIMOIRE_LIST*
-        touch $INSTALL_ROOT$GRIMOIRE_LIST
+        cp -f /etc/sorcery/local/depends/README ${INSTALL_ROOT}/etc/sorcery/local/depends
         cp /etc/sysconfig/init ${INSTALL_ROOT}/etc/sysconfig
         touch ${INSTALL_ROOT}/var/state/sorcery/{depends,packages,triggers}
         cp -ruv /var/lib/sorcery/{archspecs,excluded,protected,subroutines,build,modules,solo,sustained} ${INSTALL_ROOT}/var/lib/sorcery/         
