@@ -1,3 +1,5 @@
+#!/bin/sh
+
 sound()  {
 
   case  $SOUND  in
@@ -13,6 +15,17 @@ sound()  {
 
 }
 
+
+get_uid_gid_for_account()  {
+
+  if  [  -f  /etc/config/local/ids  ];  then
+    IDS="/etc/config/local/ids"
+  else
+    IDS="/etc/config/ids"
+  fi
+  grep "$1:" $IDS | cut -d : -f2
+
+}
 
 
 ############################################################
@@ -61,7 +74,14 @@ query()  { (
 
 message()    {
 
-  [  -n  "$SILENT"  ]  ||  echo  -e  "$*"
+  if  [  !  -n  "$SILENT"  ];  then
+    if  [  "$1"  ==  "-n"  ];  then
+      shift  1
+      echo  -n  -e  "$*"
+    else
+      echo  -e  "$*"
+    fi
+  fi
 
 }
 
@@ -141,7 +161,7 @@ testpack() {
           Zip)  unzip  -tq   $FILENAME   1>/dev/null 2>&1  ;;
           RPM)  rpmunpack  < $FILENAME   |                 \
                 gzip   -t                1>/dev/null 2>&1  ;;
-            *)  true                                       ;;
+            *)  ! filename_indicates_compression $FILENAME ;;
   esac
 
 }
@@ -503,9 +523,14 @@ is_depends()  {  (
 
   EXIT_STATUS="false"
 
+  SAVED_IFS=$IFS 
+  IFS=$ENTER_IFS
+
   for  DEP  in  `cut  -d :  -f2-  $DEPENDS_STATUS  |
                  grep  "^$1:"`
   do
+
+    IFS=$SAVED_IFS 
 
     DEP_STATUS=`echo  "$DEP"  |  cut  -d :  -f2`
 
@@ -516,6 +541,8 @@ is_depends()  {  (
 
   done
 
+  IFS=$SAVED_IFS
+
   $EXIT_STATUS
 
 )  }
@@ -524,11 +551,22 @@ is_depends()  {  (
 in_depends()  {
   #  Was $1 presented as a depenency for $SPELL
 
-  if    grep  -q  "^$SPELL:$1"  $DEPENDS_STATUS
+  if    grep  -q  "^$SPELL:$1:"  $DEPENDS_STATUS
   then  true
   else  false
   fi
 
+}
+
+
+has_depends() {
+  #  Has $1 had it's dependencies resolved?
+    
+  if    grep  -q  "^$1:"  $DEPENDS_STATUS
+  then  true
+  else  false
+  fi
+        
 }
 
 
@@ -556,16 +594,18 @@ depends()  {
 
   echo  "Running depends() on $1"  >>  $DEBUG
 
-  if  ! spell_installed  $1   &&
-      ! spell_held       $1
+  if  !  spell_installed  $1   &&
+      !  spell_held       $1   &&
+      !  has_depends      $1
   then
-    if  !  is_depends    $1  &&
-        !  spell_exiled  $1  &&
-        !  query  "Install required dependency $1 $4?" y
-    then  return  1
-    else
-      cast  --deps  $1
+    if  !  is_depends    $1
+    then
+      if !  spell_exiled  $1  &&
+         !  query  "Install required dependency $1 $4?" y
+      then  return  1
+      fi
     fi
+    cast  --deps  $1
   fi
   add_depends  "$SPELL"  "$1"  "on"  "required"  "$2"  "$3"
 
@@ -1058,7 +1098,12 @@ satisfy_depends()  {
           .  $SPELL_CONFIG
   fi
 
+  SAVED_IFS=$IFS 
+  IFS=$ENTER_IFS
+
   for  LINE  in  `grep  "^$SPELL:"  $DEPENDS_STATUS`;  do
+
+    IFS=$SAVED_IFS
 
      DEP_SPELL=`echo  $LINE  |  cut  -d :  -f2`
     DEP_STATUS=`echo  $LINE  |  cut  -d :  -f3`
@@ -1453,3 +1498,81 @@ requires()  { (
 
 verify_sources()  {  verify_source  `sources  $SPELL`;  }
 handle_depends()  {  true;  }
+
+
+#---------------------------------------------------------------------
+##=item filename_indicates_compression <filename>
+## 
+## Returns true if the name of the file indicates that it should be
+## a compressed file.  In other words, this function returns true if
+## the filename ends in .gz, .tgz, .bz2, .zip, .rpm, or .Z.
+##
+#---------------------------------------------------------------------
+filename_indicates_compression()  {
+  local FILENAME=`echo "file$1" | sed 's/^.*\.gz$//'  \
+                                | sed 's/^.*\.tgz$//' \
+                                | sed 's/^.*\.bz2$//' \
+                                | sed 's/^.*\.zip$//' \
+                                | sed 's/^.*\.Z$//'   \
+                                | sed 's/^.*\.rpm$//' \
+                                | sed 's/^.*\.bz2$//'`
+  [  -z  "$FILENAME"  ]
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag_up
+## 
+## Activate wait flag (used for printing dots until a job is done)
+##
+#---------------------------------------------------------------------
+wait_flag_up()  {
+
+  touch  /tmp/.$$.wait_flag
+  chmod  000  /tmp/.$$.wait_flag
+
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag_down
+## 
+## Deactivate wait flag (used for printing dots until a job is done)
+##
+#---------------------------------------------------------------------
+wait_flag_down()  {
+
+  rm  -f  /tmp/.$$.wait_flag
+
+}
+
+
+#---------------------------------------------------------------------
+##=item ping_pid
+## 
+## 
+##
+#---------------------------------------------------------------------
+ping_pid() {
+
+  renice  10  $1  1>/dev/null 2>&1
+
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag
+## 
+## Prints out dots as long as wait_flag is set
+## To be started in the background
+##
+#---------------------------------------------------------------------
+wait_flag()  {
+
+  while  [  -e  /tmp/.$$.wait_flag  ];  do
+    message  -n  "."
+    sleep  2
+    ping_pid  $1  ||  wait_flag_down
+  done
+
+}
