@@ -683,11 +683,12 @@ function cast_spell()  { (
   #some minor discussion occured about having this, i'll leave it out for now
   activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
 
+  # must declare OPS before sourcing config
+  local OPTS
   run_spell_config                            
 
   # this should probably be moved...
   spell_depends=$(hash_get uncommitted_hash $SPELL)
-  local OPTS
   test -e $spell_depends && 
   OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
   
