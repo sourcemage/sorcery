@@ -1,83 +1,89 @@
-.TH SORCERY "8" "August 2001" "Source Mage GNU Linux" "System Administration"
+.TH SORCERY "8" "November 2004" "Source Mage GNU Linux" "System Administration"
 .SH NAME
-sorcery \- menu-driven software package management utility
-.SH SYNTAX
+sorcery, xsorcery \- menu-driven software package management utility
+.SH SYNOPSIS
+.I sorcery [action]
+.SH EXAMPLE
+To get your system up to date, type
 .I sorcery
-[update|rebuild]
+system-update
 .SH "DESCRIPTION"
 .I sorcery
 is an easy-to-use menu-driven (dialog-based) interface to the
 .I sorcery
 source-based package management system.
 .SH "OPTIONS"
+Note that all calls to sorcery with options are
+semi-interactive (prompts time out) or non-interactive,
+so they can be run from a cron script or something similar.
+.PP
+Only
 .I sorcery
 without options will start the menu-driven package management utility.
-.PP
-.I -u|update
-.IP
-Updates the sorcery scripts only. This option is non-interactive and does not start up the  menu-driven interface. It is suitable for use in cron jobs.
-.PP
-.I -s|system-update
-.IP
+.SS -u|update
+Updates the sorcery scripts
+.B only.
+This option is non-interactive and does not start up the  menu-driven interface. It is suitable for use in cron jobs.
+.SS -s|system-update
 Perform a system update (updates sorcery, grimoire, and spells).
 [ scribe update, sorcery queue, cast --queue ]
-This option is non-interactive and does not start up the menu-driven interface.
-It is suitable for use in cron jobs.
-.PP
-.I -g|upgrade
-.IP
+.SS -g|upgrade
 Update spells without first updating the grimoire.
 [ sorcery queue, cast --queue ]
-This option is non-interactive and does not start up the menu-driven interface.
-It is suitable for use in cron jobs.
-.PP
-.I -q|queue
-.IP
+.SS -q|queue
 Compare installed grimoire to installed spells, generate queue of spells needing to be updated.
-This option is non-interactive and does not start up the menu-driven interface.
-It is suitable for use in cron jobs.
-.PP
-.I -r|rebuild
-.IP
+.SS -r|rebuild
 Automatically rebuilds all installed software packages. This option
-is non-interactive and does not start up the menu-driven interface.
-It is suitable for use in cron jobs and is useful for rebuilding
-distributed binaries from source.
-.PP
-.I show-held
-.IP
-Lists all spells that are held. This option is non-interactive and does not start up the menu-driven interface.
-.PP
-.I hold <spell|s>
-.IP
+is non-interactive except for a bunch of config and depends questions the first
+time you run it.
+.SS hold <spell|s>
 sets <spell|s> to held.
-This option is non-interactive and does not start up the menu-driven interface.
+This means that they stay installed, but that cast will refuse to
+cast them. This will prevent them from being updated or changed at all.
+This might be helpful if you change kernel versions
+and the package won't build right on the new system, but still install (wrong).
+.SS unhold <spell|s>
+unholds <spell|s>, changes their status from held back to installed.
+.SS default <action> <on> <what> on|off
+This is a sorcery feature to pre-answer some
+depends questions. They will still be asked,
+but they will default to what you set this to.
 .PP
-.I unhold <spell|s>
-.IP
-unholds <spell|s>, sets them to installed.
-This option is non-interactive and does not start up the menu-driven interface.
-.PP
-.I -v|--version 
-.IP
+Generally, <on> is what spell will be used.
+<what> can be a spell, in that case on or off is the default
+answer to the "optionally depends on" question.
+.P
+<what> can also be a feature name.
+All spells will default to use <on> as the provider for that then.
+If it is an optional depends, they will use nothing if set to off,
+and the provider if set to on.
+.SS default add <on>|"" <what>|"" on|off
+This adds a default statement to the list.
+Either <on> or <what> (not both) can be "", in which case they work as
+wildcards (anything <what> depends on / anything that depends on <on>)
+.SS default remove|search [<on>|"" [<what>|"" [on|off]]]
+These are used to search or modify the defaults list.
+Anything not specified or blank will be a wildcard.
+Everything that matches will be removed/shown.
+.SS -v|--version 
 Displays the version number of your sorcery package.
-.PP
-.I -h|--help
-.IP
-Displays some help message.
-.PP
+Always use this information when filing bugs.
+.SS -h|--help
+Displays a short help message.
 .SH "REQUIREMENTS"
-.I Sorcery
-requires a connection to the Internet
-.PP
-.I Bash
+While
+.I sorcery
+does not strictly require a connection to the Internet,
+it is highly recommended (for updates and especially for sources).
+While there are some 56k modem users, broadband is recommended too.
+.SS Bash
 version 2 or higher
-.PP
-.I Dialog
+.SS Dialog
 version 0.9a or higher
+.SS Linux
+kernel version 2.4.x or 2.6.x
 .PP
-.I Linux
-kernel version 2.4.x
+and a bunch of other software.
 .SH "NOTES"
 Options on the
 .I Package Menu
@@ -112,13 +118,15 @@ To select whichever button is highlighted press
 To select/deselect items from a checklist press
 .I <Space>
 .SH "AUTHOR"
-Original version by Kyle Sallee, and updated Thomas Stewart.
+Original version by Kyle Sallee, and updated Thomas Stewart
+and Karsten Behrmann.
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .SH "REPORTING BUGS"
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-cast(8), dispel(8), gaze(1), grimoire(5), invoke(8), scribe(8), summon(8), scribbler (8)
+alter(8), cast(8), cleanse(8), dispel(8), gaze(1), grimoire(5), scribbler(8),
+scribe(8), sorcery_config(8), summon(8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY
 
