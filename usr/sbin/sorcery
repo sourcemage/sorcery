@@ -938,6 +938,38 @@ I off . . . . . - . - . . - . . . - .
 
 }
 
+function gpg_download_menu() {
+  local CHECK CHECKS
+  local INT_TITLE="GnuPG Signature Checking Selection Menu"
+  local INT_HELP="Enable/Disable GnuPG signature checking here"
+  local SRY_HELP="Toggle sorcery gpg signature checking on sorcery update"
+  local GRM_HELP="This does nothing right now, but if it did, it would: Toggle grimoire gpg signature checking on scribe update"
+
+  if  CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"  \
+                           --no-cancel            \
+                           --item-help            \
+                           --separate-output      \
+                           --checklist            \
+                           "$INT_HELP"            \
+                           0 0 0                  \
+        "GPG_VERIFY_SORCERY"    ""  "$GPG_VERIFY_SORCERY"    "$SRY_HELP"    \
+        "GPG_VERIFY_GRIMOIRE"   ""  "$GPG_VERIFY_GRIMOIRE"   "$GRM_HELP"'`
+  then
+    GPG_VERIFY_SORCERY=off
+    GPG_VERIFY_GRIMOIRE=off
+
+    for  CHECK  in  $CHECKS;  do
+      case  $CHECK  in
+         GPG_VERIFY_SORCERY)  GPG_VERIFY_SORCERY=on ;;
+        GPG_VERIFY_GRIMOIRE) GPG_VERIFY_GRIMOIRE=on ;;
+      esac
+    done
+
+    modify_local_config "GPG_VERIFY_SORCERY" "$GPG_VERIFY_SORCERY"
+    modify_local_config "GPG_VERIFY_GRIMOIRE" "$GPG_VERIFY_GRIMOIRE"
+  fi
+}
+
 
 integrity_menu()  {
 
@@ -945,6 +977,7 @@ integrity_menu()  {
    INT_HELP="Options involving integrity checking, including --fix and download options."
    FIX_HELP="Set cleanse --fix checks"
     DL_HELP="Discover corrupted or modified archives during cast"
+   GPG_HELP="Verify GnuPG signatures on sorcery/grimoire tarballs"
 
   while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
                            --cancel-label  "Exit"      \
@@ -953,12 +986,14 @@ integrity_menu()  {
                            --menu                      \
                            "$INT_HELP"                 \
                            0 0 0                       \
-        "F"  "System integrity"   "$FIX_HELP"          \
-        "D"  "Download integrity" "$DL_HELP"'`
+        "F"  "System integrity"       "$FIX_HELP"      \
+        "D"  "Download integrity"     "$DL_HELP"       \
+        "G"  "GPG Signature Checking" "$GPG_HELP"'`
   do
     case $INT_CHECKS in
       F)  integrity_fix_menu       ;;
       D)  integrity_download_menu  ;;
+      G)  gpg_download_menu  ;;
     esac
   done
 
