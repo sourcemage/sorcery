@@ -1294,6 +1294,7 @@ function gaze_show_license()  {
 #-----
 function gaze_show_installed() {
 
+  local total_rc=0
   if    [  -z  "$1"    ]
         then  $PAGER   $SPELL_STATUS
   else
@@ -1304,10 +1305,12 @@ function gaze_show_installed() {
                 if  [  -n  "$VERSION"  ]; then
                         echo   "$VERSION"
                 else
+                        total_rc=1
                         message  "not installed"
                 fi
         done
   fi
+  return $total_rc
 }
 
 #-----
@@ -1600,11 +1603,18 @@ parse()  {
 
   esac
 
+  # dont put code here unless you save the return value from the case/esac code
+
 }
 
 
 . /etc/sorcery/config
-if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  "$@";  fi
+if  [  $#  == 0  ];  then
+  help  |  $PAGER
+else
+  parse  "$@"
+  # dont put code here unless you save the return value from the line above
+fi
 
 
 #---------------------------------------------------------------------
