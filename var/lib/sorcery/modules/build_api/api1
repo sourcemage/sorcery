@@ -112,9 +112,6 @@ function run_build()  {
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)      && # see bug 7201
 
-  install_xinetd &&
-  install_initd
-
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
@@ -228,6 +225,8 @@ function real_default_post_build() {
 
   debug "build_api/api1" "Starting real_default_post_build()"
 
+  install_xinetd
+  install_initd
   install_pam_confs
   gather_docs
   devoke_installwatch

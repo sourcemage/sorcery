@@ -63,124 +63,326 @@ function prepare_spell_config()  {
 
 }
 
-#---------------------------------------------------------------------
-## Prompts the user if they want to invoke the services in
-## SCRIPT_DIRECTORY/xinetd.d/* via xinetd.
-## An optional depends is set on or off depending on whether or not
-## the user wants to invoke a spell via xinetd
-#---------------------------------------------------------------------
-function use_xinetd()  {
-  local SERVICES SERVICE ALL_SERVICES SERVICES_DISABLE
-  debug "cast" "In use_xinetd()"
-  
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
-      !  grep  -q  "SERVICES="  $SPELL_CONFIG
-  then
 
-    debug "cast" "use_xinetd: found an xinetd directory - processing"
-    ALL_SERVICES=`cat  $SCRIPT_DIRECTORY/xinetd.d/*  |
-                  grep  "service"                    |
-                  sed   "s/service //"`
-                  
-    debug "cast" "use_xinetd: ALL_SERVICES: '$ALL_SERVICES'"
+#---------------------------------------------------------------------
+## Asks the user about init and xinetd services
+##
+## expcetd $SCRIPT_DIRECTORY to be setable, any file one level deep in
+## $SCRIPT_DIRECTORY/xinetd.d or $SCRIPT_DIRECTORY/init.d is assumed to be
+## a service
+## 
+## the following persistent variables may be set:
+## XINETD_ENABLED XINETD_DISABLED
+## INIT_ENABLED INIT_DISABLED
+## XINETD_INSTALLED XINETD_NOT_INSTALLED
+## INIT_INSTALLED INIT_NOT_INSTALLED
+##
+## They are all lists used by the list_add/list_find functions. The union
+## of FOO_ENABLED and FOO_DISABLED should be exactly equivalent to
+## FOO_INSTALLED. FOO_ENABLED and FOO_DISABLED have an empty intersection set.
+#---------------------------------------------------------------------
+function query_services() {
+  local XINETD_SCRIPTS=$(find $SCRIPT_DIRECTORY/xinetd.d -maxdepth 1 -type f)
+  local INIT_SCRIPTS=$(find $SCRIPT_DIRECTORY/init.d -maxdepth 1 -type f)
+  local btmp xtmp itmp 
+  local tmp retvar
+  local XINETD INIT BOTH found
 
-    # only looking for services to install, non-selected services
-    # will be installed and disabled in install_xinetd_confs().
-    for  SERVICE  in  $ALL_SERVICES;  do
-      if    query  "Invoke $SERVICE via xinetd?"  y
-      then 
-        SERVICES="$SERVICE $SERVICES"
-      else
-        SERVICES_DISABLE="$SERVICE $SERVICES_DISABLE" 
+  local new_init_inst new_init_ninst new_init_enab new_init_disab
+  local new_xinetd_inst new_xinetd_ninst new_xinetd_enab new_xinetd_disab
+
+  for xtmp in $XINETD_SCRIPTS; do
+    for itmp in $INIT_SCRIPTS; do
+      if [[ $(basename $xtmp) == $(basename $itmp) ]] ; then
+        list_add BOTH $(basename $itmp)
+        found=1
+        break
       fi
     done
+  done
 
-    debug "cast" "use_xinetd: to install SERVICES: '$SERVICES'"
-    debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
-    debug "cast" "setting up depends for services"
+  for tmp in $INIT_SCRIPTS; do
+    tmp=$(basename $tmp)
+    list_find $tmp $BOTH || list_add INIT $tmp
+  done
 
-    if    [  -n  "$SERVICES"  ] ; then 
-      private_common_depends "xinetd" "on" "optional" "" ""
+  for tmp in $XINETD_SCRIPTS; do
+    tmp=$(basename $tmp)
+    list_find $tmp $BOTH || list_add XINETD $tmp
+  done
+
+  for tmp in $BOTH ; do
+    message "${QUERY_COLOR}Would you like to install the init and/or xinetd script for $tmp?${DEFAULT_COLOR}"
+    dual_service_query $tmp choice "$XINETD_INSTALLED" "$XINETD_NOT_INSTALLED" "$INIT_INSTALLED" "$INIT_NOT_INSTALLED" n n
+    if [[ $choice == both ]] ; then
+      list_add new_init_inst $tmp
+      list_add new_xinetd_inst $tmp
+      message "${QUERY_COLOR}Would you like to enable $tmp through init and/or xinetd?${DEFAULT_COLOR}"
+      dual_service_query $tmp choice "$XINETD_ENABLED" "$XINETD_DISABLED" "$INIT_ENABLED" "$INIT_DISABLED" n n
+
+      case $choice in
+          both) list_add new_init_enab $tmp
+                list_add new_xinetd_enab $tmp
+                ;;
+          init) list_add new_init_enab $tmp
+                list_add new_xinetd_disab $tmp
+                ;;
+        xinetd) list_add new_init_disab $tmp
+                list_add new_xinetd_enab $tmp
+                ;;
+       neither) list_add new_init_disab $tmp
+                list_add new_xinetd_disab $tmp
+                ;;
+      esac
+    elif [[ $choice == init ]] ; then
+      list_add new_init_inst $tmp
+      list_add new_xinetd_ninst $tmp
+      service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
+                                "$INIT_DISABLED" n new_init_enab new_init_disab
+    elif [[ $choice == xinetd ]] ; then
+      list_add new_init_ninst $tmp
+      list_add new_xinetd_inst $tmp
+      service_query $tmp "Enable xinetd script $tmp?" "$XINETD_ENABLED" \
+                           "$XINETD_DISABLED" n new_xinetd_enab new_xinetd_disab
     else
-      private_common_depends "xinetd" "off" "optional" "" ""
+      list_add new_init_ninst $tmp
+      list_add new_xinetd_ninst $tmp
     fi
+  done
 
-    echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
-    echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
+  for tmp in $INIT; do
+    if service_query $tmp "Install init script $tmp?" "$INIT_INSTALLED" \
+                     "$INIT_NOT_INSTALLED" n new_init_inst new_init_ninst; then
+      service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
+                            "$INIT_DISABLED" n new_init_enab new_init_disab
+    fi
+  done
+  for tmp in $XINETD; do
+    if service_query $tmp "Install xinetd script $tmp?" "$XINETD_INSTALLED" \
+                "$XINETD_NOT_INSTALLED" n new_xinetd_inst new_xinetd_ninst; then
+      service_query $tmp "Enable xinetd script $tmp?" "$XINETD_ENABLED" \
+                          "$XINETD_DISABLED" n new_xinetd_enab new_xinetd_disab
+    fi
+  done
 
+  # removing all of these is necessary incase some init/xinetd scripts were
+  # originally in the spell but were later removed, besides its harmless
+  persistent_remove INIT_INSTALLED
+  persistent_remove INIT_NOT_INSTALLED
+  persistent_remove INIT_ENABLED
+  persistent_remove INIT_DISABLED
+  persistent_remove XINETD_INSTALLED
+  persistent_remove XINETD_NOT_INSTALLED
+  persistent_remove XINETD_ENABLED
+  persistent_remove XINETD_DISABLED
+
+  if [[ $INIT ]] || [[ $BOTH ]] ; then
+    service_store INIT_INSTALLED "$new_init_inst"
+    service_store INIT_NOT_INSTALLED "$new_init_ninst"
+    service_store INIT_ENABLED "$new_init_enab"
+    service_store INIT_DISABLED "$new_init_disab"
   fi
 
+  if [[ $XINETD ]] || [[ $BOTH ]] ; then
+    service_store XINETD_INSTALLED "$new_xinetd_inst"
+    service_store XINETD_NOT_INSTALLED "$new_xinetd_ninst"
+    service_store XINETD_ENABLED "$new_xinetd_enab"
+    service_store XINETD_DISABLED "$new_xinetd_disab"
+  fi
+  if [[ $XINETD_INSTALLED ]] ; then
+    optional_depends xinetd "" "" "for $XINETD_INSTALLED"
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## Determines what the best default answer should be then gives the
+## user a menu of neither, init, xinetd, or both to choose from.
+## This is for the case of a service being provided by either init or xinetd
+##
+## @param service name
+## @param return variable to put answer in
+## @param list to look in for a default of yes to xinetd
+## @param list to look in for a default of no to xinetd
+## @param list to look in for a default of yes to init
+## @param list to look in for a default of no to init
+## @param default for xinetd if not found in either of the xinetd lists
+## @param default for init if not found in either of the init lists
+##
+## @return nothing of importance, returns through a pointer
+## @stdout a menu sans question, the caller needs to present the question
+#---------------------------------------------------------------------
+function dual_service_query() {
+  local service=$1
+  local returnvar=$2
+  local XY=$3
+  local XN=$4
+  local IY=$5
+  local IN=$6
+  local xinetd_default=$7
+  local init_default=$8
+
+  if list_find $service $XY ; then
+    xinetd_default=y
+  elif list_find $service $XN ; then
+    xinetd_default=n
+  fi
+
+  if list_find $service $IY ; then
+    init_default=y
+  elif list_find $service $IN ; then
+    init_default=n
+  fi
+  
+  if [[ $init_default == y ]] && [[ $xinetd_default == y ]] ; then
+    default=3
+  elif [[ $xinetd_default == y ]] ; then
+    default=2
+  elif [[ $init_default == y ]] ; then
+    default=1
+  else
+    default=0
+  fi
+  select_list $returnvar $default neither init xinetd both
+}
+
+
+#---------------------------------------------------------------------
+## Determines what the best default answer should be then asks the
+## user given question and adds the service to one of two lists
+## @param service name
+## @param question to ask
+## @param list to look in for a default of yes
+## @param list to look in for a default of no
+## @param default if not found in either of the above two lists
+## @param store in this list if the answer is yes
+## @param store in this list if the answer is no
+## @return true if yes false if no
+## @stdout a query supplied by the caller
+#---------------------------------------------------------------------
+function service_query() {
+  local service=$1
+  local question=$2
+  local L1=$3
+  local L2=$4
+  local real_default=$5
+  local yes_list=$6
+  local no_list=$7
+
+  local default
+  if list_find $service $L1 ; then
+    default=y
+  elif list_find $service $L2 ; then
+    default=n
+  else
+    default=$real_default
+  fi
+
+  if query "$question" $default ; then
+    list_add $yes_list $service
+    true
+  else
+    list_add $no_list $service
+    false
+  fi
 }
 
 #---------------------------------------------------------------------
-## Installs the services selected from use_xinetd
+## Internal wrapper around the task of adding a persistent variable
+## then storing something in it, or unsetting whatever used to be in it
 #---------------------------------------------------------------------
-function install_xinetd() { (
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] ; then
-    mkdir  -p  /etc/xinetd.d
-    SERVICES=""          # services to be installed.
-    SERVICES_DISABLE=""  # services not to install.
-    . $SPELL_CONFIG
+function service_store() {
+  local VARNAME=$1
+  local list=$2
+  persistent_add $VARNAME
+  if [[ $list ]] ; then
+    eval $VARNAME=\"$list\"
+  else
+    unset $VARNAME
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## Installs the scripts selected from query_services
+#---------------------------------------------------------------------
+function install_xinetd() {
+  if  [[  $XINETD_INSTALLED  ]] ; then
+    local install_dir=$INSTALL_ROOT/etc/xinetd.d
+    mkdir  -p  $install_dir
     pushd "$SCRIPT_DIRECTORY/xinetd.d" >/dev/null
 
     # install and enable
-    for  FILE in  $SERVICES;  do
-      cp  $FILE  /etc/xinetd.d
-      chmod +x  /etc/xinetd.d/$FILE  
-    done
-
-    # install but disable
-    for  FILE in  $SERVICES_DISABLE;  do
-      cp  $FILE  /etc/xinetd.d
-      chmod -x  /etc/xinetd.d/$FILE  
+    for  FILE in  $XINETD_INSTALLED; do
+      if ! test -e $FILE ; then
+        message "${PROBLEM_COLOR}Xinetd script $FILE doesnt exist," \
+                "but was selected, this may be a sorcery bug${DEFAULT_COLOR}"
+        continue
+      fi
+      if list_find $FILE $XINETD_ENABLED; then
+        message "Installing and enabling xinetd script $FILE to $install_dir"
+        install_xinetd_sub $FILE no $install_dir
+      elif list_find $FILE $XINETD_DISABLED; then
+        message "Installing and disabling xinetd script $FILE to $install_dir"
+        install_xinetd_sub $FILE yes $install_dir
+      else
+        message "${PROBLEM_COLOR}Xinetd script $FILE is in installed list" \
+                "but wasnt enabled or disabled, this may be a sorcery bug" \
+                "${DEFAULT_COLOR}"
+      fi
     done
     popd >/dev/null
   fi
-) }
+}
 
 #---------------------------------------------------------------------
-## Prompts the user if they want the init.d scripts the current spell
-## has to be installed.
+## Does the dirty work involved in installing an xinetd script
+## this includes setting the disabled field appropriately and
+## not trampling on pre-existing files by default
 #---------------------------------------------------------------------
-# Automagic initscript installation.
-function use_initd()  { (
+function install_xinetd_sub() {
+  local file=$1
+  local bfile=$(basename $1)
+  local state=$2
+  local install_dir=$3
+  local tmp_file=$TMP_DIR/$bfile
+  local inst_file=$install_dir/$bfile
+  cp  $file $tmp_file
 
-  debug "cast" "In use_initd()"
+  set_xinetd_state $tmp_file $state
 
-  INITDSCRIPTS=""
-  INITDSCRIPTS_DISABLED=""
-
-  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
-    debug "cast" "use_initd: found an init.d directory - processing"
-
-    . $SPELL_CONFIG
-
-    local ALL_INITSCRIPTS=`find "$SCRIPT_DIRECTORY/init.d/" -type f -not -name "*.conf" -printf '%f '`
-    debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
-
-    local INITSCRIPT
-    for  INITSCRIPT in $ALL_INITSCRIPTS  ;  do
-
-      echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
-          grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
-
-      local default_answer=n
-      grep -Fq 'ESSENTIAL=yes' "$SCRIPT_DIRECTORY/init.d/$INITSCRIPT" && default_answer=y
-      if  query  "Invoke $INITSCRIPT at boot via init?"  $default_answer  ;  then
-        INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
-        init_prepare_install  $INITSCRIPT
-      else
-        INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
-      fi
-    done
+  if test -e $inst_file &&
+     ! grep -v disabled $inst_file|diff - $file &>/dev/null ; then
+    message "${QUERY_COLOR}$inst_file differs from the default $file," \
+            "what would you like to do?${DEFAULT_COLOR}"
+    select_list choice 0 "ignore" "overwrite" "overwrite/backup"
+    case $choice in
+      "overwrite/backup")
+        local backup=$inst_file.$(date +'%Y%m%d%H%M')
+        mv $inst_file $backup
+        # disable the backup
+        set_xinetd_state $backup yes
+        cp $tmp_file $inst_file ;;
+      overwrite) cp $tmp_file $inst_file ;;
+    esac
+  else
+    cp $tmp_file $inst_file
   fi
-    
-  tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
-      $SPELL_CONFIG )
-  echo "$tmp" > $SPELL_CONFIG
-  echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
-  echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
-) }
+}
+
+#---------------------------------------------------------------------
+## Handles the logic of enabling or disabling of an xinetd script
+#---------------------------------------------------------------------
+function set_xinetd_state() {
+  local file=$1
+  local state=$2
+  if grep -q "\s*disabled" $file ; then
+    sedit "s/disabled\s*=.*/disabled=$state/" $file
+  else
+    sedit "s/}/disabled=$state\n}/" $file
+  fi
+}
+
 
 #---------------------------------------------------------------------
 ## Copies any init.d files from the SCRIPT_DIRECTORY to the /etc/init.d.
@@ -188,29 +390,33 @@ function use_initd()  { (
 ## executable bit if the user specified that the init.d script should be
 ## started at bootup.
 #---------------------------------------------------------------------
-function install_initd() { (
-    debug "cast" "install_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
-    debug "cast" "install_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
-    debug "cast" "saving initscripts"
-    
-    INITDSCRIPTS=""
-    INITDSCRIPTS_DISABLED=""
-    . $SPELL_CONFIG
+function install_initd() {
+  if  [[  $INIT_INSTALLED  ]] ; then
+    local install_dir=$INSTALL_ROOT/etc/init.d
+    mkdir  -p  $install_dir
+    pushd "$SCRIPT_DIRECTORY/init.d" >/dev/null
 
-#    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
-    # now we install the selected scripts.
-    if  [  -n  "$INITDSCRIPTS"  ] ; then
-      debug "cast" "install_initd: about to call install_initd_confs"
-      install_initd_confs enabled $INITDSCRIPTS
-    fi
-
-    # and disable the others.
-    if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
-      debug "cast" "install_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
-      install_initd_confs disabled $INITDSCRIPTS_DISABLED
-    fi
-    
-) }
+    # install and enable
+    for  FILE in  $INIT_INSTALLED; do
+      message "${QUERY_COLOR}installing $FILE${DEFAULT_COLOR}"
+      if ! test -e $FILE ; then
+        message "${PROBLEM_COLOR}Init script $FILE doesnt exist," \
+                "but was selected, this may be a sorcery bug${DEFAULT_COLOR}"
+        continue
+      fi
+      if list_find $FILE $INIT_ENABLED; then
+        init_install enabled $FILE
+      elif list_find $FILE $INIT_DISABLED; then
+        init_install disabled $FILE
+      else
+        message "${PROBLEM_COLOR}Init script $FILE is in installed list" \
+                "but wasnt enabled or disabled, this may be a sorcery bug" \
+                "${DEFAULT_COLOR}"
+      fi
+    done
+    popd >/dev/null
+  fi
+}
 
 
 #---------------------------------------------------------------------

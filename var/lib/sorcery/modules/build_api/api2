@@ -159,8 +159,6 @@ function run_install() {
     default_install
   fi &&
   persistent_save &&
-  install_xinetd &&
-  install_initd
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -289,6 +287,8 @@ function real_default_install() {
 function real_default_post_install() {
 
   debug "build_api/api2" "Starting real_default_post_install"
+  install_xinetd
+  install_initd
   install_pam_confs
   gather_docs
   devoke_installwatch

@@ -463,7 +463,8 @@ function restore_env()
 }
 
 #---------------------------------------------------------------------
-## @param return_var 
+## @param default choice
+## @param return_var (must not be i, foo, temp, returnvar, or default)
 ## @param elements, ..
 ## 
 ## gives the user some nice select list and puts the selected
@@ -473,9 +474,10 @@ function restore_env()
 function select_list()
 {
     local i
-    local number foo temp
+    local foo temp
     local returnvar=$1
-    shift
+    local default=$2
+    shift 2
     let i=0
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR($i)  $SPELL_COLOR$foo$DEFAULT_COLOR"
@@ -483,11 +485,13 @@ function select_list()
         let i++
     done
 
-    message -n "\n${QUERY_COLOR}Which one do you want? [0]$DEFAULT_COLOR "
+    message -n "\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
     read   -t  $PROMPT_DELAY  -n  1  number
-    while ! [[ ${temp[$number]} ]]; do
-        message -n "\n${QUERY_COLOR}Which one do you want? [0]$DEFAULT_COLOR "
-        read number
+    if [[ ! $number ]] ; then number=$default; fi
+    while [[ $number != [0-9]* ]] || (( $number >= $i )) ; do
+        message -n "\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
+        read -n 1 number
+        if [[ ! $number ]] ; then number=$default; fi
     done
 
     echo
@@ -879,7 +883,7 @@ function real_config_query_list () {
   else
     # we have to ask user
     message "$QUESTION"
-    select_list ANSWER $@
+    select_list 0 ANSWER $@
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 

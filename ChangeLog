@@ -1,3 +1,24 @@
+2004-12-03 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: make select_list have another parameter, which defines
+	  the default choice
+	* cleanse: update calls to select_list to pass a default (of 0) in
+	* build_api/api1, build_api/api2: make
+	  default_post_build/default_post_install call the isntall_initd
+	  and install_xinetd functions instead of in run_build/run_install
+	* libcast: remove old use_initd and use_xinetd functions for the
+	  newer query_services routine which handles both and asks about
+	  both installing and enabling/disabling services. It also stores
+	  values in persistent variables. Also re-write the install_initd
+	  and install_xinetd functions to use the new persistent variables
+	  and correctly handle installing/enabling/disabling. Also make xinetd
+          an optional depends if the spell has an xinetd script that
+          is installed. This is bug 1817.
+	* libdepends: update run_others to use the query_services function
+	  instead of the old use_initd and use_xinetd functions, also load
+	  and save persistent variables since query_services now uses them
+	* libgrimoire: remove install_initd_confs (yet another layer of useless 
+	  indirection)
+
 2004-12-01 Andrew Stitt <astitt@sourcemage.org>
 	* x86_32, x86_64: revert -march-k8 back to -march=athlon-xp
 	  since gcc 3.4 isnt in the test/stable grimoires yet.
@@ -7,7 +28,7 @@
 	* cast: colorize lock messages
 
 2004-11-27 Paul Mahon <pmahon@sourcemage.org>
-	* Fix to libhash quoting
+	* libhash: Fix quoting
 
 2004-11-26 Andrew Stitt <astitt@sourcemage.org>
 	* mirrors/SOURCEFORGE: update mirrors as per bug 7675
@@ -48,7 +69,7 @@
 	* url_rsync, libsorcery: apply patches from Eric listed below
 
 2004-11-20 Eric Sandall <eric@sandall.us>
-	* url_rsync: Don't depend on a grimoire existing to determine
+	* url_rsync: Don't depend n a grimoire existing tto determine
 	  if rsync is available. Bug #7661
 	* libsorcery: Now uncompresses Sorcery to $INSTALL_ROOT/usr/src
 	  instead of /usr/src. Bug #7659
