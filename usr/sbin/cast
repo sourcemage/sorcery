@@ -1132,7 +1132,7 @@ function cast_spell()  { (
     unlock_resources "solo" "cast"
   fi
   message " done."
-                               
+  
   if    run_pre_build              			&&
 		run_build                   		&&
 		run_post_build              		&&
@@ -1204,10 +1204,11 @@ function pass_one()  {
   local i j tempList SPELL_RULES=""
   local numRules=0
 
-  compute_depends "SPELL_RULES" $SPELLS
+  compute_depends "to_cast" "already_cast" "bad_cast" $SPELLS
 
   message "${MESSAGE_COLOR}Collating dependancies...${DEFAULT_COLOR}"
-  echo "$SPELL_RULES" | depends_to_Makefile $numRules $SPELLS > $MAKEFILE
+  depends_to_Makefile to_cast already_cast > $MAKEFILE
+  SPELLS=$(hash_get_table_fields "to_cast")
 
   if  [  -n  "$DEPS_ONLY"  ] ;  then  
    	for i in $SPELLS ; do
@@ -1216,8 +1217,6 @@ function pass_one()  {
 	  mv $MAKEFILE.2 $MAKEFILE
    	done  
   fi
-  
-  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$" | grep -v "^.PHONY$"`
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
@@ -1226,36 +1225,30 @@ function pass_one()  {
 function depends_to_Makefile()
 {
 	debug "cast" "depends_to_Makefile - $*"
-	local spell all_spells=""
-	local tmp_list i
-	local LINE=""
-	local args
-	tmp_list=""
 	
-	[[ $COMPILE ]] && args="-c "
-
-	while read LINE ; do
-
-		[[ $LINE ]] || continue		#Remove blank lines
-		spell=${LINE%%:*}
-		all_spells="$all_spells $spell"
-		echo "$LINE"
-		echo -e "\t@$0 $args $spell"
-		echo
-		
-		for (( i=1 ; i <= $# ; i++ )) ; do
-			[[ ${!i} == $spell ]] && tmp_list="$tmp_list $spell"
-		done
-		
+	for i in $( { hash_get_table_fields $1 ; hash_get_table_fields $2; } | sort | uniq -d ); do
+		hash_unset "$2" "$i"
 	done
 	
-	echo "all: $tmp_list"
+	[[ $COMPILE ]] && args="-c "
+	
+	# Spells that are actualy going to be cast
+	for i in $( hash_get_table_fields $1 ) ; do
+		echo "$i : $(hash_get "$1" "$i")"
+		echo -e "\t@$0 $args $i"
+		echo
+	done
+	
+	#Spells that are already cast
+	#NOTE: For recursive recompile cast, make this loop like loop above
+	for i in $( hash_get_table_fields $2 ) ; do
+		echo "$i : $(hash_get "$2" "$i")"
+		echo
+	done
+	local all_spells=$({ hash_get_table_fields $1 ; hash_get_table_fields $2; } | tr '[:cntrl:]' ' ')
+	echo "all : $all_spells"
 	echo
-
-        # All targets are PHONY
-        # See http://bugs.sourcemage.org/show_bug.cgi?id=2674 for details
-        echo ".PHONY: all $all_spells"
-        echo
+	echo ".PHONY : all $all_spells"
 
 #	export SPELLS="$all_spells"
 	
@@ -1389,7 +1382,7 @@ function pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
   PASS_ZERO="y"  #<--- What is this here for? (Duff, 03/02/13)
-  export  D_LOG="/tmp/sorcery.downloading.$$.$RANDOM"
+  export  D_LOG="/tmp/sorcery/cast/$$/downloading.$RANDOM"
   rm -f $D_LOG 2>/dev/null
 
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
@@ -1417,7 +1410,17 @@ function cleanup() {
   
   debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+  rm -rf /tmp/sorcery/cast/$$
 
+}
+
+function mk_tmp_dirs() {
+	debug "$FUNCNAME" "Making tmp dirs for $$"
+	if [ -d /tmp/sorcery/cast/$$ ] ; then
+		echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
+		rm -rf /tmp/sorcery/cast/$$
+	fi
+	mkdir -p /tmp/sorcery/cast/$$
 }
 
 function main()	{
@@ -1444,10 +1447,8 @@ function main()	{
 		  return 1
 	  fi
 	
-	  MAKEFILE="/tmp/Makefile.cast.$$"
-	  SUCCESS_LIST="$0.success_list"
-    FAILED_LIST="$0.failed_list"
-	  export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
+	  MAKEFILE="/tmp/sorcery/cast/$$/Makefile"
+	  export ENV_CACHE=${ENV_CACHE:-/tmp/sorcery/cast/$$/envCache}
 	  echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
 	  export RM_AT_END="$RM_AT_END"
 	  BASE_SPELLS=" $SPELLS "
@@ -1471,29 +1472,34 @@ function main()	{
 
 . /etc/sorcery/config
 
-if    [  $#      ==  0  ];  then  help  |  $PAGER
-elif  [  "$UID"  !=  0  ];  then
+if    [  $#      -eq  0  ];  then  help  |  $PAGER
+elif  [  "$UID"  -gt  0  ];  then
 
   echo  "Enter the root password, please."
   su  - -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
 
-elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
+elif  [  ${0:0:5} !=  "/tmp/"  ];  then
+
+  # Make a nice dir structure to put stuff in
+  mk_tmp_dirs
 
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
 	  # and fill it up with stuff the feel the need to delete
-    export RM_AT_END=${RM_AT_END:-"/tmp/cast.$$.tmplist"}
+    export RM_AT_END=${RM_AT_END:-"/tmp/sorcery/cast/$$/tmplist"}
 	  touch $RM_AT_END
 	  chown root:root $RM_AT_END
 	  echo -n '' > $RM_AT_END
   fi
   
-  SAFE_CAST=/tmp/casting.$$
+  export SAFE_CAST=/tmp/sorcery/cast/$$/casting.safe
+  export SUCCESS_LIST="/tmp/sorcery/cast/$$/success_list"
+  export FAILED_LIST="/tmp/sorcery/cast/$$/failed_list"
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
-  echo "$SAFE_CAST" >> $RM_AT_END
+  echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST" >> $RM_AT_END
   exec $SAFE_CAST "$@"
   
 else
@@ -1504,6 +1510,8 @@ else
   if [ $SHLVL -eq 2 ] ; then
 	unlock_file $SAFE_CAST
 	cleanup
+  else
+  	rm -rf /tmp/sorcery/cast/$$
   fi
 
 fi

@@ -32,6 +32,13 @@
 #  set to the parent spell.
 # PRETEND_NOT_INSTALLED: set here. It is a list of spells that are to be 
 #  recompiled, so they should not be treated as installed.
+# CAST_HASH: The name of the hast table to put spells and dependancies
+#  that are to be cast (only used in this lib)
+# DO_NOT_CAST_HASH: The name of the hash table to put spells and dependancies
+#  that are not to be cast, but may still be needed (only used in this lib)
+# CANNOT_CAST: The name of the hash table to put spells that cannot be cast
+#  and the reason why. Usualy because they are exiled or don't exist
+#  (only used in this lib)
 
 function run_prepare() 
 {
@@ -204,14 +211,25 @@ function satisfy_depends()
 function compute_depends() 
 { 
 
-  # $1=var to place spells in, $* = root spells
+  # $1=table to place spells in, $2=table to put non-casting spells in
+  # $3=table to put problem spells in, $* = root spells
 
   debug "libdepends" "compute_depends of $*"
-  local outVar="$1"
-  shift
+  local CAST_HASH="$1"
+  local DO_NOT_CAST_HASH="$2"
+  local CANNOT_CAST_HASH="$3"
+  shift 3
   BASE_SPELLS=( $@ )
   
   local i
+  echo -n "Creating tree of already cast spells..."
+  private_compute_installed_depends $DO_NOT_CAST_HASH
+  echo " done"
+  
+  # All specified spells are assumed to be not installed, or else -c and -r 
+  # would have to be specified all the time.
+  PRETEND_NOT_INSTALLED=" ${BASE_SPELLS[@]} "
+  
   SPELLS=()
   let i=0;
   for spell in "$@" ; do
@@ -226,11 +244,6 @@ function compute_depends()
 		SPELLS[i]=""
 	fi
   done
-  
-  for SPELL in ${SPELLS[*]} ; do
-    debug "libdepends" "Appending info for $SPELL."
-    eval "$outVar=\"${!outVar}${SPELL}: "`hash_get "libdepends" "$SPELL"`$'\n'\"
-  done
 
   SPELLS="${BASE_SPELLS[*]}"
 }
@@ -238,15 +251,18 @@ function compute_depends()
 
 function real_depends()
 {
+	debug "libdepends" "$FUNCNAME - $*"
     local INST
     if ! codex_does_spell_exist $1 &> /dev/null; then
         select_provider "INST" "$4" "$@"
         [[ $? ]]     || return 1
         [[ ! $INST ]] && return 1
+		debug "libdepends" "$FUNCNAME $1 isn't a spell, provided by $INST"
+		add_depends "$SPELL" "$1" "providedby" "optional" "$INST" ""
         local PROVIDERNAME=$1
         shift
+
         work_depends "$INST" "$@"
-        work_optional_depends "no_question" "$PROVIDERNAME" "$INST" ""
 
     else
         work_depends      "$@"
@@ -270,12 +286,13 @@ function real_optional_depends()
         select_provider "INST" "$4" "[none]" "$@"
         [[ $? ]] || return 1
         [[ ! $INST ]] && return 0
-        [[ $INST == "[none]" ]] &&
-          work_optional_depends "no_question" "$1" "$INST" "$3" && return 0
+
+		add_depends "$SPELL" "$1" "providedby" "optional" "$INST" ""
+        [[ $INST == "[none]" ]] && return 0
+
         local PROVIDERNAME=$1
         shift
         work_optional_depends "no_question" "$INST" "$@"
-        work_optional_depends "no_question" "$PROVIDERNAME" "$INST" ""
 
     else
         work_optional_depends "$@" 
@@ -302,7 +319,7 @@ function select_provider()
         shift
     fi
 
-    local TO_STORE="`grep "^$SPELL:$1:providedby:optional:.*:.*$" $DEPENDS_STATUS | cut -d':' -f 5 | tail -n 1`"
+    local TO_STORE="`grep "^$SPELL:$1:providedby:optional:.*:.*$" $DEPENDS_STATUS | cut -d':' -f 5 | tail -1`"
 
     if [ -z "$TO_STORE" ]; then
 
@@ -351,11 +368,11 @@ function select_provider()
     eval ''$returnvar'='$TO_STORE''
 }
 
-
 function work_depends()
 {
 
-  if spell_exiled $1 ; then 
+  if spell_exiled $1 ; then
+  	hash_put $CANNOT_CAST_HASH "$1" "Exiled"
     message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
     return 1
   fi
@@ -365,6 +382,9 @@ function work_depends()
 
 function work_optional_depends()
 {
+
+  debug "libdepends" "$FUNCNAME - $@"
+  
   local NOQUESTION=false
 
   if [[ "$1" == "no_question" ]]; then
@@ -374,15 +394,16 @@ function work_optional_depends()
 	
   if spell_exiled $1 ; then 
     message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
+   	hash_put $CANNOT_CAST_HASH "$1" "Exiled"
     return 1
   fi
   
   local install="off"
-  local status=""
+  local status=()
   
   #See if there are preferences already
   #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
-  explode "`search_depends_status "$SPELL" "$1"`" ":" "status"
+  explode "$(search_depends_status "$SPELL" "$1")" ":" "status" 
 	
   if [[ $RECONFIGURE ]] || ! [[ ${status[2]} && ${status[2]} != "providedby" ]] ; then
 
@@ -468,9 +489,10 @@ function work_optional_depends()
 
 function private_common_depends()
 {
+  debug "libdepends" "$FUNCNAME - $@"
   add_depends "$SPELL" "$@"
   
-  if [[ $2 == on ]] && private_should_cast $1 ; then
+  if [[ $2 == on ]] ; then
     NEW_DEPENDS=( "${NEW_DEPENDS[@]}" $1 )
   fi
   
@@ -495,24 +517,29 @@ function private_remove_installed_spells()
 
 function private_run_depends()
 {
-
+  debug "libdepends" "$FUNCNAME - $*"
   SPELL="$*"
   NEW_DEPENDS=()
   
-  run_prepare     	  && 
-  run_details     	  && 
-  run_configure   	  && 
-  run_depends $1  	  && 
-  private_add_depends 
+  #We only need to run the stuff if we are going to be casting.
+  #It only needs to be added to the casting hash table if we are really casting it
+  if private_should_cast $SPELL ; then
+	  run_prepare     	  && 
+	  run_details     	  && 
+	  run_configure   	  && 
+	  run_depends $1  	  && 
+	  private_add_depends ||	{ debug "libdepends" "$FUNCNAME: false inside if." ; return 1; }
+  fi
+  return 0
 }
 
 
 function private_add_depends()
 {
-
+  debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   local i j
   
-  hash_put "libdepends" "$SPELL" "${NEW_DEPENDS[*]}"
+  hash_put "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
   
   for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
     for (( j=0 ; j<${#NEW_DEPENDS[*]} ; j++ )) ; do
@@ -528,7 +555,7 @@ function private_list_dependees()
 
   local i
   for (( i=0 ; "${SPELLS[$i]}"!="$SPELL" ; i++ )) ; do
-    is_member "$1" `hash_get "libdepends" "${SPELLS[$i]}"` && echo $i
+    is_member "$1" $(hash_get "$CAST_HASH" "${SPELLS[$i]}") && echo $i
   done
 }
 
@@ -542,7 +569,7 @@ function private_remove_dependees()
 	echo "$1" >> $FAILED_LIST
 
 	for spell in $(private_list_dependees $1) ; do
-		hash_unset "libdepends" "${SPELLS[spell]}"
+		hash_unset "$CAST_HASH" "${SPELLS[spell]}"
 		SPELLS[spell]=""
 		for ((i=0;i<${#BASE_SPELLS[*]}; i++)) ; do
 			[[ $spell == ${BASE_SPELLS[i]} ]] && BASE_SPELLS[i]=""
@@ -555,12 +582,31 @@ function private_remove_dependees()
 function private_should_cast()
 {
 	codex_does_spell_exist $1						&&
-  ( echo "$PRETEND_NOT_INSTALLED" | grep -q $1 		||
-	! ( spell_installed $1	|| 	spell_held $1 ))	&&
-	! spell_exiled $1 		;
+  { echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " 		||
+	! { spell_installed $1 || spell_held $1; }
+  }	&& ! spell_exiled $1 
 }
 
 
+function private_compute_installed_depends()
+{ #$1==hash table to fill
+
+	# Create hashtable for all installed or held spells
+	# We must have all installed spells in the table 
+	#  including ones with no deps, as they are still valid targets
+	eval $(awk -F : '$3=="installed" || $3=="held"{
+ 		printf("hash_put \"'$1'\" \"%s\" \" \";\n",$1);
+	}' $SPELL_STATUS )
+
+	# Fill in hashtable for spells that have dependancies
+	eval $(awk -F : '$3=="on"{ spells[$1]=spells[$1]" "$2" "; }
+	END{
+		for(spell in spells) { 
+			printf("hash_put \"'$1'\" \"%s\" \" %s \";\n", spell, spells[spell]); 
+		}
+	}' < $DEPENDS_STATUS )
+	
+}
 #---------------------------------------------------------------------
 ##=back
 ##
