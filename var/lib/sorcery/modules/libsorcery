@@ -692,9 +692,10 @@ function optimize()  {
 
       esac
     done
-    export CFLAGS="-O $CFLAGS $CUSTOM_CFLAGS $OVERRIDE_CFLAGS"
-    export CXXFLAGS="$CFLAGS $CUSTOM_CXXFLAGS $OVERRIDE_CXXFLAGS"
-    export LDFLAGS="$LDFLAGS $CUSTOM_LDFLAGS $OVERRIDE_LDLAGS"
+    # use echo to crunch all the whitespace out for broken configure scripts
+    export CFLAGS=$(echo -O $CFLAGS $CUSTOM_CFLAGS $OVERRIDE_CFLAGS)
+    export CXXFLAGS=$(echo $CFLAGS $CUSTOM_CXXFLAGS $OVERRIDE_CXXFLAGS)
+    export LDFLAGS=$(echo $LDFLAGS $CUSTOM_LDFLAGS $OVERRIDE_LDLAGS)
   fi
   export LC_ALL="C"
 
