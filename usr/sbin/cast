@@ -803,7 +803,12 @@ process_parameters()  {
                   -s)  SEPARATE="$1";                    shift 1  ;;
                --url)  export  BASE_URL="$2";            shift 2  ;;
                --pam)  cast  -c  `find_pam_aware` ;      shift 1  ;;
-             --queue)  if [ -z $QUIET ]; then
+             --queue)  
+                       if query "Would you like review the queue history for each spell?" n ; then
+                         sorcery review-queue
+                       fi
+
+                       if [ -z $QUIET ]; then
                          list_install_queue
                        fi
                          
