@@ -165,15 +165,17 @@ function use_initd()  { (
 
     . $SPELL_CONFIG
 
-    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+    local ALL_INITSCRIPTS=`find "$SCRIPT_DIRECTORY/init.d/" -type f -not -name "*.conf" -printf '%f '`
     debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
 
-    for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
+    local INITSCRIPT
+    for  INITSCRIPT in $ALL_INITSCRIPTS  ;  do
+
       echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
           grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-      local default_answer
-      if ! grep -Fq 'ESSENTIAL=yes' "$INITSCRIPT" ; then default_answer=y else default_answer=n; fi
+      local default_answer=n
+      grep -Fq 'ESSENTIAL=yes' "$SCRIPT_DIRECTORY/init.d/$INITSCRIPT" && default_answer=y
       if  query  "Invoke $INITSCRIPT at boot via init?"  $default_answer  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
         init_prepare_install  $INITSCRIPT
@@ -197,8 +199,8 @@ function use_initd()  { (
 ## started at bootup.
 #---------------------------------------------------------------------
 function install_initd() { (
-    debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
-    debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
+    debug "cast" "install_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
+    debug "cast" "install_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
     debug "cast" "saving initscripts"
     
     INITDSCRIPTS=""
@@ -208,13 +210,13 @@ function install_initd() { (
 #    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
     # now we install the selected scripts.
     if  [  -n  "$INITDSCRIPTS"  ] ; then
-      debug "cast" "use_initd: about to call install_initd_confs"
+      debug "cast" "install_initd: about to call install_initd_confs"
       install_initd_confs enabled $INITDSCRIPTS
     fi
 
     # and disable the others.
     if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
-      debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
+      debug "cast" "install_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
       install_initd_confs disabled $INITDSCRIPTS_DISABLED
     fi
     
