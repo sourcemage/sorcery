@@ -592,20 +592,18 @@ service()  {
 ##
 #---------------------------------------------------------------------
 gaze_provides()  {
-	
-  for  SPELL  in  `codex_get_all_spells`;  do
-    if    [  -f  $SPELL/PROVIDES  ]  &&
-	  grep  -q  -i  "$1"  $SPELL/PROVIDES
-    then  echo  "$( basename  $SPELL )"
-    else
-      # FIXME: Remove lowercase provides in a few days.
-      if    [  -f  $SPELL/provides  ]  &&
-        grep  -q  -i  "$1"  $SPELL/provides
-      then  echo  "$( basename  $SPELL )"
-      fi
-    fi
+
+local spell
+
+  for feature in "$@"; do
+        message "${SPELL_COLOR}${feature}:${DEFAULT_COLOR}"
+        spell=$(find_providers "$feature")
+        if [[ "$spell" ]]; then
+                echo "$spell"
+        else
+                echo "no providers found"
+        fi
   done
-  
 }
 
 
@@ -1117,7 +1115,7 @@ parse()  {
          HISTORY)  show_spell_component $1 $2            ;;
           search)  shift; long_search $@                 ;;
          service)  service       "$2"                    ;;
-        provides)  gaze_provides "$2"                    ;;
+        provides)  shift; gaze_provides $@               ;;
          depends)  show_depends  "$2"  |  sort  |  uniq  ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
          history)  show_history  "$2"                    ;;
