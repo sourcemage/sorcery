@@ -31,7 +31,7 @@ what		spell		print the spell's description
 where		spell		print the spell's section
 website		spell		print the spell's website
 install		spell		view an install log
-installed	[spell]		view/querry installed spells
+installed	[spell]		view/query installed spells
 compile		spell		view a compile log
 sources		spell		List the source files for a spell
 history		spell		Show history for a spell
@@ -173,7 +173,7 @@ gaze_catalog()  {
     echo  "SECTION:  $SECTION"  
     echo  "-------------------------------------------------"
     for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-      echo  $SPELL
+      [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&  echo  $SPELL
       ((  COUNT++  ))
     done
   done
@@ -211,9 +211,11 @@ gaze_catalog_html()  {
   for  SECTION  in  `ls  $GRIMOIRE`;  do
     echo  "<tr><th colspan=4><font color="green">$SECTION</font></th></tr>"
     for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
       (
-        [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
-             . $GRIMOIRE/$SECTION/$SPELL/DETAILS  1>/dev/null
+
+        . $GRIMOIRE/$SECTION/$SPELL/DETAILS  1>/dev/null
+
         echo  "<tr>"
         if  [  "$SPELL"  ==  "linux"  ]   ||
             [  "$SPELL"  ==  "glibc"  ];  then
