@@ -105,6 +105,17 @@ EOF
 }
 
 #-----
+## override column so that we can pass -q to not columnate.
+#-----
+function maybe_column()  {
+  if [ -n "$GAZE_VERBOSE" ]; then
+    cat
+  else
+    column "$@"
+  fi
+}
+
+#-----
 ## Make building multiple identical systems easy with exporint of a 
 ## snapshot of the current state.
 ## <p>Is this actualy used for anything still? Does it work?
@@ -491,7 +502,7 @@ function newer()  {
         echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
   else
     help  |  $PAGER
   fi
@@ -517,7 +528,7 @@ function older()  {
         echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
   else
     help  |  $PAGER
   fi
@@ -947,11 +958,11 @@ function gaze_show_section()  {
         local SECTION=$(codex_find_section_by_name  $SECTION_NAME)
         [[ $SECTION ]] && codex_get_spell_names $SECTION
       done
-    ) | column
+    ) | maybe_column
 
   else
 
-    codex_get_all_section_names | column
+    codex_get_all_section_names | maybe_column
 
   fi
 
@@ -982,7 +993,7 @@ function gaze_show_section_version_table()  {
 
      done 
 
-   ) | column -t -s "|"
+   ) | maybe_column -t -s "|"
 
 }
 
@@ -1009,7 +1020,7 @@ function gaze_show_spell_version_table()  {
 
     done 
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
 }
 
@@ -1104,7 +1115,7 @@ function gaze_show_versions()  {
     fi
   done
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
   echo
 }
@@ -1134,7 +1145,7 @@ function gaze_show_section_license_table()  {
 
      done 
 
-   ) | column -t -s "|"
+   ) | maybe_column -t -s "|"
 
 }
 
@@ -1159,7 +1170,7 @@ function gaze_show_spell_license_table()  {
 
     done 
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
 }
 
@@ -1182,7 +1193,7 @@ function gaze_show_license_table()  {
 
     done 
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
 }
 
@@ -1448,7 +1459,7 @@ function gaze_show_held_spells () {
     message -n "${MESSAGE_COLOR}The following spells are set to"
     message -n "${DEFAULT_COLOR} hold"
     message    "${SPELL_COLOR}"
-    get_held | sort | column
+    get_held | sort | maybe_column
     message -n "${DEFAULT_COLOR}"
 }
 
