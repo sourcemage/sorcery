@@ -109,11 +109,11 @@ function scribe_add_worker() {
   if  [ -n "$from" ];  then
     if  ! url_is_valid "$from";  then
       #if not valid, use $CODEX_URL
-      message  "Error: ${SOURCES[$x]} is not a recognized url. Using default."
+      message  "Error: $from is not a recognized url. Using default."
       from="$CODEX_URL/$grimoire.tar.bz2"
     fi
   else
-    #FROM is empty - use the default
+    #from is empty - use the default
     from="$CODEX_URL/$grimoire.tar.bz2"
   fi
 
@@ -211,13 +211,13 @@ function scribe_fix() {
 
     if ! [ -e $grimoire/GRIMOIRE ]; then
       message "No Metadata found for Grimoire $grim"
-      if fix_metadata $grimoire; then
+      if scribe_fix_metadata $grimoire; then
         message "$grimoire fixed."
       else
         message "$grimoire not fixed"
       fi
     elif query "Metadata for $grimoire found. Fix anyway?" n; then
-      if fix_metadata $grimoire 1; then
+      if scribe_fix_metadata $grimoire 1; then
         message "$grimoire fixed."
       else
         message "$grimoire not fixed"
@@ -246,9 +246,10 @@ function scribe_fix_metadata() {
   fi
   grimoire_name=$(basename $1)
 
-  if query "Repair Grimoire:$1's Metadata?" n || [ $2 == 1 ] ; then
+  if query "Repair Grimoire:$1's Metadata?" n || [ "$2" == "1" ] ; then
     message "Enter url to pull grimoire from"
     read -p "[ $CODEX_URL/$grimoire_name.tar.bz2 ]: " URL
+    URL=${URL:-$CODEX_URL/$grimoire_name.tar.bz2}
     message "Setting Metadata to: $URL"
     message "If this is incorrect, run \"scribe fix $1\" and correct"
     echo "FROM_URL=$URL" > $grimoire_dir/GRIMOIRE
@@ -463,25 +464,34 @@ function scribe_update() {
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         continue
       fi
-      # validate name
+
+      if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grim; then
+        message "$grim has invalid metadata. Not Updating"
+        if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
+        continue
+      fi
+
+      if codex_is_local $grimoire; then
+        message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+        if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
+        continue
+      fi
+
+      . $grimoire/GRIMOIRE
+      # get a url if one exists
       if [ "$2" == "from" ] ; then
         from=$3
-        shift 3
-      else
-        from=""
-        shift 1
-      fi
-      if [ -z $from ] || ! url_is_valid "$from"; then
-        if [ -e $grimoire/GRIMOIRE ] || fix_metadata $grimoire; then
-          . $grimoire/GRIMOIRE
+        if [ -z $from ] || ! url_is_valid "$from"; then
           local bad_from=$from
           from=$FROM_URL
-          message "Error: $bad_from is not a valid URL. Using: $from"
-        else
-          message "$grim has invalid metadata. Not Updating"
-          continue
+          message "Error: \"$bad_from\" is not a valid URL. Using: $from"
         fi
+        shift 3
+      else
+        from=$FROM_URL
+        shift 1
       fi
+
       message "Updating grimoire $grim from $from"
       scribe_do_update $grimoire $from
       scribe_reindex $grimoire
@@ -490,24 +500,23 @@ function scribe_update() {
     #for each grimoire
     for grimoire in $(codex_get_all_grimoires); do
       grim=$(basename $grimoire)
+      if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grimoire; then
+        #no metadata found. dont auto-update
+        message "$grim has invalid metadata. Not Updating"
+        continue
+      fi
+
       if codex_is_local $grimoire; then
         message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
         continue
       fi
 
-      #if it exists and has metadata
-      if [ -e $grimoire/GRIMOIRE ] || fix_metadata $i; then
-        #include metadata
-        . $grimoire/GRIMOIRE
-        from=$FROM_URL
-        message "Updating grimoire $grim from $from"
-        scribe_do_update $grimoire $from
-        scribe_reindex $grimoire
-      else
-        #no metadata found. dont auto-update
-        message "$grim has invalid metadata. Not Updating"
-        continue
-      fi
+      #include metadata
+      . $grimoire/GRIMOIRE
+      from=$FROM_URL
+      message "Updating grimoire $grim from $from"
+      scribe_do_update $grimoire $from
+      scribe_reindex $grimoire
     done
   fi
 }
