@@ -1,13 +1,9 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
-## 
 ## Set of functions for working with an associative array type data
 ## structure.  Values can be stored and retrieved using strings as
 ## the index into the data structure instead of numbers.
-##
-##=head1 DESCRIPTION
 ##
 ## The hash data structure provided in this file allows you to store
 ## values into fields of a table.  The 'hash_put' function takes the
@@ -15,8 +11,7 @@
 ## stored in the table.  The 'hash_get' function retrieves a value from
 ## the table given the table and field name.  
 ##
-##=head1 EXAMPLE
-##
+## <pre>
 ## To store a value into a field of a table, use hash_put:
 ##
 ##    hash_put "myTable" "aField" "theValue"
@@ -26,9 +21,10 @@
 ##    hash_get "myTable" "aField"
 ##
 ## In this example, the hash_get function would echo "theValue".
-##
-##=head1 IMPLEMENTATION NOTE 
-##
+## </pre>
+## <br>
+## MPLEMENTATION NOTE 
+## <br>
 ## Bash does not provide direct support for hash tables.  These 
 ## functions are implemented by first building a variable using the
 ## table name and field name, then using the eval function to store
@@ -40,27 +36,23 @@
 ##
 ##    http://www.codebits.com/bit.cfm?BitID=92
 ##
-##=head1 COPYRIGHT
+## @Copyright Copyright 2002 by the Source Mage Team
 ##
-## Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
 ##
 #---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-# hash_build_variable_name <table name> <field name>
-# 
-# Private Function.  Given a table and field name, bulds the name of
-# the variable into which a value will be stored.  Also changes '+',
-# '-', and '.' in the table name into text since bash doesn't like
-# variable names with those characters.
-#
+## @param table name
+## @param field name
+## @Type Private
+## Given a table and field name, bulds the name of
+## the variable into which a value will be stored.  Also changes '+',
+## '-', and '.' in the table name into text since bash doesn't like
+## variable names with those characters.
+##
 #---------------------------------------------------------------------
-hash_build_variable_name() {
+function hash_build_variable_name() {
   local TABLE="$1"
   local FIELD="$2"
 
@@ -85,7 +77,15 @@ hash_build_variable_name() {
   else echo "HASH_${TABLE}_" ; fi
 }
 
-hash_unbuild_field_name() {
+
+#---------------------------------------------------------------------
+## @param field name
+## @param table name
+## @Type Private
+## most likely reverses hash_build_field_name
+##
+#---------------------------------------------------------------------
+function hash_unbuild_field_name() {
   local TABLE="$2"
   local FIELD=`echo "$1" | sed -n "s/^$2\(.*\)_$/\1/p"`
 
@@ -100,12 +100,14 @@ hash_unbuild_field_name() {
   echo $FIELD
 }
 #---------------------------------------------------------------------
-##=item hash_put <table name> <field name> <value>
+## @param table name
+## @param field name
+## @param value
 ## 
 ## Saves the value in the specified table/field.
 ##
 #---------------------------------------------------------------------
-hash_put() {
+function hash_put() {
   local VARIABLE_NAME=`hash_build_variable_name "$1" "$2"`
   eval "${VARIABLE_NAME}=\"${3}\""
   debug "libhash" "hash_put() - VARIABLE_NAME=$VARIABLE_NAME, data=$3"
@@ -113,41 +115,41 @@ hash_put() {
 
 
 #---------------------------------------------------------------------
-##=item hash_get <table name> <field name>
+## @param table name
+## @param field name
 ## 
+## @Stdout Value stored in table/field
 ## Echos the value stored in the table/field.  If no value was 
 ## previously stored in the table/field, this function echos an empty 
 ## string.
 ##
 #---------------------------------------------------------------------
-# 
-hash_get() {
+function hash_get() {
   local VARIABLE_NAME=`hash_build_variable_name "$1" "$2"`
   echo ${!VARIABLE_NAME}
 }
 
 
 #---------------------------------------------------------------------
-##=item hash_unset <table name> <field name>
+## @param table name
+## @param field name
 ## 
 ## Unsets field. Deletes value.
 ##
 #---------------------------------------------------------------------
-# 
-hash_unset() {
+function hash_unset() {
   local VARIABLE_NAME=`hash_build_variable_name "$1" "$2"`
   eval unset ${VARIABLE_NAME}
 }
 
 
 #---------------------------------------------------------------------
-##=item hash_reset <table name>
+## @param table name
 ## 
 ## Unsets all fields in a table.
 ##
 #---------------------------------------------------------------------
-# 
-hash_reset()  {
+function hash_reset()  {
 
   local TABLE_NAME=`hash_build_variable_name "$1"`
   local VARIABLES=`eval 'echo ${!'${TABLENAME}'*}'`
@@ -156,14 +158,14 @@ hash_reset()  {
 }
 
 #---------------------------------------------------------------------
-##=item hash_get_table <table name> <opt delimiter>
-## 
+## @param table name
+## @param opt delimiter
+## @Stdout table data
 ## Outputs the entire table data, with fields separated by the  
 ## optional delimiter. If no delimiter is give, \n will be used.
 ##
 #---------------------------------------------------------------------
-# 
-hash_get_table()  {
+function hash_get_table()  {
 
   local TABLE_NAME=`hash_build_variable_name "$1"`
   local VARIABLES i
@@ -179,15 +181,15 @@ hash_get_table()  {
 
 
 #---------------------------------------------------------------------
-##=item hash_get_table <table name> <opt delimiter>
-## 
+## @param table name
+## @param opt delimiter
+## @Stdout Fields in table
 ## Outputs all of the fields in the table , with fields separated    
 ## by the optional delimiter. If no delimiter is give, \n wil be 
 ## used.
 ##
 #---------------------------------------------------------------------
-# 
-hash_get_table_fields()  {
+function hash_get_table_fields()  {
 
   local TABLE_NAME=`hash_build_variable_name "$1"`
   local VARIABLES i
@@ -203,9 +205,7 @@ hash_get_table_fields()  {
 
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
+## @License
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
