@@ -34,81 +34,85 @@ Please note that anything in brackets [] is optional.
 
 Command		Arguments	Description
 
--q		<empty>		disable human style output
+-q		<empty>		disables human style output
 
-alien		<empty>		Discover untracked files.
-from		path/file	Discover what installed a file.
+alien		<empty>		Discovers untracked files.
+from		path/file	Discovers what installed a file.
 
-search		"phrase"	Searches for "phrase" in the long and 
-				  short spell descriptions and in the spell name.
-search      -name  "phrase" Searches for "phrase" in the spell name.
-search      -short "phrase" Searches for "phrase" in the short spell 
-                            descriptions
+search		"phrase"	Searches for "phrase" in the long and short
+				spell descriptions and in the spell name.
+search -name  	"phrase" 	Searches for "phrase" in the spell name.
+search -short 	"phrase" 	Searches for "phrase" in the short spell 
+				descriptions
 
 service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
-what		spell		Print the spell's description.
-short           spell           Print the spell's short description.
-where		spell		Print the spell's section.
-website | url	spell		Print the spell's website.
-install		spell		View an install log.
-installed	[spell]		View/query installed spells.
-version		spell		View version of spell installed, and version in 
-				the grimoire.
-license		spell [spell]	View the license of the given spell(s)
-license		section [section]	View the licenses of spells in the given
-					section(s)
-license		license [license]	View information about the given license(s).
-compile		spell [version]	View a compile log. If no optional version
-				was given, try the installed version,
-				if the spell is not installed use the
-				version in the grimoire.
-sources		spell		List the source files for a spell.
-source_urls	spell		List the source urls for a spell.
-history		spell		Show history for a spell.
+what		spell		Prints the spell's description.
+short           spell           Prints the spell's short description.
+where		spell		Prints the spell's section.
+website | url	spell		Prints the spell's website.
+install		spell		Views an install log.
+installed	[spell]		Views installed spells.
+version		spell		Views version of spell installed,
+				 and version in the grimoire.
+versions	spell		Views version of spell in the in all grimoires
+license		spell		Views the license of the given spell(s)
+license		section		Views the licenses of spells in the given
+				 section(s)
+license		license		Views information about the given license(s).
+compile		spell [version]	Views a compile log. If no optional version
+				 was given, try the installed version,
+				 if the spell is not installed use the
+				 version in the grimoire.
+sources		spell		Lists the source files for a spell.
+source_urls	spell		Lists the source urls for a spell.
+history		spell		Shows history for a spell.
 
 sum		[spell]		Prints checksums.
 md5sum		[spell]		Prints md5sums.
-export				Make snapshot of box's configuration.
-import		snapshot	Restore snapshot.
+size		spell		Prints total size of all files installed
+				 by this spell
+export				Makes snapshot of box's configuration.
+import		snapshot	Restores snapshot.
 
-section		[section]	List grimoire sections.
-maintainer	[section]	See who is the maintainer for a section
-grimoire	[grimoire]	View a text listing of all grimoires.
-                        Or of the specified grimoire.
-grimoires				View list of installed grimoires (Grimoire names only).
-html	[-s]	[grimoire]	View a html listing of all grimoires.
-                        Or of the specified grimoire.
-                        Additionally displays links to the source files 
-                        when -s is given.
+section		[section]	Lists grimoire sections.
+maintainer	[section]	Lists who is the maintainer for a section
+grimoire	[grimoire]	Views a text listing of all grimoires.
+                	         Or of the specified grimoire.
+grimoires			Views list of installed grimoires' names
+html	[-s]	[grimoire]	Views a html listing of all grimoires.
+                        	 Or of the specified grimoire.
+                        	 Additionally displays links to the source
+				 files when -s is given.
 
-newer		20020521	Show available spells newer than May 21, 2002.
-older		20010521	Show spells installed before May 21, 2001.
+newer		20020521	Shows available spells newer than May 21, 2002.
+older		20010521	Shows spells installed before May 21, 2001.
 
 prune		<empty>		Removes all old sources from $SOURCE_CACHE
 				  and removes all old backups from 
 				  $INSTALL_CACHE.
+				  (deprecated: use cleanse --sweep)
 
 voyeur		[delay or spell]  
-				Peek into spell compilation.
+				Peeks into spell compilation.
 
-pam		<empty>		Display installed or held spells that are
+pam		<empty>		Displays installed or held spells that are
 				  Linux-PAM aware.
 
 
-orphans		<empty>		Display installed spells that have no
-				  explicit dependencies on them.
+orphans		<empty>		Displays installed spells that no installed
+				  spells explicitly depend on.
 
-depends        spell [level]       Displays the spells that explicitly or
-                   recursively depend on this spell, up to $level levels.
-                    $level is kinda infinity if omitted.
+depends		spell [level]	Displays the spells that explicitly or
+                   		 recursively depend on this spell,
+				 up to $level levels (infinity if omitted)
 
-dependencies    spell [level]     Displays the spells $spell explicitly or 
-                        recursively depends on, up to $level levels.
-                        $level is kinda infinity if omitted.
+dependencies    spell [level]	Displays the spells this spell explicitly or 
+                        	 recursively depends on,
+				 up to $level levels (infinity if omitted)
 
-\$SPELL_SCRIPT	spell	will print the spell script for that spell.
+SCRIPT NAME	spell		will print the spell script for that spell.
 
 activity	<empty>		View the activity log
 
@@ -116,9 +120,9 @@ install-queue	<empty>		View the install queue
 
 remove-queue	<empty>		View the remove queue
 
-checkmd5s       spell/section/<empty> Print a md5 check of spells
+checkmd5s       [spell|section]	Print a md5 check of spells
 
-show-held          Shows all held spells.
+show-held          		Shows all held spells.
 
 EOF
 }
@@ -1380,7 +1384,7 @@ parse()  {
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
-		 versions)  shift; gaze_show_versions $@         ;;
+	versions)  shift; gaze_show_versions $@         ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
         activity)  display $ACTIVITY_LOG                 ;;
