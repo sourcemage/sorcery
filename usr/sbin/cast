@@ -491,9 +491,11 @@ function pass_four()  {
   else
     cast_spell $*
   fi
+  local rc=$?
 
   # We only want to trigger if the cast or resurect completed properly
-  [ $? -eq 0 ] && trigger "cast"
+  [ $rc -eq 0 ] && trigger "cast"
+  return $rc
 }
 
 
@@ -650,12 +652,11 @@ function main()  {
       five)  pass_five   $SPELLS  ;; #cast report
          *)  pass_zero   $SPELLS  ;; #start everything
     esac
-
+    local rc=$?
   fi
 
   echo
-  true
-
+  return $rc
 }
 
 
@@ -702,11 +703,12 @@ else
   fi
   trap int_trap INT
   main  $*
+  rc=$?
   if [ $SHLVL -eq $TOP_LEVEL ] ; then
     unlock_file $SAFE_CAST
     cleanup
   fi
-
+  exit $rc
 fi
 
 debug "cast" "exiting..."
