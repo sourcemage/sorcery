@@ -178,14 +178,17 @@ init_prepare_install()
 
   # If the variable isn't in the config file then we need to make sure we don't
   # use an old instance of it from another spell.
-  grep -q "^INITDSCRIPT_PROVIDES=" $SPELL_CONFIG || INITDSCRIPT_PROVIDES=""
+  if grep -q "^INITDSCRIPT_PROVIDES=" $SPELL_CONFIG ; then
+    # Unfortunately not very fast. Can be made speedier by exporting a variable
+    # and have use_initd write it after the looping is done.
+    local tmp=$( grep -v "^INITDSCRIPT_PROVIDES=" $SPELL_CONFIG )
+    echo $tmp > $SPELL_CONFIG
+  else
+    INITDSCRIPT_PROVIDES=""
+  fi
+  INITDSCRIPT_PROVIDES="$script_name:$script_provides $INITDSCRIPT_PROVIDES"
 
-  # Unfortunately not very fast. Can be made speedier by exporting a variable
-  # and have use_initd write it after the looping is done.
-  local tmp=$( grep -v "^INITDSCRIPT_PROVIDES=" $SPELL_CONFIG )
-
-  echo $tmp >> $SPELL_CONFIG
-  echo  "INITDSCRIPT_PROVIDES=\"\$INITDSCRIPT_PROVIDES $script_name:$script_provides\"" >> $SPELL_CONFIG
+  echo  "INITDSCRIPT_PROVIDES=\"$INITDSCRIPT_PROVIDES\"" >> $SPELL_CONFIG
 }
 
 
