@@ -1001,13 +1001,17 @@ function strip_parameters()  {
 
 }
 
+#---------------------------------------------------------------------
+## @param spellname
+## calls run_details and returns the returnvalue of
+## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
+#---------------------------------------------------------------------
 function can_resurect()  {
 	debug "cast" "can_resurect - $*"
 	run_details		&&
 	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
 	debug "cast" "I am able to resurect."
 }
-
 
 function resurrect()  {  (  
 
@@ -1176,7 +1180,15 @@ function current_sources()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Globals D_LOG COMPILE FORCE_COMPILE SPELL
+## Downloads the sources by calling summon if it has to.
+## It downloads if COMPILE || FORCE_COMPILE || ! current_sources
+## || ! (spell_installed $SPELL || spell_held $SPELL)
+## It locks the download-process in D_LOG
+## Always touches ${D_LOG}.done.$SPELL at the end to signal that
+## it is done.
+#---------------------------------------------------------------------
 function run_summon()  {
 
   touch $D_LOG
@@ -1197,6 +1209,15 @@ function run_summon()  {
 
 }
 
+#---------------------------------------------------------------------
+## @Globals SPELLS
+## @STDOUT User information ("Collating dependancies")
+## @Globals SPELL MAKEFILE DEPS_ONLY 
+##
+## Basically only gathers all dependancies and creates the Makefile
+## (According to pass_zero it ought to take SPELLS at parameter, but
+## it doesn't)
+#---------------------------------------------------------------------
 function pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
@@ -1255,7 +1276,12 @@ function depends_to_Makefile()
 }
 
 
-#A bit of a misnomer, eh? Doesn't build anything, just summons it.
+#---------------------------------------------------------------------
+## @Globals SPELLS
+## @Arguments spellname
+## calls run_details and run_summon for every element in SPELLS
+## doesn't actually build anything, just summons it.
+#---------------------------------------------------------------------
 function build_sources()  {
 
   for  SPELL  in  $SPELLS;  do
@@ -1268,7 +1294,17 @@ function build_sources()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Arguments Spells to be cast
+## @Stdout the "Spells are to be cast" message.
+## @Stdin User interface, y or n  
+## @Globals SEPARATE
+## Asks whether you want to cast the listed spells or not.
+## Returns if not. 
+## Then it starts pass three and four by calling make.
+## Depending on SEPARATE it starts pass three in the background
+## or not.
+#---------------------------------------------------------------------
 function pass_two()  {
   #  This pass downloads required sources.
   #  And starts the make process
@@ -1297,13 +1333,30 @@ function pass_two()  {
   rm $MAKEFILE
 
 }
-
+#---------------------------------------------------------------------
+## @param spellname
+## @Globals SPELL
+## Sets SPELL to the spellname and calls build_sources with spellname
+## as argument.
+## (Is being called by make)
+#---------------------------------------------------------------------
 function pass_three()  {
   debug "cast" "pass_three - $*"
   SPELL=$1
   build_sources $*
 }
 
+#---------------------------------------------------------------------
+## @param spellname
+## @Globals SPELL COMPILE
+## Sets SPELL to spellname.
+## Calls trigger "pre_cast"
+## If COMPILE is not set and it can be resurrected 
+## (can_resurect SPELL) it calls resurrect with SPELL as argument.
+## Otherwise it calls cast_spell.
+## If resurrect or cast_spell returned 0 it calls trigger "cast"
+## (Is being called by make)
+#---------------------------------------------------------------------
 function pass_four()  {
 
   debug "cast" "pass_four - $*"
@@ -1378,6 +1431,14 @@ function pass_five()  {
 
 }
 
+#---------------------------------------------------------------------
+## @Arguments Spells to cast
+## @Globals CAST_PASS D_LOG 
+## 
+## Starts the passes and sets CAST_PASS accordingly.
+## D_LOG is being set and the file is being cleared if it does already
+## exists 
+#---------------------------------------------------------------------
 function pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
