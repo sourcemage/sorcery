@@ -735,7 +735,7 @@ function config_set_option () {
 function real_config_query () {
     local ANSWER
   
-    if config_get_option "$1" ANSWER; then
+    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
   
@@ -772,7 +772,7 @@ function real_config_query () {
 function real_config_query_option () {
     local ANSWER
   
-    if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
+    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
 		  return 1
@@ -805,7 +805,7 @@ function real_config_query_string () {
     local ANSWER
     local RET=0
     
-    if config_get_option "$1" ANSWER; then
+    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
         # option allready answered in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
     else
@@ -838,7 +838,7 @@ function real_config_query_list () {
   shift
   shift
 
-  if config_get_option "$VARIABLE" ANSWER; then
+  if [ -z "$RECONFIGURE" ] && config_get_option "$VARIABLE" ANSWER; then
     # option allready ANSWERed in config
     (
         for foo in $@; do
