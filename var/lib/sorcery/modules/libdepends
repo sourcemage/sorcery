@@ -344,9 +344,10 @@ function work_optional_depends()
   local NOQUESTION=false
 
   if [[ "$1" == "no_question" ]]; then
-        shift;
-        NOQUESTION=true
+		shift;
+		NOQUESTION=true
   fi
+	
   if spell_exiled $1 ; then 
     message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
     return 1
@@ -358,24 +359,27 @@ function work_optional_depends()
   #See if there are preferences already
   #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
   explode "`search_depends_status "$SPELL" "$1"`" ":" "status"
+	
   if [[ $RECONFIGURE ]] || ! [[ ${status[2]} ]] ; then
 
-  if [[ $NOQUESTION == false ]]; then
-        message "${SPELL_COLOR}$1${DEFAULT_COLOR} is an optional dependency for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
-       if spell_installed $1 || spell_held $1 ; then
-          query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "y" && 
-            install="on"
-        else
-          query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "n" && 
-            install="on"
-        fi
-  else
-    install="on"
-  fi
+		if [[ $NOQUESTION == false ]]; then
+			message "${SPELL_COLOR}$1${DEFAULT_COLOR} is an optional dependency for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
+
+			if spell_installed $1 || spell_held $1 ; then
+				query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "y" && 
+					install="on"
+			else
+				query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "n" && 
+					install="on"
+      fi
+		else
+			install="on"
+  	fi
 
   elif [[ ${status[2]} == on ]] ; then
-    install="on"
+		install="on"
   fi
+
   private_common_depends "$1" "$install" "optional" "$2" "$3"
 }
 
