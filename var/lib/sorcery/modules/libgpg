@@ -1,0 +1,96 @@
+#---------------------------------------------------------------------
+##
+## @Synopsis Functions that verify gpg signatures
+##
+## @Copyright Copyright 2005 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
+
+
+#---------------------------------------------------------------------
+## Low level routine for verifying a file given a signature and keyring.
+## The keyring must contain the public key for the signature.
+## @param signature of the file
+## @param file to verify
+## @param public keyring
+#---------------------------------------------------------------------
+function gpg_verify_signature() { # $1 sig $2 file $3 pubring
+
+  local signature=$1
+  local file=$2
+  local keyring=$3
+
+  test -e $signature &&
+  test -e $file &&
+  test -e $keyring || return 3
+
+  # always trust and supply our own keyring.
+  # We provide our own trust for the pubkey validity.
+
+  local GPGPROG="`which gpg 2> /dev/null`"
+
+  if test -z "$GPGPROG" ; then
+    message "It appears you do not have gpg (gnupg) in your PATH."
+    message "${QUERY_COLOR}For full source verification, it is highly" \
+            "suggested that you cast gnupg\nas soon as possible. This" \
+            "should be done for you on a system update.${DEFAULT_COLOR}"
+    return 2
+  else
+    gpg --no-default-keyring  \
+        --always-trust        \
+        --keyring $keyring    \
+        --batch               \
+        --verify              \
+        $signature            \
+        $file 2> /dev/null ||
+    return 1      # error out if verification fails.
+  fi
+  return 0
+}
+
+
+#---------------------------------------------------------------------
+## Get the sorcery gpg key file associated with a branch
+## @param (optional) sorcery branch, if empty use $SORCERY_BRANCH
+## @return 0 on success, 1 on failure
+## @stdout full path to sorcery key (if successful)
+#---------------------------------------------------------------------
+function gpg_get_sorcery_key() {
+  local branch=${1:-SORCERY_BRANCH}
+  local key=$GPG_KEY_DIR/sorcery-$branch.gpg
+  test -e $key || return 1
+  echo $key
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Get the grimmoire gpg key file associated with a branch
+## @param grimoire branch (test, stable, games etc.)
+## @return 0 on success, 1 on failure
+## @stdout full path to grimoire key (if successful)
+#---------------------------------------------------------------------
+function gpg_get_grimoire_key() {
+  local branch=$1
+  local key=$GPG_KEY_DIR/grimoire-$branch.gpg
+  test -e $key || return 1
+  echo $key
+  return 0
+}
+
+#---------------------------------------------------------------------
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#---------------------------------------------------------------------
+
