@@ -45,15 +45,15 @@
 
 lock_resources()
 {
-    if [ $# -ne 2 ]; then
-        echo "usage: lock_resources type_of_resource name_of_resource"
-        exit -1
-    fi
+#    if [ $# -ne 2 ]; then
+#        echo "usage: lock_resources type_of_resource name_of_resource"
+#        exit -1
+#    fi
 
     while ! trylock_resources "$@";
     do
       local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
-#      echo "process $$ is sleeping ${SLEEP} seconds"
+      debug "lock_resources" "process $$ is sleeping ${SLEEP} seconds"
       sleep "${SLEEP}"
     done
 }
@@ -70,21 +70,21 @@ lock_resources()
 
 trylock_resources()
 {
-    if [ $# -ne 2 ]; then
-        echo "usage: trylock_resources type_of_resource name_of_resource"
-        exit -1
-    fi
+#    if [ $# -ne 2 ]; then
+#        echo "usage: trylock_resources type_of_resource name_of_resource"
+#        exit -1
+#    fi
         
     local lockfile="$1.$2"
-# we replace / by ^
+    # we replace / with ^
     lockfile="${LOCK_DIR}/${lockfile//\//^}"
 
-#    echo "lockfile=${lockfile}"
+    debug "trylock_resources" "lockfile=${lockfile}"
 
     mkdir -p "${LOCK_DIR}"
 
     if ! mkdir "${lockfile}" 2>/dev/null; then
-# we try to remove stale locks here and try again
+    # we try to remove stale locks here and try again
         global_clean_resources
         if ! mkdir "${lockfile}" 2>/dev/null; then
             return 1
@@ -107,17 +107,19 @@ trylock_resources()
 
 excllock_resources()
 {
-  if [ $# -ne 2 ]; then
-    echo "usage: excllock_resources type_of_resource name_of_resource"
-    exit -1
-  fi
+#  if [ $# -ne 2 ]; then
+#    echo "usage: excllock_resources type_of_resource name_of_resource"
+#    exit -1
+#  fi
 
   while find $LOCK_DIR -mindepth 1 -maxdepth 1 -name "$1.*" | grep -q '';
-  do    #^^^ look if a lock exists of the given type (ugly code)
+  do    
+		#^^^ look if a lock exists of the given type (ugly code)
     global_clean_resources
     local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
     sleep "$SLEEP"
-  done #theoretically, someone could create a lock now... tiny race
+  done 
+	#theoretically, someone could create a lock now... tiny race
   trylock_resources "$@"
 }
 
@@ -137,16 +139,16 @@ excllock_resources()
 
 unlock_resources()
 {
-    if [ $# -ne 2 ]; then
-        echo "usage: unlock_resources type_of_resource name_of_resource"
-        exit -1
-    fi
+#    if [ $# -ne 2 ]; then
+#        echo "usage: unlock_resources type_of_resource name_of_resource"
+#        exit -1
+#    fi
 
     local lockfile="$1.$2"
     lockfile="${LOCK_DIR}/${lockfile//\//^}"
 
-    rm "${lockfile}/$$" &&
-    rmdir "${lockfile}"
+    rm "${lockfile}/$$" 2>/dev/null &&
+    rmdir "${lockfile}" 2>/dev/null
 
     return 0
 }
@@ -168,9 +170,9 @@ clean_resources()
   if [ -d "${LOCK_DIR}" ]; then
     find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 -name $$ | \
     while read file; do
-      echo "removing forgotten lock ${file}"
-      rm -f "${file}" &&
-      rmdir `dirname "${file}"`
+      debug "clean_resources" "removing forgotten lock ${file}"
+      rm -f "${file}" 2>/dev/null &&
+      rmdir `dirname "${file}"` 2>/dev/null
     done
   fi
 }
@@ -184,17 +186,18 @@ clean_resources()
 global_clean_resources()
 {
   if [ -d "${LOCK_DIR}" ]; then
-# we remove old locks (>1 minute) that are not owned by any process.
+    # we remove old locks (>1 minute) that are not owned by any process.
     find "${LOCK_DIR}" -maxdepth 1 -mindepth 1 -mmin +1 -empty -exec rmdir {} \;
 
-# we remove locks that are owned by dead processes
+    # we remove locks that are owned by dead processes
     find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 | \
-    while read file; do
-# check if the process still exist (we use procfs mounted on /proc)
+    
+		while read file; do
+		  # check if the process still exist (we use procfs mounted on /proc)
       if [ ! -d "${file}" ]; then
-          echo "removing stale lock ${file}"
-          rm -f "${file}" &&
-          rmdir `dirname "${file}"`
+          debug "global_clean_resources" "removing stale lock ${file}"
+          rm -f "${file}" 2>/dev/null &&
+          rmdir `dirname "${file}"` 2>/dev/null
       fi
     done
   fi
@@ -265,8 +268,6 @@ function lock_start_transaction()
   debug "liblock" "$FUNCNAME - $*"
   local i TRANSNAME NUMTRANS RET=""
   
-  #debug liblock lock_start_transaction - $*
-  
   if lock_file "$@" ; then
   
     lock_file $LOCK_TRANSACTIONS
@@ -278,7 +279,7 @@ function lock_start_transaction()
     
     for i in $* ; do
       let NUMTRANS++
-      # copy the file to the temp file, if it doesn't exist then create an empty file.
+      # cp file to temp file, if doesn't exist, create empty file.
       if [ -e "$i" ]   ; then
         cp "$i" "$LOCK_TRANSACTIONS.$NUMTRANS" 
       else
@@ -317,7 +318,7 @@ function lock_commit_transaction()
     unlock_file $i
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.new
     grep -v ".*:$i:$$" $LOCK_TRANSACTIONS.new >$LOCK_TRANSACTIONS
-    rm $LOCK_TRANSACTIONS.new
+    rm $LOCK_TRANSACTIONS.new 
   done
   unlock_file $LOCK_TRANSACTIONS  
 
@@ -339,7 +340,6 @@ function lock_kill_transaction()
   lock_file $LOCK_TRANSACTIONS
   for i in $* ; do
     TMP_FILE=$(grep `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS | cut -d : -f 1)
-    ##  [ -e $TMP_FILE ] && cp $TMP_FILE $i && rm $TMP_FILE  <-- this is the only diff between commit and kill
     unlock_file $i
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.1
     grep -v `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
