@@ -90,6 +90,27 @@ run_conflicts() {
 }
 
 
+# checks for a security file
+# returns 0 if spell should be cast, 1 otherwise
+run_security() {
+    debug "cast" "Starting run_security() on $SPELL"
+    if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
+      echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
+      tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
+        if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
+          if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
+            return 0 
+          fi
+          return 1
+        else
+          if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
+            return 0 
+          fi
+          return 1
+        fi
+    fi
+    return 0
+}
 
 
 prepare_spell_config()  {
@@ -938,10 +959,11 @@ report_install()  {
 cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
-  run_details				  &&
-  run_conflicts               &&
-  run_spell_config			  &&
-  debug "DB" "cast_spell run_conflicts done" &&
+  run_details                                 &&
+  run_security                                &&
+  run_conflicts                               &&
+  run_spell_config                            &&
+  debug "DB" "cast_spell run_conflicts done"  &&
 #  satisfy_depends             &&  #Not needed since make dakes care of deps now?
   debug "DB" "cast_spell about to show_d/l" &&
   show_downloading            ||   return 1
