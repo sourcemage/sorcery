@@ -124,6 +124,26 @@ function set_nice()  {
 
 }
 
+#---------------------------------------------------------------------
+##
+## Menu query to user asking to set the umask value which sorcery should
+## use to run proccesses with.
+##
+#---------------------------------------------------------------------
+function set_umask()  {
+
+  PROMPT="Please enter the permissions mask sorcery should run with."
+
+  if  UMASK=`eval $DIALOG '  --ok-label  "Commit"  \
+                            --inputbox            \
+                            "$PROMPT"             \
+                            0 0  "$UMASK"'`
+  then
+     modify_local_config "UMASK" "$UMASK"
+  fi
+
+}
+
 
 #---------------------------------------------------------------------
 ## @param filename
