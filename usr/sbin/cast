@@ -284,10 +284,11 @@ run_build()  {
       fi
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
         edit_file $SM_CONFIG_OPTION_CACHE/$SPELL
-        if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-          OPTS="$OPTS `cat $SM_CONFIG_OPTION_CACHE/$SPELL`"
-          message "${MESSAGE_COLOR} OPTS= ${SPELL_COLOR}$OPTS"
-        fi
+      fi
+      # load custom OPTS
+      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
+        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
+        message "${MESSAGE_COLOR} OPTS= ${SPELL_COLOR}$OPTS"
       fi
     fi
   fi
@@ -980,24 +981,22 @@ cast_spell()  { (
     unlock_resources "castSOLO" "SOLO"
   fi
                                
-  run_pre_build               &&
-  run_build                   &&
-  run_post_build              &&
-  run_post_install            &&
-  add_spell $SPELL installed $VERSION &&
-  cd  /                       &&
-  report_install              &&
-  sound  SUCCESS
-  if [ $? -eq 0 ] ; then
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    rm_source_dir
-	echo $SPELL >> $SUCCESS_LIST
+  if	run_pre_build              			&&
+		run_build                   		&&
+		run_post_build              		&&
+		run_post_install            		&&
+		add_spell $SPELL installed $VERSION	&&
+		cd  /                       		&&
+		report_install						;
+  then
+		sound  SUCCESS
+		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+	    rm_source_dir
+		echo $SPELL >> $SUCCESS_LIST
   else
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     rm  -f  $CASTING
-    if [[  $CLEAN_SOURCE == on ]]; then
-      rm_source_dir
-    fi
+    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1
   fi
 
@@ -1163,7 +1162,10 @@ pass_four()  {
   else
     cast_spell $*
   fi
-  trigger "cast"
+
+  #We only want to trigger if the cast ot resurect completed properly
+  [ $? -eq 0 ] && trigger "cast"
+  
 }
 
 
@@ -1219,6 +1221,7 @@ pass_zero()  {
 main()	{
 
   debug "cast" "main() - $*"
+  local T_SPELLS=""
   process_parameters        $*
   SPELLS=`strip_parameters  $*`
 
@@ -1228,7 +1231,17 @@ main()	{
 
   else
 
-    codex_does_spell_exist $SPELLS || return 1
+	for spell in $SPELLS ; do
+		codex_does_spell_exist $spell
+		if [ $? -eq 0 ] ; then
+			T_SPELLS="$T_SPELLS $spell"
+		fi
+	done
+	SPELLS=$T_SPELLS
+	
+	if ! [[ $SPELLS ]]; then
+		return 1
+	fi
 	
 	MAKEFILE="/tmp/Makefile.cast.$$"
 	SUCCESS_LIST="$0.success_list"

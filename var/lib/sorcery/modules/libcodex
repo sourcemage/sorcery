@@ -373,9 +373,8 @@ codex_does_spell_exist() {
     fi
   done
  
-  return 0  #Do this or cast --queue will quit if even one spell doesn't exist
-#  return $retValue
-
+  return $retValue
+ 
 }
 
 
@@ -506,6 +505,8 @@ codex_find_spell_or_section_by_name()  {
 codex_clear_current_spell()  {
   unset GRIMOIRE SECTION SECTION_DIRECTORY SPELL 
   unset SPELL_DIRECTORY SCRIPT_DIRECTORY SPELL_DESCRIPTION
+  unset VERSION SHORT UPDATED SOURCE WEB_SITE ENTERRED MAINTAINER
+  unset MD5 LICENSE
 }
 
 
@@ -520,6 +521,8 @@ codex_clear_current_spell()  {
 ##
 #---------------------------------------------------------------------
 codex_set_current_spell()  {
+
+  codex_clear_current_spell
   SPELL_DIRECTORY=$1
 
   # Directories
@@ -530,12 +533,13 @@ codex_set_current_spell()  {
   # Names
   SECTION=`basename $SECTION_DIRECTORY`
   SPELL=`basename $SPELL_DIRECTORY`
-
+  
   SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
   if  [ -f  $SPELL_CONFIG  ]; then
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
-  .  $SPELL_DIRECTORY/DETAILS  >  /dev/null 2> /dev/null
+  .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
+  
 }
 
 
