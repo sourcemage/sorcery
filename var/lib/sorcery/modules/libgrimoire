@@ -213,12 +213,14 @@ function md5_tar_check()  {
 ## If the spell is not installed (or held) the spell is not dispelled.
 ##
 #---------------------------------------------------------------------
-function real_prepare_install() {
+function real_prepare_install() { (
 
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
   message  "${MESSAGE_COLOR}Preparing to install"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+
+  devoke_installwatch
 
   lock_resources "libgrimoire" "install"
 
@@ -231,7 +233,7 @@ function real_prepare_install() {
       dispel  --notriggers --nosustain  $SPELL
 
     fi
-}
+) }
 
 
 
