@@ -819,27 +819,50 @@ integrity_fix_menu()  {
 integrity_download_menu()  {
 
      INT_DL_TITLE="Archive Integrity Checking Level Menu"
-      INT_DL_HELP="Set your preference for reactions to bad archive integrity checks"
-       ABORT_HELP="Abort the use if the file. Do not prompt. SAFEST"
+      INT_DL_HELP="Set your preference for reactions 
+to bad archive integrity checks:
+
+c = continue,
+a = abort,
+n = ask default abort no,
+y = ask default abort yes, 
+- = doesn't get checked, continues.
+
+MD5SUM_DL . good bad IGNORE missing
+----------- ---- --- ------ -------
+all_abort . . c . a . . a . . . a .
+on|*. . . . . c . a . . y . . . a .
+ask_abort . . c . y . . y . . . y .
+ask_risky . . c . y . . n . . . y .
+ask_ignore. . c . n . . n . . . n .
+off . . . . . - . - . . - . . . - .
+"
+   ABORT_ALL_HELP="Abort the use of the file. Do not prompt. Period. PARANOID"
+       ABORT_HELP="Abort the use of the file. Do not prompt unless the MD5 is set to IGNORE. SAFER"
    ABORT_ASK_HELP="Ask, but default to abort. SAFE"
+   ABORT_IGN_HELP="Ask, but default to abort unless the MD5 is set to IGNORE. RISKY"
   IGNORE_ASK_HELP="Ask, but default to ignore. UNSAFE"
       IGNORE_HELP="Ignore (do not check) integrity of downloads. DANGEROUS!"
 
-  if  INT_DL_CHECK=`eval $DIALOG '  --title  "$INT_DL_TITLE"      \
-   			     --no-cancel                   \
-			     --ok-label    "Commit"        \
-			     --item-help                   \
-			     --menu                        \
-			     "$INT_DL_HELP"                \
-			     0 0 0                         \
-	"A"  "Abort unpack"           "$ABORT_HELP"        \
-	"B"  "Ask (default abort)"    "$ABORT_ASK_HELP"    \
-	"G"  "Ask (default ignore)"   "$IGNORE_ASK_HELP" \
-	"I"  "Ignore (do not check)"  "$IGNORE_HELP"'`
+  if  INT_DL_CHECK=`eval $DIALOG '  --title  "$INT_DL_TITLE"        \
+   			     --no-cancel                            \
+			     --ok-label    "Commit"                 \
+			     --item-help                            \
+			     --menu                                 \
+			     "$INT_DL_HELP"                         \
+			     0 0 0                                  \
+	"P"  "Abort unpack paranoid"             "$ABORT_ALL_HELP"  \
+	"A"  "Abort unpack but ask on ignore"    "$ABORT_HELP"      \
+	"B"  "Ask (default abort)"               "$ABORT_ASK_HELP"  \
+	"U"  "Ask (default abort save ignore)"   "$ABORT_IGN_HELP"  \
+	"G"  "Ask (default ignore)"              "$IGNORE_ASK_HELP" \
+	"I"  "Ignore (do not check)"             "$IGNORE_HELP"'`
   then
     case $INT_DL_CHECK in
+      P) modify_local_config "MD5SUM_DL" "abort_all" ;;
       A) modify_local_config "MD5SUM_DL" "on" ;;
       B) modify_local_config "MD5SUM_DL" "ask_abort" ;;
+      U) modify_local_config "MD5SUM_DL" "ask_risky" ;;
       G) modify_local_config "MD5SUM_DL" "ask_ignore" ;;
       I) modify_local_config "MD5SUM_DL" "off" ;;
     esac
