@@ -1007,7 +1007,9 @@ cast_spell()  { (
 		echo $SPELL >> $SUCCESS_LIST
   else
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
-    rm  -f  $CASTING
+	IW_LOG="$INSTALLWATCHFILE"
+	INSTALLWATCHFILE=""
+    rm  -f  $IW_LOG  $TMP_LOG  $CASTING
     [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1
   fi
@@ -1230,7 +1232,6 @@ pass_zero()  {
 
 
 main()	{
-
   debug "cast" "main() - $*"
   local T_SPELLS=""
   process_parameters        $*
@@ -1257,7 +1258,8 @@ main()	{
 	MAKEFILE="/tmp/Makefile.cast.$$"
 	SUCCESS_LIST="$0.success_list"
 	export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
-	export RM_AT_END="$RM_AT_END $SUCCESS_LIST $0 $ENV_CACHE"
+	echo "$SUCCESS_LIST $0 $ENV_CACHE" >> $RM_AT_END
+	export RM_AT_END="$RM_AT_END"
 	BASE_SPELLS=" $SPELLS "
 
     case  $CAST_PASS  in
@@ -1287,22 +1289,30 @@ elif  [  "$UID"  !=  0  ];  then
 
 elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
 
-  RM_AT_END=""
+  if ! [[ $RM_AT_END ]] ; then
+    #This stuff is here to make sure a user can't make the file
+	# and fill it up with stuff the feel the need to delete
+    export RM_AT_END=${RM_AT_END:-"/tmp/cast.$$.tmplist"}
+	touch $RM_AT_END
+	chown root:root $RM_AT_END
+	echo -n '' > $RM_AT_END
+  fi
+  
   SAFE_CAST=/tmp/casting.$$
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
+  echo "$SAFE_CAST" >> $RM_AT_END
   exec $SAFE_CAST "$@"
   
 else
 
   renice +10 -p $$  >/dev/null
   main  $*
-  if [ $SHLVL -lt 2 ] ; then
-  	rm    $0
+  if [ $SHLVL -eq 2 ] ; then
 	unlock_file $SAFE_CAST
-	rm $RM_AT_END
+	rm $(cat $RM_AT_END) $RM_AT_END 2>/dev/null
   fi
 
 fi
