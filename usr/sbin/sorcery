@@ -1074,6 +1074,21 @@ set_download_rate()  {
 
 }
 
+set_http_ftp_timeout()  {
+
+	PROMPT="Please enter maximum time (seconds) summon is to wait for each download server"
+
+	if  URL_HTTP_FTP_TIMEOUT=`eval $DIALOG '  --ok-label  "Commit"  \
+                                            --inputbox            \
+                                            "$PROMPT"             \
+                                            0 0  "$URL_HTTP_FTP_TIMEOUT"'`
+	then
+
+		modify_local_config "URL_HTTP_FTP_TIMEOUT" "$URL_HTTP_FTP_TIMEOUT"
+
+	fi
+
+}
 
 queue_menu()  {
 
@@ -1336,10 +1351,11 @@ option_menu()  {
     J_HELP="Enter the number of jobs 'make' should run at the same time"
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
-	S_HELP="Sorcery development options (debugging)"
+    S_HELP="Sorcery development options (debugging)"
+    W_HELP="Enter maximum timeout (seconds) for summoning sources"
 
 
-    COMMAND=`eval $DIALOG '  --title "Option Menu"                     \
+    COMMAND=`eval $DIALOG '  --title "Option Menu"              \
                       --item-help                               \
                       --ok-label      "Select"                  \
                       --cancel-label  "Exit"                    \
@@ -1356,7 +1372,8 @@ option_menu()  {
                       "C"  "Distributed compilation"  "$C_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
-					  "S"  "Sorcery Development"      "$S_HELP"'`
+                      "S"  "Sorcery Development"      "$S_HELP" \
+                      "W"  "Summon Timeout Value"     "$W_HELP"'`
 
   do
 
@@ -1372,7 +1389,8 @@ option_menu()  {
       C)  sorcery_distcc         ;;
       M)  mirror_menu            ;;
       O)  optimize_architecture  ;;
-	  S)  sorcery_devel_settings ;;
+      S)  sorcery_devel_settings ;;
+      W)  set_http_ftp_timeout   ;;
 
     esac
 
