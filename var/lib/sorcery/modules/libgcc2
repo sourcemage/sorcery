@@ -1,0 +1,130 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Set of functions for dealing with the problem (hopefully a 
+## temporary problem) of having to use both the gcc2 and gcc3
+## compilers.
+##
+##=head1 DESCRIPTION
+##
+## The migration to gcc3 will take place in the following steps:
+##
+## - The gcc spell will be updated to gcc 3
+## - gcc2 will be a new spell that installs gcc2 in /opt/gcc2.
+## - The gcc spell will have gcc2 as a dependency.
+## - Spells that will only compile with gcc3 will have a USEGCC2 file
+##   in the spell directory.
+## - Sorcery will test for the existance of the USEGCC2 flag in a 
+##   spell's directory.  If it's there, it will alter the environment
+##   so that gcc2 is used for building the spell.
+##
+##=head1 IMPLEMENTATION NOTE
+##
+## These functions were added to allow the use of both the gcc2 and 
+## gcc3 compiler at the same time within sorcery.  The code can be 
+## removed once only one compiler is supported.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------
+##=item use_gcc2
+##
+## Returns true if gcc2 is being used to compile.  Returns false 
+## otherwise.  
+##
+#---------------------------------------------------------------------
+use_gcc2()  {
+
+  gcc  -dumpversion  |  grep  -q  '2\.95\.'  >  /dev/null
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gcc2_prepend_path  <new path to add>  <old path>
+##
+## Echos the old path with new path prepended, separated with a ':'
+##
+#---------------------------------------------------------------------
+gcc2_prepend_path()  {
+
+  if    test  -z  $2
+  then  echo $1
+  else  echo $1:$2
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gcc2_add_paths <path>
+##
+## Alters the environment so that gcc2 will be used for compiling and
+## building spells when the "gcc" command is used.
+##
+#---------------------------------------------------------------------
+gcc2_add_paths()  {
+
+  export  PATH=$(  gcc2_prepend_path  $1/bin  $PATH  )
+  export  LD_LIBRARY_PATH=$(  gcc2_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
+  export  LD_RUN_PATH=$(  gcc2_prepend_path  $1/lib  $LD_RUN_PATH  )
+  export  INFOPATH=$(  gcc2_prepend_path  $1/info  $INFOPATH  )
+  export  CPPFLAGS="-I $1/include  $CPPFLAGS"
+
+}
+
+
+#---------------------------------------------------------------------
+##=item invoke_gcc2
+##
+## Determines if gcc2 should be used for a spell.  If so, it alters
+## the environment so that gcc2 is used for compilation.  
+##
+#---------------------------------------------------------------------
+invoke_gcc2()  {
+
+  USEGCC2=$(  ls  $SCRIPT_DIRECTORY/USEGCC2  2>/dev/null  )
+
+  if    [  "$USEGCC2"  ]
+  then  gcc2_add_paths  /opt/gcc2
+  fi
+
+  . $LOCAL_CONFIG
+
+  echo  "Using gcc version: `gcc  -dumpversion`"
+  
+
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

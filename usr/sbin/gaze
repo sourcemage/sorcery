@@ -1,16 +1,29 @@
-#!/bin/sh
-############################################################
-# gaze - view sorcery spell management information         #
-# (gaze into the crystal ball)                             #
-############################################################
-# Original gaze written by Brian Peterson                  #
-# Copyright 2001 by Brian Peterson                         #
-############################################################
-# gaze is part of the                                      #
-# sorcery spell management utility                         #
-# This version contains none of Brian Peterson's source    #
-# Copyright 2001 by Kyle Sallee                            #
-############################################################
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## gaze - view sorcery spell management information
+## (gaze into the crystal ball)
+##
+##=head1 DESCRIPTION
+##
+## ...
+##
+##=head1 COPYRIGHT
+##
+## First version of gaze written & copyrighted 2001 by Brian Peterson
+## 
+## Current version contains none of Brian Peterson's code and is 
+## Copyright 2001 by Kyle Sallee
+##
+## Other additions/corrections Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
 
 
 help() {
@@ -21,52 +34,66 @@ Please note that anything in brackets [] is optional.
 
 Command		Arguments	Description
 
-alien		<empty>		discover untracked files
-from		path/file	discover what installed a file
-search		"phrase"	Searches spells' long descriptions for
-				phrase.
-service		port|acronym	Displays spells that provide that service
+-q		<empty>		disable human style output
 
-what		spell		print the spell's description
-where		spell		print the spell's section
-website		spell		print the spell's website
-install		spell		view an install log
-installed	[spell]		view/query installed spells
-compile		spell		view a compile log
-sources		spell		List the source files for a spell
-history		spell		Show history for a spell
+alien		<empty>		Discover untracked files.
+from		path/file	Discover what installed a file.
+search		"phrase"	Searches for "phrase" in the long and 
+				  short spell descriptions and in the spell 
+				  name.
+service		port|acronym	Displays spells that provide that service.
+provides	feature 	Displays spells that provide the feature.
 
-sum		[spell]		prints checksums
-md5sum		[spell]		prints md5sums
-export				make snapshot of box's configuration.
-import		snapshot	restore snapshot
+what		spell		Print the spell's description.
+where		spell		Print the spell's section.
+website | url	spell		Print the spell's website.
+install		spell		View an install log.
+installed	[spell]		View/query installed spells.
+version		spell		View version of spell installed, and version in 
+				the grimoire.
+license		spell [spell]	View the license of the given spell(s)
+license		section [section]	View the licenses of spells in the given
+					section(s)
+license		license [license]	View information about the given license(s).
+compile		spell		View a compile log.
+sources		spell		List the source files for a spell.
+history		spell		Show history for a spell.
 
-section		[section]	list grimoire sections
-maintainer	[section]	see who is the maintainer for a section
-grimoire			view a text listing of the grimoire
-html				view a html listing of the grimoire
+sum		[spell]		Prints checksums.
+md5sum		[spell]		Prints md5sums.
+export				Make snapshot of box's configuration.
+import		snapshot	Restore snapshot.
 
-newer		20020521	Show available spells newer than May 21, 2002
-older		20010521	Show spells installed before May 21, 2001
+section		[section]	List grimoire sections.
+maintainer	[section]	See who is the maintainer for a section
+grimoire			View a text listing of the grimoire.
+html				View a html listing of the grimoire.
+
+newer		20020521	Show available spells newer than May 21, 2002.
+older		20010521	Show spells installed before May 21, 2001.
 
 prune		<empty>		Removes all old sources from $SOURCE_CACHE
-				Removes all old backups from $INSTALL_CACHE
+				  and removes all old backups from 
+				  $INSTALL_CACHE.
 
-voyeur		[delay or spell]  Peak into spell compilation
+voyeur		[delay or spell]  
+				Peak into spell compilation.
 
 pam		<empty>		Display installed or held spells that are
-				Linux-PAM aware
+				  Linux-PAM aware.
 
 
 orphans		<empty>		Display installed spells that have no
-				explicit dependencies on them
+				  explicit dependencies on them.
 
 depends		spell		Displays the spells that explicitly
-				or recursively depend on this spell
+				  or recursively depend on this spell.
 
-spider		[nothing|section|spell] Test url for the full grimoire, the selected section or just one spell
+spider		<empty>		Validates urls for entire grimoire.
+spider   <item> [<item> ...]	Validates urls for one or more items.  Items
+				  may be either spells or sections.
 
-\$SPELL_SCRIPT	spell		will print the spell script for that spell
+\$SPELL_SCRIPT	spell	will print the spell script for that spell.
 EOF
 }
 
@@ -169,17 +196,16 @@ gaze_catalog()  {
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `ls  $GRIMOIRE`;  do
-    if  [  -d  "$GRIMOIRE/$SECTION"  ];  then
-      echo 
-      echo  "-------------------------------------------------"
-      echo  "SECTION:  $SECTION"  
-      echo  "-------------------------------------------------"
-      for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-        [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&  echo  $SPELL
-        ((  COUNT++  ))
-      done
-    fi
+  for  SECTION  in  `codex_get_all_sections`;  do
+    echo 
+    echo  "-------------------------------------------------"
+    echo  "SECTION:  $(  basename  $SECTION  )"  
+    echo  "-------------------------------------------------"
+    for  spell  in  `codex_get_spells $SECTION`;  do
+      codex_set_current_spell  $spell
+      echo  $SPELL
+      ((  COUNT++  ))
+    done
   done
 
   echo
@@ -190,9 +216,7 @@ gaze_catalog()  {
 
 gaze_catalog_html()  {
 
-  GRIMOIRE=/var/lib/sorcery/grimoire
-
-  echo  "<html><head><title>Sorcery Grimoire for `date  -u`</title></head>"
+  echo  "<html><head><title>Sorcery Grimoires for `date  -u`</title></head>"
   echo  "<body background=\"media/blackmarble.jpg\">"
 
   echo  "<table  align=\"center\""
@@ -200,7 +224,7 @@ gaze_catalog_html()  {
   echo  "        border=5>"
 
   echo  "<tr><th colspan=4><font color=green  size=+1>"
-  echo  "Sorcery Grimoire<br>`date  -u`"
+  echo  "Sorcery Grimoires<br>`date  -u`"
   echo  "</font></th></tr>"
 
   echo  "<tr>"
@@ -212,59 +236,55 @@ gaze_catalog_html()  {
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `ls  $GRIMOIRE`;  do
-    if  [  -d  "$GRIMOIRE/$SECTION"  ];  then
-      echo  "<tr><th colspan=4><font color="green">$SECTION</font></th></tr>"
-      for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-        [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
-        (
-  
-          . $GRIMOIRE/$SECTION/$SPELL/DETAILS  1>/dev/null
-  
-          echo  "<tr>"
-          if  [  "$SPELL"  ==  "linux"  ]   ||
-              [  "$SPELL"  ==  "glibc"  ];  then
-              BOLD="<b>"
-            UNBOLD="</b>"
-          else
-            unset    BOLD
-            unset  UNBOLD
-          fi
-          if  [  ${#SPELL}  -gt  15  ];  then
-            SPELL="<font size=-1>$SPELL</font>"
-          fi
-  	if  [  -z  "$UPDATED"  ]  &&  [  "$ENTERED"  ];  then
-  	    UPDATED=$ENTERED
-  	fi
-          echo  "<td>$BOLD $SPELL $UNBOLD</td>"
-          echo  "<td><font size=-1>$BOLD $VERSION $UNBOLD</font></td>"
-          echo  "<td><font size=-1>$UPDATED</font></td>"
-  
-          WEBSITE=$WEB_SITE
-          if    [  ${#WEB_SITE}  -lt 20  ];  then
-              SHRINK="<font size=-1>"
-            UNSHRINK="</font>"
-          elif  [  ${#WEB_SITE}  -lt 30  ];  then
-              SHRINK="<font size=-2>"
-            UNSHRINK="</font>"
-          else
-             WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
-              SHRINK="<font size=-3>"
-            UNSHRINK="</font>"
-          fi
-  
-          if  [  "$WEB_SITE"  !=  "unknown"  ];  then
-            echo  "<td> $SHRINK"
-            echo  "<a href=\"$WEB_SITE\" target=\"_blank\">$WEBSITE</a>"
-            echo  "$UNSHRINK </td>"
-          else
-            echo  "<td></td>"
-          fi
-          echo  "</tr>"
-        )
-        ((  COUNT++  ))
-      done
-    fi
+  for  SECTION  in  `codex_get_all_sections`;  do
+    echo  "<tr><th colspan=4><font color="green">$( basename  $SECTION )</font></th></tr>"
+    for  SPELL  in  `codex_get_spells  $SECTION`;  do
+      (
+        codex_set_current_spell  $SPELL
+
+        echo  "<tr>"
+        if  [  "$SPELL"  ==  "linux"  ]   ||
+            [  "$SPELL"  ==  "glibc"  ];  then
+            BOLD="<b>"
+          UNBOLD="</b>"
+        else
+          unset    BOLD
+          unset  UNBOLD
+        fi
+        if  [  ${#SPELL}  -gt  15  ];  then
+          SPELL="<font size=-1>$SPELL</font>"
+        fi
+	if  [  -z  "$UPDATED"  ]  &&  [  "$ENTERED"  ];  then
+	    UPDATED=$ENTERED
+	fi
+        echo  "<td>$BOLD $SPELL $UNBOLD</td>"
+        echo  "<td><font size=-1>$BOLD $VERSION $UNBOLD</font></td>"
+        echo  "<td><font size=-1>$UPDATED</font></td>"
+
+        WEBSITE=$WEB_SITE
+        if    [  ${#WEB_SITE}  -lt 20  ];  then
+            SHRINK="<font size=-1>"
+          UNSHRINK="</font>"
+        elif  [  ${#WEB_SITE}  -lt 30  ];  then
+            SHRINK="<font size=-2>"
+          UNSHRINK="</font>"
+        else
+           WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
+            SHRINK="<font size=-3>"
+          UNSHRINK="</font>"
+        fi
+
+        if  [  "$WEB_SITE"  !=  "unknown"  ];  then
+          echo  "<td> $SHRINK"
+          echo  "<a href=\"$WEB_SITE\" target=\"_blank\">$WEBSITE</a>"
+          echo  "$UNSHRINK </td>"
+        else
+          echo  "<td></td>"
+        fi
+        echo  "</tr>"
+      )
+      ((  COUNT++  ))
+    done
   done
 
 
@@ -291,16 +311,16 @@ display()  {
 newer()  {
 
   DATE=$1
-  for  SECTION  in  `ls  $GRIMOIRE`;  do
-    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-      if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
-               . $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
-        if  [  "$ENTERED"  ]  &&  [  $ENTERED  -gt  $DATE  ];  then
-          echo  $SPELL
-        fi
+  if  [  -n  "$DATE"  ];  then
+    for  SPELL  in  `codex_get_all_spells`;  do
+      codex_set_current_spell  $SPELL
+      if  [  "$ENTERED"  ]  &&  [  $ENTERED  -gt  $DATE  ];  then
+        echo  $SPELL
       fi
     done
-  done
+  else
+    help  |  $PAGER
+  fi
 
 }
 
@@ -309,174 +329,152 @@ older()  {
 
   DATE=$1
 
-  for  LINE  in `cat  $SPELL_STATUS_BACKUP`;  do
-    CAST_DATE=`echo  $LINE  |  cut  -d  :  -f2`
-    if  [  $CAST_DATE  -gt  $DATE  ]  2>/dev/null;  then
-      true
-    else
-      echo  $LINE  |  cut  -d  :  -f1
-    fi
-  done
-
-}
-
-
-get_grimoire_details()  {
-
-  for  SECTION  in  `ls  $GRIMOIRE`;  do
-    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-      if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
-          echo  $GRIMOIRE/$SECTION/$SPELL/DETAILS
+  if  [  -n  "$DATE"  ];  then
+    for  LINE  in `cat  $SPELL_STATUS`;  do
+      CAST_DATE=`echo  $LINE  |  cut  -d  :  -f2`
+      if  [  $CAST_DATE  -gt  $DATE  ]  2>/dev/null;  then
+        true
+      else
+        echo  $LINE  |  cut  -d  :  -f1
       fi
     done
-  done
+  else
+    help  |  $PAGER
+  fi
 
 }
 
 
-spider_check()  { (
+#---------------------------------------------------------------------
+##=item gaze_spider_check <spell> <url> [<url> ...]
+##
+## Verifies urls for a particular spell.
+##
+#---------------------------------------------------------------------
+gaze_spider_check()  { (
 
   SPELL=$1
   shift  1
-  let  URL_NUM=0
   for  URL  in  $*;  do
-     SPELL_FILE=`echo $URL | sed 's/.*\///'`
-     URL_BASE_ONLY=${URL%"$SPELL_FILE"*}
-     PROTOCOL=${URL%://*}
-     if  [  "$PROTOCOL"  ==  "http"  ];  then
-       ((wget  --verbose  --tries=1  --timeout  30  --spider  $URL  1>>  /tmp/spider.log  2>&1)  &&  echo  -n  "."  )  || 
-       (
-         echo      "$SPELL URL[$URL_NUM]:$URL broken."  >>  /tmp/spider.broke
-         echo  -n  "!$URL_NUM"
-       )
-     else
-       wget  --verbose  --tries=1  --timeout  30  --dont-remove-listing  $URL_BASE_ONLY  1>>  /tmp/spider.log  2>&1
-       if  [  -e  .listing  ];  then
-         SPELL_PRESENT=`grep $SPELL_FILE .listing`
-       fi
-       if  [  "$SPELL_PRESENT"  ==  ""  ];  then
-         echo      "$SPELL URL[$URL_NUM]:$URL broken."  >>  /tmp/spider.broke
-         echo  -n  "!$URL_NUM"
-       else
-         echo  -n  "."
-       fi
-       rm  -f  .listing  index.html
-       unset  SPELL_PRESENT
-     fi
- 
-     let  URL_NUM++;
+    GAZE_SPIDER_FAILURE_LOG=`url_verify  $URL`  ||
+    ( 
+      echo  "=================================="  >>  /tmp/spider.broke
+      echo  $(basename $SECTION)  $SPELL  $URL    >>  /tmp/spider.broke
+      echo  "----------------------------------"  >>  /tmp/spider.broke
+      echo  $GAZE_SPIDER_FAILURE_LOG              >>  /tmp/spider.broke
+      echo  "  "                                  >>  /tmp/spider.broke
+      echo  "- failed: $URL"
+    )
   done
 
 ) }
 
 
-spider_walk() {
-
-  if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
-    .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
-  then
-
-    echo  -n  "Checking URLs for $SPELL "
-
-    spider_check  $SPELL  ${SOURCE_URL[*]}    
-    spider_check  $SPELL  ${SOURCE2_URL[*]}  
-    spider_check  $SPELL  ${SOURCE3_URL[*]}   
-    spider_check  $SPELL  ${SOURCE4_URL[*]}   
-    spider_check  $SPELL  ${SOURCE5_URL[*]}   
-    spider_check  $SPELL  ${SOURCE6_URL[*]}   
-    spider_check  $SPELL  ${SOURCE7_URL[*]}   
-    spider_check  $SPELL  ${SOURCE8_URL[*]}   
-    spider_check  $SPELL  ${SOURCE9_URL[*]}   
-    spider_check  $SPELL  ${SOURCE10_URL[*]}  
-    spider_check  $SPELL  ${SOURCE11_URL[*]}  
-    spider_check  $SPELL  ${SOURCE12_URL[*]}  
-    spider_check  $SPELL  ${SOURCE13_URL[*]}  
-    spider_check  $SPELL  ${SOURCE14_URL[*]}  
-    spider_check  $SPELL  ${SOURCE15_URL[*]}  
-    spider_check  $SPELL  ${SOURCE16_URL[*]}  
-    spider_check  $SPELL  ${SOURCE17_URL[*]}  
-    spider_check  $SPELL  ${SOURCE18_URL[*]}  
-    spider_check  $SPELL  ${SOURCE19_URL[*]}  
-
-    unset  SOURCE_URL   SOURCE_URL2  SOURCE_URL3        \
-           SOURCE_URL4  SOURCE_URL5  SOURCE_URL6        \
-           SOURCE_URL7  SOURCE_URL8  SOURCE_URL9        \
-           SOURCE_URL10 SOURCE_URL11 SOURCE_URL12       \
-           SOURCE_URL13 SOURCE_URL14 SOURCE_URL15       \
-           SOURCE_URL16 SOURCE_URL17 SOURCE_URL18       \
-           SOURCE_URL19
-
-    unset  SOURCE   SOURCE2  SOURCE3  SOURCE4  SOURCE5  \
-           SOURCE6  SOURCE7  SOURCE8  SOURCE9  SOURCE10 \
-           SOURCE11 SOURCE12 SOURCE13 SOURCE14 SOURCE15 \
-           SOURCE16 SOURCE17 SOURCE18 SOURCE19
-
-    echo  " Done."
-  else
-    echo  " Error: unable to step into spell's directory or DETAILS file."
-  fi
-
+#---------------------------------------------------------------------
+##=item gaze_get_spell_urls <spell>
+##
+## Echos all urls associated with a spell
+##
+#---------------------------------------------------------------------
+gaze_get_spell_urls() {
+  for i in ${!SOURCE*} ; do
+    echo "$i" | egrep -q "^SOURCE([[:digit:]]*)?_URL$" || continue
+    eval 'URL_LIST=${'$i'[*]}'
+    [  -n  "$URL_LIST"  ]  &&  echo  "$URL_LIST"
+  done
 }
 
 
-spider()  {
+#---------------------------------------------------------------------
+##=item gaze_spider_spells <spell> [<spell> ...]
+##
+## Verfies that all given spell urls are valid.
+##
+#---------------------------------------------------------------------
+gaze_spider_spells()  {
+  if  [  -n  "$1"  ]; then
+    message "====================================================="
+    message "Checking Urls for Spells"
+    message "====================================================="
+    for  SPELL_DIRECTORY  in  $@;  do
+    (
+       codex_set_current_spell  $SPELL_DIRECTORY
+       local    URL_LIST=`gaze_get_spell_urls  $SPELL`
+       local    URL_COUNT=`echo $URL_LIST | wc -w | sed -e 's/ //g;'`
+       message  "Checking $URL_COUNT URLs for $SPELL"
+       gaze_spider_check  $SPELL  $URL_LIST
+    )
+    done
+    message "  "
+  fi
+}
 
-  rm  -f   /tmp/spider.broke  /tmp/spider.log
+
+#---------------------------------------------------------------------
+##=item gaze_spider_sections <section> [<section> ...]
+##
+## Verfies that all spell urls in the given sections are valid.
+##
+#---------------------------------------------------------------------
+gaze_spider_sections()  {
+  for  SECTION  in  $SECTIONS;  do
+    message "====================================================="
+    message "Checking Urls in Section: $( basename $SECTION )"
+    message "====================================================="
+    local SPELLS=`codex_get_spells $SECTION`
+    for  SPELL  in  $SPELLS;  do
+    (
+       codex_set_current_spell $SPELL
+       message            "Checking URLs for $SPELL"
+       local              URL_LIST=`gaze_get_spell_urls  $SPELL`
+       gaze_spider_check  $SPELL  $URL_LIST
+    )
+    done
+    message " "
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_spider [<spell or section> ...]
+##
+## Verfies that spell urls are valid.  If no sections or spells are 
+## given, all spells are verified
+##
+#---------------------------------------------------------------------
+gaze_spider()  {
+
+  rm  -rf  /tmp/spider.broke
   rm  -rf  /tmp/spider
   mkdir    /tmp/spider
   cd       /tmp/spider
-
-  # proxying prevents wget to get .listing files done
-  unset ftp_proxy
 
   message  "Writing broken URLs to /tmp/spider.broke"
   message  "This test might take a while to complete"
   message  "and consume significant resources."
 
-  # no args: gaze on the full grimoire
-  if [ "$1" == "" ]; then
-    message "Full grimoire gaze."
-    for  SECTION  in  `ls  $GRIMOIRE`;  do
-      for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-        if [ -d $GRIMOIRE/$SECTION/$SPELL ]; then
-          spider_walk
-        fi
-      done
-    done
+  unset  SECTIONS  SPELLS  UNKNOWN
 
-    # again for kde3
-#    SECTION=kde3
-#    GRIMOIRE=$GRIMOIRE/kde
-#    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-#      if [ -d $GRIMOIRE/$SECTION/$SPELL ]; then
-#        spider_walk
-#      fi
-#    done
-  else
-    # check if arg is a grimoire's directory, so it's a section
-#    if [ -d $GRIMOIRE/$1 ] || [ -d $GRIMOIRE/kde/$1 ]; then
-    if [ -d $GRIMOIRE/$1 ]; then
-      SECTION=$1
-      message "Gaze on section $SECTION"
+  [  -z  "$1"  ]  &&  SECTIONS=`codex_get_all_sections`
 
-      # check all spells in this section
-#      if [ "$SECTION" == "kde3" ]; then
-#        GRIMOIRE=$GRIMOIRE/kde
-#      fi
-      for SPELL in `ls $GRIMOIRE/$SECTION`; do
-        if [ -d $GRIMOIRE/$SECTION/$SPELL ]; then
-          spider_walk
-         fi
-      done
+  for  spell_or_section  in  $@;  do
+
+    if  codex_find_spell_or_section_by_name  $spell_or_section;  then
+      [  -n  "$CODEX_FOUND_SECTION"  ]  &&  SECTIONS="$SECTIONS $CODEX_FOUND_SECTION"
+      [  -n  "$CODEX_FOUND_SPELL"  ]    &&  SPELLS="$SPELLS $CODEX_FOUND_SPELL"
     else
-      # check if arg is a spell
-      SECTION=`find_section  $SPELL` 
-      if [ ! "$SECTION" == "" ]; then
-        message "Gaze on spell $SPELL"
-        spider_walk
-      fi
-    fi
-  fi
+      UNKNOWN="$spell_or_section $UNKNOWN"
+    fi 
+
+  done
+
+  gaze_spider_spells   $SPELLS
+  gaze_spider_sections $SECTIONS
+
+  [  -n  "$UNKNOWN"  ]                  &&
+  message "Unknown Spells or Sections"  &&
+  message "--------------------------"  &&
+  message "$UNKNOWN"
 
   cd  /
 
@@ -486,47 +484,117 @@ spider()  {
 show_from()  {
 
   cd  $INSTALL_LOGS
-  grep  $1  *
+  grep  "`esc_str $1`$"  *
 
 }
 
 
 show_spell_component()  {
 
-  COMPONENT=$1
-      SPELL=$2
-    SECTION=`find_section  $SPELL`
-  if  [  -x  $GRIMOIRE/$SECTION/$SPELL/$COMPONENT  ];  then
-    cat      $GRIMOIRE/$SECTION/$SPELL/$COMPONENT
+  local        COMPONENT=$1
+  local       SPELL_NAME=$2
+  local  SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL_NAME`
+  if  [  -x  $SPELL_DIRECTORY/$COMPONENT  ];  then
+    cat      $SPELL_DIRECTORY/$COMPONENT
   fi
 
 }
 
 
 long_search()  {
-  cd  $GRIMOIRE
-  for  SECTION  in  `ls`;  do
-    for  SPELL  in  `ls  $SECTION`;  do
-      (   [  -x  $SECTION/$SPELL/DETAILS  ]  &&
-               . $SECTION/$SPELL/DETAILS     |
-          grep  -q  -i  "$1"                 &&
-          echo  "$SPELL"
-      )
-    done
+
+meta_char="\b"
+remove_search="$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char"
+
+if ! [ "$GAZE_VERBOSE" == "0" ]; then
+	echo -n "Searching...   "
+fi
+
+let j=0	
+  for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
+
+   if ! [ "$GAZE_VERBOSE" == "0" ]; then
+    progress_spinner
+   fi
+    codex_set_current_spell $SPELL_DIRECTORY
+
+    for item in $*; do 
+    
+    if  echo  $SPELL  |  grep  -q  -i  "$item"; then
+	SEARCH_RESULTS[$j]="$item -> $SPELL (Name Match)"
+    elif codex_get_spell_keywords $SPELL_DIRECTORY  |  grep  -q  -i  "$item"; then
+        SEARCH_RESULTS[$j]="$item -> $SPELL (Keyword Match)"
+    elif echo  $SHORT  |  grep  -q  -i  "$item"; then
+        SEARCH_RESULTS[$j]="$item -> $SPELL (Short Description)"
+    elif codex_get_spell_description $SPELL_DIRECTORY |  grep  -q  -i  "$item"; then
+        SEARCH_RESULTS[$j]="$item -> $SPELL (Description)"
+    fi
+   
+    if [ -n "${SEARCH_RESULTS[$j]}" ]; then 
+	if ! [ "$GAZE_VERBOSE" == "0" ]; then
+		echo -e "$remove_search${SEARCH_RESULTS[$j]}"
+		echo -n "Searching...   "
+	else
+		echo $SPELL
+	fi
+     let j++
+    fi
+    
+    done  
+  
   done
+
+if ! [ "$GAZE_VERBOSE" == "0" ]; then
+	echo -ne "$remove_search"
+fi
+
+#This dumps the array at the end of the search
+#redundant at the moment. Left for future use -rha
+#  let dump_count=0
+#  while [ $dump_count -lt $j ]; do
+#   echo "${SEARCH_RESULTS[$dump_count]}"
+#   let dump_count++
+#  done
+  
 }
 
 
 service()  {
-  cd  $GRIMOIRE
-  for  SECTION  in  `ls`;  do
-    for  SPELL  in  `ls  $SECTION`;  do
-      if    [  -f           $SECTION/$SPELL/services  ]  && 
-            grep  -q  -i  "$1"  $SECTION/$SPELL/services
-      then  echo  "$SPELL"
-      fi
-    done
+	
+  for  SPELL  in  `codex_get_all_spells`;  do
+    if    [  -f  $SPELL/services  ]  &&
+	  grep  -q  -i  "$1"  $SPELL/services
+    then  echo  "$( basename  $SPELL )"
+    fi
   done
+  
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_provides <feature>
+##
+## Given a feature, shows a list of spells that provide the feature
+## or functionality.  For example:
+##
+##    % gaze provides alsa-drivers
+##    alsa-driver
+##    linux-devel
+##    linux-dj
+##
+## This output indicates that alsa-driver, linux-devel, and linux-dj
+## all provide the alsa-drivers feature.
+##
+#---------------------------------------------------------------------
+gaze_provides()  {
+	
+  for  SPELL  in  `codex_get_all_spells`;  do
+    if    [  -f  $SPELL/provides  ]  &&
+	  grep  -q  -i  "$1"  $SPELL/provides
+    then  echo  "$( basename  $SPELL )"
+    fi
+  done
+  
 }
 
 
@@ -604,7 +672,7 @@ show_orphans()  {
 
   for  SPELL  in  `cat  $SPELL_STATUS  |  cut  -d :  -f1`;  do
     if    !  cut  -d :  -f2-  $DEPENDS_STATUS  |
-             grep             "^$SPELL:"       |
+             grep             "^`esc_str $SPELL`:"       |
              grep  -q         ":on:"
     then     echo   $SPELL
     fi
@@ -613,68 +681,56 @@ show_orphans()  {
 }
 
 
-show_depends()  {
-
-  if  !  echo  "$DONE"  |  grep  -q  "$1";  then
-    DONE="$DONE  $1"
-
-    for  LINE  in  `grep  ":$1:"  $DEPENDS_STATUS`;  do
-
-       SPELL=`echo  $LINE  |  cut  -d :  -f1`
-      STATUS=`echo  $LINE  |  cut  -d :  -f3`
-
-      if    [  "$STATUS"  ==  "on"  ]
-      then  echo          $SPELL
-            show_depends  $SPELL
-      fi
-
-    done
-  fi
-
-}
-
-old_show_depends()  {
-
-  if  !  echo  "$DONE"  |  grep  -q  "$1";  then
-    DONE="$DONE  $1"
-    cd  $DEPENDS_CONFIG
-    for  SPELL  in  `ls`;  do
-      if    grep  "$1"    $SPELL  |  grep  -q  " on "
-      then  echo          $SPELL
-            show_depends  $SPELL
-      fi
-    done
-  fi
-
-}
 
 
-show_website()  {
+#---------------------------------------------------------------------
+##=item gaze_show_website <spell>
+##
+## Shows the website/home page for the given spell.
+##
+#---------------------------------------------------------------------
+gaze_show_website()  {
 
-  if    SECTION=`find_section  $SPELL`                     &&
-        .   $GRIMOIRE/$SECTION/$SPELL/DETAILS > /dev/null  &&
-        [  -n  "$WEB_SITE"  ]
-  then  echo    $WEB_SITE
-  else  echo   "No spell by that name found"
+  if  codex_set_current_spell_by_name  $1;  then
+    if  [  -n  "$WEB_SITE"  ];  then   
+      echo  $WEB_SITE
+    else
+      echo  "  "
+      echo  "No website found for '$1'.  If you know of a website for"
+      echo  "'$1',  please let the Source Mage developers know so that"
+      echo  "it can be included in future versions of the Source Mage"
+      echo  "grimoire.  You can report the omission at the Source Mage"
+      echo  "bug tracking website:"
+      echo  "  "
+      echo  "           http://bugs.sourcemage.org/"
+    fi
+  else  
+    echo  "  "
+    echo  "'$1' is not a spell in the current grimoire(s).  If it's"
+    echo  "not a typo and it's a spell you'd really like to see, consider"
+    echo  "creating a spell for it yourself.  For instructions on how to"
+    echo  "write & submit spells, see the Source Mage Wiki:"
+    echo  "  "
+    echo  "             http://wiki.sourcemage.org."
   fi
 
 }
 
 show_maintainer()  {
 
-  SECTION=$1
+  SECTION=`codex_find_section_by_name $1`
+  
+  if  [  -d  "$SECTION"  ];  then
 
-  if  [  -d  "$GRIMOIRE/$SECTION"  ];  then
-
-    if  [  -f  "$GRIMOIRE/$SECTION/MAINTAINER"  ];  then
-      cat $GRIMOIRE/$SECTION/MAINTAINER
+    if  [  -f  "$SECTION/MAINTAINER"  ];  then
+      cat $SECTION/MAINTAINER
     else
-      echo "No maintainer available for section '$SECTION'"
+      echo "No maintainer available for section '$( basename  $SECTION )'"
     fi
 
   else
 
-    echo  "No such section '$SECTION'"
+    echo  "No such section '$1'"
 
   fi
 
@@ -683,20 +739,277 @@ show_maintainer()  {
 
 show_history()  {
 
-  SPELL=$1
-  if  SECTION=`find_section  $SPELL`; then
+  local SPELL=`codex_find_spell_by_name  $1`
 
-    if  [  -f  "$GRIMOIRE/$SECTION/$SPELL/HISTORY"  ]; then
-      cat  $GRIMOIRE/$SECTION/$SPELL/HISTORY
+  if  [  -n  "$SPELL"  ];  then
+
+    if  [  -f  "$SPELL/HISTORY"  ]; then
+      cat  $SPELL/HISTORY
     else
-      echo "No history available for spell '$SPELL'"
+      echo "No history available for spell '$( basename  $SPELL )'"
     fi
 
   else
 
-    echo "No such spell '$SPELL'"
+    echo "No such spell '$1'"
 
   fi
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_section [<section> [<section>...]]
+##
+## Given a section name, shows a table of spells in that section along
+## with their grimoire version and installed verion
+##
+#---------------------------------------------------------------------
+gaze_show_section()  {
+
+  local  SECTION_NAMES=$@
+
+  if  [  -n  "$SECTION_NAMES"  ]; then
+
+    (
+      for  SECTION_NAME  in  $SECTION_NAMES;  do
+
+        local SECTION=`codex_find_section_by_name  $SECTION_NAME`  &&
+        codex_get_spell_names $SECTION 
+
+      done
+    ) | column
+
+  else
+
+    codex_get_all_section_names | column
+
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_section_version_table <section>
+##
+## Given a section name, shows a table of spells in that section along
+## with their grimoire version and installed verion
+##
+#---------------------------------------------------------------------
+gaze_show_section_version_table()  {
+
+   local  SPELLS=`codex_get_spells $1`
+
+   (
+
+     echo  "Section|Spell|Grimoire Version|Installed Version"
+     echo  "-------|-----|----------------|-----------------"
+
+     for  spell  in  $SPELLS;  do 
+
+       codex_set_current_spell  $spell                            &&
+       local  INSTALLED=`installed_version  $SPELL`               && 
+       echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+
+     done 
+
+   ) | column -t -s "|"
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_spell_version_table <spell> [<spell> ...]
+##
+## Shows the versions of spells, both the version in the grimoire and
+## the version installed on the system.  
+##
+#---------------------------------------------------------------------
+gaze_show_spell_version_table()  {
+
+  (
+    echo  "Section|Spell|Grimoire Version|Installed Version"
+    echo  "-------|-----|----------------|-----------------"
+ 
+   for  SPELL  in  $@; do 
+
+      codex_set_current_spell  $SPELL                        &&
+      local  INSTALLED=`installed_version  $SPELL`           &&
+      echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+
+    done 
+
+  ) | column -t -s "|"
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_version <spell or section> [<spell or section> ...]
+##
+## Shows the versions of spells, both the version in the grimoire and
+## the version installed on the system.  
+##
+#---------------------------------------------------------------------
+gaze_show_version()  {
+    
+  local SPELLS_AND_SECTIONS=$@
+  local SPELLS=
+  local UNKNOWN=
+
+  for  spell_or_section  in  $SPELLS_AND_SECTIONS;  do
+
+    if  codex_find_spell_or_section_by_name  $spell_or_section;  then
+
+      [  -n  "$CODEX_FOUND_SECTION"  ]                                      &&
+      gaze_show_section_version_table  $CODEX_FOUND_SECTION  2>  /dev/null  &&
+      echo " "
+
+      [  -n  "$CODEX_FOUND_SPELL"  ]    &&
+      SPELLS="$SPELLS $CODEX_FOUND_SPELL"
+
+    else
+      UNKNOWN="$spell_or_section $UNKNOWN"
+    fi 
+
+  done
+
+  [  -n  "$SPELLS"  ]  &&
+  gaze_show_spell_version_table  $SPELLS  2>  /dev/null  &&
+  echo " "
+
+
+  [  -n  "$UNKNOWN"  ]                  &&
+  message "Unknown Spells or Sections"  &&
+  message "--------------------------"  &&
+  message "$UNKNOWN"
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_section_license_table <section>
+##
+## Given a section name, shows a table of spells in that section along
+## with their licenses.
+##
+#---------------------------------------------------------------------
+gaze_show_section_license_table()  {
+
+   local  SPELLS=`codex_get_spells $1`
+
+   (
+
+     echo  "Section|Spell|License(s)"
+     echo  "-------|-----|----------"
+
+     for  spell  in  $SPELLS;  do 
+
+       codex_set_current_spell  $spell        &&
+       echo  "$SECTION|$SPELL|${LICENSE[@]}"
+
+     done 
+
+   ) | column -t -s "|"
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_spell_license_table <spell> [<spell> ...]
+##
+## Shows the licenses of spells
+##
+#---------------------------------------------------------------------
+gaze_show_spell_license_table()  {
+
+  (
+    echo  "Spell|License(s)"
+    echo  "-----|----------"
+ 
+    for  SPELL  in  $@; do 
+
+      codex_set_current_spell  $SPELL                        &&
+      echo "$SPELL|${LICENSE[@]}"
+
+    done 
+
+  ) | column -t -s "|"
+
+}
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_license_table <license> [<license> ...]
+##
+## Shows the information about the given licenses. 
+##
+#---------------------------------------------------------------------
+gaze_show_license_table()  {
+
+  
+  (
+    echo  "Abbr|License Full Name|URL"
+    echo  "----|-----------------|---"
+
+    for  LICENSE  in  $@; do 
+
+      grep "^$LICENSE|"  ${SM_LICENSE_LIST}  2> /dev/null
+
+    done 
+
+  ) | column -t -s "|"
+
+}
+
+
+
+#---------------------------------------------------------------------
+##=item gaze_show_license <spell, section, or license> [<spell, section, or license> ...]
+##
+## Shows the licenses of spells if a spell or section name is given.
+## Shows info a license if a license name is given.
+##
+#---------------------------------------------------------------------
+gaze_show_license()  {
+    
+  local SPELLS_AND_SECTIONS_AND_LICENSES=$@
+  local SPELLS=
+  local LICENSES=
+  local UNKNOWN=
+
+  for  spell_section_or_license  in  $SPELLS_AND_SECTIONS_AND_LICENSES;  do
+
+    if  codex_find_spell_or_section_by_name  $spell_section_or_license;  then
+
+      [  -n  "$CODEX_FOUND_SECTION"  ]                                      &&
+      gaze_show_section_license_table  $CODEX_FOUND_SECTION  2>  /dev/null  &&
+      echo " "
+
+      [  -n  "$CODEX_FOUND_SPELL"  ]    &&
+      SPELLS="$SPELLS $CODEX_FOUND_SPELL"
+
+    elif  grep -q "^`esc_str $spell_section_or_license`|"  ${SM_LICENSE_LIST} 2> /dev/null;  then
+      LICENSES="$LICENSES $spell_section_or_license"
+    else
+      UNKNOWN="$spell_section_or_license $UNKNOWN"
+    fi 
+
+  done
+
+  [  -n  "$SPELLS"  ]                                    &&
+  gaze_show_spell_license_table  $SPELLS  2>  /dev/null  &&
+  echo " "
+
+  [  -n  "$LICENSES"  ]                              &&
+  gaze_show_license_table  $LICENSES  2>  /dev/null  &&
+  echo " "
+
+
+  [  -n  "$UNKNOWN"  ]                              &&
+  message "Unknown Spells or Sections or Licenses"  &&
+  message "--------------------------------------"  &&
+  message "$UNKNOWN"
+
 }
 
 
@@ -710,16 +1023,18 @@ parse()  {
 
             html)  gaze_catalog_html                     ;;
           export)  export_snapshot                       ;;
-          import)  import_snapshot  $2                   ;;
-         section)  ls  $GRIMOIRE/$SECTION                ;;
+          import)  import_snapshot   $2                  ;;
+         section)  shift; gaze_show_section $@           ;;
+         version)  shift; gaze_show_version $@           ;;
+         license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
-            from)  show_from   $2                        ;;
-           newer)  newer       $2                        ;;
-           older)  older       $2                        ;;
+            from)  show_from         $2                  ;;
+           newer)  newer             $2                  ;;
+           older)  older             $2                  ;;
            prune)  prune                                 ;;
-         sources)  sources     $SPELL                    ;;
-          spider)  spider      $SPELL                    ;;
-        grimoire)  gaze_catalog  |  $PAGER               ;;
+         sources)  sources           $SPELL              ;;
+          spider)  shift; gaze_spider  $@                ;;
+        grimoire)  gaze_catalog  |   $PAGER              ;;
          DETAILS)  show_spell_component $1 $2            ;;
          DEPENDS)  show_spell_component $1 $2            ;;
        CONFIGURE)  show_spell_component $1 $2            ;;
@@ -731,20 +1046,20 @@ parse()  {
     POST_INSTALL)  show_spell_component $1 $2            ;;
       PRE_REMOVE)  show_spell_component $1 $2            ;;
      POST_REMOVE)  show_spell_component $1 $2            ;;
-          search)  long_search   "$2"                    ;;
+         PREPARE)  show_spell_component $1 $2            ;;
+         HISTORY)  show_spell_component $1 $2            ;;
+          search)  shift; long_search $@                 ;;
          service)  service       "$2"                    ;;
+        provides)  gaze_provides "$2"                    ;;
          depends)  show_depends  "$2"  |  sort  |  uniq  ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
-         website)  show_website  "$2"                    ;;
+     website|url)  gaze_show_website  "$2"               ;;
       maintainer)  show_maintainer  "$2"                 ;;
          history)  show_history  "$2"                    ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
-                SECTION=`find_section  $SPELL`             &&
-                DETAILS=$GRIMOIRE/$SECTION/$SPELL/DETAILS  &&
-                [  -x  $DETAILS  ]                         &&
-                    .  $DETAILS                               >/dev/null
+                  codex_set_current_spell_by_name  $2  
               fi
               display  $COMPILE_LOGS/$SPELL-$VERSION.bz2   \
                        "Compile log for $SPELL does not exist"
@@ -775,16 +1090,16 @@ parse()  {
              ;;
 
 
-    what)  SECTION=`find_section  $SPELL`             &&
-           DETAILS=$GRIMOIRE/$SECTION/$SPELL/DETAILS  &&
-           [  -x  $DETAILS  ]                           &&
-               .  $DETAILS                              ||
-           message  "Details for $SPELL not found"
+    what)  (
+              codex_set_current_spell_by_name  $2           &&  
+              codex_get_spell_description  $SPELL_DIRECTORY
+           )                                       || 
+           message  "Details for $2 not found"
            ;;
 
-    where)  SECTION=`find_section  $SPELL`  &&
+    where)  SECTION=`codex_get_spell_section_name  $2`  &&
             echo     "$SECTION"             ||
-            message  "$SPELL not found"
+            message  "$2 not found"
             ;;
 
    voyeur)  shift  1;  activate_voyeur  $@  ;;
@@ -800,3 +1115,25 @@ parse()  {
 
 . /etc/sorcery/config
 if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  $@;  fi
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -1,0 +1,171 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 LIBTRIGGERS
+##
+##=head1 SYNOPSIS
+##
+## Set of functions used by the internal sorcery scripts
+##
+##=head1 DESCRIPTION
+##
+## Functions used to manage triggers. Used both by spells
+## and by the sorcery scripts.
+##
+##=head1 COPYRIGHT
+##
+## Original version Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------
+#=item remove_triggers <spell>
+##
+## Remove's all of a spell's triggers from the list of registered 
+## triggers.
+##
+#---------------------------------------------------------------------
+function remove_triggers ()
+{ 
+  debug "libtriggers" "remove_triggers - $*"
+
+	tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
+	[ -f $tTRIGGER_LIST ] || return 0
+	grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
+	lock_commit_transaction $TRIGGER_LIST
+	return $?
+}
+
+#---------------------------------------------------------------------
+#=item trigger <event> [<spell>]
+##
+## Triggers an event and performs necessary actions. Argument 2 is 
+## optional. If omited, the value of SPELL will be used.
+##
+#---------------------------------------------------------------------
+function trigger ()
+{ 
+  debug "libtriggers" "trigger - $*"
+	local i TRIGGER	spell
+	spell=`esc_str ${SPELL:-$4}`
+	TRIGGER=()
+
+	[ -f $TRIGGER_LIST ] || return 0
+	
+	for i in `grep "^[^:]*:$spell:on_$1" $TRIGGER_LIST` ; do
+		explode "$i" ":" TRIGGER
+		query "${TRIGGER[1]} being $1 has triggered a ${TRIGGER[3]} on spell ${TRIGGER[0]}. Proceed? " "y"
+		[[ $? != 0 ]] && continue
+		#otherwise continue... hmmm, I've always thought that keyword was bad.
+                (
+		  function unset_vars()
+		  {
+		    unset CAST_PASS D_LOG
+#		    for VAR in `export | sed 's/declare -x \([^=[:blank:]]*\).*/\1/' | grep -v "TRIGGER"` ; do
+#		      unset $VAR
+#		    done
+		  }
+		  #Ok, now do the required action:
+		  case ${TRIGGER[3]} in
+			cast_self)
+			  unset_vars
+			  cast -c "${TRIGGER[0]}"
+			  ;;
+			dispel_self)
+			  unset_vars
+			  dispel "${TRIGGER[0]}"
+			  ;;
+			check_self)
+			  unset_vars
+			  cast --fix "${TRIGGER[0]}"
+			  ;;
+			run_script*)
+			  unset_vars
+			  eval ${TRIGGER[3]}
+			  ;;
+			*)
+			  message "${PROBLEM_COLOR}${TRIGGER[3]} is not a known kind of trigger.${DEFAULT_COLOR}"
+		esac
+	      )
+	done	
+}
+
+#---------------------------------------------------------------------
+#=item set_trigger <event> <causing-spell> <action> <subject-spell>
+##
+## Registers a trigger in the list of triggers. Also verifies that 
+## the trigger and action exist.
+##
+#---------------------------------------------------------------------
+
+function set_trigger ()
+{ #1==trigger to set, $2==spell that triggers it, $3=action, $4==(optional)spell this is for
+
+  debug "libtriggers" "set_trigger - $*"
+
+	local str spell
+	[[ $4 ]] || [[ $SPELL ]] || return 1
+	case $3 in
+		cast_self|dispel_self|check_self|run_script)
+			;;
+		*)
+			message "${PROBLEM_COLOR}$3 is not a valid trigger action.${DEFAULT_COLOR}"
+			return 1
+			;;
+	esac
+	case $1 in
+		on_cast|on_pre_cast|on_dispel|on_pre_dispel)
+			;;
+		*)
+			message "${PROBLEM_COLOR}$1 is not a valid trigger.${DEFAULT_COLOR}"
+			return 1
+			;;
+	esac
+	#perhaps a check to make sure that $2 exists?
+	
+	spell=${SPELL:-$4}
+	str="$spell:$2:$1:$3"
+	
+	lock_file $TRIGGER_LIST
+	grep -q "$str" $TRIGGER_LIST || echo "$str" >> $TRIGGER_LIST
+	unlock_file $TRIGGER_LIST
+}
+
+#---------------------------------------------------------------------
+#item=on_cast
+##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function on_cast ()
+{ set_trigger "on_cast" "$1" "$2"; }
+
+#---------------------------------------------------------------------
+#item=on_dispel
+##
+## Used by spells to make adding triggers nice.
+##
+#---------------------------------------------------------------------
+function on_dispel ()
+{ set_trigger "on_dispel" "$1" "$2"; }
+
+#---------------------------------------------------------------------
+#item=on_pre_cast
+##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function on_pre_cast ()
+{ set_trigger "on_pre_cast" "$1" "$2"; }
+
+#---------------------------------------------------------------------
+#item=on_pre_dispel
+##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function on_pre_dispel ()
+{ set_trigger "on_pre_dispel" "$1" "$2"; }
+

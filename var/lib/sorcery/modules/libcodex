@@ -1,0 +1,701 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Set of functions for dealing with a library of grimoires 
+## (spell books).
+##
+##=head1 DESCRIPTION
+##
+## A grimoire is a book containing one or more spells.  A codex
+## is a collection of one or more grimoires.  There are functions
+## for listing the available grimiores, listing spells in a grimoire,
+## listing sections in a grimoire, etc.
+##
+## Note:  Each of the functions that returns a spell, section, or 
+## grimoire returns the full path.  Functions that explicitly return 
+## a spell I<name> or section I<name> do not return the full
+## path.
+##
+##=head1 GRIMOIRES
+##
+## This section contains some notes on grimoires.
+##
+##=head2 Grimoire Layout
+##
+## The codex functions expect each grimoire to be a directory.
+## Each directory entry in a grimoire directory is considered 
+## to be a section.  All directory entries in a section are 
+## considered to be a spell if they included an executable file
+## named F<DETAILS>.
+##
+##=head2 Multiple Grimoires
+##
+## Multiple grimoires are specified by setting entries in the
+## I<GRIMOIRE_DIR> array.  For example, to set two additional 
+## grimoires, you would put something like the following in 
+## your local SMGL grimoire file (F</etc/sorcery/local/grimoire>).
+##
+##     GRIMOIRE_DIR[1]=/path/to/alternate/grimoire
+##     GRIMOIRE_DIR[2]=/path/to/other/alternate/grimoire
+##
+## Grimoires are processed/searched in increasing order starting 
+## at index 0.  The SMGL configuration file provides the value for
+## the default grimoire as I<GRIMOIRE_DIR[0]> or simply I<GRIMOIRE_DIR>.
+##
+## The following two lines show how to reorder the default 
+## grimoire so that it's not searched first (in this example
+## it will be searched second).
+##
+##     GRIMOIRE_DIR[1]=$GRIMOIRE
+##     GRIMOIRE_DIR[0]=/path/to/grimoire/to/search/first
+##
+## There is no limitation on the number of grimoires that can be
+## specified.
+##
+## It is also possible to add and remove grimoires using the 
+## codex_add_grimoire and codex_remove_grimoire functions.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item codex_remove_duplicates
+## 
+## Removes duplicate entries from the GRIMOIRE_LIST. This parses from
+## 0 on up, and leaves only the first instance of a grimoire found.
+## All others are removed.
+## Then reloads the list
+##
+#---------------------------------------------------------------------
+codex_remove_duplicates() {
+
+  local  GRIMOIRES=`codex_get_all_grimoires`
+  local  CURRENT_GRIMOIRE=0
+  local  GRIMOIRE_COUNT=0
+  local  SEEN_GRIMOIRES=""
+  local  ALREADY_SEEN=""
+
+ 
+  touch  $GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+#  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
+  rm  -f $tGRIMOIRE_LIST   
+
+
+  for  CURRENT_GRIMOIRE  in  $GRIMOIRES;  do
+    ALREADY_SEEN=""
+    echo "$SEEN_GRIMOIRES" | grep "$CURRENT_GRIMOIRE" && ALREADY_SEEN="yes"
+
+    if [[  $ALREADY_SEEN  ]]; then
+      SEEN_GRIMOIRES="$SEEN_GRIMOIRES $CURRENT_GRIMOIRE"
+      echo "GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$CURRENT_GRIMOIRE" >> $tGRIMOIRE_LIST
+      (( GRIMOIRE_COUNT++ ))
+    fi
+
+  done
+
+  lock_commit_transaction $GRIMOIRE_LIST
+
+  unset GRIMOIRE_DIR
+  .  $GRIMOIRE_LIST 
+
+}
+
+#
+#---------------------------------------------------------------------
+##=item codex_add_grimoire <grimoire> [<position>] [<overwrite>=overwrite]
+## 
+## Adds the specified grimoire to the list of grimoires.  If no 
+## position is given, the grimoire is added to the end of the list.
+## Position is 0 based.  Adding a grimoire to position 0 places it as
+## the first grimoire in the list, and moves all other grimoires down
+## one spot, unless [<overwrite>] is set to "overwrite".
+##
+## This function does not currently delete duplicate entries.
+##
+#---------------------------------------------------------------------
+codex_add_grimoire() {
+  local  NEW_GRIMOIRE=$1
+  local  POSITION=$2
+  local  OVERWRITE=$3
+  local  GRIMOIRES=`codex_get_all_grimoires`
+
+  touch  $GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+#  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
+  rm  -f $tGRIMOIRE_LIST   
+  
+  local  LAST_POSITION=true
+  local  CURRENT_GRIMOIRE
+  local  GRIMOIRE_COUNT=0
+
+  if [ "$OVERWRITE" == "overwrite"  ]; then
+
+    for  CURRENT_GRIMOIRE  in  $GRIMOIRES;  do
+      if [ -n "$POSITION"  ]; then
+       if [  $POSITION -eq $GRIMOIRE_COUNT  ]; then
+         echo GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE >> $tGRIMOIRE_LIST
+         (( GRIMOIRE_COUNT++ ))
+       else
+         echo GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$CURRENT_GRIMOIRE >> $tGRIMOIRE_LIST
+         (( GRIMOIRE_COUNT++ ))
+       fi
+      else
+       echo GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$CURRENT_GRIMOIRE >> $tGRIMOIRE_LIST
+       (( GRIMOIRE_COUNT++ ))
+      fi 
+    done
+
+  else
+  
+    for  CURRENT_GRIMOIRE  in  $GRIMOIRES;  do
+    
+      if  [  -n  "$POSITION"  ];  then
+        if  [  $POSITION  -eq  $GRIMOIRE_COUNT  ];  then
+          echo GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE >> $tGRIMOIRE_LIST
+          LAST_POSITION=false
+          (( GRIMOIRE_COUNT++ ))
+        fi
+      fi
+
+      if  [  "$CURRENT_GRIMOIRE"  !=  "$NEW_GRIMOIRE"  ];  then
+       echo  GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$CURRENT_GRIMOIRE  >>  $tGRIMOIRE_LIST
+       (( GRIMOIRE_COUNT++ ))
+      fi
+
+    done
+  
+    if [  "$LAST_POSITION" == "true"  ]; then
+      echo  GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE  >>  $tGRIMOIRE_LIST
+    fi
+
+  fi
+
+  lock_commit_transaction $GRIMOIRE_LIST
+  unset GRIMOIRE_DIR
+  .  $GRIMOIRE_LIST 
+
+  if [ "$OVERWRITE" == "overwrite"  ]; then
+    codex_remove_duplicates
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_remove_grimoire <grimoire>
+## 
+## Removes the specified grimoire from the list of grimoires.  
+##
+#---------------------------------------------------------------------
+codex_remove_grimoire() {
+  local  GRIMOIRE_TO_DELETE="$1"
+  local  GRIMOIRES=`codex_get_all_grimoires`
+
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+#  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
+  rm  -f $tGRIMOIRE_LIST   
+
+  local  CURRENT_GRIMOIRE
+  local  GRIMOIRE_COUNT=0
+  for  CURRENT_GRIMOIRE  in  $GRIMOIRES  $NEW_GRIMOIRE;  do
+    if  [  "$CURRENT_GRIMOIRE"  !=  "$GRIMOIRE_TO_DELETE"  ];  then
+      echo  GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$CURRENT_GRIMOIRE  >>  $tGRIMOIRE_LIST
+      (( GRIMOIRE_COUNT++ ))
+    fi
+  done
+
+  lock_commit_transaction $GRIMOIRE_LIST
+  unset GRIMOIRE_DIR
+  .  $GRIMOIRE_LIST 
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_set_grimoires <grimoire name | grimoire dir> ....
+## 
+## Unsets the list of grimoires that existed before the call, then
+## sets the lists of grimoires to be equal to the list of grimoires
+## in the argument list.  For each grimoire name, adds 
+## CODEX_ROOT/<grimoire name> to the list of grimoires.  For each
+## grimoire directory, adds <grimoire dir> to the list of grimoires.
+##
+#---------------------------------------------------------------------
+codex_set_grimoires() {
+  unset GRIMOIRE_DIR
+
+  local  NEW_GRIMOIRE
+  for    NEW_GRIMOIRE  in  "$*";  do
+
+    if  [  -d  $NEW_GRIMOIRE  ];  then
+      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$NEW_GRIMOIRE
+    else
+      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$CODEX_ROOT/$NEW_GRIMOIRE
+    fi 
+
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_all_grimoires
+## 
+## Lists all grimoires in the codex. 
+##
+#---------------------------------------------------------------------
+codex_get_all_grimoires() {
+  debug "libcodex" "codex_get_all_grimoires()"
+  local GRIMOIRE=0
+  while [ $GRIMOIRE -lt ${#GRIMOIRE_DIR[@]} ]; do
+    echo "${GRIMOIRE_DIR[$GRIMOIRE]}"
+    let ++GRIMOIRE
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_section_names <grimoire>
+## 
+## Lists all section names in the specified grimoire.
+## Relies on a wider-scope function codex_get_sections().
+##
+#---------------------------------------------------------------------
+codex_get_section_names() {
+  codex_get_sections "$1" | get_basenames
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_sections <grimoire>
+##
+## Lists all sections in the specified grimoire directory.
+##
+#---------------------------------------------------------------------
+codex_get_sections() { 
+  debug "libcodex" "codex_get_sections() - $@"
+  local GRIMOIRE="$1"
+  ! [ -d "$GRIMOIRE" ] && {
+    message "${PROBLEM_COLOR}${GRIMOIRE:-<null>} is not a grimoire directory!${DEFAULT_COLOR}"
+    return
+  }
+
+  local SECTION_NAME=''
+  function lc293() { [ -d  "$GRIMOIRE/$1" ] && echo "$GRIMOIRE/$1" ; }
+  iterate "lc293" $'\n' `ls -1 "$GRIMOIRE"`
+  
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_find_section_by_name <section>
+##
+## Given a valid section name, this function lists the full path to 
+## the section.  If an invalid section name is provided, nothing is 
+## listed.
+##
+#---------------------------------------------------------------------
+codex_find_section_by_name() {
+  local SECTION_NAME="$1"
+  local GRIMOIRE=''
+  
+  function lc311()
+  {
+    if [ -d "$1/$SECTION_NAME" ] ; then
+
+      debug "libcodex" "codex_find_section_by_name() - found section $1/$SECTION_NAME"
+      echo "$1/$SECTION_NAME"
+      BREAK="y"
+    fi
+    
+  }    
+  iterate "lc311" $'\n' `codex_get_all_grimoires`
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_all_section_names
+##
+## Lists all section names from all grimoires.
+##
+#---------------------------------------------------------------------
+codex_get_all_section_names() {
+  codex_get_all_sections | get_basenames
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_all_sections
+##
+## Lists all sections from all grimoires.
+##
+#---------------------------------------------------------------------
+codex_get_all_sections() {
+
+  iterate "codex_get_sections" $'\n' `codex_get_all_grimoires`
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_is_directory_a_spell <directory>
+##
+## Returns true if the specified directory is a spell directory, 
+## otherwise returns false.
+##
+#---------------------------------------------------------------------
+codex_is_directory_a_spell() {
+  [ -x "$1/DETAILS" ]
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_does_spell_exist <spell> [spell ...]
+##
+## Returns true if all the specified spells exist, 
+## otherwise returns false.
+##
+#---------------------------------------------------------------------
+codex_does_spell_exist() {
+
+  local retValue=0
+
+  # Quicker (due to lazy evaluation) special case for common single spell check 
+  if [ $# -eq 1 ] ; then
+    if ! codex_get_all_spells | grep -q "/$1$" ; then
+      message "${SPELL_COLOR}$1${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
+      return 1
+    fi
+  else
+    local spellList=`codex_get_all_spells`
+    for i in $* ; do
+      if ! echo "$spellList" | grep -q "/$i\$" ; then
+        message "${SPELL_COLOR}$i${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
+	retValue=1
+      fi
+    done
+  fi
+  
+  return 0
+
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_find_spell_by_name <spell name>
+##
+## Given a valid spell name, this function lists the full path to the 
+## spell.  If an invalid spell name is provided, nothing is listed.
+##
+#---------------------------------------------------------------------
+codex_find_spell_by_name() {
+  local SPELL_NAME="$1"
+  local SPELL_LOCATION=""
+  local CACHE_INFO=()
+  local CACHE_FILE="/tmp/libcodex.findspellbyname.cache.$UID"
+  
+  [ -f $CACHE_FILE ] && CACHE_INFO=( `cat $CACHE_FILE` )
+  if [[ $SPELL_NAME == ${CACHE_INFO[0]} ]] ; then
+     debug "libcodex" "codex_find_spell_by_name - Found cached info."
+     echo "${CACHE_INFO[1]}"
+     return 0
+  fi
+  
+  function lc372() {
+    debug "libmisc" "codex_find_spell_by_name(lc372) - $*"
+    if codex_is_directory_a_spell "$1/$SPELL_NAME" ; then
+
+      debug "libcodex" "codex_find_spell_by_name() - found spell $1/$SPELL_NAME"
+      echo "$1/$SPELL_NAME"
+      BREAK="y"
+    fi
+  }
+  
+  SPELL_LOCATION=$( iterate "lc372" $'\n' `codex_get_all_sections` )
+  echo "$SPELL_NAME"      > $CACHE_FILE
+  echo "$SPELL_LOCATION" >> $CACHE_FILE
+
+  
+  echo $SPELL_LOCATION
+  
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_spells <path/section>
+##
+## Lists all spells in the specified section.  Nothing is listed if 
+## the section doesn't include any spells.
+##
+#---------------------------------------------------------------------
+function codex_get_spells() {
+  local SECTION="$1"
+  ! [ -d "$SECTION" ] && {
+    message "${PROBLEM_COLOR}${SECTION:-<null>} is not a section directory!${DEFAULT_COLOR}"
+    return
+  }
+
+  function lc401() { codex_is_directory_a_spell "$SECTION/$1" && echo $SECTION/$1 ; }
+  iterate "lc401" $'\n' `ls -1 "$SECTION"`
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_spell_names <path/section>
+##
+## Lists all spell names in the specified section.  Nothing is listed 
+## if the section doesn't include any spells.
+## 
+#---------------------------------------------------------------------
+codex_get_spell_names() {
+  codex_get_spells "$1" | get_basenames
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_all_spells
+##
+## Lists all spells in all grimoires.  Nothing is listed if no spells 
+## exist in any of grimoires.
+##
+## NOTE: This should be fixed so only the first of duplicate spells 
+##  are listed.
+##
+#---------------------------------------------------------------------
+codex_get_all_spells() {
+
+  iterate "codex_get_spells" $'\n' `codex_get_all_sections | grep -v "is not a"`
+  
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_spell_section <spell name>
+##
+## Lists the section of the given spell name.  Nothing is listed if 
+## there are no spells with the given name.
+##
+#---------------------------------------------------------------------
+codex_get_spell_section() {
+  codex_find_spell_by_name "$1" | get_dirnames
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_spell_section_name <spell name>
+##
+## Given a spell name, this function lists the section name.  If there
+## are no spells with the given name, nothing is listed.
+##
+#---------------------------------------------------------------------
+codex_get_spell_section_name() {
+  codex_get_spell_section "$1" | get_basenames
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_find_spell_or_section_by_name <spell or section name>
+##
+## Returns successfully if the passed in argument is a spell name or
+## section name, unsuccessfully otherwise.  Depending on whether the 
+## item is a spell or a section, the CODEX_FOUND_SECTION or 
+## CODEX_FOUND_SPELL variable will be set.
+##
+#---------------------------------------------------------------------
+codex_find_spell_or_section_by_name()  {
+    local SPELL_OR_SECTION="$1"
+
+    CODEX_FOUND_SECTION=
+    CODEX_FOUND_SPELL=
+
+    CODEX_FOUND_SECTION=`codex_find_section_by_name $SPELL_OR_SECTION`
+    [  -n  "$CODEX_FOUND_SECTION"  ]  &&  return
+
+    CODEX_FOUND_SPELL=`codex_find_spell_by_name $SPELL_OR_SECTION`
+    [  -n  "$CODEX_FOUND_SPELL"  ]    &&  return
+
+    false
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_clear_current_spell
+##
+## Unets the GRIMOIRE, SECTION, SECTION_DIRECTORY, SPELL, 
+## SPELL_DIRECTORY, SCRIPT_DIRECTORY, and SPELL_DESCRIPTION
+## global variables.
+##
+#---------------------------------------------------------------------
+codex_clear_current_spell()  {
+  unset GRIMOIRE SECTION SECTION_DIRECTORY SPELL 
+  unset SPELL_DIRECTORY SCRIPT_DIRECTORY SPELL_DESCRIPTION
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_set_current_spell <spell directory>
+##
+## Sets the GRIMOIRE, SECTION, SECTION_DIRECTORY, SPELL_DIRECTORY, 
+## SCRIPT_DIRECTORY, and SPELL_DESCRIPTION global variables for the 
+## given spell directory.
+##
+## Assumes the directory passed in is a valid spell directory.
+##
+#---------------------------------------------------------------------
+codex_set_current_spell()  {
+  SPELL_DIRECTORY=$1
+
+  # Directories
+  SCRIPT_DIRECTORY=$SPELL_DIRECTORY
+  SECTION_DIRECTORY=`dirname $SPELL_DIRECTORY`
+  GRIMOIRE=`dirname $SECTION_DIRECTORY`
+
+  # Names
+  SECTION=`basename $SECTION_DIRECTORY`
+
+  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
+  if  [ -f  $SPELL_CONFIG  ]; then
+    .  $SPELL_CONFIG > /dev/null  2> /dev/null
+  fi
+  .  $SPELL_DIRECTORY/DETAILS  >  /dev/null 2> /dev/null
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_set_current_spell_by_name <spell name>
+##
+## Sets the GRIMOIRE, SECTION, SECTION_DIRECTORY, SPELL_DIRECTORY, 
+## SCRIPT_DIRECTORY, and SPELL_DESCRIPTION global variables for the 
+## given spell name.
+##
+## Returns false if the given name is not a spell.
+##
+#---------------------------------------------------------------------
+codex_set_current_spell_by_name()  {
+  local SPELL_NAME=`codex_find_spell_by_name "$1"`
+
+  [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  "$SPELL_NAME"
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_get_spell_description <spell directory>
+##
+## Echos the long description of the given spell.  Returns an
+## empty string if the directory is not a valid spell.
+##
+#---------------------------------------------------------------------
+codex_get_spell_description()  {
+  codex_is_directory_a_spell  "$1"  &&  .  "$1/DETAILS"
+}
+
+#---------------------------------------------------------------------
+##=item codex_get_spell_keywords <spell directory>
+##
+## Echos the keywords of the given spell.  Returns an
+## empty string if the directory is not a valid spell.
+##
+#---------------------------------------------------------------------
+codex_get_spell_keywords()  {
+  if codex_is_directory_a_spell  "$1"; then
+    if [ -e "$1/KEYWORDS" ]; then 
+      cat  "$1/KEYWORDS"
+    fi
+  fi
+}
+
+
+
+#---------------------------------------------------------------------
+##=item codex_mount_tmpfs
+##
+## Mounts the codex into a tmpfs
+##
+#---------------------------------------------------------------------
+codex_tmpfs_mount_codex() {
+  debug  "libcodex" "Running codex_mount_tmpfs()"
+
+  if  [  -n  "$TMPFSCODEX"  ];  then
+    
+    [  !  -d  "$TMPFSCODEX"  ]  &&  mkdir  -p  $TMPFSCODEX
+	  
+    # Find out how much space to create for the temporary filesystem.
+    # Add 1M to be on the safe side.
+    let  $((size=`du  -hs  $CODEX  |  cut  -f1`  +  102400))
+    # Find out how many inodes to reserve for tmpfs
+    # Add 100 to be on the safe side.
+    let  $((inodes=`find  $CODEX  |  wc  -l`  +  100))
+
+    rm  -f  $WORKCODEX
+
+    mount  -o  size=$size,nr_inodes=$inodes  -t  tmpfs  tmpfs  $TMPFSCODEX  &&
+    cp  -R  $CODEX  $TMPFSCODEX  >  /dev/null  2>&1
+    ln  -s  $TMPFSCODEX  $WORKCODEX
+
+  fi
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_umount_tmpfs
+##
+## Unmounts the codex from tmpfs
+##
+#---------------------------------------------------------------------
+codex_umount_tmpfs() {
+  debug  "libcodex" "Running codex_umount_tmpfs()"
+
+  umount  $TMPFSCODEX  2>  /dev/null
+
+  rm  -f  $WORKCODEX
+
+  rmdir   $TMPFSCODEX
+
+  ln  -s  $CODEX  $WORKCODEX
+
+}
+
+
+#---------------------------------------------------------------------
+##=item codex_resync_tmpfs
+##
+## Syncs the codex in tmpfs with the one on the harddrive
+##
+#---------------------------------------------------------------------
+codex_resync_tmpfs() {
+  debug  "libcodex" "Running codex_resync_tmpfs()"
+
+  umount  $TMPFSCODEX                                                     &&
+  mount  -o  size=$size,nr_inodes=$inodes  -t  tmpfs  tmpfs  $TMPFSCODEX  &&
+  cp  -R  $CODEX  $TMPFSCODEX  >  /dev/null  2>&1
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
