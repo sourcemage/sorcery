@@ -775,12 +775,13 @@ optimization_menu(){
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
 
-  local    SPEEDY_HELP="Optimize to increase performance of generated code, conflicts with 'tiny'"
-  local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules (unsafe)"
-  local      TINY_HELP="Optimize to decrease size of generated code, conflicts with 'speedy'"
-  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
-  local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink"
-  local STATIC_HELP="Compile libraries statically"
+  local COMBRELOC_HELP="Speed up loading libs, also needed for prelink (LDFLAGS=-z combreloc)"
+  local   PRELINK_HELP="Speed up loading applications by pre-linking libraries (CFLAGS=-DPIC -fPIC)"
+  local     RISKY_HELP="Optimize by violating ANSI/IEEE (unsafe) (CFLAGS=-ffast-math -funroll-loops)"
+  local    SPEEDY_HELP="Optimize generated code, conflicts with 'tiny' (CFLAGS=$FAST)"
+  local    STATIC_HELP="Compile libraries statically (LDFLAGS=-static)"
+  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information (LDFLAGS=-s)"
+  local      TINY_HELP="Optimize to smaller generated code, conflicts with 'speedy' (CFLAGS=$SMALL)"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -789,12 +790,13 @@ optimization_menu(){
                               --checklist               \
                               "$OPT_HELP"               \
                                0 0 0                    \
-        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
-        "risky"     "          +speed"         "$RISKY"     "$RISKY_HELP"     \
         "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
-        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
+        "prelink"   "          +speed"  "$PRELINK"   "$PRELINK_HELP"   \
+        "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
+        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
+        "static"    " ++size   +speed"  "$STATIC"    "$STATIC_HELP"    \
         "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
-        "static"    " ++size  +speed"   "$STATIC"    "$STATIC_HELP"'`
+        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"'`
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`

@@ -765,7 +765,7 @@ function optimize()  {
   debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
 
   unset  CFLAGS CXXFLAGS LDFLAGS LC_ALL
-  unset  FAST SMALL SPEEDY TINY RISKY STRIP STATIC
+  unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STATIC STRIP TINY
 
   local SPECFILE
   SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
@@ -785,14 +785,14 @@ function optimize()  {
   CFLAGS="$CFLAGS -pipe"
   for  PARAM  in  $OPTIMIZATIONS;  do
     case  $PARAM  in
-      speedy)
-        CFLAGS="$CFLAGS $FAST"
-        SPEEDY="on"
+      combreloc)
+        LDFLAGS="$LDFLAGS -z combreloc"
+        COMBRELOC="on"
         ;;
 
-      tiny)
-        CFLAGS="$CFLAGS $SMALL"
-        TINY="on"
+      prelink)
+        CFLAGS="$CFLAGS -DPIC -fPIC"
+        PRELINK="on"
         ;;
 
       risky)
@@ -800,19 +800,24 @@ function optimize()  {
         RISKY="on"
         ;;
 
-      strip)
-        LDFLAGS="$LDFLAGS -s"
-        STRIP="on"
-        ;;
-
-      combreloc)
-        LDFLAGS="$LDFLAGS -z combreloc"
-        COMBRELOC="on"
+      speedy)
+        CFLAGS="$CFLAGS $FAST"
+        SPEEDY="on"
         ;;
 
       static)
         LDFLAGS="$LDFLAGS -static"
         STATIC="on"
+        ;;
+
+      strip)
+        LDFLAGS="$LDFLAGS -s"
+        STRIP="on"
+        ;;
+
+      tiny)
+        CFLAGS="$CFLAGS $SMALL"
+        TINY="on"
         ;;
 
     esac
