@@ -187,7 +187,7 @@ global_clean_resources()
 {
   if [ -d "${LOCK_DIR}" ]; then
     # we remove old locks (>1 minute) that are not owned by any process.
-    find "${LOCK_DIR}" -maxdepth 1 -mindepth 1 -mmin +1 -empty -exec rmdir {} \;
+    find "${LOCK_DIR}" -maxdepth 1 -mindepth 1 -mmin +1 -type d -empty -exec rmdir {} \;
 
     # we remove locks that are owned by dead processes
     find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 | \

@@ -783,6 +783,7 @@ optimization_menu(){
   local      TINY_HELP="Optimize to decrease size of generated code, conflicts with 'speedy'"
   local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
   local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink"
+  local STATIC_HELP="Compile libraries statically"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -795,7 +796,8 @@ optimization_menu(){
         "risky"     "          +speed"         "$RISKY"     "$RISKY_HELP"     \
         "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
         "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
-        "strip"     " --size"           "$STRIP"     "$STRIP_HELP"'`
+        "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
+        "static"    " ++size  +speed"   "$STATIC"    "$STATIC_HELP"'`
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`
@@ -1074,6 +1076,21 @@ set_download_rate()  {
 
 }
 
+set_http_ftp_timeout()  {
+
+	PROMPT="Please enter maximum time (seconds) summon is to wait for each download server"
+
+	if  URL_HTTP_FTP_TIMEOUT=`eval $DIALOG '  --ok-label  "Commit"  \
+                                            --inputbox            \
+                                            "$PROMPT"             \
+                                            0 0  "$URL_HTTP_FTP_TIMEOUT"'`
+	then
+
+		modify_local_config "URL_HTTP_FTP_TIMEOUT" "$URL_HTTP_FTP_TIMEOUT"
+
+	fi
+
+}
 
 queue_menu()  {
 
@@ -1182,8 +1199,7 @@ sorcery_devel_settings()   {
 
 	  D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
 	  		FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
-	  		modify_local_config "DEBUG" "$FILE"
-			read ;;
+	  		modify_local_config "DEBUG" "$FILE" ;;
 	  S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
 	  		TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
 	  		( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
@@ -1336,10 +1352,11 @@ option_menu()  {
     J_HELP="Enter the number of jobs 'make' should run at the same time"
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
-	S_HELP="Sorcery development options (debugging)"
+    S_HELP="Sorcery development options (debugging)"
+    W_HELP="Enter maximum timeout (seconds) for summoning sources"
 
 
-    COMMAND=`eval $DIALOG '  --title "Option Menu"                     \
+    COMMAND=`eval $DIALOG '  --title "Option Menu"              \
                       --item-help                               \
                       --ok-label      "Select"                  \
                       --cancel-label  "Exit"                    \
@@ -1356,7 +1373,8 @@ option_menu()  {
                       "C"  "Distributed compilation"  "$C_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
-					  "S"  "Sorcery Development"      "$S_HELP"'`
+                      "S"  "Sorcery Development"      "$S_HELP" \
+                      "W"  "Summon Timeout Value"     "$W_HELP"'`
 
   do
 
@@ -1372,7 +1390,8 @@ option_menu()  {
       C)  sorcery_distcc         ;;
       M)  mirror_menu            ;;
       O)  optimize_architecture  ;;
-	  S)  sorcery_devel_settings ;;
+      S)  sorcery_devel_settings ;;
+      W)  set_http_ftp_timeout   ;;
 
     esac
 
