@@ -1,10 +1,26 @@
-#!/bin/sh
-############################################################
-# Copyright 2001 by Kyle Sallee                            #
-############################################################
-# cast is the spell installation utility                   #
-# It can be called by the user or by sorcery               #
-############################################################
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## cast is the spell installation utility
+## It can be called by the user or by sorcery
+##
+##=head1 DESCRIPTION
+##
+## ...
+##
+##=head1 COPYRIGHT
+##
+## Original version Copyright 2001 by Kyle Sallee
+## Some parts copyright 2002 Anders Bruun Olsen et al
+## Other additions/corrections Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
 
 
 help()	{
@@ -18,10 +34,13 @@ Usage:		cast  [parameters]  [spell]
 
 Optional Parameters:
 
--q  |  --quiet			Don't be verbose, show less info
+-q  |  --quiet			Do not be verbose, show less info
+-t  |  --dot                    Display progress as dots, not percent
 
 -f  |  --fix			Discover and fix broken spells
 -n  |  --nofix			Discover, but do not fix broken spells
+
+-d  |  --download		Force download of sources (overwrite existing files)
 
 -s				Download 1st, cast 2nd
     |  --deps			Configure spells and determine dependencies, 
@@ -33,8 +52,10 @@ Optional Parameters:
        --from	directory	Specify an alternate for $SOURCE_CACHE
        --url	URL		Specify an alternate download URL
 
-       --pam			re-casts all installed spells that
+       --pam			Re-casts all installed spells that
 				can use Linux-PAM
+       
+       --queue                  Casts all spells listed in $INSTALL_QUEUE
 
 EOF
 
@@ -43,8 +64,25 @@ EOF
 }
 
 
+set_failed_cast() {
+  if [[ $FAILED_CASTS ]] ; then
+    FAILED_CASTS="$FAILED_CASTS $SPELL"
+  else
+    FAILED_CASTS="$SPELL"
+  fi
+}
+
+set_successful_cast() {
+  if [[ $SUCCESSFUL_CASTS ]] ; then
+    SUCCESSFUL_CASTS="$SUCCESSFUL_CASTS $SPELL"
+  else
+    SUCCESSFUL_CASTS="$SPELL"
+  fi
+}
+
 run_conflicts() {
 
+    debug "cast" "Starting run_conflicts() on $SPELL"
     if    [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]
     then       . $SCRIPT_DIRECTORY/CONFLICTS
     fi
@@ -52,29 +90,6 @@ run_conflicts() {
 }
 
 
-prepare_depends_status()  {
-
-  touch  $DEPENDS_STATUS
-  touch  $DEPENDS_STATUS_BACKUP
-
-}
-
-
-
-run_depends() {
-
-    if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
-
-      # message  "${CHECK_COLOR}Checking dependencies for"  \
-      #          "${SPELL_COLOR}${SPELL}"                   \
-      #          "${DEFAULT_COLOR}"
-
-      prepare_depends_status
-      . $SCRIPT_DIRECTORY/DEPENDS
-
-    fi
-
-}
 
 
 prepare_spell_config()  {
@@ -84,6 +99,8 @@ prepare_spell_config()  {
     touch       $SPELL_CONFIG
     chmod  a+x  $SPELL_CONFIG
   fi
+
+  . $SPELL_CONFIG
 
 }
 
@@ -126,39 +143,52 @@ use_xinetd()  { (
 
 ) }
 
+# Automagic initscript installation.
+use_initd()  { (
 
-run_configure() {
+  debug "cast" "In use_initd()"
 
-  if  [  -n  "$RECONFIGURE"  ];  then
-    rm  -f  $DEPENDS_CONFIG/$SPELL
-    remove_depends  $SPELL
+  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  &&
+      !  grep  -q  "INITSCRIPTS="  $SPELL_CONFIG
+  then
+    debug "cast" "use_initd: found an init.d directory - processing"
+
+    ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/*.sh  |
+                     sed   's#.*/##'                    |
+                     sed   "s#\..*##"`
+    debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
+
+    for  INITSCRIPT  in  $ALL_INITSCRIPTS;  do
+      if    query  "Invoke $INITSCRIPT at boot via init?"  y
+      then  INITSCRIPTS="$INITSCRIPT $INITSCRIPTS"
+      fi
+    done
+
+    debug "cast" "saving initscripts"
+    echo  "INITSCRIPTS=\"$INITSCRIPTS\""  >>  $SPELL_CONFIG
+
   fi
 
-  prepare_spell_config
-  use_xinetd
-
-  if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
-    . $SCRIPT_DIRECTORY/CONFIGURE
-  fi
-
-}
+) }
 
 
 run_pre_build() {
 
+  debug "cast" "run_pre_build()"
   message  "${MESSAGE_COLOR}Building"  \
            "${SPELL_COLOR}${SPELL}"    \
            "${DEFAULT_COLOR}"
 
   cd  $BUILD_DIRECTORY
 
-  verify_sources  &&
+  verify_sources && 
   if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-           . $SCRIPT_DIRECTORY/PRE_BUILD
+    debug "cast" "run_pre_build() - Prebuild script exists, now sourcing "
+    . $SCRIPT_DIRECTORY/PRE_BUILD
   else
+    debug "cast" "run_pre_build() - Prebuild script not found, using default"
     default_pre_build
   fi
-
 }
 
 
@@ -198,22 +228,48 @@ activate_voyeur()  {
 
 run_build()  {
 
+  debug "cast" "Starting run_build()"
    C_LOG=/tmp/$SPELL.compile.log
   C_FIFO=/tmp/$SPELL.compile.fifo
 
   rm  -f $C_FIFO
-  mknod  $C_FIFO p
+  mkfifo  $C_FIFO
   rm  -f $C_LOG
   echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
 
   activate_voyeur
 
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
   cd      $SOURCE_DIRECTORY
 
+  invoke_build_dir
   invoke_gcc2
+  optimize
   invoke_installwatch
-  invoke_compilercache
+
+  message -n "Installing in dir: "
+  pwd
+  message "$SPELL    $VERSION"
+  if  [ -x ./configure ] || [ -x ./src/configure ] ; then
+    if  [[  $CONFIG_LOC  == on  ]]; then
+      if  [  !  -d  $SM_CONFIG_OPTION_CACHE  ] ; then
+        mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
+      fi
+      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
+        message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
+        message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
+        cat $SM_CONFIG_OPTION_CACHE/$SPELL
+      fi
+      if    query  "Do you wish to add -- options to ./configure?"  n ;  then
+        edit_file $SM_CONFIG_OPTION_CACHE/$SPELL
+        if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
+          OPTS="$OPTS `cat $SM_CONFIG_OPTION_CACHE/$SPELL`"
+          message "${MESSAGE_COLOR} OPTS= ${SPELL_COLOR}$OPTS"
+        fi
+      fi
+    fi
+  fi
 
   if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
           .  $SCRIPT_DIRECTORY/BUILD
@@ -228,7 +284,6 @@ run_build()  {
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
              "${DEFAULT_COLOR}"
-    rm  -f  $CASTING
     view_compile_log
     rack
     false
@@ -254,18 +309,22 @@ run_post_install() {
   then       . $SCRIPT_DIRECTORY/POST_INSTALL
   fi
 
+  if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
+  then       . $SCRIPT_DIRECTORY/TRIGGERS
+  fi
+
 }
 
 
 lib_dirs()  {
 
   for  DIRECTORY  in  $*;  do
-
-   if    file  -b  $DIRECTORY/*  |
-         grep  -q  "shared object"
-   then  echo  -n  "$DIRECTORY:"
-   fi
-
+    for FILE in $DIRECTORY/*.so* ; do
+      if file -b "$FILE" | grep  -q  "shared object" ; then
+        echo -n "$DIRECTORY:"
+	break
+      fi
+    done
   done
 
 }
@@ -273,20 +332,18 @@ lib_dirs()  {
 
 export_ld()  {
 
-  if    [  -z  "$LD_LIBRARY_PATH"  ]
+  if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
   then  export   LD_LIBRARY_PATH="$( lib_dirs  $*  )"
   else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  $*  )"
   fi
+  
+  export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
 
 
 }
 
 
 ldd_check()  {  (
-
-  if  [  -z  "$QUIET"  ];  then
-    message  -n  "."
-  fi
 
   if  [  "$LDD_CHECK"  ==  "off"    ] ;  then
     return
@@ -299,19 +356,22 @@ ldd_check()  {  (
 
   if  [  -e  $I_LOG  ];  then
 
-    IFS_OLD="$IFS"
-    export  IFS="	
-"
-
     LOG=`cat   $I_LOG                               |
          grep      "/bin/\|/games/\|/lib/\|/sbin/"  |
          grep  -v  "/doc/\|/fonts/\|/include/\|/locale/\|/man/\|/modules/\|/var/"`
+    
+    let size=0
+    for FILE in $LOG ; do
+    	let size++
+    done
 
+    let count=0
     for  FILE  in  $LOG;  do
 
       if  [  -z  "$QUIET"  ];  then
-        message  -n  "."
+        progress_bar $DOT_PROGRESS $count $size 50
       fi
+      let count++
 
       if     [  -f  "$FILE"  ]     &&
           !  [  -h  "$FILE"  ]     &&
@@ -320,11 +380,12 @@ ldd_check()  {  (
           ldd       "$FILE"  2>&1  |
           grep  -q  "not found"
       then
-        (  export  IFS="$IFS_OLD"
+        (
+	   clear_line
            message  "${FILE_COLOR}${FILE}"       \
                     "${DEFAULT_COLOR}of"         \
                     "${SPELL_COLOR}${SPELL}"     \
-                    "${PROBLEM_COLOR}is broke."  \
+                    "${PROBLEM_COLOR}is broken."  \
                     "${DEFAULT_COLOR}"
            ldd      "$FILE" 2>&1 | grep  "not found"
         )
@@ -339,37 +400,43 @@ ldd_check()  {  (
 
 find_check()  { (
 
-  if  [  -z  "$QUIET"  ];  then
-    message  -n  "."
-  fi
-
   if  [  "$FIND_CHECK"  ==  "off"             ]   ||
       [  "$1"           ==  "xfree86"         ]   ||
       [  "$1"           ==  "xfree86-custom"  ];  then
     return
   fi
 
-      SPELL=$1
+        SPELL=$1
       VERSION=`installed_version  $SPELL`
         I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   FIND_STATUS=0
 
   if  [  -e  $I_LOG  ];  then
 
-    IFS_OLD="$IFS"
-    export  IFS="	
-"
-
     LOG=`cat   $I_LOG                                          |
          grep      "/bin/\|/games/\|/include/\|/lib/\|/sbin/"  |
          grep  -v  "/doc/\|/etc/\|/fonts/\|/man/\|/var/"`
 
+    let size=0
+    for FILE in $LOG ; do
+    	let size++
+    done
+
+    let count=0
     for  ITEM  in  $LOG;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        progress_bar $DOT_PROGRESS $count $size 50
+      fi
+      let count++
+      
+      
       if  [  -e  "$ITEM"  ];  then
         true
       else
-        (  export  IFS="$IFS_OLD"
-           message  "${FILE_COLOR}${ITEM}"         \
+        (
+	   clear_line
+           message  "${FILE_COLOR}${ITEM}"       \
                     "${DEFAULT_COLOR}of"           \
                     "${SPELL_COLOR}${SPELL}"       \
                     "${PROBLEM_COLOR}is missing."  \
@@ -379,7 +446,7 @@ find_check()  { (
       fi
     done
   else
-    (  export  IFS="$IFS_OLD"
+    (
        message  "${SPELL_COLOR}${SPELL} "                     \
                 "${PROBLEM_COLOR}is missing an install log."  \
                 "${DEFAULT_COLOR}"
@@ -426,10 +493,6 @@ remove_line()  {
 
 sym_check()  { (
 
-  if  [  -z  "$QUIET"  ];  then
-    message  -n  "."
-  fi
-
   if  [  "$SYM_CHECK"  ==  "off"  ];  then
     return
   fi
@@ -440,14 +503,21 @@ sym_check()  { (
 
   if  [  -e  $I_LOG  ];  then
 
-    IFS_OLD="$IFS"
-    export  IFS="	
-"
-
     LOG=`cat   $I_LOG`
 
+    let size=0
+    for FILE in $LOG ; do
+    	let size++
+    done
+
+    let count=0
     for  ITEM  in  $LOG;  do
 
+      if  [  -z  "$QUIET"  ];  then
+        progress_bar $DOT_PROGRESS $count $size 50 
+      fi
+      let count++
+      
       if  [  -h  "$ITEM"  ]  &&
           [  -f  "$ITEM"  ]
       then
@@ -459,7 +529,7 @@ sym_check()  { (
               )
 
         if  !  grep  -q  "$TARGET"  $I_LOG
-        then  (  export  IFS="$IFS_OLD";  remove_line  )
+        then  (  remove_line  )
         fi
 
       fi
@@ -470,10 +540,6 @@ sym_check()  { (
 
 
 md5sum_check()  { (
-
-  if  [  -z  "$QUIET"  ];  then
-    message  -n  "."
-  fi
 
   if  [  "$MD5SUM_CHECK"  ==  "off"  ];  then
     return
@@ -487,10 +553,6 @@ md5sum_check()  { (
 
   if  [  -e  $MD5_LOG  ];  then
 
-    IFS_OLD="$IFS"
-    export  IFS="	
-"
-
     OUTPUT=`cat  $MD5_LOG                                         |
             grep      "/bin/\|/games/\|/include/\|/lib/\|/sbin/"  |
             grep  -v  "/doc/\|/etc/\|/fonts/\|/man/\|/var/"       |
@@ -499,7 +561,20 @@ md5sum_check()  { (
             cut    -d :  -f1`
 
     if  [  -n  "$OUTPUT"  ];  then
+    
+      let size=0
+      for FILE in $LOG ; do
+      	let size++
+      done
+
+      let count=0
       for  FILE  in  $OUTPUT;  do
+
+        if  [  -z  "$QUIET"  ];  then
+          progress_bar $DOT_PROGRESS $count $size 50 
+        fi
+        let count++
+      
         if     [  -f  "$FILE"  ]  &&
             !  [  -h  "$FILE"  ]  &&
             file  -b  "$FILE"     |
@@ -507,7 +582,8 @@ md5sum_check()  { (
         then
           MD5SUM=`md5sum  $FILE`
           if  !  grep  -q  "$MD5SUM"  $MD5SUM_LOGS/*;  then
-            (  export  IFS="$IFS_OLD"
+            (
+	       clear_line
                message  "${FILE_COLOR}${FILE}"               \
                         "${DEFAULT_COLOR}of"                 \
                         "${SPELL_COLOR}${SPELL}"             \
@@ -520,7 +596,7 @@ md5sum_check()  { (
       done
     fi
   else
-    (  export  IFS="$IFS_OLD"  
+    (
        message  "${SPELL_COLOR}${SPELL} "                   \
                 "${PROBLEM_COLOR}is missing a md5sum log."  \
                 "${DEFAULT_COLOR}"
@@ -541,10 +617,17 @@ status_okay()  {
 
 
 run_checks()  {
+
+  if  [ -z  "$QUIET"  ]; then
+    progress_bar $DOT_PROGRESS 1 1 50 
+  fi
+
+  #Note: check to see if these should all be joined by &&
      sym_check  $1
     find_check  $1  &&
      ldd_check  $1  &&
   md5sum_check  $1
+
 }
 
 
@@ -554,26 +637,28 @@ run_fix()  { (
 
   if  [  -z  "$QUIET"  ];  then
     if  [  -z  "$PASS_ZERO"  ]  &&  [  -z  "$CAST_PASS"  ];  then
-      message  -n  "${CHECK_COLOR}Initiating integrity check, please wait..."  \
-                   "${DEFAULT_COLOR}"
+      message  "${CHECK_COLOR}Initiating integrity check, please wait..."  \
+               "${DEFAULT_COLOR}"
     fi
-    message  -n  "."
   fi
 
   if  [  -z  "$SPELLS"  ];  then
 
+
+    # Why are these special cases? (duff, 09/29)
+    # Because we want to always check them first?
     if    spell_installed  xfree86
     then  SPELLS="glibc xfree86"
     else  SPELLS="glibc"
     fi
 
-    SPELLS="$SPELLS $(  cat  $SPELL_STATUS_BACKUP  |
-                        cut   -d : -f1             |
-                        grep  -v  "glibc\|xfree86\|sorcery\|j2sdk"   )"
+    #was $SPELL_STATUS_BACKUP (2002/09/29)
+    SPELLS="$SPELLS $(  awk -F : '{print $1; }' $SPELL_STATUS |
+                        grep  -v  'glibc|xfree86|sorcery|j2sdk'   )"
   fi
 
   if  [  -z  "$QUIET"  ];  then
-    message  -n  "."
+    progress_bar $DOT_PROGRESS 1 5 50 
   fi
 
   PASSED=":"
@@ -581,7 +666,7 @@ run_fix()  { (
   if    [  "$LDD_CHECK"  ==  "on"    ]
   then  LD_LIBRARY_PATH_OLD="$LD_LIBRARY_PATH"
         if  [  -z  "$QUIET"  ];  then
-          message  -n  "."
+         progress_bar $DOT_PROGRESS 2 5 50 
           wait_flag_up
           wait_flag  $$  &
         fi
@@ -598,24 +683,25 @@ run_fix()  { (
     HOPELESS="no"
 
     if  [  -z  "$QUIET"  ];  then
-      message  -n  "."
+      progress_bar $DOT_PROGRESS 3 5 50 
     fi
 
     for  SPELL  in  $SPELLS;  do
 
       if  [  -z  "$QUIET"  ];  then
-        message  -n  "."
+        progress_bar $DOT_PROGRESS 4 5 50 
       fi
 
       if  status_okay  $SPELL  &&
           !  echo  $PASSED     |
-             grep  -q  ":$SPELL:";  then
+             grep  -q  ":`esc_str $SPELL`:";  then
 
         if  [  -z  "$QUIET"  ];  then
-          message  "."
-          message  -n  "${CHECK_COLOR}Checking integrity of"  \
-                       "${SPELL_COLOR}${SPELL}"               \
-                       "${DEFAULT_COLOR}"
+          progress_bar $DOT_PROGRESS 5 5 50 
+	  clear_line 
+          message    "${CHECK_COLOR}Checking integrity of"  \
+                     "${SPELL_COLOR}${SPELL}"               \
+                     "${DEFAULT_COLOR}"
         else
           message  "${CHECK_COLOR}Checking integrity of"  \
                    "${SPELL_COLOR}${SPELL}"               \
@@ -663,10 +749,6 @@ run_fix()  { (
   done
   rm  -f  /tmp/LD_LIBRARY_PATH_FILE
 
-  if  [  -z  "$QUIET"  ];  then
-    message  "."
-  fi
-
 ) }
 
 
@@ -678,19 +760,32 @@ process_parameters()  {
 
       case  $1  in
 
-              -q|--quiet)  QUIET="yes"                  shift 1  ;;
-                  --deps)  export  DEPS_ONLY="$1";      shift 1  ;;
-        -r|--reconfigure)  RECONFIGURE="$1";            shift 1  ;;
-            -c|--compile)  COMPILE="$1";                shift 1  ;;
-                  --from)  export  SOURCE_CACHE=$2;     shift 2  ;;
-                --silent)  SILENT="$1";                 shift 1  ;;
-                -f|--fix)  export  FIX="$1";            shift 1  ;;
-              -n|--nofix)  export  FIX="--fix"
-                           export  NOFIX="$1";          shift 1  ;;
-                      -s)  SEPARATE="$1";               shift 1  ;;
-                   --url)  export  BASE_URL="$2";       shift 2  ;;
-                   --pam)  cast  -c  `find_pam_aware`;  shift 1  ;;
-                       *)  help                                  ;;
+          -q|--quiet)  QUIET="yes"                ;      shift 1  ;;
+	    -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
+              --deps)  export  DEPS_ONLY="$1";           shift 1  ;;
+    -r|--reconfigure)  RECONFIGURE="$1";                 shift 1  ;;
+        -c|--compile)  COMPILE="$1";                     shift 1  ;;
+       -d|--download)  export  FORCE_DOWNLOAD="$1";      shift 1  ;;
+              --from)  export  SOURCE_CACHE=$2;          shift 2  ;;
+            --silent)  SILENT="$1";                      shift 1  ;;
+            -f|--fix)  export  FIX="$1";                 shift 1  ;;
+          -n|--nofix)  export  FIX="--fix"
+                       export  NOFIX="$1";               shift 1  ;;
+                  -s)  SEPARATE="$1";                    shift 1  ;;
+               --url)  export  BASE_URL="$2";            shift 2  ;;
+               --pam)  cast  -c  `find_pam_aware` ;      shift 1  ;;
+             --queue)  if [ -z $QUIET ]; then
+                         list_install_queue
+                       fi
+                         
+                       if  [  -f $INSTALL_QUEUE  ] &&   #Is this -f necessary? (duff, 2002/10/13)
+                           [  -s $INSTALL_QUEUE  ]; then
+                         message -n "${MESSAGE_COLOR}Casting install queue..."
+                         message    "${DEFAULT_COLOR}"
+                         cast -c `cat $INSTALL_QUEUE`
+                         rm $INSTALL_QUEUE
+                       fi;                               shift 1  ;;
+                   *)  help                                   ;;
       esac
 
     else
@@ -713,6 +808,7 @@ strip_parameters()  {
       case  $1  in
 
                   --deps)  shift 1  ;;
+	        -d|--dot)  shift 1  ;;
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
@@ -722,6 +818,7 @@ strip_parameters()  {
                       -s)  shift 1  ;;
                    --url)  shift 2  ;;
                    --pam)  shift 1  ;;
+		 --queue)  shift 1  ;;
                        *)  shift 1  ;;
 
       esac
@@ -740,9 +837,10 @@ strip_parameters()  {
 
 resurrect()  {  (  
 
-  run_details      &&
-  run_conflicts    &&
-  satisfy_depends  &&
+  debug "cast" "resurect - $*"
+
+  run_prepare   &&
+  run_details  
 
   STATUS=installed
 
@@ -755,18 +853,25 @@ resurrect()  {  (
   CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
 
   if  [      -f   $CACHE_BZ  ]  &&
-      bzip2  -tf  $CACHE_BZ;    then
-
+      bzip2  -tf  $CACHE_BZ    
+  then
+    
+    run_conflicts    &&
+    satisfy_depends  &&
     bzip2         -cd   $CACHE_BZ  |  tar  -Pkx  1>/dev/null  2>&1
-    add_spell     $SPELL  $STATUS  $VERSION
+    run_post_install #bug 199
+    
+    add_spell     "$SPELL"  "$STATUS"  "$VERSION"
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+    set_successful_cast  "$SPELL"
+    clear_line
     message  "${RESURRECT_COLOR}Resurrected spell:"  \
              "${SPELL_COLOR}${SPELL}"                \
              "${DEFAULT_COLOR}"                      \
              "version"                               \
              "${VERSION_COLOR}${VERSION}"            \
              "${DEFAULT_COLOR}"
-    cast  --fix  $SILENT  $SPELL
+    cast  --fix  $SILENT  $SPELL 
   else
     false
   fi
@@ -779,9 +884,7 @@ show_download_progress()  {
   if  [  -f  "$D_LOG"   ]   &&
       [  -z  "$SILENT"  ];  then
 
-    if  [  -z  "$LC_OLD"  ];  then
-      LC_OLD=0
-    fi
+    LC_OLD=${LC_OLD:-0}
 
     LC=`cat  $D_LOG  2>/dev/null  |  wc  -l  |  tr  -d ' '`
 
@@ -799,18 +902,28 @@ show_download_progress()  {
 show_downloading()  {
 
 #  COMPILE="y"
-  while  !  summon  $SPELL;  do
+  debug "cast" "Started show_downloading() on $SPELL"
+  while ! ( [[ $D_LOG ]] && 
+            [  -f "$D_LOG"  ] ) 
+  do
+    sleep 1
+  done
+
+  #The file is created in run_summon
+  until [  -f "${D_LOG}.done.$SPELL"  ] ;  do
     show_download_progress
     sleep 1
   done
-    show_download_progress
+  
+  rm "${D_LOG}.done.$SPELL"
+  show_download_progress
 
 }
 
 
 report_install()  {
 
-  rm  -f  $BOOST_LOCK
+#  rm  -f  $BOOST_LOCK
   INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   report  $INST_LOG  "Install log"
 
@@ -820,87 +933,114 @@ report_install()  {
 
 
 cast_spell()  { (
-
+  debug "cast" "Casting spell [$SPELL]"
   run_details                 &&
   run_conflicts               &&
+  debug "DB" "cast_spell run_conflicts done" &&
   satisfy_depends             &&
-  show_downloading            &&
-  if  !  current_locked       &&
-      !     solo_locked
-  then
-    echo  $$  >  $CASTING       &&
-    run_pre_build               &&
-    run_build                   &&
-    run_post_build              &&
-    run_post_install            &&
-    rm_source_dir               &&
-    report_install              &&
-    rm  -f  $CASTING            &&
-    sound  SUCCESS              &&
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+  debug "DB" "cast_spell about to show_d/l" &&
+  show_downloading            ||   return 1
+  
+  # Some checks must be made at this poit to see if it's safe to start building
+  message -n "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} spells to complete..."
+  lock_resources "castSOLO" "SOLO"
+  message " done."
+    
+  message -n "Waiting for any other casts of ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} to complete..."
+  lock_resources "cast" "$SPELL"
+  message " done"
+    
+  # Release the SOLO lock if you don't need to be cast solo
+  if ! grep -q "^$SPELL$" $SOLO ; then 
+    unlock_resources "castSOLO" "SOLO"
   fi
+                               
+  run_pre_build               &&
+  run_build                   &&
+  run_post_build              &&
+  run_post_install            &&
+  add_spell $SPELL installed $VERSION &&
+  cd  /                       &&
+  report_install              &&
+  sound  SUCCESS
+  if [ $? -eq 0 ] ; then
+    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+    rm_source_dir
+  else
+    activity_log "cast" "$SPELL"  "$VERSION" "failure"
+    rm  -f  $CASTING
+    if [[  $CLEAN_SOURCE == on ]]; then
+      rm_source_dir
+    fi
+    CAST_EXIT_STATUS=1
+  fi
+
+  unlock_resources "cast" "$SPELL"
+  #It's OK to try to release a lock you don't have
+  unlock_resources "castSOLO" "SOLO"
+
+  return ${CAST_EXIT_STATUS:-0}
 
 ) }
 
-
-cast_locked()  {
-
-  [     -f        /var/lock/casting.$1  ]  &&
-  ps        `cat  /var/lock/casting.$1`    |
-  grep  -q  "cast"
-
-}
-
-
-solo_locked()  {
-
-  for  SOLO_SPELL  in  `cat  $SOLO`;  do
-    if  cast_locked  $SOLO_SPELL;  then
-      message  "${PROBLEM_COLOR}Casting${DEFAULT_COLOR}"  \
-               "of other spells is disabled during a"     \
-               "cast ${SPELL_COLOR}${SOLO_SPELL}"         \
-               "${DEFAULT_COLOR}"
-      return
-    fi
-  done
-  false
-
-}
-
-
-current_locked()  {
-
-  if  cast_locked  $SPELL;  then
-    message  "${PROBLEM_COLOR}Detected cast lock file:"  \
-             "${FILE_COLOR}${CASTING}${DEFAULT_COLOR}"
-    message  "Now waiting for ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"  \
-             "to finish casting or for the lock to clear."
-
-    while  cast_locked  $SPELL;  do  sleep  2;  done
-    true
-  else
-    false
-  fi
-
-}
-
+##Removed *_solo functions, Duff 2002/11/01
 
 cast_spells()  {
 
+  local SOME_CAST_FAILED=0
+  local must_recompile="${COMPILE}${RECONFIGURE}"
+  SUCCESSFUL_CASTS=""
+  FAILED_CASTS=""
+
   for  SPELL  in  $SPELLS;  do
-
-    CASTING="/var/lock/casting.$SPELL"
-
-    if  [  -n  "$COMPILE"      ]  ||
-        [  -n  "$RECONFIGURE"  ]  ||
-        spell_installed  $SPELL   ||
-        !  resurrect     $SPELL;  then
-      if  !  cast_spell;  then  CAST_EXIT_STATUS=1;  fi
+    SPELL=`echo "$SPELL" | tr -d "[:space:]"`
+    
+    if spell_exiled $SPELL ; then
+      message "${SPELL_COLOR}$SPELL{$DEFAULT_COLOR} is exiled. Refusing to cast."
+      continue
     fi
+    
+    trigger "pre_cast"
 
+    if  [[  $must_recompile  ]]     ||
+        ! spell_installed  $SPELL
+    then
+      if ( ! [[ $must_recompile ]]  && 
+           resurrect     $SPELL )   ||
+         cast_spell    $SPELL
+      then
+        set_successful_cast $SPELL
+      else
+        set_failed_cast $SPELL
+        SOME_CAST_FAILED=1
+      fi
+    else
+      message "I tried casting $SPELL, but there's some reason I'm not supposed to."
+      message "If I am wrong, please report me to bugs.sourcemage.org. A detailed"
+      message "bug report is necessary. Don't forget to see if I've been reported"
+      message "already. Thank you."
+    fi
+    
+    trigger "cast"
+    
   done
+  
+  message "${MESSAGE_COLOR}Finished processing install requests."
+  message ""
+  message "Spells installed successfully:"
+  message "------------------------------${SPELL_COLOR}"
+  for item in $SUCCESSFUL_CASTS; do
+    message "$item"
+  done
+  message "${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Spells that encountered problems:"
+  message "---------------------------------${PROBLEM_COLOR}"
+  for item in $FAILED_CASTS; do
+    message "$item"
+  done
+  message "${DEFAULT_COLOR}"
 
-  if  [  -n  "$CAST_EXIT_STATUS"  ];  then
+  if  [  -n  "$SOME_CAST_FAILED"  ];  then
     exit  1
   fi
 
@@ -919,31 +1059,42 @@ run_summon()  {
 
   if  !  spell_installed  $SPELL  ||
       !  current_sources          ||
-         [  -n  "$COMPILE"   ]
-  then  summon  $SPELL  >>  $D_LOG  2>&1
+         [  -n  "$COMPILE"   ]    ||
+	 [  -n  "$FORCE_COMPILE"  ]
+  then
+    lock_file   $D_LOG
+    
+    ( . summon  $SPELL  >>  $D_LOG  2>&1 ; )
+    
+    unlock_file $D_LOG
   fi
+  
+  #This is to notify show_downloading that it is done this source
+  touch "${D_LOG}.done.$SPELL"
 
 }
 
 
-build_depends()  {
-
-  for  SPELL  in  $SPELLS;  do
-    ( run_details    &&
-      run_configure  &&
-      run_depends    &&
-      satisfy_depends
-    )
-  done
-
-}
 
 
 pass_one()  {
-#  This pass does configuration and dependency identification.
+  #  This pass does configuration and dependency identification.
 
-  build_depends  ||  exit  1
-  if  [  -n  "$DEPS_ONLY"  ];  then  exit  0;  fi
+  local i j tempList
+  ALL_SPELLS="" 
+  
+  debug "cast" "Starting pass_one()"
+  compute_depends $SPELLS  ||  exit  1
+  sort_save_depends "ALL_SPELLS" $SPELLS
+  
+  if  [  -n  "$DEPS_ONLY"  ];  then  
+    for i in $SPELLS ; do
+      ALL_SPELLS=`echo "$ALL_SPELLS" | sed "s/ $i //"`
+    done  
+  fi
+  
+  SPELLS="$ALL_SPELLS"
+  debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
 }
 
@@ -951,9 +1102,10 @@ pass_one()  {
 build_sources()  {
 
   for  SPELL  in  $SPELLS;  do
-    ( run_details      &&
-      satisfy_depends  &&
+    ( run_details                       &&
+#      satisfy_depends  && (duff, probably not needed 10/07)
       run_summon
+      debug "DB" "Out of run_summon."
     )
   done
 
@@ -961,16 +1113,18 @@ build_sources()  {
 
 
 pass_two()  {
-#  This pass downloads required sources.
+  #  This pass downloads required sources.
 
+  debug "cast" "Starting pass_two()"
   if  [  -z  "$SEPARATE"   ];  then  build_sources;  fi
 
 }
 
 
 pass_three()  {
-#  This pass compiles sources
+  #  This pass compiles sources
 
+  debug "cast" "Starting pass_three()"
   cast_spells
 
 }
@@ -978,14 +1132,16 @@ pass_three()  {
 
 pass_zero()  {
 
+  debug "cast" "Starting pass_zero()"
   PASS_ZERO="y"
   export  D_LOG="/tmp/sorcery.downloading.$$.$RANDOM"
+  rm -f $D_LOG 2>/dev/null
 
-  export  CAST_PASS="one";    pass_one
+  export  CAST_PASS="one";    pass_one  &&
   export  CAST_PASS="two";    pass_two  &
   export  CAST_PASS="three";  pass_three
 
-  rm  -f   $D_LOG
+  rm  -f   $D_LOG*
   
 
 }
@@ -993,14 +1149,17 @@ pass_zero()  {
 
 main()	{
 
+  debug "cast" "main() - $*"
   process_parameters        $*
   SPELLS=`strip_parameters  $*`
 
-  if  [  -n  "$FIX"  ];  then
+  if  [[  $FIX  ]];  then
 
     run_fix  $SPELLS
 
   else
+
+    codex_does_spell_exist $SPELLS || return 1
 
     case  $CAST_PASS  in
         one)  pass_one    $SPELLS  ;;
@@ -1011,14 +1170,13 @@ main()	{
 
   fi
 
+  echo
   true
 
 }
 
 
 . /etc/sorcery/config
-
-export  IFS="$STANDARD_IFS"
 
 if    [  $#      ==  0  ];  then  help  |  $PAGER
 elif  [  "$UID"  !=  0  ];  then
@@ -1028,9 +1186,13 @@ elif  [  "$UID"  !=  0  ];  then
 
 elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
 
-  SAFE_CAST=/tmp/casting.$$.$RANDOM
+  SAFE_CAST=/tmp/casting.$$
+  lock_file $SAFE_CAST
+  
   cp  $0  $SAFE_CAST
   exec $SAFE_CAST "$@"
+  
+  unlock_file $SAFE_CAST
 
 else
 
@@ -1039,3 +1201,26 @@ else
   main  $*
 
 fi
+
+debug "cast" "exiting..."
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

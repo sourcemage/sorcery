@@ -1,0 +1,344 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## invoke the sorcery menuing tool for installed spells.
+## It can be called by the user or by cast 
+##
+##=head1 DESCRIPTION
+##
+## Invoke is the SourceMage menu management system. It keeps
+## track of the menu items for installed spells. Displaying
+## it's own (dialog, or Xdialog) interface, or generating
+## entries into your favorite window managers native menuing
+## system (that part is not implemented yet). 
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by Nicholas K. Jennings (nkj@namodn.com)
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+
+help() {
+  cat << EOF
+
+Invoke is the SourceMage menu management system. It keeps
+track of the menu items for installed spells. Displaying
+its own (dialog, or Xdialog) interface, or generating
+entries into your favorite window managers native menuing
+system (that part is not implemented yet). 
+
+Please note that anything in brackets [] is optional.
+
+Example:    invoke  generate   gnome
+Usage:      invoke  [command]  [menu]
+
+Command     Parameter    Description
+
+generate    menu_type    Generates a menu (see below for menu types)
+                        (Not Implemented Yet).
+
+update      [spell]      Updates the scry menu index with all spells
+                         registered to display in the menu. 
+
+Supported menu types:
+
+gnome              Generates a gnome menu of sorcery spells
+kde                Generates a KDE menu of sorcery spells
+blackbox           Generates a Blackbox menu of sorcery spells
+icewm              Generates an IceWM menu of sorcery spells
+windowmaker        Generates a WindowMaker menu of sorcery spells
+
+EOF
+}
+
+
+show_menu() {
+
+  if ! [ -f "$MENU_STATUS" ]; then
+    message "${MESSAGE_COLOR}No menu data found. You must run 'invoke update' to generate the menu menu based on installed spells.${DEFAULT_COLOR}"
+    exit 1
+  fi
+
+  local spell
+  local section
+  local select_title="Invoke Menu"
+  local select_help="Current Section:"
+
+  BACKUP_IFS="$IFS"
+  IFS="$ENTER_IFS"
+  while  section=`select_section`;  do
+
+    local list=`make_list $section`
+
+    if  spell=`$DIALOG  --title "$select_title"   \
+                          --ok-label  "Commit"      \
+                          --item-help               \
+                          --menu                    \
+                          "$select_help  $SECTION"  \
+                          0 0 10                    \
+                          $list`
+
+    then  process_selection  "$section"  "$spell"
+    fi
+  done
+  IFS=$ENTER_IFS
+
+}
+
+
+make_list()  {
+
+  local section=$1
+
+  #for  line  in `grep ":$section:" $MENU_STATUS`; do  
+  function inv104()  {   
+    echo "DEBUG: inside the loop line=$line" >> DEBUG
+    local spell=`echo  $*  |  cut  -d  :  -f1`
+    local script_directory=`codex_find_spell_by_name $spell`
+    local item=`echo $* | cut -d : -f2`
+
+    if  [  -x  $script_directory/DETAILS  ];  then
+            .  $script_directory/DETAILS  >  /dev/null
+
+      echo  $item
+      echo  $VERSION
+      echo \"`echo $line | cut -d : -f5`\"
+      echo \"`echo $line | cut -d : -f5`\" >> DEBUG
+      #echo $line | awk -F : '{print $NF;}' 
+     fi
+  }
+  iterate "inv104" "$ENTER_IFS" `grep ":$section:" $MENU_STATUS`
+
+}
+
+
+process_selection()  {
+
+  local section=$1
+  local spell=`esc_str $2`
+  local line=`grep  "^$spell:"  $MENU_STATUS`     
+  local command=`echo  $line  |  cut  -d  :  -f4`
+  $command &
+
+}
+
+
+
+select_section() {
+
+  $DIALOG  --title "Sections"  \
+           --default-item  "$SECTION"        \
+           --ok-label      "Select"          \
+           --cancel-label  "Exit"            \
+           --menu                            \
+           ""                                \
+           0 0 10                            \
+           `show_sections`                   
+
+}
+
+
+show_sections()  {
+
+  local found
+
+  function inv152()  {
+    # Display only unique sections
+    if  !  [  `echo  $found  |  grep  "$1"`  ];  then 
+      found="$1 $found"
+      echo  $1
+      echo  "section"
+    fi
+  }
+  iterate "inv152" $'\n' `cut -d : -f3 $MENU_STATUS`
+
+}
+
+
+update_menu_index() {
+
+  if [ -n "$1" ]; then
+    message "${MESSAGE_COLOR}This feature is temporarily disabled.${DEFAULT_COLOR}"
+    exit
+    if ! [ -f $MENU_STATUS ]; then
+      touch $MENU_STATUS
+    fi
+    cp $MENU_STATUS $MENU_STATUS_BACKUP
+
+    local spell=$1
+    local section=`find_section  $spell` 
+    local script_directory=`codex_find_spell_by_name $spell`
+    if  [  -x  $script_directory/DETAILS  ];  then
+             . $script_directory/DETAILS  >  /dev/null
+      local entry
+      local line
+      local i="0"
+
+      for (( i=0 ; i<${#MENU_ITEM[*]} ; i++ )) ; do
+
+        if [ "${MENU_ITEM[$i]}" ] && [ "${MENU_EXEC[$i]}" ] && [ "${MENU_DESC[$i]}" ]; then
+          message "${MESSAGE_COLOR}Adding menu entry for ${SPELL_COLOR}${MENU_ITEM[$i]}${DEFAULT_COLOR}${MESSAGE_COLOR}...${DEFAULT_COLOR}"
+
+          cat  $MENU_STATUS_BACKUP | while read line; do
+            entry=`echo $line | cut -d : -f2`
+# XXX - ??? why did I do this?
+# hee hee do you really want an answer to that?
+echo "DEBUG: $line"
+echo "DEBUG: $entry = ${MENU_ITEM[$i]} ?"
+            if [ "$entry" = "${MENU_ITEM[$i]}" ]; then
+echo "DEBUG: yes"
+              echo "$SPELL:${MENU_ITEM[$i]}:$section:${MENU_ITEM[$i]}:${MENU_DESC[$i]}" >> $MENU_STATUS_BACKUP
+            else
+echo "DEBUG: no"
+              echo "$SPELL:${MENU_ITEM[$i]}:$section:${MENU_ITEM[$i]}:${MENU_DESC[$i]}" >> $MENU_STATUS_BACKUP
+            fi
+          done
+
+        fi
+
+      done
+    fi
+    
+  else
+
+    message  "${MESSAGE_COLOR}Updating menu index from installed packages...${DEFAULT_COLOR}"
+    rm -f $MENU_STATUS_BACKUP
+    touch $MENU_STATUS_BACKUP
+  
+    local line
+    for  line  in  `cat  $SPELL_STATUS`;  do
+      local spell=`echo  $line  |  cut  -d  :  -f1`
+      local section=`find_section  $spell` 
+      local script_directory=`codex_find_spell_by_name $spell`
+
+      if  [  -x  $script_directory/DETAILS  ];  then
+               . $script_directory/DETAILS  >  /dev/null
+        local i="0"
+
+        for (( i=0 ; i<${#MENU_ITEM[*]} ; i++ )) ; do
+          if [ "${MENU_ITEM[$i]}" ] && [ "${MENU_EXEC[$i]}" ] && [ "${MENU_DESC[$i]}" ]; then
+            message "${MESSAGE_COLOR}Adding menu entry for ${SPELL_COLOR}${MENU_ITEM[$i]}${DEFAULT_COLOR}${MESSAGE_COLOR}...${DEFAULT_COLOR}"
+            echo "$SPELL:${MENU_ITEM[$i]}:$section:${MENU_EXEC[$i]}:${MENU_DESC[$i]}" >> $MENU_STATUS_BACKUP
+          fi
+        done
+
+        unset MENU_EXEC[*]
+        unset MENU_ITEM[*]
+        unset MENU_DESC[*]
+
+      fi
+
+    done
+  fi
+  cp $MENU_STATUS_BACKUP $MENU_STATUS
+
+}
+
+
+generate_menus() {
+
+  while [ -n "$1" ]; do
+
+    case  $1  in
+      
+         gnome)  generate_gnome_menu         shift 1  ;;
+           kde)  generate_kde_menu           shift 1  ;;
+         icewm)  generate_icewm_menu         shift 1  ;;
+   windowmaker)  generate_windowmaker_menu   shift 1  ;;
+      blackbox)  generate_blackbox_menu      shift 1  ;;
+      
+    esac 
+
+  done
+  
+}
+
+
+generate_gnome_menu() { 
+  echo "GNOME menus not implemented (yet)" 
+  if  [  "$UID"  !=  0  ];  then
+    MENU_DIR='/usr/share/gnome/apps'
+  else 
+    MENU_DIR="$HOME/.gnome/apps"
+  fi
+}
+
+
+generate_kde_menu() { 
+  echo "KDE menus not implemented (yet)" 
+}
+
+
+generate_icewm_menu() { 
+  echo "IceWM menus not implemented (yet)" 
+}
+
+
+generate_windowmaker_menu() { 
+  echo "WindowMaker menus not implemented (yet)" 
+  MENU_DIR="$HOME/GNUStep/Defaults/WMRootMenu"
+}
+
+generate_blackbox_menu() { 
+  echo "Blackbox menus not implemented (yet)" 
+}
+
+
+parse_params()  {
+
+  if [ ! $1 ]; then
+    show_menu
+  else
+    case  $1  in
+
+     generate)  generate_menus $*              ;;
+
+       update)  if  [  "$UID"  !=  0  ];  then
+                  echo  "Enter the root password, please."
+                  su - -c "DISPLAY=$DISPLAY PATH=$PATH  $0 $*"
+                fi
+                update_menu_index $2
+                ;;
+
+            *)  help                           ;;
+    esac
+  fi
+
+}
+
+DIALOG="dialog
+--backtitle
+Spell_Menu
+--stdout"
+
+. /etc/sorcery/config
+parse_params $@
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

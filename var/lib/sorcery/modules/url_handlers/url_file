@@ -1,0 +1,90 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for grabbing file urls.
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for I<downloading> (actually it just
+## copies) files which can be accessed through the local file system.
+## Url's of this type are specified using the format 
+##
+##  file://<path>
+##
+## where <path> is the full path to the file.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------
+##=item url_file_strip_prefix <url>
+# 
+# Private function.  Strips off the file:/[//] prefix from file urls
+#
+#---------------------------------------------------------------------
+url_file_strip_prefix() {
+  echo $1 | sed 's/^file:\/\//' | sed 's/^file://'
+}
+
+
+#---------------------------------------------------------------------
+##=item url_file_download <url>
+## 
+## Copies the specified file url.
+##
+#---------------------------------------------------------------------
+url_file_download() {
+  FILENAME=`url_file_strip_prefix $1`  &&
+  [  -f  "$FILENAME"  ]                &&
+  [  -r  "$FILENAME"  ]                &&
+  cp -a $FILENAME .
+}
+
+
+#---------------------------------------------------------------------
+##=item url_file_verify <url>
+## 
+## Verifies the specified file exists.  Returns true if the file exists
+## OR if the file is an empty string.
+##
+#---------------------------------------------------------------------
+url_file_verify() {
+  FILENAME=`url_file_strip_prefix $1`
+  if -n "$FILENAME"; then
+    [  -f  "$FILENAME"  ] &&
+    [  -r  "$FILENAME"  ]
+  fi
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
+

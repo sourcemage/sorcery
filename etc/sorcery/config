@@ -1,12 +1,20 @@
 export       DIALOGRC=/etc/sorcery/dialogrc
 
-         CONFIG_CACHE=/etc/sorcery/local
-         LOCAL_CONFIG=/etc/sorcery/local/config
-       DEPENDS_CONFIG=/etc/sorcery/local/depends
-       LOCAL_EXCLUDED=/etc/sorcery/local/excluded
-              MIRRORS=/etc/sorcery/mirrors
+        SORCERY_BRANCH="stable"
+
+          CONFIG_CACHE=/etc/sorcery/local
+          LOCAL_CONFIG=/etc/sorcery/local/config
+        DEPENDS_CONFIG=/etc/sorcery/local/depends
+        LOCAL_EXCLUDED=/etc/sorcery/local/excluded
+        COMPILE_CONFIG=/etc/sorcery/compile_config
+               MIRRORS=/etc/sorcery/mirrors
+  SM_LICENSE_DIRECTORY=/etc/sorcery/licenses
+SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
+          ACCOUNT_LIST=/etc/sorcery/accounts
+            GROUP_LIST=/etc/sorcery/groups
 
         UPDATE_SCRIPT=/tmp/sorcery.update
+       RESTORE_SCRIPT=/tmp/sorcery.restore
 
       BUILD_DIRECTORY=/usr/src
    DOCUMENT_DIRECTORY=/usr/doc
@@ -16,18 +24,26 @@ export       DIALOGRC=/etc/sorcery/dialogrc
            CABAL_KEYS=$CABAL_DIRECTORY/keys
          CABAL_OUTPUT=/tmp/cabal.output
 
-             EXCLUDED=/var/lib/sorcery/excluded
-             GRIMOIRE=/var/lib/sorcery/grimoire
-        TRUE_GRIMOIRE=/var/lib/sorcery/grimoire
-            PROTECTED=/var/lib/sorcery/protected
-                 SOLO=/var/lib/sorcery/solo
-          SUBROUTINES=/var/lib/sorcery/subroutines
-            SUSTAINED=/var/lib/sorcery/sustained
+	  SGL_LIBRARY=/var/lib/sorcery
+  SGL_LIBRARY_MODULES=${SGL_LIBRARY}/modules
+           ARCH_SPECS=${SGL_LIBRARY}/archspecs
+             EXCLUDED=${SGL_LIBRARY}/excluded
+	        CODEX=${SGL_LIBRARY}/codex
+	    WORKCODEX=${SGL_LIBRARY}/workcodex
+	   TMPFSCODEX=${SGL_LIBRARY}/tmpfscodex
+            PROTECTED=${SGL_LIBRARY}/protected
+                 SOLO=${SGL_LIBRARY}/solo
+          SUBROUTINES=${SGL_LIBRARY}/subroutines
+            SUSTAINED=${SGL_LIBRARY}/sustained
+      SM_LICENSE_LIST=${SM_LICENSE_DIRECTORY}/license_list
 
-      SOUND_DIRECTORY=/var/lib/sorcery/sound
+      SOUND_DIRECTORY=${SGL_LIBRARY}/sound
           SOUND_THEME=startrek
 
            BOOST_LOCK=/var/lock/boost
+             LOCKLIST="/tmp/locklist"
+       LOCKLIST_CLEAN="/tmp/locklist.clean"
+    LOCK_TRANSACTIONS="/tmp/locklist.transactions"
 
          ACTIVITY_LOG=/var/log/sorcery/activity
          INSTALL_LOGS=/var/log/sorcery/install
@@ -40,6 +56,11 @@ export       DIALOGRC=/etc/sorcery/dialogrc
 DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
          SPELL_STATUS=/var/state/sorcery/packages
   SPELL_STATUS_BACKUP=/var/state/sorcery/packages.backup
+         TRIGGER_LIST=/var/state/sorcery/triggers
+        GRIMOIRE_LIST=/etc/sorcery/local/grimoire
+ GRIMOIRE_LIST_BACKUP=/etc/sorcery/local/grimoire.backup
+          MENU_STATUS=/var/state/sorcery/menus
+   MENU_STATUS_BACKUP=/var/state/sorcery/menus.backup
 
         INSTALL_CACHE=/var/cache/sorcery
          SOURCE_CACHE=${SOURCE_CACHE:=/var/spool/sorcery}
@@ -52,7 +73,6 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
               AUTOFIX=${AUTOFIX:=on}
             AUTOPRUNE=${AUTOPRUNE:=off}
                 CABAL=${CABAL:=off}
-               CCACHE=${CCACHE:=off}
          MAIL_REPORTS=${MAIL_REPORTS:=off}
                 PATCH=${PATCH:=on}
              PRESERVE=${PRESERVE:=on}
@@ -60,24 +80,32 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
              SORCERER=${SORCERER:=root}
                 SOUND=${SOUND:=off}
               SUSTAIN=${SUSTAIN:=on}
+                TMPFS=${TMPFS:=on}
          VIEW_REPORTS=${VIEW_REPORTS:=on}
                VOYEUR=${VOYEUR:=on}
          PROMPT_DELAY=${PROMPT_DELAY:=150}
-           MAX_CABALS=16
+           MAX_CABALS=${MAX_CABALS:=16}
+	   NET_SELECT=${NET_SELECT:=off}
+	    MD5SUM_DL=${MD5SUM_DL:=off}
+         CLEAN_SOURCE=${CLEAN_SOURCE:=off}
 
             LDD_CHECK=${LDD_CHECK:=on}
            FIND_CHECK=${FIND_CHECK:=on}
          MD5SUM_CHECK=${MD5SUM_CHECK:=on}
             SYM_CHECK=${SYM_CHECK:=off}
 
-             CTAN_URL=ftp://tug.ctan.org
-              KDE_URL=ftp://ftp.kde.org/pub/kde
-           KERNEL_URL=ftp://ftp.kernel.org
-            GNOME_URL=ftp://ftp.gnome.org/pub/GNOME
               GNU_URL=ftp://ftp.gnu.org/pub/gnu
-          SORCERY_URL=http://www.smee.org/smgl/stable
-      SOURCEFORGE_URL=http://belnet.dl.sourceforge.net/sourceforge
+              KDE_URL=ftp://ftp.kde.org/pub/kde
+             CTAN_URL=ftp://tug.ctan.org/tex-archive
+            GNOME_URL=ftp://ftp.gnome.org/pub/GNOME
+           KERNEL_URL=ftp://ftp.kernel.org
           XFREE86_URL=ftp://ftp.xfree86.org/pub/XFree86
+          SORCERY_URL=http://download.sourcemage.org/sorcery/
+      SOURCEFORGE_URL=http://belnet.dl.sourceforge.net/sourceforge
+         FALLBACK_URL=http://download.sourcemage.org/mirror/test
+
+           CODEX_ROOT=${CODEX_ROOT:=/var/lib/sorcery/codex}
+            CODEX_URL=${CODEX_URL:=http://codex.sourcemage.org}
 
               TRACKED="/bin /boot /etc /lib /sbin /usr /var"
 
@@ -106,15 +134,22 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
 
                 PAGER=${PAGER:=less}
 	     FILEPROG=${FILEPROG:=file}
+           DIALOGPROG=${DIALOGPROG:=dialog}
 
 		DEBUG=${DEBUG:=/dev/null}
 
-        TAB_ENTER_IFS="	
-"
-        ENTER_IFS="
-"
-	STANDARD_IFS=" 	
-"
+         ARCHITECTURE=${ARCHITECTURE:=i386}
+        OPTIMIZATIONS=${OPTIMIZATIONS:=strip}
+
+PROGRESS_SPINNER_CHARS='-\|/'
+
+        WHITESPACE_IFS=$' \t\n'
+         TAB_ENTER_IFS=$'\t\n'
+             ENTER_IFS=$'\n'
+          STANDARD_IFS=$WHITESPACE_IFS
 
 . $SUBROUTINES
 . $LOCAL_CONFIG
+. $COMPILE_CONFIG
+optimize
+[  -r  $GRIMOIRE_LIST  ]  &&  .  $GRIMOIRE_LIST
