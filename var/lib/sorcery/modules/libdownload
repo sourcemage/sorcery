@@ -320,7 +320,7 @@ function expand_mirrors() {
   for URL in $@ ; do 
     my_hostname=$(url_get_hostname ${URL})
     for each in $(grep -l ://$my_hostname/ $MIRRORS/*); do
-      rep=$(grep "://$my_hostname/" $each|awk '{print $NF}'|head -1)
+      rep=$(grep "://$my_hostname/" $each|awk '{print $NF; exit 0; }')
       for tgt in $(awk '{print $NF}' $each); do
          echo ${URL}|sed "s$A${rep}$A${tgt}$A"
       done
