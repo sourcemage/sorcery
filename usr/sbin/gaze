@@ -1070,6 +1070,16 @@ gaze_show_long_description() {
   done
 }
 
+gaze_show_where() {
+	for spell in $@; do
+		SECTION=$(codex_get_spell_section_name  $spell)
+		if [[ $SECTION ]]; then
+			message "$spell -> $SECTION"
+		else
+			message "$spell not found"
+		fi
+	done
+}
 parse()  {
 
   SPELL=$2
@@ -1116,7 +1126,7 @@ parse()  {
        installed)  shift; gaze_show_installed         $@ ;;
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
-           where)  shift; gaze_show_section           $@ ;;
+           where)  shift; gaze_show_where             $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
