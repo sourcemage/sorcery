@@ -47,16 +47,20 @@ function create_account() {
   done
 
 	# check for adding user problems and try to notify user.
-	if  [  $(useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1)  ==  "4"  ]
+	useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1
+	USERADD_RETURN=$(echo $?)
+	debug "libgrimoire.create_account()" "useradd return code was: $USERADD_RETURN"
+	
+	if  [  $USERADD_RETURN  ==  4  ]
 	then 
 		message "${MESAGE_COLOR}The user id $ACCOUNT_UID already exists, so continuing...${DEFAULT_COLOR}"
 		return 0
-	elif  [  $(useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1)  ==  "9"  ]
+	elif  [  $USERADD_RETURN  ==  9  ]
 	then
 		message "${MESAGE_COLOR}The user name $1 already exists, so continuing...${DEFAULT_COLOR}"
 		return 0
 	else
-		debug "libgrimoire.create_account()"  "useradd functions return code was: $(echo $?)"
+		debug "libgrimoire.create_account()"  "useradd fails with strange code : $USERADD_RETURN"
 		message "${MESAGE_COLOR}Something went wrong with adding the user $1 with uid $ACCOUNT_UID"
 		message "and gid $PRIMARY_GNAME so going to stop here...${DEFAULT_COLOR}"
 		return 1
