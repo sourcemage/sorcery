@@ -150,7 +150,8 @@ cross_install_sorcery()
 	
 	mkdir -p ${INSTALL_ROOT}/etc/init.d/runlevels/{%DEV,%1,%2,%3,%4,%5,%S}
 	mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig/network}
-	mkdir -p ${INSTALL_ROOT}/{boot,home,root,dev,lib,bin,sbin,mnt,tmp,proc}
+	mkdir -p ${INSTALL_ROOT}/{boot,home,root,dev,lib,bin,sbin,mnt,proc}
+	mkdir -p -m 1777 ${INSTALL_ROOT}/tmp
 	mkdir -p ${INSTALL_ROOT}/var/state/sorcery
 	mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
 	mkdir -p ${INSTALL_ROOT}/usr/{src,sbin,bin,lib}
@@ -158,15 +159,15 @@ cross_install_sorcery()
         ln -sf ./share/info ${INSTALL_ROOT}/usr/info
 	mkdir -p ${INSTALL_ROOT}/usr/share/man/{man1,man2,man3,man4,man5,man6,man7,man8}
         ln -sf ./share/man ${INSTALL_ROOT}/usr/man
-        mkdir -p ${INSTALL_ROOT}/var/lock
-        mkdir -p ${INSTALL_ROOT}/var/run
+  mkdir -p ${INSTALL_ROOT}/var/lock
+  mkdir -p ${INSTALL_ROOT}/var/run
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/compile/
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/install/
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/md5sum/
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
 	mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/codex/
 	mkdir -p ${INSTALL_ROOT}/var/spool/{mail,sorcery}
-	mkdir -p -m 0666 ${INSTALL_ROOT}/var/tmp
+	mkdir -p -m 1777 ${INSTALL_ROOT}/var/tmp
 	cp -ruv /etc/sorcery/{accounts,config,groups,mirrors,version,cabal,dialogrc,licenses,uid,compile_config,gid,update} ${INSTALL_ROOT}/etc/sorcery
         mkdir -p ${INSTALL_ROOT}/etc/sorcery/local/depends
         cp -f /etc/sorcery/local/depends/README ${INSTALL_ROOT}/etc/sorcery/local/depends
