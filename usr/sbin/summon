@@ -1,0 +1,314 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## summon is a script for downloading spell source files
+##
+##=head1 DESCRIPTION
+##
+## ...
+##
+##=head1 COPYRIGHT
+##
+## Original version Copyright 2001 by Kyle Sallee
+## Some parts copyright 2002 by Anders Bruun Olsen et al
+## Other additions/corrections Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+
+help()	{
+
+  cat  <<  EOF
+
+Summon downloads single or multiple spell source files.
+
+Example:	summon  nano hdparm sudo
+Usage:		summon  [parameters] [spells]
+
+Optional Parameters:
+
+       --from	directory		Specify an alternate for $SOURCE_CACHE
+       --url	URL			Specify an alternate download URL
+       -d | --download			Force download of source, regardless of
+					of whether it exists locally or not.
+       -g | --grimoire <grimoire path>	Searches only the given grimoire when
+					searching for spells to summon.
+       -g | --grimoire <grimoire name>	Searches only the named grimoire when
+					searching for spells to summon.  Looks
+					under the codex root for the grimoire.
+       --queue				Download all spells in the install queue.
+       --all				Download all spells in the grimoire.
+EOF
+
+  exit  1
+
+}
+
+
+process_parameters()  {
+
+if [ ! -n "$1" ]; then
+  help;
+fi
+
+  while  [  -n  "$1"  ];  do
+
+    if  echo  "" $1  |  grep  -q  "^ -";  then
+
+      case  $1  in
+         --from)  SOURCE_CACHE=$2;         shift 2  ;;
+         --help)  help;                    exit  1  ;;
+          --url)  BASE_URL="$2" ;          shift 2  ;;
+  -d|--download)  FORCE_DOWNLOAD=1;        shift 1  ;;
+  -g|--grimoire)  codex_set_grimoires $2;  shift 2  ;;
+        --queue)  QUEUE=1;                 shift 1  ;;
+          --all)  SUMMON_ALL=1;            shift 1  ;;   	
+              *)  help;                                ;;
+      esac
+
+    else  shift
+    fi
+
+  done
+
+}
+
+
+strip_parameters()  {
+
+  while  [  -n  "$1"  ];  do
+
+    if  echo  "" $1  |  grep  -q  "^ -";  then
+
+      case  $1  in
+        --from)  shift 2  ;;
+        --help)  shift 1  ;;
+         --url)  shift 2  ;;
+ -d|--download)  shift 1  ;;
+ -g|--grimoire)  shift 2  ;;
+       --queue)  shift 1  ;;
+         --all)  shift 1  ;;
+             *)  shift 1  ;;
+      esac
+
+    else  echo  $1
+          shift 
+    fi
+
+  done
+
+}
+
+
+summon_locked()  {
+
+  [     -f        $SUMMONING  ]  &&
+  ps        `cat  $SUMMONING`    |
+  grep  -q  "summon"
+  
+  echo "This function is depricated. Please submit a bug report if this is seen:"
+  echo "summon::summon_locked (2002/09/30)"
+  debug "summon" "This function is depricated. Please submit a bug report if this is seen:"
+  debug "summon" "summon::summon_locked (2002/09/30)"
+}
+
+
+run_xdelta()  { (
+  
+  cd  $BUILD_DIRECTORY
+
+  PATCH_DIR=$BUILD_DIRECTORY/$SPELL.patcher
+
+  mk_source_dir  $PATCH_DIR
+  cd             $PATCH_DIR
+
+  NEW_SOURCE="$SOURCE_CACHE/$3"
+
+  COMPRESSOR=$(  file  -b  $2        |
+                 cut   -d  ' '  -f1  |
+                 tr    -d \'         )
+
+  case  $COMPRESSOR  in
+    bzip2)  bzip2  -cd  $2  >  infile  ;;
+     gzip)  gzip   -cd  $2  >  infile  ;;
+  esac
+
+  xdelta  patch  $1  infile outfile  &&
+  rm  -f  $1                         &&
+
+  if    echo  "$3"  |  grep  -q  "\.bz2"
+  then  bzip2  -9  <  outfile  >  $3
+  else  gzip   -9  <  outfile  >  $3
+  fi  &&
+
+  message  "${MESSAGE_COLOR}Patch successful${DEFAULT_COLOR}"  ||
+  message  "${PROBLEM_COLOR}Patch failed${DEFAULT_COLOR}"
+
+  cd  /tmp
+
+  umount  $PATCH_DIR  2>  /dev/null
+  rmdir   $PATCH_DIR  2>  /dev/null
+
+) }
+
+
+patcher()  { (
+
+#  patcher( OLD_SOURCE, NEW_SOURCE, PATCH_FILE, PATCH_URL )
+
+  OLD_SOURCE=$1
+  NEW_SOURCE=$2
+  PATCH_FILE=$3
+   PATCH_URL=$4
+
+  if  !  [  -f  $SOURCE_CACHE/$NEW_SOURCE  ]  &&
+         [  -f  $SOURCE_CACHE/$OLD_SOURCE  ]
+  then
+
+    NO_FUZZ="on"
+    if  [  -f  $SOURCE_CACHE/$PATCH_FILE  ]  ||
+        dl_source            $PATCH_FILE  $PATCH_URL
+    then
+
+      message  "${MESSAGE_COLOR}Patching"    \
+               "${FILE_COLOR}${OLD_SOURCE}"  \
+               "${MESSAGE_COLOR}to"          \
+               "${FILE_COLOR}${NEW_SOURCE}${DEFAULT_COLOR}"
+
+      run_xdelta  $SOURCE_CACHE/$PATCH_FILE  \
+                  $SOURCE_CACHE/$OLD_SOURCE  \
+                  $SOURCE_CACHE/$NEW_SOURCE
+
+    fi
+  fi
+
+) }
+
+
+run_patch()  {
+
+  [     "$PATCH"  ==  "on"          ]  &&
+  [  -x  /usr/bin/xdelta            ]  &&
+  [  -x  $SCRIPT_DIRECTORY/PATCH    ]  &&
+      .  $SCRIPT_DIRECTORY/PATCH
+
+}
+
+
+download() {
+
+  debug "summon" "download - SPELL=$SPELL"
+
+  run_patch
+
+  compgen -v | grep -q "^SOURCE$" && #some spells need nothing
+  echo "$SOURCE" | grep -q '[[:graph:]]' && #just in case a spell has SOURCE=""
+   dl_source  $SOURCE  ${SOURCE_URL[*]}
+
+  i=2
+  ii=SOURCE$i
+  while  compgen -v | grep -q "^${ii}$" ;  do
+    if echo "${!ii}" | grep -q '[[:graph:]]'
+    then #don't attempt do download blanks
+      iii="${ii}_URL[*]"
+ 
+      dl_source  ${!ii}  ${!iii}
+    fi
+   
+    let i++
+    ii=SOURCE$i
+  done
+  
+}
+
+
+summon_grimoire()  {
+
+  for  SPELLNAME  in  `codex_get_all_spells`;  do
+    local  SPELL=$( basename  $SPELLNAME )
+    (  if trylock_resources "summon" "${SPELL}"; then
+         run_details  &&
+         download
+         unlock_resources "summon" "${SPELL}"
+       fi
+    )
+  done
+
+}
+
+
+main()	{
+
+  cd  /tmp
+  process_parameters        $*
+  SPELLS=`strip_parameters  $*`
+
+  if  [  -n  "$SUMMON_ALL"  ];  then
+    summon_grimoire
+  else 
+  
+    if [  -n  "$QUEUE"  ]; then
+      message -n "${MESSAGE_COLOR}Summoning all spells listed in the queue..."
+      message "${DEFAULT_COLOR}"
+      list_install_queue
+    fi
+
+    for  SPELL  in  $SPELLS;  do
+      (
+        if trylock_resources "summon" "${SPELL}"; then
+         run_details  &&
+	 {
+           if download  ; then 
+	     activity_log "summon" "$SPELL"  "$VERSION" "success" 
+	     true
+	   else
+             activity_log "summon" "$SPELL"  "$VERSION" "failure"
+	     false
+	   fi
+	 }
+	 unlock_resources "summon" "$SPELL"
+        fi
+      )
+    done
+  fi
+
+}
+
+
+. /etc/sorcery/config
+if    [  "$UID"  ==  0  ]
+then  renice +10 -p $$  >/dev/null
+      . $SGL_LIBRARY_MODULES/libsorcery
+      main  $*
+else  
+  echo  "Enter the root password, please."  1>&2
+  su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
+fi
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

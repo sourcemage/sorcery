@@ -1,0 +1,52 @@
+#!/bin/bash
+
+SORCERY_VERSION=`gaze installed sorcery`	
+. /etc/sorcery/config
+
+ case $SORCERY_URL in
+   http://codex.sourcemage.org/devel-grimoire) NEW_GRIMOIRE="devel";;
+   http://codex.sourcemage.org/stable-grimoire) NEW_GRIMOIRE="stable";;
+   http://codex.sourcemage.org/test-grimoire) NEW_GRIMOIRE="test";;
+   *) echo "Not using codex.sourcemage. Default to Stable.";
+      NEW_GRIMOIRE="stable";;
+ esac
+
+ echo "Converting from Pre 0.8.x grimoire to new codex format. Please wait."
+
+  if [ ! -d /var/lib/sorcery/codex ]; then
+    echo -e "\t/var/lib/sorcery/codex does not exist! Creating..."
+    mkdir /var/lib/sorcery/codex
+  fi
+
+ echo "Now Adding Grimoire to Codex. Please wait."
+
+  scribe add $NEW_GRIMOIRE
+
+echo "If this was successful, you may now delete /var/lib/sorcery/grimoire."
+echo "If this was not successful, please see http://www.sourcemage.org for help"
+echo "or try running \"scribe add <grimoire>\" again, where <grimoire> is the"
+echo "grimoire branch you wish to use."
+echo
+echo "Thanks!"
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
