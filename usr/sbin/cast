@@ -36,6 +36,7 @@ Optional Parameters:
 
 -q  |  --quiet			Do not be verbose, show less info
 -t  |  --dot                    Display progress as dots, not percent
+-V [on|off]			Override \$VOYEUR setting
 
 -f  |  --fix			Discover and fix broken spells
 -n  |  --nofix			Discover, but do not fix broken spells
@@ -524,10 +525,11 @@ function process_parameters()  {
 
           -q|--quiet)  QUIET="yes"                ;      shift 1  ;;
 	    -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
+	          -V)  export VOYEUR_OVERRIDE="$2";	 shift 2  ;;
               --deps)  export  DEPS_ONLY="$1";           shift 1  ;;
     -r|--reconfigure)  RECONFIGURE="$1";                 shift 1  ;;
-         -R|--recast)  RECAST_DOWN="$1";                 shift 1  ;;
-         -B|--recast)  RECAST_UP="$1";                   shift 1  ;;
+    -R|--recast-down)  RECAST_DOWN="$1";                 shift 1  ;;
+      -B|--recast-up)  RECAST_UP="$1";                   shift 1  ;;
         -c|--compile)  COMPILE="$1";                     shift 1  ;;
        -d|--download)  export  FORCE_DOWNLOAD="$1";      shift 1  ;;
               --from)  export  SOURCE_CACHE=$2;          shift 2  ;;
@@ -597,6 +599,7 @@ function strip_parameters()  {
 
                   --deps)  shift 1  ;;
 	        -d|--dot)  shift 1  ;;
+		      -V)  shift 2  ;;
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
@@ -1078,6 +1081,7 @@ function main()	{
 
 
 . /etc/sorcery/config
+[[ $VOYEUR_OVERRIDE ]] && VOYEUR="$VOYEUR_OVERRIDE"
 export TOP_LEVEL=${TOP_LEVEL:-$SHLVL}
 
 if    [  $#      -eq  0  ];  then  help  |  $PAGER
