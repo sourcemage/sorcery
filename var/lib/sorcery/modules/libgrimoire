@@ -621,17 +621,19 @@ function install_xinetd_confs()  { (
     done
   done
 
-  if  [  -n  "$LIST"  ];  then
-    if  query  "If new services installed, please answer yes to restart xinetd?"  "n"
-    then
-      if  [  -x  /etc/init.d/runlevels/%3/xinetd  ] ; then
-        unset  LD_PRELOAD
-        /sbin/telinit  run  xinetd  restart
-      else
-        message "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}" 
-      fi
+  LD_PRELOAD_OLD="$LD_PRELOAD"
+  unset LD_PRELOAD
+
+  # only restart if xinetd script installed and xinetd is available.
+  if  [   -n  "$LIST"  ]  &&  ps  -C  xinetd  >  /dev/null ;  then
+    if  [  -x  /etc/init.d/runlevels/%3/xinetd  ] ; then
+      /sbin/telinit  run  xinetd  restart
+    else
+      message "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}" 
     fi
   fi
+
+  export LD_PRELOAD="$LD_PRELOAD_OLD"
 
 ) }
 

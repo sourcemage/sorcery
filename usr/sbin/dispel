@@ -65,7 +65,17 @@ pre_remove() {
 post_remove() {
 
   LD_PRELOAD_OLD="$LD_PRELOAD"
-  unset  LD_PRELOAD
+  unset LD_PRELOAD
+
+	if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&  ps  -C  xinetd  >  /dev/null
+	then
+		if  [  -x /etc/init.d/runlevels/%3/xinetd  ] ; then
+			/sbin/telinit  run  xinetd  restart
+		else
+			message  "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}"
+		fi
+  fi
+ 
   export  LD_PRELOAD="$LD_PRELOAD_OLD"
 
   if  [  -x  $SCRIPT_DIRECTORY/POST_REMOVE  ]

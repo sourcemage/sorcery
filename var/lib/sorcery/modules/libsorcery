@@ -1480,7 +1480,11 @@ function archive()  {
 
   debug  "libsorcery" "Running archive() on $SPELL"
 
-  while read LINE ; do md5sum "$LINE"; done < $INST_LOG 2>/dev/null >> $MD5_LOG 
+  while read LINE ; do
+    if  [ !  -p  "$LINE"  ] ; then
+      md5sum "$LINE"
+    fi
+  done < $INST_LOG 2>/dev/null >> $MD5_LOG 
 
   if    [  "$ARCHIVE"  ==  "off"  ]; then
     debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
