@@ -556,13 +556,13 @@ function scribe_do_update() {
   # a sneaky way to let rsyncing work also :-/ (afk 2004/10/31)
 
   #if the grimoire is an archive, untar it
-  if [ -e $grim_base.tar.bz2 ]; then
+  if [ -e $grim_name.tar.bz2 ]; then
     #backup old version until successful untar
-    mv $grim_base temp_$grim_base.old
+    mv $grim_name temp_$grim_name.old
 
     #untar the new grimoire update and remove zip
-    bzcat $1.tar.bz2 | tar -x  1>/dev/null 2>&1 
-    rm $1.tar.bz2
+    bzcat $grim_name.tar.bz2 | tar -x  1>/dev/null 2>&1 
+    rm $grim_name.tar.bz2
   fi
 
   #check for a successful unzip
@@ -572,18 +572,18 @@ function scribe_do_update() {
     chmod +x $grimoire/GRIMOIRE
 
     #and remove backup version
-    if [ -e temp_$1.old ]; then
-      rm -rf temp_$1.old
+    if [ -e temp_$grim_name.old ]; then
+      rm -rf temp_$grim_name.old
     fi
 
     #Confirm Success!
-    message "$grim_base Updated!"
+    message "$grim_name Updated!"
     grimoire_history $grimoire
   else
     #uh oh! bad unzip.
-    message "ERROR: Grimoire tarball for $1 not formated correctly! Reverting."
+    message "ERROR: Grimoire tarball for $grim_name not formated correctly! Reverting."
     #phew! we backed it up. restore backed up version
-    mv -f temp_$grim_base.old $grim_base
+    mv -f temp_$grim_name.old $grim_name
   fi 
 
   #return to directory scribe was run from
@@ -624,7 +624,7 @@ function find_function()  {
       rm|rem|remo|remov|remove) FUNCTION="remove" ;;
                         se|set) FUNCTION="set";;
                    sw|swa|swap) FUNCTION="swap";;
-    u|unloc|unlocal|unlocalize) FUNCTION="unlocalize";;
+   un|unloc|unlocal|unlocalize) FUNCTION="unlocalize";;
     u|up|upd|upda|updat|update) FUNCTION="update" ;;
     *) help    ;;
   esac
