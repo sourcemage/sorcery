@@ -52,6 +52,26 @@ review-queue		Review the install queue for each spell's history
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
 
+
+default add spell_1 spell_2 on/off	If "spell_1" optionally depends
+					on "spell_2" the default answer
+					is on/off.
+
+default add "" spell on/off	If anything optionally depends on "spell" the
+				default answer is on/off.
+
+default add spell "" on/off	If "spell" optionally depends on anything
+				the default answer is on/off.
+
+default add spell PROVIDER on/off	"Spell" is the provder for
+					PROVIDER bydefault, in the
+					case of optional_depends, if
+					on/off is off, none is chosen
+					by default instead.
+
+default remove [spell|""] [spell|PROVIDER|""] Remove entry from defaults
+default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
+
 -v  | --version		Print the sorcery version
 
 EOF
@@ -1569,6 +1589,91 @@ sorcery_unhold_spells () {
 }
 
 
+#---------------------------------------------------------------------
+#-item sorcery_set_default <spells>
+##
+## Used for setting default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_cli_defaults () {
+  local cmd=$1
+  shift
+  case $cmd in
+    add) sorcery_add_defaults "$@" ;;
+    search) sorcery_search_defaults "$@" ;;
+    search) search_default_providers "$@" ;;
+    remove) sorcery_remove_defaults "$@" ;;
+    *) help ;;
+  esac
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_add_default <spells>
+##
+## Used for setting default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_add_defaults () {
+    if [ $# -ne 3 ] ; then
+      message "${PROBLEM_COLOR}Wrong number of arguments.${DEFAULT_COLOR}"
+      help
+    fi
+
+
+    # check for this first as a slight optimization
+    if [[ $3 != on ]] && [[ $3 != off ]] ; then
+      message "${PROBLEM_COLOR}Please choose on or off.${DEFAULT_COLOR}"
+      help
+    fi
+
+    if [[ ! $1 ]] && [[ ! $2 ]] ; then
+      message "${PROBLEM_COLOR}Can't set anything to be the default" \
+              "for everything!${DEFAULT_COLOR}"
+    fi
+
+    if [[ $1 ]] && ! codex_does_spell_exist $1; then
+      #echo "$1 is not a spell" # already printed by codex_does_spell_exist
+      help
+    fi
+
+    if [[ ! $2 ]] || codex_does_spell_exist $2 &>/dev/null; then
+      add_default_depends $DEFAULT_DEPENDS "$@"
+    elif codex_does_service_exist $2 ; then
+      add_default_provider $DEFAULT_PROVIDERS "$@"
+    else
+      message "${SPELL_COLOR}$2${PROBLEM_COLOR} is not a valid choice." \
+              "Please choose a spell, provider, or \"\".${DEFAULT_COLOR}"
+      help
+    fi || echo "Unknown error occured, contact the sorcery team"
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_search_default <spells>
+##
+## Used for searching default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_search_defaults () {
+  # it wont hurt to look in both
+  search_default_depends $DEFAULT_DEPENDS "$@"
+  search_default_provider $DEFAULT_PROVIDERS "$@"
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_remove_default <spells>
+##
+## Used for removing default_depends/providers
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_remove_defaults () {
+  remove_default_depends $DEFAULT_DEPENDS "$@"
+  remove_default_provider $DEFAULT_PROVIDERS "$@"
+}
+
 main() {
 
   rm  -f  $UPDATE_SCRIPT
@@ -1585,6 +1690,7 @@ main() {
            -r|rebuild)  rebuild                                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
+              default*) shift; sorcery_cli_defaults "$@"        ;;
 
 
             -h|--help)  help                                    ;;
@@ -1603,7 +1709,7 @@ if  [  "$UID"  ==  0  ];  then
   SORCERY_VERSION=`cat /etc/sorcery/version`
   SORCERY_DIR=`codex_find_spell_by_name  sorcery-$SORCERY_BRANCH`
   #SORCERY_DETAILS="$SORCERY_DIR/DETAILS"
-  main  $*
+  main  "$@"
 else
   if [[ $1 == -h ]] || [[ $1 == --help ]]; then 
     help

@@ -1203,14 +1203,39 @@ function invoke_build_dir() {
 ## that match that category.  For example,
 ## C<find_providers email-client> returns evolution,althea,mutt,etc.
 ##
+## This will list spells exactly once, exiled spells are not listed.
+## This also takes into account grimoire ordering. A spell must provide
+## the category in the first grimoire the spell is seen in (because that
+## is the only one that will be cast) otherwise it is not listed.
+##
+## Note to self: move to libcodex
+##
 #---------------------------------------------------------------------
 function find_providers()  {
-  feature="$1"
+  local feature="$1"
+  local provider GRIMOIRE spell_path
+  local providers=$(
+    for GRIMOIRE in $(codex_get_all_grimoires);  do
+      gawk '/^'"$feature"'[[:blank:]]/ { print $2 }' \
+        "$GRIMOIRE/$PROVIDE_INDEX_FILE"
+    done | get_basenames|sort|uniq)
 
-  (for  GRIMOIRE  in  $(codex_get_all_grimoires);  do
-        gawk '/^'"$feature"'[[:blank:]]/ { print $2 }' \
-                "$GRIMOIRE/$PROVIDE_INDEX_FILE"
-  done) | get_basenames
+  # filter out providers we dont want, so far this is:
+  # a) do not provide something in the first grimoire they are found in
+  # b) are exiled.
+  # ex: foo provides FOOBAR in the "stable" grimoire but not the "test"
+  # grimoire and test is searched before stable in this case cast will
+  # use the spell from test which does NOT provide FOOBAR, therefore
+  # we should not list foo as a provider of FOOBAR
+  for provider in $providers; do
+    if ! spell_exiled $provider; then
+      spell_path=$(codex_find_spell_by_name $provider)
+      GRIMOIRE=$(dirname $( dirname $spell_path))
+      # ensure the first place we look for the spell is a provider
+      grep -q "^$feature $spell_path$" $GRIMOIRE/$PROVIDE_INDEX_FILE &&
+        echo $provider
+    fi
+  done
 
 }
 
