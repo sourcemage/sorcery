@@ -60,9 +60,9 @@ compile		spell		View a compile log.
 sources		spell		List the source files for a spell.
 history		spell		Show history for a spell.
 
-sum		[spell]		Prints checksums.
+sum			[spell]		Prints checksums.
 md5sum		[spell]		Prints md5sums.
-export				Make snapshot of box's configuration.
+export					Make snapshot of box's configuration.
 import		snapshot	Restore snapshot.
 
 section		[section]	List grimoire sections.
@@ -97,7 +97,7 @@ spider   <item> [<item> ...]	Validates urls for one or more items.  Items
 \$SPELL_SCRIPT	spell	will print the spell script for that spell.
 EOF
 }
-
+#' Just ignore this... it's so my poor syntax hilighting works.'
 
 export_snapshot()  {
 
@@ -783,12 +783,12 @@ show_history()  {
 #---------------------------------------------------------------------
 gaze_show_section()  {
 
-  local  SECTION_NAMES=$@
+  local SECTION_NAME
 
-  if  [  -n  "$SECTION_NAMES"  ]; then
+  if  [  $# -gt 0  ]; then
 
     (
-      for  SECTION_NAME  in  $SECTION_NAMES;  do
+      for  SECTION_NAME  in  $@;  do
 
         local SECTION=`codex_find_section_by_name  $SECTION_NAME`  &&
         codex_get_spell_names $SECTION 
@@ -1070,18 +1070,16 @@ gaze_show_long_description() {
   done
 }
 
-gaze_show_section() {
-  for spell in $@; do
-        SECTION=$(codex_get_spell_section_name  $spell)
-        if [[ $SECTION ]]; then
-                message "$spell -> $SECTION"
-        else
-                message "$spell not found"
-        fi
-  done
+gaze_show_where() {
+	for spell in $@; do
+		SECTION=$(codex_get_spell_section_name  $spell)
+		if [[ $SECTION ]]; then
+			message "$spell -> $SECTION"
+		else
+			message "$spell not found"
+		fi
+	done
 }
-
-
 parse()  {
 
   SPELL=$2
@@ -1128,7 +1126,7 @@ parse()  {
        installed)  shift; gaze_show_installed         $@ ;;
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
-           where)  shift; gaze_show_section           $@ ;;
+           where)  shift; gaze_show_where             $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
