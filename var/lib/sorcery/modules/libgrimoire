@@ -1,35 +1,30 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 LIBGRIMOIRE
+## @Libgrimoire
 ##
-##=head1 SYNOPSIS
+## @Synopsis Set of functions containing the spell writing API.
 ##
-## Set of functions containing the spell writing API.
-##
-##=head1 DESCRIPTION
 ##
 ## These functions can be used in the PRE_BUILD, BUILD, POST_BUILD
 ## and POST_INSTALL sections of spells.
 ##
-##=head1 COPYRIGHT
-##
+## @Copyright
 ## Original version Copyright 2001 by Kyle Sallee
 ## Additions/Corrections Copyright 2002 by the Source Mage Team
 ##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-##=item create_account <system account>
+## @param system account
 ##
 ## Creates account (if account has been defined).
-## Returns 0 if success (or account already exists).
-## Returns 1 if failed (or account has not been defined).
+## @return 0 if success (or account already exists).
+## @return 1 if failed (or account has not been defined).
 ##
 #---------------------------------------------------------------------
-create_account() {
+function create_account() {
   if ! exists_account "$1" ; then
    debug "libgrimoire" "create_account() - $1 not defined!"
     return 1
@@ -55,12 +50,13 @@ create_account() {
 }
 
 #---------------------------------------------------------------------
-##=item get_group_name <gid>
+## @param gid
 ##
+## @Stdout group name
 ## returns that name assigned to a group id.
 ##
 #---------------------------------------------------------------------
-get_group_name() {
+function get_group_name() {
 
   if  grep  -q  ":$1:"  $GROUP_LIST;  then
     grep ":$1:" $GROUP_LIST | cut -d : -f1
@@ -69,13 +65,14 @@ get_group_name() {
 }
 
 #---------------------------------------------------------------------
-##item get_gids_for_account <system account>
+## @param system account
 ##
+## @Stdout group ids
 ## Return list of group id's assigned to account name.
 ## All except primary
 ##
 #---------------------------------------------------------------------
-get_gids_for_account() {
+function get_gids_for_account() {
 
   if  grep  -q  "^$1:"  $ACCOUNT_LIST;  then
     ENTRY=`grep "^1:" $ACCOUNT_LIST`
@@ -91,12 +88,12 @@ get_gids_for_account() {
 
 
 #---------------------------------------------------------------------
-##=item exists_account <system account>
-##
-## returns 0 if exists, 1 if not.
+## @param system account
+## @return 0 if exists
+## @return 1 if not
 ##
 #---------------------------------------------------------------------
-exists_account() {
+function exists_account() {
 
   grep  -q  "^$1:"  $ACCOUNT_LIST
 
@@ -104,12 +101,12 @@ exists_account() {
 
 
 #---------------------------------------------------------------------
-##=item get_uid_for_account <named system account>
-##
+## @param named system account
+## @Stdout UID
 ## Outputs the UID for the named system account
 ##
 #---------------------------------------------------------------------
-get_uid_for_account()  {
+function get_uid_for_account()  {
 
   if  grep  -q  "$1:"  $ACCOUNT_LIST;  then
     grep "^$1:" $ACCOUNT_LIST | cut -d : -f2
@@ -118,12 +115,13 @@ get_uid_for_account()  {
 }
 
 #---------------------------------------------------------------------
-##=item get_primary_gid_for_account <named system account>
+## @param named system account
+## @Stdout GID
 ##
 ## Outputs the GID for the named system account
 ##
 #---------------------------------------------------------------------
-get_primary_gid_for_account()  {
+function get_primary_gid_for_account()  {
 
   if  grep  -q  "$1:"  $ACCOUNT_LIST;  then
     grep "^$1:" $ACCOUNT_LIST | cut -d : -f3
@@ -133,13 +131,14 @@ get_primary_gid_for_account()  {
 
 
 #---------------------------------------------------------------------
-#=item guess_compressor <filename> -> echo <compressor>
+## @param filename
+#  @Stdout compressor
 ##
 ## Guesses what program was used to compress a file
 ## Return value is always success due to `file' workings
 ##
 #---------------------------------------------------------------------
-guess_compressor()  {
+function guess_compressor()  {
   # NOTE: if the file doesn't exist, `file' still completes successfully
   #       the COMPRESSOR value in this case will be "can't"
 
@@ -152,13 +151,16 @@ guess_compressor()  {
 
 
 #---------------------------------------------------------------------
-#=item uncompress <filename> <compressor> <md5> -> echo uncompressed
+## @param filename 
+## @param compressor 
+## @param md5 
+## @Stdout uncompressed
 ##
 ## Just uncompresses the file, but does not expand it. i.e. bunzip
 ## it, but don't untar it. It dumps the expanded file to stderr.
 ##
 #---------------------------------------------------------------------
-uncompress() {
+function uncompress() {
   debug "libgrimoire" "uncompress - $*"
   set +x #This is here so Duff's super debugging info doesn't screw the next step up
 
@@ -192,7 +194,8 @@ uncompress() {
 
 
 #---------------------------------------------------------------------
-##=item unpack <file to unpack> <md5sum>
+## @param file to unpack 
+## @param md5sum
 ##
 ## Given a file, unpack runs the decompression program for that file,
 ## as well as untar'ing the file if appropriate and if the MD5
@@ -200,7 +203,7 @@ uncompress() {
 ## Note: zip is a special cast because it doesn't work with streams.
 ##
 #---------------------------------------------------------------------
-unpack() {
+function unpack() {
 
   message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"
   message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
@@ -277,14 +280,14 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
 
 
 #---------------------------------------------------------------------
-#=item md5_file_check <md5>
+## @param md5
 ##
 ## Checks that the stdin matches the argument.
 ## Note that DEBUG output may dissapear if it's /dev/stderr due to
 ## uncompress' 2>/dev/null.
 ##
 #---------------------------------------------------------------------
-md5_tar_check()  {
+function md5_tar_check()  {
 
   local md5
 
@@ -315,7 +318,6 @@ md5_tar_check()  {
 
 
 #---------------------------------------------------------------------
-##=item prepare_install
 ##
 ## Prepares to install the spell.  Writes the boost lock file.  If the
 ## spell is installed already, the libraries are saved with
@@ -323,7 +325,7 @@ md5_tar_check()  {
 ## the BUILD sript of a spell.
 ##
 #---------------------------------------------------------------------
-prepare_install() {
+function prepare_install() {
 
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
@@ -354,11 +356,11 @@ prepare_install() {
 
 
 #---------------------------------------------------------------------
-##=item mk_source_dir <directory name> [<size>]
-##
+## @param directory name 
+## @param [size]
 ## Creates a tmpfs filesystem.  By default, the size is 1GB.
 ## The caller may optionally supply a size argument.
-##
+## <pre>
 ## Example1:  Create a 2GB mount at $SOURCE_DIRECTORY
 ##
 ##    mk_source_dir  $SOURCE_DIRECTORY  2g
@@ -366,9 +368,9 @@ prepare_install() {
 ## Example2:  Create a mount at /tmp/newdir, defaults to 1GB size
 ##
 ##    mk_source_dir  /tmp/newdir
-##
+## </pre>
 #---------------------------------------------------------------------
-mk_source_dir() {
+function mk_source_dir() {
 
   debug  "libgrimoire" "Running mk_source_dir() on $SOURCE_DIRECTORY"
 
@@ -391,13 +393,13 @@ mk_source_dir() {
 
 
 #---------------------------------------------------------------------
-##=item rm_source_dir [<directory to remove>]
-##
-## Removes the given directory or $SOURCE_DIRECTORY if no argument is
+## @param  [directory to remove]
+## @Globals SOURCE_DIRECTORY
+## Removes the given directory or SOURCE_DIRECTORY if no argument is
 ## given.
 ##
 #---------------------------------------------------------------------
-rm_source_dir() {
+function rm_source_dir() {
 
   DEAD_DIR=$1
   DEAD_DIR=${DEAD_DIR:-$SOURCE_DIRECTORY}
@@ -429,13 +431,12 @@ rm_source_dir() {
 
 
 #---------------------------------------------------------------------
-##=item default_pre_build
 ##
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-default_pre_build() {
+function default_pre_build() {
 
   debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -445,13 +446,12 @@ default_pre_build() {
 
 
 #---------------------------------------------------------------------
-##=item make
 ##
 ## Override calls to the make program. Used to add custom arguments and
 ## handle failures when using multiple jobs.
 ##
 #---------------------------------------------------------------------
-make() {
+function make() {
 
   local JOBS=""
 
@@ -485,10 +485,10 @@ make() {
 
 
 #---------------------------------------------------------------------
-##=item default_build
 ##
 ## Used if no BUILD script is found for a spell
 ## Default build is:
+## <pre>
 ##  ./configure  --build=$BUILD        \
 ##               --prefix=/usr         \
 ##               --sysconfdir=/etc     \
@@ -497,9 +497,10 @@ make() {
 ##  make                               &&
 ##  prepare_install                    &&
 ##  make    install
+## </pre>
 ##
 #---------------------------------------------------------------------
-default_build() {
+function default_build() {
 
 (
 #If these switches are used, they stop distcc and ccache from working
@@ -520,13 +521,12 @@ default_build() {
 
 
 #---------------------------------------------------------------------
-##=item gather_docs
 ##
 ## Gathers all documentation files from source archive and installs
 ## them as part of the spell
 ##
 #---------------------------------------------------------------------
-gather_docs()  {
+function gather_docs()  {
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
@@ -549,12 +549,11 @@ gather_docs()  {
 
 
 #---------------------------------------------------------------------
-##=item install_pam_confs
 ##
 ## Copies pam configuration files to /etc/pam.d/
 ##
 #---------------------------------------------------------------------
-install_pam_confs()  {
+function install_pam_confs()  {
 
   debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
 
@@ -575,12 +574,11 @@ install_pam_confs()  {
 
 
 #---------------------------------------------------------------------
-##=item install_xinetd_confs
 ##
 ## Copies xinetd configuration files to /etc/xinetd.d/
 ##
 #---------------------------------------------------------------------
-install_xinetd_confs()  { (
+function install_xinetd_confs()  { (
 
   debug  "libgrimoire" "Running install_xinetd_confs() on $SPELL"
 
@@ -606,13 +604,12 @@ install_xinetd_confs()  { (
 ) }
 
 #---------------------------------------------------------------------
-##=item install_initd_confs
 ##
 ## Installs init scripts in /etc/init.d, and creates links in
 ## /etc/rc*.d
 ##
 #---------------------------------------------------------------------
-install_initd_confs()  { (
+function install_initd_confs()  { (
 
   debug  "libgrimoire" "Running install_initd_confs() on $SPELL"
 
@@ -630,12 +627,12 @@ install_initd_confs()  { (
 
 
 #---------------------------------------------------------------------
-##=item install_services
 ##
 ## Appends the spell's services file to /etc/services
+## @Globals SCRIPT_DIRECTORY
 ##
 #---------------------------------------------------------------------
-install_services()  { (
+function install_services()  { (
 
   debug  "libgrimoire" "Running install_services() on $SPELL"
 
@@ -654,13 +651,12 @@ install_services()  { (
 
 
 #---------------------------------------------------------------------
-##=item default_post_build
 ##
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-default_post_build() {
+function default_post_build() {
 
   install_pam_confs
   install_services
@@ -682,12 +678,11 @@ default_post_build() {
 
 
 #---------------------------------------------------------------------
-##=item installed_version
-##
+## @param spell
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
-installed_version()  {
+function installed_version()  {
 
   local spell="$1"
 
@@ -697,12 +692,12 @@ installed_version()  {
 
 
 #---------------------------------------------------------------------
-##=item conflicts <spell>
+## @param spell
 ##
 ## returns the given spellname if it is installed
 ##
 #---------------------------------------------------------------------
-conflicts() {
+function conflicts() {
 
   debug  "libgrimoire" "Running conflicts() on $1"
 
@@ -716,19 +711,18 @@ conflicts() {
 
 
 #---------------------------------------------------------------------
-##=item exists
-##
+## @Stdin list of files
+## @Stdout list of files
 ## Reads a list of files from standard in, and returns a list of the
 ## files that exist.
 ##
 #---------------------------------------------------------------------
-exists()  {
+function exists()  {
   while  read  ITEM;  do  [  -e  "$ITEM"  ]  &&  echo  $ITEM;  done;
 }
 
 
 #---------------------------------------------------------------------
-##=item track_manual
 ##
 ## Given a list of files it will notify installwatch of them.
 ## Usfull for spells whos components are not dynamicly linked
@@ -755,8 +749,7 @@ function track_manual()  {
 
 
 #---------------------------------------------------------------------
-##=item warn_rejected
-##
+## @Stdout Warning messages.
 ## Provides a neatly formatted rejection dialog for the
 ## various rejected spells that might require user warnings.
 ## See ask_continue_with_rejected for second part of this function.
@@ -802,8 +795,8 @@ EOT
 
 
 #---------------------------------------------------------------------
-##=item ask_continue_with_rejected
-##
+## @Stdout Question
+## @Stdin  Answer ;-)
 ## Part two of the warn_rejected funtion, ask if user wants to continue
 ## anyway. (defaults to NO), unless running in UNATTEND_SAFE mode.
 ##
@@ -855,9 +848,7 @@ EOT
 }
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
+## @License
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
