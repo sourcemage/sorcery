@@ -85,6 +85,13 @@ function run_prepare()
   message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
            "${CHECK_COLOR}preparing environment...${DEFAULT_COLOR}"
 
+  # these are here so you can source section/grimoire level scripts in
+  # PREPARE, which by definition runs before the spell is loaded
+  # and they are defined as usual (see bug 8329)
+  local SPELL_DIRECTORY=$SCRIPT_DIRECTORY
+  local SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
+  local GRIMOIRE=${SECTION_DIRECTORY%/*}
+
   local PROTECT_SORCERY=yes
   if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
     # we need &&'s to preserve the proper return code (persistant_save
