@@ -456,7 +456,7 @@ function cleanse_fix()
   # but no more then necessary
   cleanse_fix_init_ldd_check $(make -f $MAKEFILE all)
 
-  local HOPELESS
+  local PASSED FIXED HOPELESS
 
   if [ $FIX == quick ] ; then
     for SPELL in $SPELLS ; do
@@ -464,15 +464,28 @@ function cleanse_fix()
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
                  "is broken${DEFAULT_COLOR} and not being fixed\n"
         HOPELESS="${HOPELESS}${SPELL}"$'\n'
+      else
+        PASSED="${PASSED}${SPELL}"$'\n'
       fi
     done
   else
     cleanse_fix_depends all
   fi
 
+  if [[ $PASSED ]] ; then
+    message "${MESSAGE_COLOR}The following spells passed the check:${SPELL_COLOR}"
+    echo "$PASSED"|sort|uniq|column
+    message "${DEFAULT_COLOR}"
+  fi
+  if [[ $FIXED ]] ; then
+    message "${MESSAGE_COLOR}The following spells were broken and fixed:${DISPEL_COLOR}"
+    echo "$FIXED"|sort|uniq|column
+    message "${DEFAULT_COLOR}"
+  fi
   if [[ $HOPELESS ]] ; then
-    message "${PROBLEM_COLOR}The following spells are broken:${DEFAULT_COLOR}"
-    echo "$HOPELESS"|sort|uniq
+    message "${MESSAGE_COLOR}The following spells were and are broken:${PROBLEM_COLOR}"
+    echo "$HOPELESS"|sort|uniq|column
+    message "${DEFAULT_COLOR}"
     return 1
   fi
   return 0
@@ -485,7 +498,9 @@ function cleanse_fix_depends() {
   #for each spell
   for SPELL in ${FIX_ORDER}; do
     # check it
-    if ! cleanse_fix_run_checks $SPELL ; then
+    if cleanse_fix_run_checks $SPELL ; then
+      PASSED="${PASSED}${SPELL}"$'\n'
+    else
       if [ $FIX == fix ] ; then
         # if its broken try to fix it
           cleanse_fix_spell $SPELL
@@ -513,6 +528,7 @@ function cleanse_fix_spell() {
   local SPELL=$1
   cast -c $SPELL                && 
   cleanse_fix_run_checks $SPELL &&
+  FIXED="${FIXED}${SPELL}"$'\n' &&
   return 0
   
   # if we get here the spell is deemed hopeless
