@@ -1,46 +1,175 @@
+#!/bin/sh
 
+# Author : Benoit PAPILLAULT <benoit.papillault@free.fr>
+# Creation : 29/10/2003
+
+# This source code is based on the fact that mkdir will create a
+# directory atomically. If two processes try to create a dir, one and only one
+# will succeed immediately
+
+# when interrupting the current process, we need to unlock all current
+# locks. Therefor, we need a list of locks for the current
+# process. And we need to update this list at the same time we got the
+# lock.
+
+# liblock is used to lock and unlock resources. It should be deadlock 
+# free, and clean up locks after processes that had locks die without
+# unlocking the files. It uses the directory $LOCK_DIR defined in
+# /etc/sorcery/config
+
+# global options that can be changed to suit your needs.
+
+[ -z "$LOCK_DIR"  ] && LOCK_DIR=/tmp/lockdir
+[ -z "$MAX_SLEEP" ] && MAX_SLEEP=2
 
 #---------------------------------------------------------------------
-##	liblock is used to lock and unlock resources. It should be deadlock 
-##	free, and clean up locks after processes that had locks die without
-##	unlocking the files. It uses the directory /tmp/liblock-$UID.
+## lock_resources
+## @param Type of resource
+## @param Name of resource
+## 
+## Type of resource | Name of resource | Usage
+##     cast         | spell name       | when casting a spell
+##     file         | file name        | to lock a file
+##     summon       | spell name       | when downloading a spell
+##     network      | network          | ?
+##     castSOLO     | cast             | ?
+##     libgrimoire  | install          | ?
 ##
-##	@Globals LOCK_DIR LOCK_TRANSACTIONS MAX_SLEEP
-#---------------------------------------------------------------------
-[ -d $LOCK_DIR ] || mkdir $LOCK_DIR
-
-#---------------------------------------------------------------------
-##	@param Directory which contains the lock stuff
-##	@param (optional) Type of resource (optional)
-##	@param (optional) Name of locked resource
-##	@param (optional) Pid of lock owner
-##
-## Lists all lockfiles for the specified info
-##
+## this function locks the specified resource. this is a blocking
+## function that can take an indeterminate period of time to acquire
+## the lock. If no other processes have locked the resource, this
+## function will return immediately
 #---------------------------------------------------------------------
 
-function locked_resources()
-{ #1=dir, 2=type, 3=name, 4=pid
-	local t="${2//\//^}" n=${3//\//^} p=${4//\//^}
-	local i
-	t=${t:-*}; n=${n:-*}; p=${p:-*}
-	
-	local A=$( echo $1/$t.$n.$p.lock )
-	
-	#These next lines are because if there is no file to match the
-	# glob, bash will treat the string literaly.
-	# So we get to look at the first element and see if it actualy 
-	# is a file.
-	for i in $A ; do
-		[ -e $i ] || return 1
-		break
-	done
-	[[ $A ]] || return 1
-	
-	echo "${A}"
+lock_resources()
+{
+    if [ $# -ne 2 ]; then
+        echo "usage: lock_resources type_of_resource name_of_resource"
+        exit -1
+    fi
 
+    while ! trylock_resources "$@";
+    do
+      local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
+#      echo "process $$ is sleeping ${SLEEP} seconds"
+      sleep "${SLEEP}"
+    done
 }
 
+#---------------------------------------------------------------------
+## trylock_resources
+## @param Type of resource
+## @param Name of resource
+##
+## this function tries to lock the specified resource. On success, it 
+## immediately returns 0 (true). On failure (the lock cannot be
+## acquired), it returns 1 (false).
+#---------------------------------------------------------------------
+
+trylock_resources()
+{
+    if [ $# -ne 2 ]; then
+        echo "usage: trylock_resources type_of_resource name_of_resource"
+        exit -1
+    fi
+        
+    local lockfile="$1.$2"
+# we replace / by ^
+    lockfile="${LOCK_DIR}/${lockfile//\//^}"
+
+#    echo "lockfile=${lockfile}"
+
+    mkdir -p "${LOCK_DIR}"
+
+    if ! mkdir "${lockfile}" 2>/dev/null; then
+# we try to remove stale locks here and try again
+        global_clean_resources
+        if ! mkdir "${lockfile}" 2>/dev/null; then
+            return 1
+        fi
+    fi
+    ln -sf /proc/$$ "${lockfile}/$$"
+    return 0
+}
+
+#---------------------------------------------------------------------
+## unlock_resources
+## @param Type of resource
+## @param Name of resource
+##
+## this function unlocks the specified resource and returns immediately
+## if the specified resource is :
+##  - unlocked : nothing is done
+##  - locked by this process : it's unlocked 
+##  - locked by another process : it's kept locked.
+## In all cases and for compatibility reasons with the old liblock, we
+## return true
+#---------------------------------------------------------------------
+
+unlock_resources()
+{
+    if [ $# -ne 2 ]; then
+        echo "usage: unlock_resources type_of_resource name_of_resource"
+        exit -1
+    fi
+
+    local lockfile="$1.$2"
+    lockfile="${LOCK_DIR}/${lockfile//\//^}"
+
+    rm "${lockfile}/$$" &&
+    rmdir "${lockfile}"
+
+    return 0
+}
+
+#---------------------------------------------------------------------
+## clean_resources
+##
+## this function removes all locks acquired by the current process.
+## you can call this function at the end of your script to check for
+## missing call to unlock_resources
+#---------------------------------------------------------------------
+
+clean_resources()
+{
+# we remove locks owned by this process. there is no guarantee since
+# locks that have been acquired, but where no pidfile have been
+# created will not be released.
+
+  if [ -d "${LOCK_DIR}" ]; then
+    find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 -name $$ | \
+    while read file; do
+      echo "removing forgotten lock ${file}"
+      rm -f "${file}" &&
+      rmdir `dirname "${file}"`
+    done
+  fi
+}
+
+#---------------------------------------------------------------------
+## global_clean_resources
+##
+## this function is used internaly to remove all stale locks.
+#---------------------------------------------------------------------
+
+global_clean_resources()
+{
+  if [ -d "${LOCK_DIR}" ]; then
+# we remove old locks (>1 minute) that are not owned by any process.
+    find "${LOCK_DIR}" -maxdepth 1 -mindepth 1 -mmin +1 -empty -exec rmdir {} \;
+
+# we remove locks that are owned by dead processes
+    find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 | \
+    while read file; do
+# check if the process still exist (we use procfs mounted on /proc)
+      if [ ! -d "${file}" ]; then
+          echo "removing stale lock ${file}"
+          rm -f "${file}" &&
+          rmdir `dirname "${file}"`
+      fi
+    done
+  fi
+}
 
 #---------------------------------------------------------------------
 ##	@param Name of file to lock
@@ -85,120 +214,6 @@ function unlock_file()
 	)
 }
 
-
-#---------------------------------------------------------------------
-##	@param Type of resource, file, castSOLO, ...
-##	@param Name of resource, /var/state/sorcery/packages, cast
-##	@param <type> <name> ... (optional)
-##
-## The generalized locking mechanism. Every resource to be locked
-## is accompanied by a type. Currently used types are "lockfunction"
-## and "file".
-## This is the function that makes use of lockexec to make the 
-## resource tracking safe in a multiprocess environment.
-## @Blocking
-##
-#---------------------------------------------------------------------
-function lock_resources()
-{
-	debug "liblock" "$FUNCNAME - $*"
-	local lockfile good_locks
-	local i ALL_LOCKED="no"
-	local rType="${1//\//^}"
-	local rName="${2//\//^}"
-	local wait;
-
-	while [[ $ALL_LOCKED == no ]] ; do
-		lock_clean_locklist
-		ALL_LOCKED="yes"
-		for (( i=0; i<$#; i+=2 )) ; do
-			lockfile="$LOCK_DIR/$rType.$rName.$$.lock"
-			touch $lockfile
-			A=$(locked_resources $LOCK_DIR $rType $rName )
-			B=${A// /}
-			if [ $(( ${#A}-${#B}+1 )) -gt 1 ] ; then
-				ALL_LOCKED="no"
-				rm "$lockfile" "${good_locks[@]}" 2>/dev/null
-				ls $LOCK_DIR/$rType.$rName.*.lock | 
-					awk -F. '{gsub("\\^", "/"); printf("Trying to lock %s(%s), but PID %s has it.\n", $1, $2, $3);}'
-				wait=$(( RANDOM % MAX_SLEEP ))
-				echo -ne "\tTrying again in $wait second"
-				[[ $wait -eq 1 ]] && echo "." || echo "s."
-				good_locks=()
-				sleep $wait
-				break
-			fi
-			good_locks=("${good_locks[@]}" "$lock_file")
-		done
-	done
-}
-
-
-#---------------------------------------------------------------------
-##	@param Type of resource
-##	@param Name of resource
-##	@param <type> <name> ... (optional)
-##
-## Unlocks exclusive access to the resource so other processes can
-## use it.
-##
-#---------------------------------------------------------------------
-function unlock_resources()
-{
-	debug "liblock" "$FUNCNAME - $*"
-	local rType="${1//\//^}"
-	local rName="${2//\//^}"
-
-	while [ $# -gt 1 ] ; do
-		rm "$LOCK_DIR/$rType.$rName.$$.lock" 2>/dev/null || debug "liblock" "unlock_resources - $* wasn't locked!"
-		shift 2
-	done
-}
-
-
-#---------------------------------------------------------------------
-##	@param Type of resource locked
-##	@param Name of resource
-##
-## Prints the PID of the process owning a lock on the file
-## Returns 0 if a lock exists
-## Returns 1 if the file is not locked
-## Note this is slower that lock_owned_by, but obtains a lock and
-## cleans losck list
-##
-#---------------------------------------------------------------------
-function is_locked()
-{ # $1=type $2=name 
-	debug "liblock" "$FUNCNAME - $*"
-	
-#	lock_clean_locklist
-	
-	local A=$( locked_resources $LOCK_DIR $1 $2 )
-	[[ ${A[@]} ]] || return 1
-	return 0	
-	
-}
-
-
-#---------------------------------------------------------------------
-##	@param Type of resource
-##	@param Name of resource
-##
-## Prints the PID of the process owning a lock on the file
-## Returns 0 if a lock exists
-## Returns 1 if the file is not locked
-## Note: This function does not obtain a lock on the lock list. It
-## only reads and it checks that each line conforms to the format.
-##
-#---------------------------------------------------------------------
-function lock_owned_by()
-{
-	debug "liblock" "$FUNCNAME - $*"
-	dir_list $LOCK_FILE "${1//\//^}.${2//\//^}.\*.lock" | \
-		sed -n 's/[^.]*\.[^.]*\.\([^.]*\)\.lock/\1/p'
-}
-
-
 #---------------------------------------------------------------------
 ##	@param File to start transaction on
 ##	@param <file> ... (optional)
@@ -211,9 +226,11 @@ function lock_owned_by()
 ## If not all can be locked, they will be unlocked, and another try 
 ## will be made.
 ##
-##	@return The name of a temporary file that should be written to instead of the real file.
+##	@return The name of a temporary file that should be written to
+## instead of the real file.
 ##
 #---------------------------------------------------------------------
+
 function lock_start_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
@@ -340,85 +357,4 @@ UNSYNCHRONIZE='
   debug "liblock" "+++ in unsynch code"
   unlock_resources "lockfunction" "${FUNCNAME}/${__llSYNCH_LINE}"
   unset __llSYNCH_LINE'
-  
-  
-######################################################################
-##
-## LOCK STUFF _PRIVATE_!
-##
-######################################################################
-#---------------------------------------------------------------------
-##	@Private Don't call
-##
-## Removes locks owned by PIDs that don't exist anymore.
-##
-#---------------------------------------------------------------------
-function lock_clean_locklist()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
-{
-  debug "liblock" "lock_clean_locklist() - Cleaning lock list" 
-	
-  local locklist_clean=$LOCK_DIR/locklist.clean
-  local locklist=$LOCK_DIR/locklist
-  
-  # If this file doesn't exist, then the locklist will never be cleaned 
-  # automatiacly of dead locks
-  [ -e $LOCK_TRANSACTIONS ] || touch $LOCK_TRANSACTIONS
-  [ -e $locklist_clean ] || touch $locklist_clean
-  
-  #Obtain a lock, do this manualy as we don't want an infinite loop 
-  # by using lock_file ;)
-  while  touch $LOCK_TRANSACTIONS.$$.lock
-    A=$( locked_resources $LOCK_DIR liblock locklist )
-    B=${A// /}
-    [ $(( ${#A}-${#B}+1 )) -gt 1 ]
-  do
-    for i in $A ; do
-		B=${i%.lock}
-		B=${B##*.}
-		if ! [ -d /proc/$i ] ; then
-			debug "liblock" "$FUNCNAME - cleaning out $i"
-			rm $i 2>/dev/null
-		fi			
-	done
-    rm $LOCK_TRANSACTIONS.$$.lock
-	
-    sleep $(( RANDOM % MAX_SLEEP ))
-  done
-  #We now have a lock on the locklist
-  # We can now mess with it without fear of other cleaners coming around.
-  
-  #Clean the lock list only if necessary (clean every minute)
-
-  filen=`basename $locklist_clean`
-  if [[ `find "$LOCK_DIR" -name "$filen" -maxdepth 1 -mindepth 1 -mmin +1` ]] ; then
-  
-    echo "" > ${LOCK_TRANSACTIONS}.1
-
-    for i in `cat $LOCK_TRANSACTIONS` ; do
-      debug "liblock" "aftualy looking at locks to clean" 
-      if ! [[ $i ]] ; then continue; fi
-      PID=`echo $i | cut -d : -f 3`
-
-      if [ -d $( echo /proc/$PID) ] ; then
-        echo "$i" >> ${LOCK_TRANSACTIONS}.1
-      else
-        debug "liblock" "lock_clean_locklist() - Removing $i from list" 
-      fi
-    done
-	
-	for i in $( locked_resources $LOCK_DIR  ) ; do
-		local p=${i%.lock}
-		p=${p##*.}
-		if ! [ -d $( echo /proc/$p) ] ; then
-			debug "liblock" "lock_clean_locklist() - Removing $i"
-			rm $i
-		fi
-	done
-
-    mv ${LOCK_TRANSACTIONS}.1 $LOCK_TRANSACTIONS
-    date > $locklist_clean
-  fi
-  rm $LOCK_TRANSACTIONS.$$.lock
-
-}
 
