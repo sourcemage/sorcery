@@ -1264,13 +1264,13 @@ function pass_five()  {
   message "---------------------------------${PROBLEM_COLOR}"
   for item in $* ; do
     if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
-	  message "$item"
-	  SOME_CAST_FAILED="1"
-	fi
+      message "$item"
+	    SOME_CAST_FAILED="1"
+	  fi
   done | column
   message "${DEFAULT_COLOR}"
   
-  if [[ $SOME_CAST_FAILED ]];  then
+  if [[ -z $SOME_CAST_FAILED ]];  then
       set_term_title "Casting successfull."
   else
       set_term_title "Casting failed."
