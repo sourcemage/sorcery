@@ -417,13 +417,13 @@ alter: usage:
         [ { -n | --spell   } spell:=alter ]
         [ { -v | --version } version:=<installed> ] 
         command [ args  ... ]
-  alter   { -m | --md5mend }
+  alter   { -m | --md5mend        }
         spell   [ spell ... ]
-  alter   { -p | --prelink }
+  alter   { -p | --prelink        }
         [ prelink_args:=-afmR ]
-  alter   { -s | --strip   }   # shortcut to strip all binaries
+  alter   { -s | --strip          } # shortcut to strip all binaries
         [ strip_args:=        ]
-  alter   { -h | --about   }   # learn about alter and what it does
+  alter   { -h | --help | --about } # learn about alter and what it does
 
   default environment variables:
     STORE_BASE=/var/log/sorcery/tmp
@@ -442,7 +442,7 @@ EOF
 	-p|--prelink              ) shift; alter_prelink "$@" ;;
 	-s|--strip                ) shift; alter_strip   "$@" ;;
 	-a|--alter                ) shift; alter_alter   "$@" ;;
-        -h|--about                ) shift; alter_about   "$@" ;;
+        -h|--about|--help         ) shift; alter_about   "$@" ;;
 	-n|--spell|-v|--version|* )        alter_alter   "$@" ;;
   esac
 
@@ -458,7 +458,10 @@ if    [  "$UID"  ==  0  ] ; then
   fi
 
   main  "$@"
-elif  [[  "$1" == -h  ]]  ||  [[  "$1" == --about  ]] || [[ -z "$1" ]]; then
+elif  [[  "$1" == -h       ]]  ||
+      [[  "$1" == --about  ]]  ||
+      [[  "$1" == --help   ]]  ||
+      [[       -z "$1"     ]]; then
   main "$1"
 else  
   echo  "Enter the root password, please."  1>&2
