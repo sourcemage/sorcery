@@ -1684,11 +1684,12 @@ function prune()  { (
 
     while read LINE;  do
       SPELL=${LINE%%:*}
-      if spell_installed $SPELL | grep -q "not installed" 
-      then
-        echo $LINE 
+      if spell_installed $SPELL || spell_held $SPELL ; then
+        echo $LINE >> $tDEPENDS
+      else
+        echo $LINE >> /var/state/sorcery/depends.stale
       fi
-    done < /var/state/sorcery/depends >> /var/state/sorcery/depends.stale
+    done < /var/state/sorcery/depends
 
     lock_commit_transaction /var/state/sorcery/depends
     
