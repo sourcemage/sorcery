@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function build__find_non_volatile() {
-  find "$@" -follow -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*'
+  find "$@" -follow -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*' -and -not -path '*{arch}*'
 }
 
 branch_dir=$(basename $(pwd))
@@ -13,7 +13,7 @@ pushd .. &>/dev/null
 NAMES_TMP=/tmp/sorcery.build.$$
 ln -sf $branch_dir sorcery
 build__find_non_volatile sorcery > $NAMES_TMP
-tar cvjf sorcery-${branch_dir}.tar.bz2 -T $NAMES_TMP
+tar --owner=0 --group=0 -cvjf sorcery-${branch_dir}.tar.bz2 -T $NAMES_TMP
 rm $NAMES_TMP
 rm sorcery
 popd .. &>/dev/null

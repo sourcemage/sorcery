@@ -60,15 +60,17 @@ Command		Description
 --nofix		attempts to detect errors in cast spells but does not recast
 --nofix_quick	like --nofix, but does not check dependent spells.
 
+--tablet	clean up the tablet
 --logs		cleans old logs in the same way a system-update does
 --sweep		clean out old downloaded sources and cached binaries
 It is suggested that you try the following order the first time:
 	1) $s --packages
 	2) $s --delint
-	3) $s --logs
-	4) $s --prune
-	5) $s --sweep
-	6) $s --fix
+	3) $s --tablet
+	4) $s --logs
+	5) $s --prune
+	6) $s --sweep
+	7) $s --fix
 EOF
 	[[ $# -gt 0 ]] && echo "Unknown $*"
 }
@@ -83,6 +85,7 @@ EOF
 ##                          specified
 ## @Args  --packages        Find packages entries that are corrupted, or
 ##                          non-existant
+## @Args  --tablet          Clean up the tablet
 ## @Args  --logs            Remove stale logs
 ## @Args  --sweep           Remove uneeded spool and cache files
 ## @Args  --fix             Find binaries that are missing libs and files,
@@ -92,6 +95,8 @@ EOF
 #---------------------
 function args()
 {
+  local rc
+  let rc=0
   while [ $# -gt 0 ] ; do
     arg=$1
     shift
@@ -101,33 +106,59 @@ function args()
       --delint)  
         if [[ $1 == full ]] ; then
           delint full
+          let rc+=$?
           shift
         else
           delint
+          let rc+=$?
         fi
         ;;
       --prune)
         if [[ $1 == doit ]] ; then
           prune_depends doit
+          let rc+=$?
           shift
         else
           prune_depends
+          let rc+=$?
         fi
         ;;
-      --logs)  clean_logs
+      --logs) clean_logs
+        let rc+=$?
         shift
         ;;
-      --fix)  cleanse_fix fix "$*"
-        shift $#          ;;
+      --fix) cleanse_fix fix "$*"
+        let rc+=$?
+        shift $#
+        ;;
       --nofix) cleanse_fix nofix "$*"
-        shift $#          ;;
+        let rc+=$?
+        shift $#
+        ;;
       --nofix_quick) cleanse_fix quick "$*"
-        shift $#          ;;
-      --sweep)  prune         ;;
-      --packages)  packages       ;;
+        let rc+=$?
+        shift $#
+        ;;
+      --sweep) prune
+        let rc+=$?
+        ;;
+      --packages) packages
+        let rc+=$?
+        ;;
+      --tablet)
+        tablet_cleanse_tablet $TABLET_PATH $BACKUPDIR
+        let rc+=$?
+        if [[ $1 == coalesce ]] ; then
+          tablet_coalesce_files $TABLET_PATH
+          let rc+=$?
+          shift
+        fi
+        let rc+=$?
+        ;;
       *)  usage $arg $* ; return 1  ;;
     esac
   done
+  return ${rc:-0}
 }
 
 #-------------------
@@ -158,8 +189,8 @@ function delint()
     message "$lines"
     if query "Do you want them removed" "n" ; then  
       message "Removing lines..."
-      grep -E "$regex" $DEPENDS_STATUS > $TMPDIR/delint.1
-      mv $TMPDIR/delint.1 $DEPENDS_STATUS
+      grep -E "$regex" $DEPENDS_STATUS > $TMP_DIR/delint.1
+      mv $TMP_DIR/delint.1 $DEPENDS_STATUS
       t=$(date +%Y%m%d%s)
       message "Saving bad lines to $BACKUPDIR/depends.malformed.$t"
       echo "$lines" > $BACKUPDIR/depends.malformed.$t
@@ -182,18 +213,18 @@ function delint()
     '$cond'{ 
       if ( ! Installed[$1] ) 
         print $0;  
-    }' $DEPENDS_STATUS > $TMPDIR/depends.delint.2
-  t=$(wc -l $TMPDIR/depends.delint.2 | awk '{print $1;}')
+    }' $DEPENDS_STATUS > $TMP_DIR/depends.delint.2
+  t=$(wc -l $TMP_DIR/depends.delint.2 | awk '{print $1;}')
   message "\t$t bad lines, $(( $(wc -l $DEPENDS_STATUS | cut -f1 -d' ') - t))" \
           "good lines in your depends file."
   if [[ $t -gt 0 ]] ; then
     t=$(date +%Y%m%d%s)
     message "\tSaving bad lines to $BACKUPDIR/depends.stale.$t"
-    cp $TMPDIR/depends.delint.2 $BACKUPDIR/depends.stale.$t
+    cp $TMP_DIR/depends.delint.2 $BACKUPDIR/depends.stale.$t
     message "\tRemoving bad entries"
-    cat $DEPENDS_STATUS >> $TMPDIR/depends.delint.2
-    sort $TMPDIR/depends.delint.2 | uniq -u > $TMPDIR/depends.delint.2.2
-    cp $TMPDIR/depends.delint.2.2 $DEPENDS_STATUS
+    cat $DEPENDS_STATUS >> $TMP_DIR/depends.delint.2
+    sort $TMP_DIR/depends.delint.2 | uniq -u > $TMP_DIR/depends.delint.2.2
+    cp $TMP_DIR/depends.delint.2.2 $DEPENDS_STATUS
   fi
 
   message "Pass three (duplicate entries)"
@@ -205,15 +236,15 @@ function delint()
         printf("options[%d]=\"%s\"\n", count++, $0); ENTRIES[$0]=1;
       } }' $DEPENDS_STATUS)
     if [ ${#options[@]} -gt 1 ] ; then
-      select_list choice "${options[@]}"
+      select_list choice 0 "${options[@]}"
       message "Removing other entries and keeping selected entry"
     else
       choice="${options[0]}"
       message "Identical lines removed: $choice"
     fi
-    grep -Ev "^$LINE:" $DEPENDS_STATUS > $TMPDIR/delint.3
-    echo "$choice" >> $TMPDIR/delint.3
-    mv $TMPDIR/delint.3 $DEPENDS_STATUS
+    grep -Ev "^$LINE:" $DEPENDS_STATUS > $TMP_DIR/delint.3
+    echo "$choice" >> $TMP_DIR/delint.3
+    mv $TMP_DIR/delint.3 $DEPENDS_STATUS
   done
 
   unlock_file $DEPENDS_STATUS
@@ -297,19 +328,19 @@ function prune_depends()
     fi
     
     #Get the user's choice of action
-    select_list choice "${options[@]}" 
+    select_list choice 0 "${options[@]}" 
     case ${choice} in
       I*)  message "Ignoring."                ;;
-      D*)  echo $1 >> $TMPDIR/prune.dispel    ;;
-      C*)  echo $2 >> $TMPDIR/prune.cast      ;;
-      R*)  echo $1 >> $TMPDIR/prune.cast
+      D*)  echo $1 >> $TMP_DIR/prune.dispel    ;;
+      C*)  echo $2 >> $TMP_DIR/prune.cast      ;;
+      R*)  echo $1 >> $TMP_DIR/prune.cast
         # Revise choice in the depends file
-        sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMPDIR/prune.1
-        mv $TMPDIR/prune.1 $DEPENDS_STATUS
+        sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
+        mv $TMP_DIR/prune.1 $DEPENDS_STATUS
         ;;
-	  S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMPDIR/prune.1
-	  	mv $TMPDIR/prune.1 $DEPENDS_STATUS
-		echo $1 >>$TMPDIR/prune.cast
+	  S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
+	  	mv $TMP_DIR/prune.1 $DEPENDS_STATUS
+		echo $1 >>$TMP_DIR/prune.cast
 		;;
       *)  message "We should never get here." 
         exit 1
@@ -322,16 +353,16 @@ function prune_depends()
   
   # put the spells in two files for later perusal
   if [[ $action ]] ; then
-    [ -s $TMPDIR/prune.dispel ] && 
-      dispel $( sort $TMPDIR/prune.dispel | uniq )
-    [ -s $TMPDIR/prune.cast ] && 
-      cast $( sort $TMPDIR/prune.cast | uniq )
+    [ -s $TMP_DIR/prune.dispel ] && 
+      dispel $( sort $TMP_DIR/prune.dispel | uniq )
+    [ -s $TMP_DIR/prune.cast ] && 
+      cast $( sort $TMP_DIR/prune.cast | uniq )
   else
     t=$(date +%Y%m%d%s)
-    echo dispel $( sort $TMPDIR/prune.dispel 2>/dev/null  | uniq ) > /tmp/prune.$t
-    echo cast $( sort $TMPDIR/prune.cast 2>/dev/null | uniq ) >> /tmp/prune.$t
-    cat /tmp/prune.$t
-    message "For future reference, lines are stored in /tmp/prune.$t"
+    echo dispel $( sort $TMP_DIR/prune.dispel 2>/dev/null  | uniq ) > $BACKUPDIR/prune.$t
+    echo cast $( sort $TMP_DIR/prune.cast 2>/dev/null | uniq ) >> $BACKUPDIR/prune.$t
+    cat $BACKUPDIR/prune.$t
+    message "For future reference, lines are stored in $BACKUPDIR/prune.$t"
   fi
   message "Pruning done."
 }
@@ -347,15 +378,15 @@ function packages()
   lock_file $SPELL_STATUS
   
   message "Pass 1 (bad lines)"
-  sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/!p' $SPELL_STATUS > $TMPDIR/packages.bad
-  if [ -s $TMPDIR/packages.bad ] ; then
-    sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/p' $SPELL_STATUS > $TMPDIR/packages.good
-    echo "$(wc -l $TMPDIR/packages.bad) bad lines, $(wc -l $TMPDIR/packages.good) good lines in your packages file."
+  sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/!p' $SPELL_STATUS > $TMP_DIR/packages.bad
+  if [ -s $TMP_DIR/packages.bad ] ; then
+    sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/p' $SPELL_STATUS > $TMP_DIR/packages.good
+    echo "$(wc -l $TMP_DIR/packages.bad) bad lines, $(wc -l $TMP_DIR/packages.good) good lines in your packages file."
     t=$(date +%Y%m%d%s)
     message "\tSaving bad lines to $BACKUPDIR/packages.1.bad.$t"
-    mv $TMPDIR/packages.bad $BACKUPDIR/packages.1.bad.$t
+    mv $TMP_DIR/packages.bad $BACKUPDIR/packages.1.bad.$t
     message "\tRemoving bad entries"
-    mv $TMPDIR/packages.good $SPELL_STATUS
+    mv $TMP_DIR/packages.good $SPELL_STATUS
   fi
   
   message "Pass 2 (non-existant spells)"
@@ -381,9 +412,9 @@ function packages()
     done
   )
   if [[ $t ]] && query "\tRemove all but one of each set of duplicates?" "n" ; then
-    awk -F: '{if(!LINES[$1]) { LINES[$1]=1; print $0; } }' $SPELL_STATUS > $TMPDIR/packages.3
+    awk -F: '{if(!LINES[$1]) { LINES[$1]=1; print $0; } }' $SPELL_STATUS > $TMP_DIR/packages.3
     message "\tRemoving bad entries"
-    mv $TMPDIR/packages.3 $SPELL_STATUS
+    mv $TMP_DIR/packages.3 $SPELL_STATUS
   fi
   
   unlock_file $SPELL_STATUS
@@ -404,9 +435,6 @@ function packages()
 function cleanse_fix()
 {
 
-
-  local FIX_IGNORE_PATHS="^\(/etc\|/lib/modules\|/home\|/var/log\|${INSTALL_LOGS}\|${MD5SUM_LOGS}\)"
-
   local FIX=$1
   shift 1
   local SPELL
@@ -420,7 +448,7 @@ function cleanse_fix()
     local tmp_spells
     # ensure they are all installed
     for SPELL in $SPELLS ; do
-      status_okay $SPELL &&
+      spell_ok $SPELL &&
       tmp_spells="$tmp_spells $SPELL" ||
       message "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
               "is not installed or held, not fixing"
@@ -435,7 +463,7 @@ function cleanse_fix()
   compute_installed_depends depends_hash
 
   # generate a makefile from the spells + depends hash
-  local MAKEFILE=$TMPDIR/Makefile
+  local MAKEFILE=$TMP_DIR/Makefile
   (
   for i in $( hash_get_table_fields depends_hash ) ; do
     echo "$i : $(hash_get "depends_hash" "$i")"
@@ -453,7 +481,7 @@ function cleanse_fix()
   
   # load our ldd hash with the spells we know we'll care about
   # but no more then necessary
-  cleanse_fix_init_ldd_check $(/usr/bin/make -s -f $MAKEFILE all)
+  cleanse_fix_init_ldd_check $(/usr/bin/make -s -f $MAKEFILE all 2>/dev/null)
 
   local PASSED FIXED HOPELESS TOTALNR CURNR unused
  
@@ -468,14 +496,14 @@ function cleanse_fix()
         PASSED="${PASSED}${SPELL}"$'\n'
       else
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
-                 "is broken${DEFAULT_COLOR} and not being fixed\n"
+                 "is broken${DEFAULT_COLOR}\n"
         HOPELESS="${HOPELESS}${SPELL}"$'\n'
       fi
     done
   else
     # non-quick mode implies we check from the bottom up, so get all
     # the spells..
-    TOTALNR=$(/usr/bin/make -s -f $MAKEFILE all|wc -l)
+    TOTALNR=$(/usr/bin/make -s -f $MAKEFILE all 2>/dev/null|wc -l)
     cleanse_fix_depends all
   fi
 
@@ -487,13 +515,18 @@ function cleanse_fix()
   fi
   if [[ $FIXED ]] ; then
     message "${MESSAGE_COLOR}The following spells were broken and" \
-            "fixed:${DISPEL_COLOR}"
+            "fixed:${QUERY_COLOR}"
     echo "$FIXED"|sort|uniq|column
     message "${DEFAULT_COLOR}"
   fi
   if [[ $HOPELESS ]] ; then
-    message "${MESSAGE_COLOR}The following spells were broken and" \
-            "could not be fixed:${PROBLEM_COLOR}"
+    if [[ "$FIX" == quick ]]; then
+      message "${MESSAGE_COLOR}The following spells were broken:" \
+              "${PROBLEM_COLOR}"
+    else
+      message "${MESSAGE_COLOR}The following spells were broken and" \
+              "could not be fixed:${PROBLEM_COLOR}"
+    fi
     echo "$HOPELESS"|sort|uniq|column
     message "${DEFAULT_COLOR}"
     return 1
@@ -504,7 +537,7 @@ function cleanse_fix()
 function cleanse_fix_depends() {
   local SPELL=$1
   # run the makefile to get the proper order
-  local FIX_ORDER=$(/usr/bin/make -s -f $MAKEFILE $1 | grep -v "^$SPELL\$")
+  local FIX_ORDER=$(/usr/bin/make -s -f $MAKEFILE $1  2>/dev/null| grep -v "^$SPELL\$")
   #for each spell
   for SPELL in ${FIX_ORDER}; do
     # check it
@@ -514,7 +547,7 @@ function cleanse_fix_depends() {
     else
       if [ $FIX == fix ] ; then
         # if its broken try to fix it
-          cleanse_fix_spell $SPELL
+        cleanse_fix_spell $SPELL
       else
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
                  "is broken${DEFAULT_COLOR} and not being fixed\n"
@@ -537,6 +570,13 @@ function cleanse_fix_depends() {
 #----------------------------
 function cleanse_fix_spell() {
   local SPELL=$1
+  if spell_held $SPELL ; then
+    HOPELESS="${HOPELESS}${SPELL}"$'\n'
+    message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
+             "is broken broken, but also held, not fixing${DEFAULT_COLOR}"
+    return 1
+  fi
+
   cast -c $SPELL                && 
   cleanse_fix_run_checks $SPELL &&
   FIXED="${FIXED}${SPELL}"$'\n' &&
@@ -558,8 +598,7 @@ function cleanse_fix_spell() {
 ##
 #--------------------------
 function cleanse_fix_run_checks()  {
-
-  local SPELL=$1 #duff's idea, for clarification
+  local SPELL=$1
   if [ $# -eq 1 ] ;then
     message  "Checking ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
   else
@@ -567,9 +606,9 @@ function cleanse_fix_run_checks()  {
   fi
   local VERSION=$(installed_version $SPELL)
 
+  cleanse_fix_find_check    $SPELL  $VERSION    &&
   cleanse_fix_ldd_check     $SPELL  $VERSION    &&
   cleanse_fix_sym_check     $SPELL  $VERSION    &&
-  cleanse_fix_find_check    $SPELL  $VERSION    &&
   cleanse_fix_md5sum_check  $SPELL  $VERSION
 
 }
@@ -604,21 +643,25 @@ function cleanse_fix_find_check()  {
   local size=$(wc -l $I_LOG | awk '{print $1;}')
   local count=0
 
-  local TMP_I_LOG=$TMPDIR/${SPELL}_install.log
-  grep -v "$FIX_IGNORE_PATHS" $I_LOG > $TMP_I_LOG
+  local TMP_I_LOG=$TMP_DIR/${SPELL}/install.log
+  mkdir -p $TMP_DIR/${SPELL}
+  rm -f $TMP_I_LOG
+  log_adjuster $I_LOG /dev/stdout log filterable  |
+  filter_volatiles                                |
+  log_adjuster /dev/stdin $TMP_I_LOG filterable root
 
   while read LINE ; do
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     if  [ !  -e  "$LINE"  ];  then
       BADLIST="${BADLIST}${LINE}"$'\n'
     fi
     let count++
   done < $TMP_I_LOG
-#  rm $TMP_I_LOG
+  rm -f $TMP_I_LOG
   clear_line
 
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The folowing files from "             \
+    message "${PROBLEM_COLOR}The following files from "             \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"               \
             "${PROBLEM_COLOR}don't exist: "$'\n'"${DEFAULT_COLOR}" 
     message "$BADLIST"
@@ -630,6 +673,14 @@ function cleanse_fix_find_check()  {
 
 }
 
+#-----------------------
+##
+## Initialize the ldd check, builds up a hash table in ldd_hash of
+## what library directories a spell has libraries in, this is because
+## some spells have their own private libraries and arent happy if
+## they dont know where they are
+## 
+#-----------------------
 function cleanse_fix_init_ldd_check()  { 
   if  [ "$LDD_CHECK" == "off" ] ;  then
     return 0
@@ -646,12 +697,19 @@ function cleanse_fix_init_ldd_check()  {
   for SPELL in $* ; do
     I_LOG=$INSTALL_LOGS/$SPELL-$(installed_version  $SPELL)
     hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort|uniq|tr '\n' :)"
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     let count++
   done
   clear_line
 }
 
+#-----------------------
+##
+## Check that all libraries the spell binaries need exist
+## @return 0 The libraries have their requirements met
+## @return 1 At least one library isnt happy
+## 
+#-----------------------
 function cleanse_fix_ldd_check()  { (
   if  [ "$LDD_CHECK" == "off" ] ;  then
     return 0
@@ -670,18 +728,24 @@ function cleanse_fix_ldd_check()  { (
   fi
 
   local tmp
-  for each in $(/usr/bin/make -s -f $MAKEFILE $1); do
+  for each in $(/usr/bin/make -s -f $MAKEFILE $1 2>/dev/null); do
     tmp=$(hash_get ldd_hash $each)
     [[ $tmp ]] && LD_LIBRARY_PATH="$(hash_get ldd_hash $each):${LD_LIBRARY_PATH}"
   done
 
+  local TMP_I_LOG=$TMP_DIR/${SPELL}/install.log
+  mkdir -p $TMP_DIR/${SPELL}
+  log_adjuster $I_LOG /dev/stdout filterable      |
+  filter_volatiles                                |
+  log_adjuster /dev/stdin $TMP_I_LOG filterable root
+
   local count size
   let count=0
-  local size=$(wc -l $I_LOG | awk '{print $1;}')
+  local size=$(wc -l $TMP_I_LOG | awk '{print $1;}')
   export LD_LIBRARY_PATH
   while read LINE; do
 
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     let count++
     if     [  -f  "$LINE"  ]     &&
         file  -b  "$LINE"        |
@@ -691,10 +755,12 @@ function cleanse_fix_ldd_check()  { (
     then
       BADLIST="${BADLIST}${LINE}"$'\n'
     fi
-  done < $I_LOG
+  done < $TMP_I_LOG
+  rm -f $TMP_I_LOG
   clear_line
+
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The folowing files from"                  \
+    message "${PROBLEM_COLOR}The following files from"                  \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"                   \
             "${PROBLEM_COLOR}have missing library dependencies:"       \
             "${DEFAULT_COLOR}"
@@ -709,6 +775,13 @@ function cleanse_fix_ldd_check()  { (
 
 ) }
 
+#-----------------------
+##
+## Check that all symlink targets exist
+## @return 0 The symlinks point to real files
+## @return 1 At least one symlink doesnt have its target
+## 
+#-----------------------
 function cleanse_fix_sym_check() {
   if [ "$SYM_CHECK" == "off" ] ; then
     return 0
@@ -726,22 +799,30 @@ function cleanse_fix_sym_check() {
     return 1;
   fi
 
-  local size=$(wc -l $I_LOG | awk '{print $1;}')
+  local TMP_I_LOG=$TMP_DIR/${SPELL}/install.log
+  mkdir -p $TMP_DIR/${SPELL}
+  rm -f $TMP_I_LOG
+  log_adjuster $I_LOG /dev/stdout log filterable |
+  filter_volatiles                               |
+  log_adjuster /dev/stdin $TMP_I_LOG filterable root
+
+  local size=$(wc -l $TMP_I_LOG | awk '{print $1;}')
   local count=0
 
   while read LINE ; do
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     # Add this if so 'file' doesn't have to run for everything,
     # check that's a symlink first
     if [ -h "$LINE" ] && file "$LINE" | grep "broken symbolic link" ; then
       BADLIST="${BADLIST}${LINE}"$'\n'
     fi
     let count++
-  done < $I_LOG
+  done < $TMP_I_LOG
+  rm -f $TMP_I_LOG
   clear_line
 
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The folowing symlinks from "             \
+    message "${PROBLEM_COLOR}The following symlinks from "             \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"                  \
             "${PROBLEM_COLOR}don't link to files it installed:"       \
             "${DEFAULT_COLOR}"
@@ -753,6 +834,13 @@ function cleanse_fix_sym_check() {
   return 0
 }
 
+#-----------------------
+##
+## Verify the md5sum of all the files
+## @return 0 The md5sum of a file is incorrect
+## @return 1 At least one md5sum is wrong
+## 
+#-----------------------
 function cleanse_fix_md5sum_check() {
 
   if  [ "$MD5SUM_CHECK" == "off" ] ; then
@@ -761,13 +849,13 @@ function cleanse_fix_md5sum_check() {
   local SPELL=$1
   local MD5_LOG="$MD5SUM_LOGS/$SPELL-$2"
   local BADLIST
-  local BROKEN1=/tmp/cleanse.md5sum.broken1.$SPELL.$$
-  local BROKEN2=/tmp/cleanse.md5sum.broken2.$SPELL.$$
+  local TMP_MD5_LOG=$TMP_DIR/cleanse.md5sum.tmp.$SPELL.$$
+  local BROKEN1=$TMP_DIR/cleanse.md5sum.broken1.$SPELL.$$
+  local BROKEN2=$TMP_DIR/cleanse.md5sum.broken2.$SPELL.$$
   local A=$'\a' # magic sed seperator, assume files dont have bells in the name
 
   # Ignore standard paths we know will change, the install log, file log,
   # compile log, and score files that live in /var/games (bug 7500)
-  local FIX_IGNORE_MD5_PATH="^\(/etc\|/lib/modules\|/home\|/var/log\|${INSTALL_LOGS}\|${MD5SUM_LOGS}\|${COMPILE_LOGS}\|/var/games/.*score.*\)"
 
   message -n "\tChecking md5sums."
 
@@ -780,15 +868,20 @@ function cleanse_fix_md5sum_check() {
 
   message -n '.'
 
+  log_adjuster $MD5_LOG $TMP_MD5_LOG log root md5_log_filter
+
+
   # for some reason stuffing the output of this in a variable loses the
   # newlines and thus files with spaces in them get lost
-  md5sum --check $MD5_LOG 2>/dev/null | grep ': FAILED$' |
+  md5sum --check $TMP_MD5_LOG 2>/dev/null | grep ': FAILED$' |
             sed "s${A}: FAILED\$${A}${A}" > $BROKEN1
   # cant use awk above with : as a seperator due to files with :'s in their name
 
-  message -n '.'
+  # filters dont work on md5sum logs, filter after md5sum is done
+  # this is lame but oh well, this function is ugly enough as it is
+  filter_volatiles < $BROKEN1 > $BROKEN2
 
-  grep -v "$FIX_IGNORE_MD5_PATH" < $BROKEN1 > $BROKEN2
+  message -n '.'
 
   # the files with bad md5s may be owned by another spell (either legitimatly
   # or by spell writer oversight) if so remove the entry from
@@ -803,6 +896,7 @@ function cleanse_fix_md5sum_check() {
   while read LINE; do
     message -n '.'
     [[ ! $LINE ]]  && continue
+    test -h $LINE && continue
     REAL_MD5=$(md5sum $LINE)
     # find the file in some log somewhere...
     FOUND_IN=$(grep -l "^$REAL_MD5\$" $MD5SUM_LOGS/*)
@@ -811,6 +905,8 @@ function cleanse_fix_md5sum_check() {
     # this is ugly but the only reasonable way I know of to do this...
     FOUND_IN=$(for each in $FOUND_IN; do
                 # make the assumption that spell versions dont contain dashes...
+                # this actually isnt a very good assumption but works enough
+                # of the time
                 each_spell=$(basename $each|awk -F- '{for (i=1;i<NF-1;i++) {printf "%s-",$i}printf "%s\n",$i}')
                 each_version=$(installed_version $each_spell)
                 [[ $each_version ]] &&
@@ -832,7 +928,9 @@ function cleanse_fix_md5sum_check() {
 
       INSTALL_LOG=$INSTALL_LOGS/$SPELL-$2
       # there is a slight bug with all these transactions due to
-      # the fact that we have no stdin, a future improvement would be
+      # the fact that we have no stdin, if a transaction fails the user
+      # is prompted, but since we're in this funny loop, it'll read from
+      # the wrong place a future improvement would be
       # to use iterate or some other method that is not naive to
       # filenames with spaces in them
       tfile=`lock_start_transaction $INSTALL_LOG`
@@ -851,9 +949,9 @@ function cleanse_fix_md5sum_check() {
       tfile=`lock_start_transaction $possessed`
       echo $LINE >> $tfile
       # remove duplicates
-      cp $tfile /tmp/$SPELL.possessed.$$
-      sort /tmp/$SPELL.possessed.$$|uniq > $tfile
-      rm  /tmp/$SPELL.possessed.$$
+      cp $tfile $TMP_DIR/$SPELL.possessed.$$
+      sort $TMP_DIR/$SPELL.possessed.$$|uniq > $tfile
+      rm  $TMP_DIR/$SPELL.possessed.$$
       lock_commit_transaction $possessed
 
       message -n '.'
@@ -880,36 +978,6 @@ function cleanse_fix_md5sum_check() {
   fi
   return 0
 }
- 
-
-
-function status_okay()  {
-  spell_installed  $1  || spell_held       $1
-}
-
-function export_ld()  {
-
-  if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
-  then  export   LD_LIBRARY_PATH="$( lib_dirs  $*  )"
-  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  $*  )"
-  fi
-  
-  export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
-  
-}
-
-function lib_dirs()  {
-
-  for  DIRECTORY  in  $*;  do
-    for FILE in $DIRECTORY/*.so* ; do
-      if file -b "$FILE" | grep  -q  "shared object" ; then
-        echo -n "$DIRECTORY:"
-        break
-      fi
-    done
-  done
-
-}
 
 source /etc/sorcery/config
 
@@ -920,20 +988,20 @@ if [ $UID -eq 0 ] ; then
     # IF there are no args, assume the full treatment is desired
     exec $0 --packages --delint --logs --prune --sweep --fix
   fi
-  TMPDIR=/tmp/sorcery/cleanse/$$
-  BACKUPDIR=/tmp/cleanse
-  if [ -d $TMPDIR ] ; then
-    echo "You have some old cleanse stuff. Removing it."
-    rm -rf $TMPDIR
-  fi
-  mkdir -p $TMPDIR
-  mkdir -p $BACKUPDIR
-  if [ ! -d $TMPDIR ] || [ ! -d $BACKUPDIR ] ; then
+
+  mk_tmp_dirs backup /tmp/cleanse
+  BACKUPDIR=$TMP_DIR
+  unset TMP_DIR
+  mk_tmp_dirs cleanse
+  if [ ! -d $TMP_DIR ] || [ ! -d $BACKUPDIR ] ; then
+    message "Unable to make tmp dirs..."
     exit 1
   fi
   args "$@"
-  rm -rf $TMPDIR
+  rc=$?
+  cleanup_tmp_dir $TMP_DIR
   message "Removed information is backed up to $BACKUPDIR."
+  exit $rc
 else
   if [[ $1 == --help ]] ; then
     usage

@@ -4,7 +4,7 @@
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
 # encapsulates the filters necessary to strip CVS files and EMACS temporary files
 function install__find_non_volatile() {
-  find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*'
+  find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*'
 }
 
 if [[ $1 ]] ; then
@@ -17,32 +17,37 @@ echo "Cleaning out all old sorcery libraries..."
 SORCERY_LIBS=${INSTALL_ROOT}/var/lib/sorcery/modules
 rm -rf $SORCERY_LIBS
 
+echo "Installing scripts and libraries"
 # Install the executables
 install__find_non_volatile etc usr/sbin var/lib | (
   while read SCRIPT; do
-    /usr/bin/install --owner=root --group=root --mode=755 -vpD "${SCRIPT}" "${INSTALL_ROOT}/${SCRIPT}"
+    /usr/bin/install --owner=root --group=root --mode=755 -pD "${SCRIPT}" "${INSTALL_ROOT}/${SCRIPT}"
   done
 )
 
 # Install the man pages
+echo "Installing man pages"
 install__find_non_volatile usr/share/man | (
   while read DOC; do
-    /usr/bin/install --owner=root --group=root --mode=644 -vpD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
-    gzip  --best  -vf "${INSTALL_ROOT}/${DOC}"
+    /usr/bin/install --owner=root --group=root --mode=644 -pD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
+    gzip  --best  -f "${INSTALL_ROOT}/${DOC}"
   done
 )
 
 # Install the GNU General Public License
-  /usr/bin/install --owner=root --group=root --mode=644 -vpD "COPYING"   "${INSTALL_ROOT}/usr/doc/sorcery/COPYING"
+  /usr/bin/install --owner=root --group=root --mode=644 -pD "COPYING"   "${INSTALL_ROOT}/usr/doc/sorcery/COPYING"
 
 # Install the ChangeLog
-  /usr/bin/install --owner=root --group=root --mode=644 -vpD "ChangeLog"   "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
+  /usr/bin/install --owner=root --group=root --mode=644 -pD "ChangeLog"   "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
 
 # Install the run_compiler script with the same names as gcc
+echo "Setting up build symlinks"
 BUILD_DIR=${INSTALL_ROOT}/var/lib/sorcery/build
+pushd $BUILD_DIR &> /dev/null || exit 1
 for COMPILER in "cc" "gcc" "c++" "g++"; do
-  ln -svf "$BUILD_DIR/run_compiler" "$BUILD_DIR/$COMPILER"
+  ln -sf "run_compiler" "$COMPILER"
 done
+popd &>/dev/null
 
 mkdir -p                                     \
   "${INSTALL_ROOT}/usr/src"                  \
@@ -66,7 +71,7 @@ for FILE in                                           \
   do
   if  ! [[  -x "$FILE"  ]]; then
     touch "$FILE"
-    chmod -v +x "$FILE"
+    chmod +x "$FILE"
   fi
 done
 

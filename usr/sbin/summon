@@ -182,11 +182,15 @@ if    [  "$UID"  ==  0  ] ; then
   if  [[ $NICE != "0" ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
+  mk_tmp_dirs summon
   main  $*
+  rc=$?
+  cleanup_tmp_dir $TMP_DIR
+  exit $rc
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 else  
   echo  "Enter the root password, please."  1>&2
-  su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
+  su -c "$0 $*" root
 fi
 
 

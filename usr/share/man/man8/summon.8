@@ -1,69 +1,82 @@
-.TH SUMMON 8 "January 2002" "Source Mage GNU Linux" "System Administration"
+.TH SUMMON 8 "November 2004" "Source Mage GNU Linux" "System Administration"
 .SH NAME
 summon \- downloads spell source files
 .SH SYNOPSIS
 .B summon
-.PP
-.B summon
-spell_1 spell_2 spell_2
-.PP
-.B summon
-(--from|--url) spell_1 spell_2 spell_2
+[options] spell(s)
 .SH "EXAMPLE"
 To download emacs type:
 .IP
 .B summon
 emacs
 .SH "DESCRIPTION" 
-.I summon
+.B summon
 is part of the
-.SM sorcery
+.B sorcery
 source-code package management suite. It is a command-line tool
-for automatically downloaing a packages associated source files. 
+for automatically downloading a packages' associated source files. 
 .SH "OPTIONS"
-.TP
-.B summon
-.PP
-By its self it tries to download every single package (about 1.2G as of 
-17/02/02).
-This is usefull if you have a fast link or want to test everything.
-.TP
-.B summon
-spell_1 <spell_2> <spell_3>
-.PP
-This automatically downloads the specified spell sources.
-.TP
-.B summon
---from spell
-.PP
-This specifies a differant
+Usually, summon will download all source files needed to compile
+the given package(s) with the current configuration.
+It will
+.B not
+download dependencies (other packages that the given package needs).
+.SS --from <location>
+This specifies a different
 .I /var/spool/sorcery
-directory. This is the default locations for downloaded sources,
-.TP
-.B summon
---url
+directory, the directory the packages get downloaded to.
+(or actually moved to when the download finished)
+This may seem a strange name, but logical if you see that cast
+uses the same name for the same thing.
+.SS --url <url>
+This tries to download the specified spell from a different location.
+Specify only the directory, not the file.
+There are sorcery options to better handle this,
+this option is not recommended and may be removed in the future.
+.SS -d|--download
+This forces download even when the file already exists locally,
+instead of skipping it in that case.
+.SS -g|--grimoire
+Only use the specified grimoire.
+Helpful if a spell is in two grimoires or
+if you want to summon all spells in a specific grimoire.
 .PP
-This tries to download the specified spell from a different location. This is
-usefull if the original link is down.
+Grimoire names can be absolute
+or relative to $CODEX_ROOT, usually
+.I /var/lib/sorcery/codex
+.SS -p|--print <type>
+Do not download, just print information.
+.I <type>
+can be either one of
 .TP
-.B "-h, --help"
+.I source
+print out just the filenames that would be downloaded.
+.TP
+.I one_url
+print out one (the first) URL to all files that would be downloaded.
+.TP
+.I all_urls
+print out all URLs that would be tried, in case one fails.
+(except the fallback mirrors)
+.TP
+.I raw
+print the filenames and URLs in "raw" mode,
+to be read again by summon in raw mode.
+.SS "-r|--raw"
+Reads the filenames and URLs in "raw" mode.
+Raw mode consists of lines of the type
+.PP
+<filename> <url1> <url2> ...
+.SS "--queue"
+Downloads all spells in the install queue, as generated for example by
+.BI "sorcery" " --queue"
+.SS "--all"
+Downloads all spells in the grimoire.
+This is generally not a good idea, unless you are running a mirror.
+This will be several GB,
+so make sure you have some time and a lot of space in /var.
+.SS "-h, --help"
 outputs short help
-.SH "FILES"
-.TP
-.I /etc/sorcery/config & /etc/sorcery/local/config
-.IP
-These files store the settings for default locations. Its best to leave
-these be as there are in quite good places by default. See cast.8 for more
-details about these files.
-.IP
-Contains functions used by 
-.B dispel
-.SH ADVANCED USEAGE
-Specifiing a differnt download location for linux
-.IP
-summon
-.B --url 
-http://ftp.mirror.ac.uk/sites/ftp.kernel.org/linux/kernel/2.4/linux-2.4.16.tar.bz2 linux
 .SH "NOTES"
 Do not include 
 .SM version
@@ -71,14 +84,15 @@ or
 .SM section
 when specifying a package. To get complete listing of installed software
 packages and versions type
-.B gaze installed
+.BI gaze " installed"
 .SH "AUTHOR"
-Original version by Thomas Stewart.
+Original version by Thomas Stewart. Updated by Karsten Behrmann.
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .SH "REPORTING BUGS"
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-cast(8), dispel(8), gaze(1), grimoire(5), invoke(8), sorcery(8), scribe(8), scribbler (8)
+alter(8), cast(8), cleanse(8), dispel(8), gaze(1), grimoire(5),
+scribbler(8), scribe(8), sorcery_config(8), sorcery(8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY

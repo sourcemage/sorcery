@@ -26,7 +26,7 @@
 function run_build_spell() {
   debug "build_api/api2" "run_build_spell"
 
-  C_LOG=/tmp/$SPELL.compile.log
+  C_LOG=$TMP_DIR/$SPELL.compile.log
   C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
 
   rm  -f $C_LOG
@@ -40,20 +40,20 @@ function run_build_spell() {
     VOYEUR_STDERR=/dev/null
   fi
                       
-  run_pre_build				|| return 1
-
-  run_config_loc                        || return 2  # don't feel like making up a new number
-
+  local PROTECT_SORCERY=yes
+  run_pre_build                         || return 1
+  run_config_loc                        || return 2
   (
-  run_build                             &&
-  run_pre_install			&&
-  run_install				|| return 2
-  run_post_install			&&
-  run_final				|| return 3
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) || # see bug 7201
-                                           return $?  # this is needed to pass $? up
+    run_build                           &&
+    run_pre_install                     &&
+    run_install                         || return 2
+    run_post_install                    &&
+    run_final                           || return 3
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT) || 
+  return $?  # this is needed to pass $? up if the ( ) fails
 
-  run_triggers				|| return 4
+  run_triggers                          || return 4
   return 0
 }
 #---------------------------------------------------------------------
@@ -160,8 +160,6 @@ function run_install() {
     default_install
   fi &&
   persistent_save &&
-  install_xinetd &&
-  install_initd
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -235,16 +233,19 @@ function real_default_pre_build() {
 #---------------------------------------------------------------------
 function real_default_build() {
   debug "build_api/api2" "real_default_build"
-  #If these switches are used, they stop distcc and ccache from working
+
+  OPTS="$OPTS --build=${BUILD}"
+  #If these switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
   #  We could write wrappers for all of the possible binaries
-  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
-	
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
   ./configure --prefix=${INSTALL_ROOT}/usr  \
-	  --sysconfdir=${INSTALL_ROOT}/etc  \
+          --sysconfdir=${INSTALL_ROOT}/etc  \
        --localstatedir=${INSTALL_ROOT}/var  \
-	      --mandir=${INSTALL_ROOT}/usr/share/man   \
-	     --infodir=${INSTALL_ROOT}/usr/share/info  \
-		       $OPTS                 &&
+              --mandir=${INSTALL_ROOT}/usr/share/man   \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
+                       $OPTS                 &&
   make
 
 }
@@ -290,6 +291,8 @@ function real_default_install() {
 function real_default_post_install() {
 
   debug "build_api/api2" "Starting real_default_post_install"
+  install_xinetd
+  install_initd
   install_pam_confs
   install_desktop_files
   gather_docs

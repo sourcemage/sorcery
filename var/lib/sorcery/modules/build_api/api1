@@ -24,7 +24,7 @@
 #---------------------------------------------------------------------
 function run_build_spell() {
   debug "build_api/api1" "run_build_spell"
-  C_LOG=/tmp/$SPELL.compile.log
+  C_LOG=$TMP_DIR/$SPELL.compile.log
   C_FIFO=/dev/stdout
   if [ "$VOYEUR" == "on" -a -z "$SILENT" ]; then
     VOYEUR_STDOUT=/dev/stdout
@@ -36,6 +36,8 @@ function run_build_spell() {
   rm -f $C_LOG
   touch $C_LOG
   # should OPTS get set here?
+
+  local PROTECT_SORCERY=yes
 
   # This is an experiment, If we have actual interesting return codes
   # from here, the caller can figure out what to do
@@ -109,10 +111,8 @@ function run_build()  {
       default_build
     fi &&
     persistent_save
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) && # see bug 7201
-
-  install_xinetd &&
-  install_initd
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT) # see bug 7201
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -199,10 +199,12 @@ function real_default_pre_build() {
 function real_default_build() {
 
   debug "build_api/api1" "Starting real_default_build()"
-#If these switches are used, they stop distcc and ccache from working
-#  We could write wrappers for all of the possible binaries
-[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
-	
+  OPTS="$OPTS --build=${BUILD}"
+  #If this switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
   ./configure --prefix=${INSTALL_ROOT}/usr  \
           --sysconfdir=${INSTALL_ROOT}/etc  \
        --localstatedir=${INSTALL_ROOT}/var  \
@@ -227,6 +229,8 @@ function real_default_post_build() {
 
   debug "build_api/api1" "Starting real_default_post_build()"
 
+  install_xinetd
+  install_initd
   install_pam_confs
   install_desktop_files
   gather_docs

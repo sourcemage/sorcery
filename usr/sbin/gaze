@@ -34,7 +34,9 @@ what		spell		Prints the spell's description.
 short           spell           Prints the spell's short description.
 where		spell		Prints the spell's section.
 website | url	spell		Prints the spell's website.
-install		spell		Views an install log.
+install		spell		Views an install log, and sorcery log files for to the spell.
+install-full		spell		Views an install log including all sorcery state files.
+install-spell		spell		Views an install log without any sorcery files included.
 installed	[spell]		Views installed spells.
 version		spell		Views version of spell installed,
 				 and version in the grimoire.
@@ -70,17 +72,14 @@ html	[-s]	[grimoire]	Views a html listing of all grimoires.
 
 newer		20020521	Shows available spells newer than May 21, 2002.
 older		20010521	Shows spells installed before May 21, 2001.
-
-prune		<empty>		Removes all old sources from $SOURCE_CACHE
-				  and removes all old backups from 
-				  $INSTALL_CACHE.
-				  (deprecated: use cleanse --sweep)
+newer last_sorcery_update  Shows spells newer than your previous sorcery update
+newer last_cast            Shows spells newer than your last casting
 
 voyeur		[delay or spell]  
 				Peeks into spell compilation.
 
 pam		<empty>		Displays installed or held spells that are
-				  Linux-PAM aware.
+				  linux-pam aware.
 
 
 orphans		<empty>		Displays installed spells that no installed
@@ -106,7 +105,20 @@ checkmd5s       [spell|section]	Print a md5 check of spells
 
 show-held          		Shows all held spells.
 
+show-exiled        		Shows all exiled spells.
+
 EOF
+}
+
+#-----
+## override column so that we can pass -q to not columnate.
+#-----
+function maybe_column()  {
+  if [ -n "$GAZE_VERBOSE" ]; then
+    cat
+  else
+    column "$@"
+  fi
 }
 
 #-----
@@ -198,7 +210,7 @@ function checksum()      { for FILE in `cat $1 | files`; do sum -s  $FILE; done;
 ## Run an md5sum of a list of files in a file
 ## Is this used anywhere?
 ## @param File with list of files the sum
-#-----function
+#-----
 function md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  "$FILE"; done; }
 
 #-----
@@ -212,23 +224,23 @@ function alien()  {
   message  "security feature!  Files could still be lurking"
   message  "undetected on this box."
 
-  rm    -f  /tmp/gaze.found
-  rm    -f  /tmp/gaze.known
+  rm    -f  $TMP_DIR/gaze.found
+  rm    -f  $TMP_DIR/gaze.known
 
   message  "Discovering ambient files..."
-  find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >/tmp/gaze.found
+  find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >$TMP_DIR/gaze.found
  
   message  "Discovering installed files..."
-  cat  $INSTALL_LOGS/*  /etc/sorcery/update/sorcery-${SORCERY_BRANCH}.log  |  files  |  sort  >  /tmp/gaze.known
+  cat  $INSTALL_LOGS/*  |  files  |  sort  >  $TMP_DIR/gaze.known
 
-  diff  -B  -a  -d  /tmp/gaze.found  /tmp/gaze.known  |
+  diff  -B  -a  -d  $TMP_DIR/gaze.found  $TMP_DIR/gaze.known  |
   grep  -v  "^> "                                     |
   grep      "^< "                                     |
   cut  -c  3-                                         |
   filter  "$PROTECTED"
 
-  rm  -f  /tmp/gaze.found
-  rm  -f  /tmp/gaze.known
+  rm  -f  $TMP_DIR/gaze.found
+  rm  -f  $TMP_DIR/gaze.known
 
 }
 
@@ -243,7 +255,7 @@ function gaze_catalog()  {
   local grimoire
 
   if [[ $# -gt 0 ]]; then
-        grimoire=$(codex_find_grimoire_by_name $1)
+        grimoire=$(codex_find_grimoire $1)
         if [[ $? != 0 ]]; then
             echo "No such grimoire $1"
             exit 1;
@@ -265,7 +277,7 @@ function gaze_catalog()  {
     echo  "-------------------------------------------------"
     echo  "SECTION:  $(  basename  $SECTION  )"  
     echo  "-------------------------------------------------"
-    for  spell  in  `codex_get_spells $SECTION`;  do
+    for  spell  in  `codex_get_spells_in_section $SECTION`;  do
        echo `basename $spell`
       ((  COUNT++  ))
     done
@@ -291,7 +303,7 @@ function gaze_catalog_html()  {
   fi
     
   if [[ $# -gt 0 ]]; then
-        grimoire=$(codex_find_grimoire_by_name $1)
+        grimoire=$(codex_find_grimoire $1)
         if [[ $? != 0 ]]; then
             echo "No such grimoire $1"
             exit 1;
@@ -399,7 +411,7 @@ function gaze_catalog_html()  {
     echo  "<th colspan=\"${COLS}\">"
     echo  "<h2>$( basename  $SECTION )</h2>"
     echo  "</th></tr>"
-    for  SPELL  in  `codex_get_spells  $SECTION`;  do
+    for  SPELL  in  `codex_get_spells_in_section  $SECTION`;  do
       (
         codex_set_current_spell  $SPELL
 
@@ -471,7 +483,7 @@ function display()  {
 	    return 1 ;;
     esac
   else
-    message  "$2"
+    message  "$2" 1>&2
     false
   fi
 
@@ -483,7 +495,23 @@ function display()  {
 #-----
 function newer()  {
 
-  DATE=$1
+  local DATE=$1
+  local COMPUTE
+
+  if [ x"$DATE" == x"last_sorcery_update" ]; then
+    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $5 ; exit } }'
+  elif [ x"$DATE" == x"last_cast" ]; then
+    COMPUTE='($3 == "cast" && $6 == "success") { print $1 ; exit }'
+  fi
+
+  if [ -n "$COMPUTE" ]; then
+    DATE=$( tac $ACTIVITY_LOG | awk -F '\t| |:' "$COMPUTE" )
+    if [ -z "$DATE" ]; then
+      message "${PROBLEM_COLOR}No previous $1 date found${DEFAULT_COLOR}"
+      exit 1
+    fi
+  fi
+
   if  [  -n  "$DATE"  ];  then
   (
     echo "Grimoire|Section|Spell|Grimoire Version|Installed Version|Added"
@@ -496,7 +524,7 @@ function newer()  {
         echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
   else
     help  |  $PAGER
   fi
@@ -522,7 +550,7 @@ function older()  {
         echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
   else
     help  |  $PAGER
   fi
@@ -561,8 +589,9 @@ function show_spell_component()  {
 #-----------------------------------------------------------------------
 ## parameter processing for the search routines.
 ## the case statement should be self-explanatory 
+## @param (optional) Type pf search (-name or -short)
+## @param words to search for
 #-----------------------------------------------------------------------
-
 function gaze_search() {
     case $1 in
 
@@ -785,9 +814,9 @@ function any_voyeur()
          sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
   [ $FILE ] || return 1
   debug "voyeur" "Looking at spell \"$FILE\""
-    nice -n +20				\
-       tail /tmp/$FILE.compile.log	\
-           --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
+  nice -n +20				\
+    tail $(find /tmp/sorcery/cast/ -name $FILE.compile.log )\
+         --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
 }
 
 #-----
@@ -951,11 +980,11 @@ function gaze_show_section()  {
         local SECTION=$(codex_find_section_by_name  $SECTION_NAME)
         [[ $SECTION ]] && codex_get_spell_names $SECTION
       done
-    ) | column
+    ) | maybe_column
 
   else
 
-    codex_get_all_section_names | column
+    codex_get_all_section_names | maybe_column
 
   fi
 
@@ -971,7 +1000,7 @@ function gaze_show_section()  {
 #---------------------------------------------------------------------
 function gaze_show_section_version_table()  {
 
-   local  SPELLS=`codex_get_spells $1`
+   local  SPELLS=`codex_get_spells_in_section $1`
 
    (
 
@@ -986,7 +1015,7 @@ function gaze_show_section_version_table()  {
 
      done 
 
-   ) | column -t -s "|"
+   ) | maybe_column -t -s "|"
 
 }
 
@@ -1013,7 +1042,7 @@ function gaze_show_spell_version_table()  {
 
     done 
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
 }
 
@@ -1108,7 +1137,7 @@ function gaze_show_versions()  {
     fi
   done
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
   echo
 }
@@ -1124,7 +1153,7 @@ function gaze_show_versions()  {
 #---------------------------------------------------------------------
 function gaze_show_section_license_table()  {
 
-   local  SPELLS=`codex_get_spells $1`
+   local  SPELLS=`codex_get_spells_in_section $1`
 
    (
 
@@ -1138,7 +1167,7 @@ function gaze_show_section_license_table()  {
 
      done 
 
-   ) | column -t -s "|"
+   ) | maybe_column -t -s "|"
 
 }
 
@@ -1163,7 +1192,7 @@ function gaze_show_spell_license_table()  {
 
     done 
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
 }
 
@@ -1186,7 +1215,7 @@ function gaze_show_license_table()  {
 
     done 
 
-  ) | column -t -s "|"
+  ) | maybe_column -t -s "|"
 
 }
 
@@ -1267,8 +1296,9 @@ function gaze_show_license()  {
 #-----
 function gaze_show_installed() {
 
+  local total_rc=0
   if    [  -z  "$1"    ]
-        then  $PAGER   $SPELL_STATUS
+        then  grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
   else
         for spell in $@; do
                 ! [[ $GAZE_VERBOSE == 0 ]] &&
@@ -1277,10 +1307,12 @@ function gaze_show_installed() {
                 if  [  -n  "$VERSION"  ]; then
                         echo   "$VERSION"
                 else
+                        total_rc=1
                         message  "not installed"
                 fi
         done
   fi
+  return $total_rc
 }
 
 #-----
@@ -1423,32 +1455,86 @@ function gaze_show_dependencies() {
 ##
 #-----
 function gaze_show_size () {
-    local spell
+    local spell each
     for spell in "$@"; do
+        if ! spell_ok $spell ; then
+          message "$spell is not installed"
+          continue
+        fi
         local version=$(installed_version $spell)
         local file="$INSTALL_LOGS/$spell-$version"
-        cat $file | xargs ls -lgd 2> /dev/null |grep '^[^dl]' | \
-            awk '{ x += $5 } 
+        if ! test -e $file ; then
+           message "No install log for $spell ($file)"
+           continue
+        fi
+        for each in $(<$file); do
+          test -f $each && echo $each
+        done | xargs du -b |
+            awk '{ x += $1 } 
                 END { print "'$spell' -> " x " bytes in " NR " files." }'
     done
 }
 
 #---------------------------------------------------------------------
 ##
-## prints all held spells.
+## displays a spell's install log
+##
+## @param spell - the spell name
+## @param version - version for that spell
+## @param type - If empty show the log without state files, if "spell"
+##        show log without sorcery log files eitther, if "full" show the entire
+##        log including sorcery state files
 ##
 #---------------------------------------------------------------------
-function gaze_show_held_spells () {
+function gaze_install() {
+  local SPELL=$1
+  local VERSION=$2
+  local TYPE=$3
+
+  local log=$INSTALL_LOGS/$SPELL-$VERSION
+  test -f $log || {
+    message "Install log for $SPELL does not exist"
+    return 1
+  }
+
+  if [[ "$TYPE" == full ]] ; then
+    sort $log | $PAGER
+  elif [[ "$TYPE" == spell ]] ; then
+    seperate_state_files $log /dev/stdout /dev/null | sort | $PAGER
+  else
+    {
+      seperate_state_files $log /dev/stderr /dev/stdout | grep $LOG_DIRECTORY
+    } 2>&1 | sort | $PAGER
+  fi
+
+}
+
+#---------------------------------------------------------------------
+##
+## prints all spells of a given status.
+## @param status - what are we looking for
+## @param describe - how is that staus described in english
+##
+#---------------------------------------------------------------------
+function gaze_show_spells_by_status () {
     message -n "${MESSAGE_COLOR}The following spells are set to"
-    message -n "${DEFAULT_COLOR} hold"
+    message -n "${DEFAULT_COLOR} $2"
     message    "${SPELL_COLOR}"
-    get_held | sort | column
+    get_all_spells_with_status $1 | sort | maybe_column
     message -n "${DEFAULT_COLOR}"
 }
 
-
 parse()  {
 
+  # Maintain "TMP_DIR is always set as a global" invariant in the case of
+  # non-root users, this leaves vague security holes but they're limited 
+  # to files the non-root user can access.
+  # a future goal is to make mk_tmp_dirs work for regular users too...
+  if  [  "$UID"  -gt  0  ];  then
+    export TMP_DIR=/tmp
+  else
+    mk_tmp_dirs gaze
+  fi
   if [ $1 == "-q" ]; then
         shift;
         GAZE_VERBOSE=0
@@ -1494,7 +1580,6 @@ parse()  {
             from)  show_from         $2                  ;;
            newer)  newer             $2                  ;;
            older)  older             $2                  ;;
-           prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
      source_urls)  source_urls       $SPELL              ;;
         grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
@@ -1509,7 +1594,8 @@ parse()  {
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
        installed)  shift; gaze_show_installed         $@ ;;
-       show-held)  gaze_show_held_spells                 ;;
+       show-held)  gaze_show_spells_by_status held hold  ;;
+     show-exiled)  gaze_show_spells_by_status exiled exiled ;;
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
@@ -1526,9 +1612,9 @@ parse()  {
                        "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
-    install)  display  $INSTALL_LOGS/$SPELL-$VERSION   \
-              "Install log for $SPELL does not exist"
-              ;;
+        install) gaze_install $SPELL $VERSION ;;
+   install-full) gaze_install $SPELL $VERSION full ;;
+  install-spell) gaze_install $SPELL $VERSION spell ;;
 
     sum)  [  -n  "$SPELL"  ]                         &&
           checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
@@ -1553,11 +1639,22 @@ parse()  {
 
   esac
 
+  # dont put code here unless you save the return value from the case/esac code
+
 }
 
 
 . /etc/sorcery/config
-if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  "$@";  fi
+if  [  $#  == 0  ];  then
+  help  |  $PAGER
+else
+  parse  "$@"
+  rc=$?
+  if  [  ${TMP_DIR:0:13} ==  "/tmp/sorcery/"  ];  then
+    cleanup_tmp_dir $TMP_DIR
+  fi
+  exit $rc
+fi
 
 
 #---------------------------------------------------------------------
@@ -1580,3 +1677,4 @@ if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  "$@";  fi
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
+# vim: tabstop=2:shiftwidth=2:expandtab

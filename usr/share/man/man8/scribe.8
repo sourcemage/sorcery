@@ -1,16 +1,19 @@
-.TH SCRIBE 8 "January 2003" "Source Mage GNU Linux" "System Administration"
+.TH SCRIBE 8 "November 2004" "Source Mage GNU Linux" "System Administration"
 .SH NAME
 scribe \- tracks, adds and removes grimoires
 .SH SYNOPSIS
-.B scribe [re]index
+.B scribe
+<action> [<options>]
+.SH EXAMPLE
+To update all grimoires, type
+.IP
+.B scribe
+update
 .PP
-.BI "scribe [add|remove|update|fix]" " <grimoire> " [[from] " <source url> " ]
-.PP
-.BI "scribe swap " "<grimoire> <another grimoire>"
-.PP
-.BI "scribe [transcribe|learn|forget] " <spell>
-.PP
-.BI "scribe set " value
+To add the z-rejected and games grimoires, type
+.IP
+.B scribe
+add z-rejected games
 .SH "DESCRIPTION"
 .I scribe
 is part of the
@@ -18,96 +21,107 @@ is part of the
 source-code package management suite.
 Scribe is a utility for controlling the grimoires in your codex,
 and the spells in your grimoires.
+.SH "NAMES"
+We refer to a package as a "spell".
+Spells of the same area are collected in "sections".
+A collection of sections is a "grimoire".
+On your box, you can have several grimoires,
+we call the collection of them the "codex".
 .PP
-The main use of scribe is simply to update the grimoires by
-.BR "scribe(8) update" "; this can be automated or invoked indirectly through"
-.BR "sorcery(8) system-update" .
-It is also used to get the grimoires into the codex in the first place, using
-.BR "scribe(8) add" .
-For example, you may want to add the grimoire called
+Games and binary packages for example are in their own grimoire,
+see http://wiki.sourcemage.org/index.php?page=Codex
+.SH "OPTIONS"
+Note that options can be abbreviated to any unambiguous shorter form, e.g.
+.I scribe a
+is the same as
+.IR "scribe add" "."
+.PP
+Also,
+.I scribe update
+can be abbreviated as
+.I scribe u
+even though
+.I unlocalize
+has the same first letter.
+.SS "add <grimoire> [from <url>] [...]"
+This will add the specified grimoire(s) to your codex.
+Optionally, you can give an url to get it from.
+.SS remove <grimoire>
+will remove the specified grimoire from your codex.
+.SS update [<grimoire> [from <url>]]
+will update the specified grimoire, if none is specified,
+all are updated. You can also give an url here.
+.SS fix <grimoire>
+This will prompt you for the download URL of the specified grimoire
+in order to "repair" it. The same can be done with
+.IP
+.I scribe update <grimoire> from <url>.
+.PP
+However, "fix" might get more functions in the future.
+.SS reindex [<grimoire>]
+This recreates the index files, of all grimoires or of the specified one.
+The index files are a sorcery mechanism to speed up spell lookups.
+.PP
+.B Always
+run
+.I scribe reindex
+whenever you add/remove spells! Otherwise, strange things will happen!
+.SS index
+shows a list of grimoires and locations where you have them installed.
+.SS set <grim1> <grim2>
+this will put grim1 just before grim2.
+Use this if there's spells in both grimoires and you want those from
+grim1 to be used first.
+.PP
+Note that you can use
+.I scribbler(8)
+for purposes like these too.
+.SS swap <grim1> <grim2>
+This will swap grim1 and grim2 in the grimoire list.
+You can use this if you don't like the order of your grimoires.
+.SS localize <grimoire>
+This marks a grimoire as local,
+which means that scribe will not attempt to update it.
+.SS unlocalize <grimoire>
+The opposite of localize. Removes the local mark.
+.SH "ADVANCED USAGE"
+To add the grimoire
 .I waldo
 from
-.IR "http://zyzzy/waldo.tar.bz2" ", then you would run"
-.PP
+.IR "http://zyzzy/waldo.tar.bz2" ","
+you would run
+.IP
 .B "scribe add waldo from http://zyzzy/waldo.tar.bz2"
 .PP
-.B "scribe add stable from rsync://www.sourcemage.org::stable"
+It should be noted that the source url listed above can be any url sorcery
+has a handler for. Currently they are
 .PP
-It should be noted that the source url listed above can be any source such as
-cvs, rsync, http, ftp, etc.
-.SH "OPTIONS"
-With each of these command line options, it is only necessary to specify enough of the verb to disambiguate
-the command from the others. For example,
-.IR "scribe u" " is equivalent to "
-.IR "scribe up" "; both are shorthands for the long version " "scribe update"
+http, ftp, https, rsync, svn, cvs, file (local file), dir (local directory)
+.SH "GRIMOIRE NAMES"
+Grimoires are internally represented by the full path to them. They can be uniquely described on the command line by listing the name and however many subdirectories are needed to form a unique name.
 .PP
-.B scribe [re]index
+For example you may have two grimoires:
 .PP
-Displays a list of all currently used grimoires, in order. If reindexed then
-scribe rebuilds the spell location indexes for sorcery.
+.B /var/lib/sorcery/codex/stable
 .PP
-.BI "add " grimoire
+and
 .PP
-Downloads and adds the specified grimoire from the default location
-(usually 
-.BR "http://codex.sourcemage.org/grimoire-name.tar.bz2" ).
+.B /root/grimoires/stable
 .PP
-.BI "add " grimoire " from " url
+These can be uniquely identified with
+.B "codex/stable "
+and
+.B "grimoires/stable "
 .PP
-Downloads and installs the grimoire
-.I grimoire
-from the URL given by
-.IR url .
-This is the complete path to the file, including the filename and the 
-.B .tar.bz2
-file extension.
-.PP
-.BI "scribe update"
-.PP
-Updates all installed grimoires.
-.PP
-.BI "scribe update " grimoire
-.PP
-Updates the grimoire specified by
-.IR grimoire .
-.PP
-.BI "scribe update " grimoire " from " url
-.PP
-Updates the grimoire specified by
-.IR grimoire " from the url " url .
-.PP
-.BI "scribe fix"
-.PP
-I'm sure this does something terribly complicated.
-.PP
-.BI "scribe remove " grimoire
-.PP
-Deletes the grimoire
-.IR grimoire " from the codex."
-.PP
-.BI "scribe swap " "grimoire1 grimoire2"
-.PP
-Changes the order the specified grimoires are listed in the
-.I index
-by swapping their positions.
-.PP
-.BI "scribe set "
-.PP
-I can't tell by looking at the code what this is meant to do. Maybe I need more sleep.
-.PP
-.BI "scribe transcribe"
-.PP
-.BI "scribe learn"
-.PP
-.BI "scribe forget"
-.PP
-These functions are currently unimplemented, and I don't know what their intention is.
+If just
+.B "stable "
+was specified it would match the first of the two grimoires listed in scribe index.
 .SH "AUTHOR"
 The Source Mage GNU Linux Team <http://www.sourcemage.org>
-.PP
 .SH "REPORTING BUGS"
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-cast(8), dispel(8), gaze(1), grimoire(5), invoke(8), sorcery(8), summon(8), scribbler (8)
+alter(8), cast(8), cleanse(8), dispel(8), gaze(1), grimoire(5), scribbler(8),
+sorcery(8), sorcery_config(5), summon(8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY

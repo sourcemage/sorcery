@@ -1,0 +1,755 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Functions for dealing with tablet
+## @Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+##
+## tablet layout version 0:
+##        layout 0 is anything unversioned with all its problems, if a
+##        tablet like this is seen it should be updated to version 1,
+##        the defects that exist are enumerated below, future tablet
+##        versions will not require this as they will be more fully
+##        documented and formal accessor functions will deal with interfacing
+##        with them
+##
+## tablet layout version 1:
+##
+## $TABLET_PATH/$SPELL/<timestamp>/
+##                         build_api
+##                         depends
+##                         grimoire/<all files from the grimoire dir>
+##                         logs/[install,md5sum,compile] (links to real files)
+##                         roots (all important FOO_ROOT values)
+##                         section/<all files from the section dir>
+##                         section_name
+##                         sources (the sources and urls used)
+##                         spell/<all spell files>
+##                         spell_config
+##                         spell_config.p
+##                         status (installed or held)
+##                         tb_version (tablet version)
+##                         updated (value of $UPDATED)
+##                         version (value of $VERSION)
+##                         cache symlink to cache archive
+##
+## known defects pre tablet version 1 (and the functions that fix them) :
+##  no version file : tablet_0_repair_version
+##  no updated file : tablet_0_repair_updated
+##  spell/<spellname>/<spell files>, should be spell/<spell files> 
+##     tablet_0_repair_spell DONE
+##  no tb_version : tablet_0_repair (bumps to version 1)
+##
+#---------------------------------------------------------------------
+##
+## Terminology:
+##   "the tablet" the directory $TABLET_PATH and everything in it
+##   "tablet chapter" A spell's directory within the tablet eg:
+##      $TABLET_PATH/$SPELL/...
+##   "tablet page" A specific instance of a spell in a chapter eg:
+##      $TABLET_PATH/$SPELL/<timestamp>/...
+##	this is sometimes called a tablet dir, but I'm trying to phase that out
+##
+## Accessors Routines (thus far):
+##        tablet_get_spell_file
+##        tablet_get_section_file
+##        tablet_get_grimoire_file
+##        tablet_get_build_api
+##        tablet_get_version
+##        tablet_get_updated
+##        tablet_get_depends
+##        tablet_get_status
+##        tablet_get_sources
+##        tablet_get_filter
+##        tablet_load_roots
+##        tablet_unload_roots
+##        tablet_get_tb_version
+##        tablet_get_spell_name_from_path
+##
+## Cleanse routines:
+##   tablet_cleanse_tablet : Fix the whole tablet
+##   tablet_cleanse_chapter : Fix a chapter
+##   tablet_coalesce_files : hardlink identical files to save space
+##   tablet_fix_duplicates
+##        determine if a tablet points back at itself through the install log
+##
+##
+##
+##
+##
+#---------------------------------------------------------------------
+
+
+################################### Accessors ########################
+
+function tablet_get_version() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/version && value=$(<$tb_dir/version) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_updated() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/updated && value=$(<$tb_dir/updated) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_build_api() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/build_api && value=$(<$tb_dir/build_api) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_depends() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/depends && value=$tb_dir/depends|| return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_status() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/status && value=$(<$tb_dir/status) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_sources() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/sources && value=$(<$tb_dir/sources) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_spell_file() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/spell/$2 && value=$tb_dir/spell/$2 || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$3=\"$value\""
+  return 0
+}
+
+function tablet_get_section_file () {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/section/$2 && value=$tb_dir/section/$2 || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$3=\"$value\""
+  return 0
+}
+
+function tablet_get_grimoire_file() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/grimoire/$2 && value=$tb_dir/grimoire/$2 || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$3=\"$value\""
+  return 0
+}
+
+function tablet_get_log_file() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/logs/$2 && value=$tb_dir/logs/$2 || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$3=\"$value\""
+  return 0
+}
+
+function tablet_get_filter() {
+  tablet_get_spell_file $1 $2 $3
+}
+
+function tablet_load_roots() {
+  local tb_dir=$1 tb_version
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/roots && source $tb_dir/roots || return 2 ;;
+    *) return 3 ;;
+  esac
+  source $STATE_CONFIG
+}
+
+function tablet_unload_roots() {
+  source $ROOTS_CONFIG
+  source $STATE_CONFIG
+}
+
+function tablet_get_tb_version() {
+  local tb_dir=$1
+  if ! [[ $tb_dir ]] ; then
+    message "nothing passed in!"
+    return 1
+  fi
+  if ! test -f $tb_dir/tb_version ||
+     [[ "$(cat $tb_dir/tb_version)" == 0 ]] ; then
+    tablet_0_repair $tb_dir || return 1
+  fi
+  local ____tb_version=$(<$tb_dir/tb_version)
+  if test $____tb_version -gt $TABLET_MAX_VERSION; then
+    message "${PROBLEM_COLOR}This sorcery is too old for tablet version" \
+            "$tb_version! Please update to the newer version of sorcery" \
+            "or recast this spell${DEFAULT_COLOR}"
+    return 255
+  fi
+  eval "$2=\"$____tb_version\""
+  return 0
+}
+
+#---------------------------------------------------------------------
+## determine the spell associated with a tablet path
+## @param tablet path
+## @stdout spell name
+##
+## tablet paths are $TABLET_PATH/<spell>/<timestamp>
+## dirname of that is $TABLET_PATH/<spell>
+## basename of that is <spell>
+#---------------------------------------------------------------------
+function tablet_get_spell_name_from_path() {
+  [[ $1 ]] && basename $(dirname $1)
+}
+
+######################################################################
+
+#---------------------------------------------------------------------
+## setup a unique tablet directory
+## @param spell name
+## @stdout path to unique tablet directory
+## @return 0 if the directory was made, 1 if not
+#---------------------------------------------------------------------
+function tablet_get_path() {
+  local SPELL=$1
+  local tb_dir=$TABLET_PATH/$SPELL/$(date +%Y%m%d%H%M%S)
+  local sleep_time
+  local made
+  
+  mkdir -p $TABLET_PATH/$SPELL &&
+  for (( i=0 ; $i < 20 ; i++ )) ; do
+    if mkdir $tb_dir > /dev/null; then
+      made=1
+      break
+    fi
+    let sleep_time=$RANDOM%3
+    sleep $sleep_time
+    tb_dir=$TABLET_PATH/$SPELL/$(date +%Y%m%d%H%M%S)
+  done
+  if [[ $made ]]; then
+    echo $tb_dir
+    return 0
+  fi
+  return 1
+}
+
+#----------------------------------------------------------------------
+# @param spell name
+# @param upvar
+# @param timestamp (optional)
+#----------------------------------------------------------------------
+function tablet_find_spell_dir() {
+  local SPELL=$1
+  if ! test -d $TABLET_PATH; then
+    mkdir -p $TABLET_PATH
+    return 1
+  fi
+  local __spell_dir
+  local base_dir=$TABLET_PATH/$SPELL
+  if ! [[ $base_dir ]] || ! test -d $base_dir ; then
+    return 1
+  fi
+
+  if [[ $3 ]] ; then
+    local timestamp=$3
+    if test -d $base_dir/$timestamp; then
+      __spell_dir=$base_dir/$timestamp
+      eval "$2=\"$__spell_dir\""
+      return 0
+    fi
+    return 1 # requested a dir that was not there
+  fi
+  # print the newest one
+  local BREAK
+  function tablet_find_spell_dir_sub() {
+    tablet_is_spell_version_installed $SPELL $1 quiet &&
+    tablet_does_tablet_point_to_itself $1 quiet &&
+    __spell_dir=$1
+    BREAK=yes
+  }
+  iterate tablet_find_spell_dir_sub $'\n' \
+                   $(find $base_dir -mindepth 1 -maxdepth 1 -type d)
+  if ! [[ $__spell_dir ]] ; then
+    # base dir exists but is empty ( ideally this wont happen, but play it safe)
+    return 1
+  fi
+  eval "$2=\"$__spell_dir\""
+  return 0
+}
+
+#----------------------------------------------------------------------
+# @param spell name
+# @param spell file within the tablet
+# @param timestamp (optional)
+# @return always true
+# @stdout the file if it exists, or empty
+#----------------------------------------------------------------------
+function tablet_find_spell_file() {
+  local page_dir
+  if tablet_find_spell_dir $1 page_dir $3; then
+    test -e $page_dir/$2 && echo $page_dir/$2
+  else
+    echo ""
+  fi
+}
+
+#----------------------------------------------------------------------
+## @param tablet dir
+## @globals everything that comes with a spell...
+#----------------------------------------------------------------------
+function tablet_install_spell_files() {
+  pushd $1 &>/dev/null || {
+    message "Failed to enter $1"
+    return 1
+  }
+
+  # this is tablet version 1
+  echo 1 > tb_version
+
+  # directories
+  mkdir spell section grimoire
+
+  cp -R $SCRIPT_DIRECTORY/* spell
+
+  local section_files=$(find $SECTION_DIRECTORY -maxdepth 1 -type f)
+  if [[ $section_files ]] ; then cp $section_files section; fi
+
+  local grimoire_files=$(find $GRIMOIRE -maxdepth 1 -type f)
+  if [[ $grimoire_files ]] ; then cp $grimoire_files grimoire; fi
+
+  # magic values we want to be able to easily look up
+  echo $VERSION > version
+  echo $UPDATED > updated
+  echo $BUILD_API > build_api
+  echo $SECTION > section_name
+  echo installed > status # this could be held or something else
+
+  # SPELL_CONFIG and persistent variables
+  test -e $SPELL_CONFIG && cp $SPELL_CONFIG spell_config
+  test -e $SPELL_CONFIG.p && cp ${SPELL_CONFIG}.p spell_config.p
+
+  # depends info
+  test -e $spell_depends && cp $spell_depends depends
+
+  # logs
+  mkdir logs
+  ln -s $INST_LOG logs/install
+  ln -s $MD5_LOG logs/md5sum
+  ln -s $C_LOG_COMP logs/compile
+
+  # cache archive
+  if [ "$ARCHIVE" == "on" ]; then
+    ln -s $CACHE_COMP cache
+  fi
+
+  # roots
+  echo INSTALL_ROOT="$INSTALL_ROOT" > roots
+  echo TRACK_ROOT="$TRACK_ROOT" >> roots
+  echo STATE_ROOT="$STATE_ROOT" >> roots
+
+  # all the sources and their urls
+  get_spell_files_and_urls > sources
+
+  popd &>/dev/null
+}
+
+
+#---------------------------------------------------------------------
+## this is to set a spell based on whats in the installed grimoire
+## possibly for re-casting, not sure what else...
+##
+## Note that this function does not use the tablet_get accessors for
+## efficiency.
+#---------------------------------------------------------------------
+function tablet_set_spell() {
+  codex_clear_current_spell
+  SPELL=$1
+  if [[ $2 ]] && test -d $2; then
+    SPELL_DIRECTORY=$2
+  else
+    tablet_find_spell_dir $SPELL SPELL_DIRECTORY || return 1
+  fi
+
+  VERSION=$(<$SPELL_DIRECTORY/version)
+
+  # Directories
+  SCRIPT_DIRECTORY=$SPELL_DIRECTORY/spell
+  SECTION_DIRECTORY=$SPELL_DIRECTORY/section
+  GRIMOIRE=$SPELL_DIRECTORY/grimoire
+
+  # Names
+  SECTION=$(<$SPELL_DIRECTORY/section)
+
+  SPELL_CONFIG="$SPELL_DIRECTORY/spell_config"
+  if  [ -f  $SPELL_CONFIG  ]; then
+    .  $SPELL_CONFIG > /dev/null  2> /dev/null
+  fi
+
+  persistent_load
+  .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
+  persistent_clear
+
+  BUILD_API=$(<$SPELL_DIRECTORY/build_api)
+  # if BUILD_API isnt set something is wrong, but just be safe
+  [[ -z $BUILD_API ]] && BUILD_API=1
+
+  INST_LOG=$SPELL_DIRECTORY/logs/install
+  MD5_LOG=$SPELL_DIRECTORY/logs/md5sum
+  C_LOG_COMP=$SPELL_DIRECTORY/logs/compile
+
+  . $SPELL_DIRECTORY/roots
+  . $STATE_CONFIG
+
+  return 0
+}
+
+############################ cleanse functions ########################
+
+#---------------------------------------------------------------------
+##
+#---------------------------------------------------------------------
+function tablet_cleanse_tablet() {
+  local tablet_path=$1
+  local backup_dir=$2
+  local file_backup_dir=$backup_dir/tablet_files
+  local dir rc
+
+  mkdir -p $file_backup_dir
+  for dir in $tablet_path/* ; do
+    if test -d $dir ; then
+      tablet_cleanse_chapter $dir $backup_dir
+    else
+      message "$dir is not a directory! backing it up in $backup_dir"
+      mv $dir $file_backup_dir
+    fi
+  done
+}
+
+#---------------------------------------------------------------------
+##
+#---------------------------------------------------------------------
+function tablet_cleanse_chapter() {
+  local sdir=$1
+  local backup_dir=$2
+  local spell=$(basename $sdir)
+  local page rc
+
+  mkdir -p $backup_dir/duplicates
+  mkdir -p $backup_dir/chapter_files
+  tablet_fix_duplicates $spell $sdir $backup_dir/duplicates
+  test -d $sdir || return 0
+
+  # tablet_fix_duplicates has the side-effect of invoking a repair
+  # to all pages, so theres no need for a tablet_cleanse_page below
+
+  for page in $sdir/*; do
+    if ! test -d $page; then
+      message "$dir is not a directory! backing it up in $backup_dir"
+      mv $page $backup_dir/chapter_files/$page.$spell
+    fi
+  done
+}
+
+
+#---------------------------------------------------------------------
+## @param spell
+## @param path to a tablet chapter
+## @param backup dir
+#---------------------------------------------------------------------
+function tablet_fix_duplicates() {
+  local spell=$1
+  local tbc_dir=$2
+  local backup_dir=$3
+  local tablets rc dir i
+
+  let i=0
+  for dir in $tbc_dir/*; do
+    if test -d $dir; then
+      tablets[$i]=$dir
+      let i+=1
+    fi
+  done
+
+  if test ${#tablets[*]} -eq 0 ||
+     test -z "${tablets[0]}"; then
+    message "Empty tablet chapter: $tbc_dir, removing it"
+    rmdir $tbc_dir
+    return
+  fi
+
+  for ((i=0;$i<${#tablets[*]}; i++ )) ; do
+    message "Inspecting ${tablets[$i]}"
+    tablet_is_spell_version_installed $spell ${tablets[$i]} &&
+    tablet_does_tablet_point_to_itself ${tablets[$i]}  ||
+    tablet_backup_page ${tablets[$i]} $backup_dir
+  done
+  
+  if ! [[ $(ls $tbc_dir) ]] ; then
+    message "Empty tablet chapter: $tbc_dir, removing it"
+    rmdir $tbc_dir
+  fi
+}
+
+function tablet_backup_page() {
+  local tb_dir=$1
+  local backup_dir=$2
+  local spell_name=$(tablet_get_spell_name_from_path $tb_dir)
+  mkdir -p $backup_dir/$spell_name
+  mv $tb_dir $backup_dir/$spell_name
+}
+
+#---------------------------------------------------------------------
+## check if the tablet represents a spell version thats installed
+#---------------------------------------------------------------------
+function tablet_is_spell_version_installed() {
+  local spell=$1
+  local tb_dir=$2
+  local quiet=$3
+  local tb_version
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 253
+  local version_in_tablet
+  tablet_get_version $tb_dir version_in_tablet
+  [[ $? != 0 ]] && {
+    [[ $quiet ]] || message "Unable to get version for $tb_dir"
+    return 254
+  }
+  local version_installed=$(installed_version $spell)
+  if [[ "$version_in_tablet" != "$version_installed" ]] ; then
+    if ! [[ $quiet ]] ; then
+      message "Tablet at $tb_dir represents\na version that is not installed" \
+              "on the system!"
+      message "tablet version: \"$version_in_tablet\""
+      message "installed version: \"$version_installed\""
+    fi
+    return 1
+  fi
+  return 0
+}
+
+#---------------------------------------------------------------------
+## check if a tablets install log includes itself
+#---------------------------------------------------------------------
+function tablet_does_tablet_point_to_itself() {
+  local rc
+  local tb_dir=$1
+  local quiet=$2
+  local tb_version
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 253
+
+  local tb_inst_log
+  tablet_get_log_file $tb_dir install tb_inst_log
+  [[ $? != 0 ]] && {
+    message "Unable to get install log for $tb_dir!"
+    return 254
+  }
+  tablet_load_roots $tb_dir
+  log_adjuster $tb_inst_log /dev/stdout log root 2>/dev/null| grep -q "^$tb_dir"
+  rc=$?
+  tablet_unload_roots $tb_dir
+  if [[ $rc != 0 ]] ; then
+    if ! [[ $quiet ]] ; then
+      message "Tablet at $tb_dir points to an install log that does not point" \
+              "back at $tb_dir!"
+    fi
+  fi
+  return $rc
+}
+
+#----------------------------------------------------------------------
+## @param none
+## @stdout none
+## @globals $TABLET_PATH
+## Intended to be used by cleanse, this routine finds identical files in
+## $TABLET_PATH and hardlinks identical files together in order to save
+## space. This is done on the assumption that 1) tablet files are treated
+## as read only, and 2) anyone using the tablet for write operations (they
+## shouldnt be) will break the hardlinks
+#----------------------------------------------------------------------
+function tablet_coalesce_files() {
+  local dir=${1:-$TABLET_PATH}
+  local car cdr i each
+  let i=0
+
+  local link_log=${2:-$TMP_DIR}/link_log
+
+  local total_files=$(find $dir -type f 2>/dev/null|wc -l)
+  message "Computing md5sum of $total_files tablet files"
+  function tablet_coalesce_files_sub() {
+    hash_append tablet_coalesce $(md5sum $1 2>/dev/null)
+    progress_bar $i $total_files
+    let i+=1
+  }
+  iterate tablet_coalesce_files_sub $'\n' $(find $dir -type f)
+  message ""
+
+  # hash_get_table dumps out the table values one per line
+  # they are read into the stuff array and then if theres more than one
+  # thing we force hardlink them together
+  message "Coalescing files.."
+  hash_get_table tablet_coalesce| while read -a cdr; do
+    car=${cdr[0]}
+    for (( i=1 ; i<${#cdr[*]} ; i++ )) ; do
+      echo "Linking $car to ${cdr[$i]}" > $link_log
+      ln -f $car ${cdr[$i]}
+    done
+  done
+  hash_unset tablet_coalesce
+}
+
+###################### Version 0 repair functions ####################
+
+#---------------------------------------------------------------------
+## @param tablet dir
+## Fix the various known defects with an un-versioned tablet and stuff
+## a version of 1 in it.
+#---------------------------------------------------------------------
+function tablet_0_repair() {
+  # once all these are done, we should have a version 1 tablet
+  tablet_0_repair_spell $1 &&
+  tablet_0_repair_version $1 &&
+  tablet_0_repair_updated $1 &&
+  echo 1 > $1/tb_version || {
+    message "Error repairing tablet at $1"
+    return 1
+  }
+  return 0
+}
+
+#---------------------------------------------------------------------
+## @param tablet dir
+## 
+## tablet may have either
+## $tb_dir/spell/DETAILS or
+## $tb_dir/spell/<spellname>/DETAILS
+## the first is correct, the second is not, correct the problem if it exists
+#---------------------------------------------------------------------
+function tablet_0_repair_spell() {
+  local tb_dir=$1
+  local spell_name=$(tablet_get_spell_name_from_path $tb_dir)
+  if test -d $tb_dir/spell/; then
+    if test -f $tb_dir/spell/DETAILS; then
+      return 0
+    elif test -d $tb_dir/spell/$spell_name; then
+      message "Repairing defected tablet spell dir in $tb_dir"
+      mv $tb_dir/spell/$spell_name/* $tb_dir/spell/ &&
+      rmdir $tb_dir/spell/$spell_name &&
+      return 0
+    else
+      message "Corrupt spell dir in tablet, this shouldnt happen."
+      message "It'd be good to recast the spell now."
+      return 1
+    fi
+  else
+    message "Missing spell dir in tablet, this shouldnt happen."
+    message "It'd be good to recast the spell now."
+    return 1
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param tablet dir
+##
+## Repair the "updated" file as it wasnt created for all pre-versioned
+## tablets. Source the spell, echo $VERSION into a file named version
+#---------------------------------------------------------------------
+function tablet_0_repair_version() {
+  local tb_dir=$1
+  test -f $tb_dir/version ||
+  (
+    message "Repairing missing spell version file in $tb_dir"
+    # note this assumes tablet_0_repair_spell has run
+    source $tb_dir/spell/DETAILS &>/dev/null
+    echo $VERSION > $tb_dir/version
+  )
+}
+
+#---------------------------------------------------------------------
+## @param tablet dir
+## Repair the "updated" file as it wasnt created for all pre-versioned
+## tablets. Source the spell, echo $UPDATED into a file named updated
+#---------------------------------------------------------------------
+function tablet_0_repair_updated() {
+  local tb_dir=$2
+  test -f $tb_dir/updated ||
+  (
+    message "Repairing missing spell updated file in $tb_dir"
+    # note this assumes tablet_0_repair_spell has run
+    source $tb_dir/spell/DETAILS &>/dev/null
+    echo $UPDATED > $tb_dir/updated
+  )
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

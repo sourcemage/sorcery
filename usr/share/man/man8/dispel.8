@@ -1,4 +1,4 @@
-.TH DISPEL 8 "August 2002" "Source Mage GNU Linux" "System Administration"
+.TH DISPEL 8 "November 2004" "Source Mage GNU Linux" "System Administration"
 .SH NAME
 dispel \- removes software packages
 .SH SYNOPSIS
@@ -20,46 +20,44 @@ source-code package management suite. It is a command-line tool
 for automatically uninstalling a package and its associated
 files. 
 .SH "OPTIONS"
-.TP
-.B "-d, --downgrade"
-downgrade is an option for removing the selected spell and restoring
-a previously installed version
-.TP
-.B "-e, --exile"
-removes software package and sets package status to 'exile'. This prevents
-it from being cast again automatically
-.TP
-.B "-h, --help"
+.SS "-d, --downgrade <spell> <version>"
+remove the selected spell and restore to the given
+previously installed version.
+.SS "-e, --exile"
+removes software package and sets package status to 'exile'.
+This prevents it from being cast again automatically,
+such as when it is needed as a dependency.
+.PP
+To unexile a spell, simply dispel it without any arguments.
+.SS "--notriggers"
+disables handling of "triggers" for this session,
+the automatic recasting/dispelling of other spells when
+a spell is dispelled.
+.SS "--nosustain"
+usually, sorcery will refuse to dispel things it vitally needs
+(gcc, tar, bash, etc.)
+This overrides that protection.
+.SS "--noreap"
+dispel the spell without removing its files
+.SS "--no-reap-depends"
+Dont remove dependency information, do not use this unless you know exactly
+what you are doing, and dont complain if it breaks your box.
+.SS "-h, --help"
 outputs short help
 .SH "FILES"
-.TP
-.I /var/lib/sorcery/excluded
-.IP
-List of files that are excluded during a cast or dispel.
-.TP
-.I /var/lib/sorcery/protected
-.IP
-Contains a list of files that will not be removed.
-.TP
-.I /var/lib/sorcery/solo
-.IP
-List of solo spells.
-.TP
-.I /var/lib/sorcery/sustained
-.IP
+.SS /var/lib/sorcery/excluded
+List of regexps that are excluded during a cast or dispel.
+.SS /var/lib/sorcery/protected
+List of files that will not be removed.
+.SS /var/lib/sorcery/sustained
 List of spells that are essential to system, and dispel of is not permitted.
 Casting and upgrading is fine.
-.TP
-.I /var/lib/sorcery/subroutines
-.IP
-Contains functions used by 
-.B dispel
-.SH ADVANCED USEAGE
-Protecting a file from updates
+.SH ADVANCED USAGE
+Remove xfree86, will not be cast again for any reason
 .IP
 dispel
 .B --exile
-glibc
+xfree86
 .PP
 Rolling back to a previous version of a package 
 .IP
@@ -78,12 +76,14 @@ packages and versions type
 Downgrade will only rollback to versions that were previously installed.
 It will not download older versions from the Internet.
 .SH "AUTHOR"
-Original version by Kyle Sallee, and updated Thomas Stewart.
+Original version by Kyle Sallee, and updated Thomas Stewart
+and Karsten Behrmann.
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .SH "REPORTING BUGS"
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-cast(8), gaze(1), grimoire(5), invoke(8), sorcery(8), scribe(8), summon(8), scribbler (8)
+alter(8), cast(8), cleanse(8), gaze(1), grimoire(5), scribbler(8), scribe(8),
+sorcery(8), sorcery_config(5), summon(8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY

@@ -25,13 +25,14 @@ EOF
   SPELL=${SPELL:=alter}
   VERSION="$(gaze -q installed "$SPELL" | grep -v 'not installed')"
   [ -z "$VERSION" ] && VERSION=$$
-  TMP_LOG=/tmp/$SPELL-$VERSION
-  IW_LOG=/tmp/$SPELL-$VERSION.iw
+  TMP_LOG=$TMP_DIR/$SPELL-$VERSION
+  IW_LOG=$TMP_DIR/$SPELL-$VERSION.iw
   INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
-  C_LOG=/tmp/$SPELL-$VERSION.compile.log
+  C_LOG=$TMP_DIR/$SPELL-$VERSION.compile.log
   C_LOG_COMP=$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
-  CACHE_COMP=$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION
+  CACHE=$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar
+  CACHE_COMP=${CACHE}${EXTENSION}
   rm -f  "$C_LOG" 2> /dev/null
   touch  "$C_LOG"
   message "${MESSAGE_COLOR}Gathering metadata for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
@@ -56,7 +57,7 @@ EOF
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT)
   devoke_installwatch
   touch $IW_LOG $MD5_LOG $C_LOG_COMP
-  track
+  create_install_log $IW_LOG $INST_LOG
   [ -n "$MD5_DATA" ] && echo "$MD5_DATA" | cut -c35- |
     exists | grep -v "^$LOG_DIRECTORY" > "$TMP_LOG.2" &&
     cat "$TMP_LOG.2" "$INST_LOG" | sort | uniq > "$TMP_LOG.3" ||
@@ -64,8 +65,8 @@ EOF
   rm "$TMP_LOG.2" 2> /dev/null
   mv "$TMP_LOG.3" "$INST_LOG"
   create_compile_log
-  md5list $INST_LOG $MD5_LOG
-  archive
+  create_md5list $INST_LOG $MD5_LOG
+  create_cache_archive $INST_LOG $CACHE $CACHE_COMP
   add_spell "$SPELL" installed "$VERSION"
   rm $C_LOG
   report_install
@@ -160,11 +161,13 @@ function alter_md5_mend() {
       touch "$MD5S_LOG"
       echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL-$VERSION-backup.md5"
       find * > "$INST_LOG"
-      md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
-      CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
-      archive # No install log nor compile cache needed or wanted since we are 
-              # only doing md5sum deletions from other spells, the undeleted 
-              # form should only restore the md5sums to the proper location.
+      create_md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
+      CACHE="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar"
+      CACHE_COMP="${CACHE}${EXTENSION}"
+      # No install log nor compile cache needed or wanted since we are 
+      # only doing md5sum deletions from other spells, the undeleted 
+      # form should only restore the md5sums to the proper location.
+      create_cache_archive $INST_LOG $CACHE $CACHE_COMP
       rm -rf "$STORE"
     fi
     return 1
@@ -234,13 +237,13 @@ function alter_pre_link() {
   alter_gather_bins
 
   alter_alter -n smgl-prelink '
-    /usr/sbin/prelink -v '"$ARGS"' | tee /tmp/prelink.$$.output
-    grep "Prelinking\\|Linking" /tmp/prelink.$$.output |cut -d" " -f2 | 
+    /usr/sbin/prelink -v '"$ARGS"' | tee $TMP_DIR/prelink.$$.output
+    grep "Prelinking\\|Linking" $TMP_DIR/prelink.$$.output |cut -d" " -f2 | 
     sort | uniq |
     while read PRELINKED; do
        touch "$PRELINKED"
     done
-    rm /tmp/prelink.$$.output
+    rm $TMP_DIR/prelink.$$.output
   '
 
 }
@@ -276,21 +279,21 @@ function alter_strip_all_do() {
       grep -q ELF && echo "$LINE"
     done |
     while read STRIPFILE; do
-      cp "$STRIPFILE" /tmp/tostrip.$$
-      strip '"$ARGS"' /tmp/tostrip.$$
-      if [ "$(md5sum < /tmp/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
+      cp "$STRIPFILE" $TMP_DIR/tostrip.$$
+      strip '"$ARGS"' $TMP_DIR/tostrip.$$
+      if [ "$(md5sum < $TMP_DIR/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
         echo "$STRIPFILE" already stripped, skipping.
-        rm /tmp/tostrip.$$
+        rm $TMP_DIR/tostrip.$$
       else 
-        if [ "$(ldd /tmp/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
+        if [ "$(ldd $TMP_DIR/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
           echo "$STRIPFILE stripped and verified."
           # uncomment the following to make backups before mving stripped bins
           # mkdir -p "/var/log/sorcery/tmp/smgl-strip.$$/${STRIPFILE%/*}"
           # cp "$STRIPFILE" "/var/log/sorcery/tmp/smgl-strip.$$/$STRIPFILE"
-          mv /tmp/tostrip.$$ "$STRIPFILE"
+          mv $TMP_DIR/tostrip.$$ "$STRIPFILE"
         else
           echo "$STRIPFILE corrupted by strip, skipping"
-          rm /tmp/tostrip.$$
+          rm $TMP_DIR/tostrip.$$
         fi
       fi
     done
@@ -318,21 +321,21 @@ function alter_strip_do() {
       grep -q ELF && echo "$LINE"
     done |
     while read STRIPFILE; do
-      cp "$STRIPFILE" /tmp/tostrip.$$
-      strip '"$ARGS"' /tmp/tostrip.$$
-      if [ "$(md5sum < /tmp/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
+      cp "$STRIPFILE" $TMP_DIR/tostrip.$$
+      strip '"$ARGS"' $TMP_DIR/tostrip.$$
+      if [ "$(md5sum < $TMP_DIR/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
         echo "$STRIPFILE" already stripped, skipping.
-        rm /tmp/tostrip.$$
+        rm $TMP_DIR/tostrip.$$
       else 
-        if [ "$(ldd /tmp/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
+        if [ "$(ldd $TMP_DIR/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
           echo "$STRIPFILE stripped and verified."
           # uncomment the following to make backups before mving stripped bins
           # mkdir -p "/var/log/sorcery/tmp/smgl-strip.$$/${STRIPFILE%/*}"
           # cp "$STRIPFILE" "/var/log/sorcery/tmp/smgl-strip.$$/$STRIPFILE"
-          mv /tmp/tostrip.$$ "$STRIPFILE"
+          mv $TMP_DIR/tostrip.$$ "$STRIPFILE"
         else
           echo "$STRIPFILE corrupted by strip, skipping"
-          rm /tmp/tostrip.$$
+          rm $TMP_DIR/tostrip.$$
         fi
       fi
     done
@@ -546,7 +549,11 @@ if    [  "$UID"  ==  0  ] ; then
     renice $NICE -p $$  >/dev/null
   fi
 
+  mk_tmp_dirs alter
   main  "$@"
+  rc=$?
+  cleanup_tmp_dir $TMP_DIR
+  exit $rc
 elif  [[  "$1" == -h       ]]  ||
       [[  "$1" == --about  ]]  ||
       [[  "$1" == --help   ]]  ||
@@ -554,7 +561,7 @@ elif  [[  "$1" == -h       ]]  ||
   main "$1"
 else  
   echo  "Enter the root password, please."  1>&2
-  su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
+  su -c "$0 $*" root
 fi
 
 
