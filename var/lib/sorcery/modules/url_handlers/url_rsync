@@ -69,7 +69,14 @@ function url_rsync_run_rsync() {
   if [ "$dl_file" == 1 ]; then
     TOTAL=0 # downloading a single file, not a source tree
   else
-    let TOTAL=$(find $2 -type f | wc -l)+10
+    let TOTAL=$(find $2 -type f 2>/dev/null | wc -l)
+    if [ "$TOTAL" -lt 2 ] ; then
+      # this is a hack to handle the case of a brand new tree
+      # we dont want the progress bar to be too short
+      let TOTAL=100
+    else
+      let TOTAL+=10
+    fi
   fi
   
   message "${MESSAGE_COLOR}Running rsync...${DEFAULT_COLOR}"
@@ -80,7 +87,8 @@ function url_rsync_run_rsync() {
     while read line ; do
       if [ "$position" == "c" ] ;then
         #make the progress bar - as quick as possible
-        progress_bar $((++COUNT)) $TOTAL 50
+        let COUNT=($COUNT+1)%$TOTAL
+        progress_bar $COUNT $TOTAL 50
       elif [ "$position" == "a" ] ;then
         echo "$line" | grep -q 'receiving file list ...' && position="b"
         echo "$line" #print welcome message until filelist almost starts
