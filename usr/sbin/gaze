@@ -193,11 +193,21 @@ alien()  {
 
 gaze_catalog()  {
 
+  local grimoire
+
+  if [[ $# -gt 0 ]]; then
+        grimoire=$(codex_find_grimoire_by_name $1)
+        if [[ $? != 0 ]]; then
+            echo "No such grimoire $1"
+            exit 1;
+        fi  
+  fi
+  echo "grimoire: $grimoire"
   echo  "Sorcery Grimoire for `date  -u`"
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `codex_get_all_sections`;  do
+  for  SECTION  in  `codex_get_all_sections $grimoire`;  do
     echo 
     echo  "-------------------------------------------------"
     echo  "SECTION:  $(  basename  $SECTION  )"  
@@ -216,6 +226,16 @@ gaze_catalog()  {
 
 
 gaze_catalog_html()  {
+
+  local grimoire
+  
+  if [[ $# -gt 0 ]]; then
+        grimoire=$(codex_find_grimoire_by_name $1)
+        if [[ $? != 0 ]]; then
+            echo "No such grimoire $1"
+            exit 1;
+        fi  
+  fi
 
   echo  "<html><head><title>Sorcery Grimoires for `date  -u`</title></head>"
   echo  "<body background=\"media/blackmarble.jpg\">"
@@ -237,7 +257,7 @@ gaze_catalog_html()  {
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `codex_get_all_sections`;  do
+  for  SECTION  in  `codex_get_all_sections $grimoire`;  do
     echo  "<tr><th colspan=4><font color="green">$( basename  $SECTION )</font></th></tr>"
     for  SPELL  in  `codex_get_spells  $SECTION`;  do
       (
@@ -1092,7 +1112,7 @@ parse()  {
         TRIGGERS)  show_spell_component $1 $2            ;;
 
         # Other options
-            html)  gaze_catalog_html                     ;;
+            html)  shift; gaze_catalog_html $@           ;;
           export)  export_snapshot                       ;;
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
@@ -1104,7 +1124,7 @@ parse()  {
            older)  older             $2                  ;;
            prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
-        grimoire)  gaze_catalog  |   $PAGER              ;;
+        grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
           search)  shift; gaze_search $@                 ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
