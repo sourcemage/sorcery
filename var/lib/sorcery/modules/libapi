@@ -1,6 +1,15 @@
-#!/bin/bash
-
-#That file must NOT contain any logic.
+#----------------------------------------
+##
+## @Synopsis Defines the Spell-Sorcery Interface
+## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+## This library contains all sorcery functions which a spell may use.
+## If the function isn't listed here, it may disapear without warning.
+## If you use a funtion which isn't listed here, you'd better have a good reason.
+## Better yet, raise a bug on the topic and the needed function will probably get
+## added.
+## @NOTE This library must not contain any logic. It is simply a set of wrapper functions.
+##
+#----------------------------------------
 
 # functions defined in here: (in alphabetical order)
 #    config_query           (libmisc)
@@ -27,6 +36,7 @@
 #    on_pre_dispel          (libtriggers)   
 #    optional_depends       (libdepends)
 #    persistent_add         (libmisc)
+#    persistent_clear       (libmisc)
 #    persistent_load        (libmisc)
 #    persistent_remove      (libmisc)
 #    persistent_save        (libmisc)
@@ -46,6 +56,8 @@
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell/service
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
+## Denotes that a spell requires another spell to work.
 #---------------------------------------------------------------------
 function depends () {
     debug "libapi" "depends - $*"
@@ -56,6 +68,8 @@ function depends () {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell/service
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_optional_depends> for more details.
+## Denotes that a spell can use another spell for additional functionality.
 #---------------------------------------------------------------------
 function optional_depends () {
     debug "libapi" "optional_depends - $*"
@@ -67,9 +81,9 @@ function optional_depends () {
 ## @param spell
 ## @param default answer to dispel query
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_conflicts> for more details.
 ## If the default answer is anything other than 'y' then 'n' is assumed.
 ## returns the given spellname if it is installed
-##
 #---------------------------------------------------------------------
 function conflicts () {
     debug "libapi" "conflicts - $*"
@@ -79,9 +93,9 @@ function conflicts () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_build> for more details.
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
-##
 #---------------------------------------------------------------------
 function default_pre_build () {
     debug "libapi" "default_pre_build - $*"
@@ -91,6 +105,7 @@ function default_pre_build () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_build> for more details.
 ## Used if no BUILD script is found for a spell
 ## Default build for BUILD_API==1 is:
 ## <pre>
@@ -120,6 +135,7 @@ function default_build () {
 }
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_install> for more details.
 ## Only defined for BUILD_API==2
 ## Used if no PRE_INSTALL script is found.
 ## Default pre_install is:
@@ -134,6 +150,7 @@ function default_pre_install () {
 }
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_install> for more details.
 ## Only defined for BUILD_API==2
 ## Used if no INSTALL script is found.
 ## Default install is:
@@ -148,6 +165,7 @@ function default_install () {
 }
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_post_build> for more details.
 ## Only defined for BUILD_API==1
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
@@ -160,6 +178,7 @@ function default_post_build () {
 }
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_post_install> for more details.
 ## Only defined for BUILD_API==2
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_INSTALL script is found for a spell.
@@ -175,6 +194,7 @@ function default_post_install () {
 ## @Type API
 ## @param file to unpack 
 ## @param md5sum
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_unpack> for more details.
 ##
 ## Given a file, unpack runs the decompression program for that file,
 ## as well as untar'ing the file if appropriate and if the MD5
@@ -190,6 +210,7 @@ function unpack () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_requires> for more details.
 ## Only a call to depends. Deprecated.
 #---------------------------------------------------------------------
 function requires () {
@@ -200,6 +221,7 @@ function requires () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_query> for more details.
 ## @param question 
 ## @param default answer
 ##
@@ -222,6 +244,7 @@ function query () {
 ## @Type API
 ## @param message to echo
 ## @Stdout message
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_message> for more details.
 ## echo's the given arguments if SILENT is not set.
 ##
 #---------------------------------------------------------------------
@@ -235,6 +258,7 @@ function message () {
 ## @Type API
 ## @param sed command
 ## @param file
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_sedit> for more details.
 ##
 ## First argument is a sed command.  Second argument is a file.  
 ## sedit performs the sed command on the file, modifiying the 
@@ -253,6 +277,7 @@ function sedit () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_prepare_install> for more details.
 ## Prepares to install the spell.  Writes the boost lock file.  If the
 ## spell is installed already, the libraries are saved with
 ## save_libraries() and the spell is dispelled.  Usually called from
@@ -269,6 +294,7 @@ function prepare_install () {
 ## @Type API
 ## @param directory name 
 ## @param [size]
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_mk_source_dir> for more details.
 ## Creates a tmpfs filesystem.  By default, the size is 1GB.
 ## The caller may optionally supply a size argument.
 ## <pre>
@@ -290,6 +316,7 @@ function mk_source_dir () {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell name
+## @See <@function var.lib.sorcery.modules.libsorcery.html,real_spell_installed> for more details.
 ##
 ## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
@@ -302,6 +329,7 @@ function spell_installed () {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_install_version> for more details.
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
@@ -313,6 +341,7 @@ function installed_version () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_cast> for more details.
 ## @param spell that triggers
 ## @param action
 ##
@@ -330,6 +359,7 @@ function on_cast () {
 ## @Type API
 ## @param spell that triggers
 ## @param action
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_dispel> for more details.
 ##
 ## Used by spells to make adding triggers nice.
 ##
@@ -342,6 +372,7 @@ function on_dispel () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_pre_cast> for more details.
 ## @param spell that triggers
 ## @param action
 ##
@@ -358,6 +389,7 @@ function on_pre_cast () {
 ## @Type API
 ## @param spell that triggers
 ## @param action
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_pre_dispel> for more details.
 ##
 ## Used by spells to make adding triggerse nice.
 ##
@@ -371,6 +403,7 @@ function on_pre_dispel () {
 #---------------------------------------------------------------------
 ## @param return_var
 ## @param elements, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_remove> for more details.
 ##
 ## Removes from the list string(s). Strings are kept to be unique and
 ## are separated by spaces
@@ -390,6 +423,7 @@ function list_remove () {
 #---------------------------------------------------------------------
 ## @param return_var
 ## @param elements, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_add> for more details.
 ##
 ## Puts in the list string(s). Strings are kept to be unique and are
 ## separated by spaces
@@ -410,6 +444,7 @@ function list_add () {
 #---------------------------------------------------------------------
 ## @param string
 ## @param elements, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_find> for more details.
 ##
 ## return 0 at least one element is in list
 ## return 1 none of supplied elements is not in list
@@ -433,6 +468,7 @@ function list_find () {
 
 #---------------------------------------------------------------------
 ## @param variables, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_add> for more details.
 ##
 ## Adds variable names to the list of persistent variables
 ## <pre>
@@ -448,6 +484,7 @@ function persistent_add () {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_clear> for more details.
 ## Unsets all persistent variables. Mainly usable as replacement of
 ## persistent_save for functions which can be called by nonroot users
 ## ( for example from 'gaze what' )
@@ -465,6 +502,7 @@ function persistent_clear () {
 
 #---------------------------------------------------------------------
 ## @param variables, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_remove> for more details.
 ##
 ## Removes variable names from the list of persistent variables
 ## <pre>
@@ -480,6 +518,7 @@ function persistent_remove () {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_load> for more details.
 ## Loads persistent variables stored in file "$SPELL_CONFIG"
 ## <pre>
 ## Example:
@@ -494,6 +533,7 @@ function persistent_load () {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_save> for more details.
 ## Saves variables marked as persistent to file "$SPELL_CONFIG". The
 ## File is completely overwritten. Also unsets all persistent
 ## variables
@@ -510,6 +550,7 @@ function persistent_save () {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_query_string> for more details.
 ## @param return_var
 ## @param question
 ## @param default answer
@@ -531,6 +572,7 @@ function query_string ()  {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query> for more details.
 ## @param config file variable
 ## @param question
 ## @param default answer
@@ -555,6 +597,7 @@ function config_query () {
 }
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_option> for more details.
 ## @param config file variable
 ## @param question
 ## @param default answer [y|n]
@@ -581,6 +624,7 @@ function config_query_option () {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_string> for more details.
 ## @param config file variable, return variable
 ## @param question
 ## @param default answer
@@ -603,6 +647,7 @@ function config_query_string () {
 
 
 #---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_list> for more details.
 ## @param config file variable, return variable
 ## @param question
 ## @param elements, ...
@@ -622,3 +667,22 @@ function config_query_list () {
     debug "libapi" "config_query_list - $*"
     real_config_query_list "$@"
 }
+
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
