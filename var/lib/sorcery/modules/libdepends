@@ -216,7 +216,11 @@ function compute_depends()
   done
   
   for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
-    private_run_depends ${SPELLS[$i]}
+    if ! private_run_depends ${SPELLS[$i]} ; then
+		private_remove_dependees ${SPELLS[i]}
+		hash_unset "libdepends" "${SPELLS[i]}"
+		SPELLS[i]=""
+	fi
   done
   
   for SPELL in ${SPELLS[*]} ; do
@@ -475,7 +479,7 @@ function private_run_depends()
   run_details     	  && 
   run_configure   	  && 
   run_depends $1  	  && 
-  private_add_depends
+  private_add_depends 
 }
 
 
@@ -500,13 +504,29 @@ function private_list_dependees()
 
   local i
   for (( i=0 ; "${SPELLS[$i]}"!="$SPELL" ; i++ )) ; do
-    is_member "$1" `hash_get "libdepends" "${SPELLS[$i]}"` && echo $1
+    is_member "$1" `hash_get "libdepends" "${SPELLS[$i]}"` && echo $i
   done
 }
 
+function private_remove_dependees()
+{
+
+	local spell i
+	echo "Removing dependees of $1"
+	for spell in $(private_list_dependees $1) ; do
+		hash_unset "libdepends" "${SPELLS[spell]}"
+		SPELLS[spell]=""
+		for ((i=0;i<${#BASE_SPELLS[*]}; i++)) ; do
+			[[ $spell == ${BASE_SPELLS[i]} ]] && BASE_SPELLS[i]=""
+		done
+	done
+	SPELLS=( ${SPELLS[*]} )
+	BASE_SPELLS=( ${BASE_SPELLS[*]} )
+}
 
 function private_should_cast()
 {
+	codex_does_spell_exist $1						&&
   ( echo "$PRETEND_NOT_INSTALLED" | grep -q $1 		||
 	! ( spell_installed $1	|| 	spell_held $1 ))	&&
 	! spell_exiled $1 		;
