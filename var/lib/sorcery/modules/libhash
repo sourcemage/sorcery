@@ -139,6 +139,21 @@ function hash_get() {
   echo ${!VARIABLE_NAME}
 }
 
+#---------------------------------------------------------------------
+## @param table name
+## @param field name
+## @param value
+## 
+## Appends the value to the specified table/field.
+##
+#---------------------------------------------------------------------
+function hash_append() {
+  local VARIABLE_NAME local old_value
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
+  old_value=${!VARIABLE_NAME}
+  eval "${VARIABLE_NAME}=\"$old_value $3\""
+}
+
 
 #---------------------------------------------------------------------
 ## @param table name
