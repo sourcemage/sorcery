@@ -21,7 +21,10 @@
 #---------------------------------------------------------------------
 function reap_regular_files()  {
   debug "libsorcery" "reap_regular_files()"
-  while  read  FILE;  do  rm  -f   "$FILE";  done;
+  local FILE
+  while read FILE; do
+    rm  -vf   "$FILE"
+  done
 }
 
 
@@ -34,17 +37,16 @@ function reap_regular_files()  {
 ##
 #---------------------------------------------------------------------
 function reap_config_files()  {
-
   debug "libsorcery" "reap_config_files()"
+  local FILE
   while  read  FILE;  do
-
-    if    grep  -q  "$(  md5sum  "$FILE" )"  "$MD5S"
-    then  rm    -f               "$FILE"
-    else  reap_modified_file     "$FILE"
+    if grep -q "$(md5sum "$FILE" )" "$MD5S"; then
+      debug libdispel "$FILE is a config file that hasnt changed, removing..."
+      rm -f "$FILE"
+    else
+      reap_modified_file "$FILE"
     fi
-
   done
-
 }
 
 #---------------------------------------------------------------------
@@ -55,7 +57,7 @@ function reap_config_files()  {
 ##
 #---------------------------------------------------------------------
 function reap_modified_file()  {
-
+  local SAVE
   message  "${FILE_COLOR}${1}${DEFAULT_COLOR}"
   message  "${MESSAGE_COLOR}was previously modified by SA?"
   case  $PRESERVE  in
@@ -74,7 +76,7 @@ function reap_modified_file()  {
 #---------------------------------------------------------------------
 function reap_depends()  {
   if    [  "$SUSTAIN"  !=  "off"  ]; then
-    remove_depends_status  $DEPENDS_STATUS $SPELL
+    remove_depends_status $DEPENDS_STATUS $SPELL
   fi
 }
 
@@ -89,7 +91,7 @@ function reap_depends()  {
 ## files in /etc or any of its sub-directories.
 ##
 #---------------------------------------------------------------------
-function reaper()  { (
+function reaper()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
   debug  "libsorcery" "Running reaper() on $1"
@@ -98,59 +100,58 @@ function reaper()  { (
       !  [  -f  $1             ];  then  return
   fi
 
-  MD5S=$2
-  MD5S=${MD5S:=/dev/null}
+  local MD5S=$2
 
-        UNIQUE="$$.$RANDOM"
-  REAPER_FILES="/tmp/reaper.$UNIQUE.files"
-   REAPER_DIRS="/tmp/reaper.$UNIQUE.dirs"
-   REAPER_SYMS="/tmp/reaper.$UNIQUE.syms"
+  local UNIQUE="$$.$RANDOM"
+  local REAPER_FILES="$TMP_DIR/reaper.$UNIQUE.files"
+  local REAPER_DIRS="$TMP_DIR/reaper.$UNIQUE.dirs"
+  local REAPER_SYMS="$TMP_DIR/reaper.$UNIQUE.syms"
 
   rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
 
-  # convert from TRACK_ROOT to / for protected/excluded filtering,
+  # convert from TRACK_ROOT to / for protected filtering,
   # then to INSTALL_ROOT.
   # INSTALL_ROOT is relative to /, TRACK_ROOT is arbitrary.
-  sed     "s:^$TRACK_ROOT::" $1   |
-  filter  $PROTECTED              |
-  filter  $EXCLUDED               |
-  sed     "s:^:$INSTALL_ROOT:"    |
-  while   read  ITEM;  do
-    if    [  -h  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_SYMS
-    elif  [  -f  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_FILES
-    elif  [  -d  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_DIRS
+  log_adjuster $1 /dev/stdout log filterable          |
+  filter  $PROTECTED                                  |
+  log_adjuster /dev/stdin /dev/stdout filterable root |
+  while read ITEM; do
+    if   test -h  "$ITEM"; then echo "$ITEM" >> $REAPER_SYMS
+    elif test -f  "$ITEM"; then echo "$ITEM" >> $REAPER_FILES
+    elif test -d  "$ITEM"; then echo "$ITEM" >> $REAPER_DIRS
     fi
   done
 
-  [     -f           $REAPER_FILES  ]  &&
-  grep      "^${INSTALL_ROOT}/etc"  $REAPER_FILES     |
-  reap_config_files
+  if test -f $REAPER_FILES ; then
+    sed "s:^$TRACK_ROOT::" $REAPER_FILES |
+    grep -v /var/log/sorcery             |
+    filter_in $CONFIGS                   |
+    sed "s:^:$INSTALL_ROOT:"             |
+    reap_config_files
 
-  [     -f           $REAPER_FILES  ]  &&
-  grep  -v  "^/etc"  $REAPER_FILES     |
-  reap_regular_files
+    sed "s:^$TRACK_ROOT::" $REAPER_FILES |
+    grep -v /var/log/sorcery             |
+    filter $CONFIGS                      |
+    sed "s:^:$INSTALL_ROOT:"             |
+    reap_regular_files
+  fi
 
-  [  -f  $REAPER_SYMS   ]  &&  rm     -f  `cat          $REAPER_SYMS`                         2>/dev/null
-  [  -f  $REAPER_DIRS   ]  &&  rmdir      `sort  -r     $REAPER_DIRS`                         2>/dev/null
-  [  -f  $REAPER_FILES  ]  &&  rmdir      `dirnames  <  $REAPER_FILES  |  uniq  |  sort  -r`  2>/dev/null
+  [ -f $REAPER_SYMS ] && rm -f `cat $REAPER_SYMS` 2>/dev/null
+  [ -f $REAPER_DIRS ] && rmdir `sort -r $REAPER_DIRS` 2>/dev/null
+  [ -f $REAPER_FILES ] && rmdir `dirnames < $REAPER_FILES |uniq|sort  -r` 2>/dev/null
 
   rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
-
-) }
+}
 
 #-----
-## Checks that a spell is indeed installed. Perhaps this should also see
-## if the spell was held?
+## Checks that a spell is indeed installed.
 ## @return true Can be dispelled
 ## @return false Cannot be dispelled
 #-----
 function dispel_not_possible()  {
 
-  if  !  grep  -q  "^$SPELL:"  $SPELL_STATUS  &&
-      !     [  -n  "$EXILE"  ]
-  then
-    message  "${SPELL_COLOR}${SPELL}"             \
-             "${PROBLEM_COLOR}is not installed."  \
+  if  ! spell_ok $SPELL ; then
+    message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR} is not installed."  \
              "${DEFAULT_COLOR}"
   else
     false
@@ -166,9 +167,8 @@ function dispel_sustained()  {
   if  [  "$SUSTAIN"  ==  "on"  ]  &&
       grep  -q  "^$SPELL$"  $SUSTAINED
   then
-    message  "${SPELL_COLOR}${SPELL}"         \
-             "${PROBLEM_COLOR}is sustained."  \
-             "${DEFAULT_COLOR}"
+    message "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR} is sustained." \
+            "${DEFAULT_COLOR}"
   else
     false
   fi
@@ -179,22 +179,36 @@ function dispel_sustained()  {
 ## Find out where a spell is located
 ## @Globals SPELL
 #-----
-function set_script_directory()  {
+function load_spell()  {
+  local SPELL=$1
+  if ! tablet_set_spell $SPELL ; then
+    SECTION="`codex_get_spell_section_name  $SPELL`"
+    SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
+    VERSION=`installed_version  $SPELL`
+    INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+    MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
+  fi
+  REAL_SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
+}
 
-           SECTION="`codex_get_spell_section_name  $SPELL`"
-  SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
-
+#-----
+## Run the PRE_REMOVE script if it exists
+#-----
+function pre_pre_remove() {
+  if [ -x $REAL_SCRIPT_DIRECTORY/PRE_PRE_REMOVE ]; then
+    unset  LD_PRELOAD
+    . $REAL_SCRIPT_DIRECTORY/PRE_PRE_REMOVE
+  fi
 }
 
 #-----
 ## Run the PRE_REMOVE script if it exists
 #-----
 function pre_remove() {
-
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_REMOVE  ];  then  unset  LD_PRELOAD
-           . $SCRIPT_DIRECTORY/PRE_REMOVE
+  if [ -x $SCRIPT_DIRECTORY/PRE_REMOVE ]; then
+    unset  LD_PRELOAD
+    . $SCRIPT_DIRECTORY/PRE_REMOVE
   fi
-
 }
 
 #-----
@@ -202,6 +216,7 @@ function pre_remove() {
 #-----
 function post_remove() {
 
+  # what is the point of this?
   LD_PRELOAD_OLD="$LD_PRELOAD"
   unset LD_PRELOAD
 
@@ -221,6 +236,7 @@ function post_remove() {
 #---------------------------------------------------------------------
 
 function dispel_spell() {
+
     local SPELL=$1
     if  dispel_sustained  || dispel_not_possible ; then
       DISPEL_EXIT_STATUS=1
@@ -229,22 +245,22 @@ function dispel_spell() {
 
     [[ $TRIGGER == off ]] || trigger "pre_dispel"
 
-     VERSION=`installed_version  $SPELL`
-    INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
-     MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
+    (
+      # this function messes with the environment a lot leave it in a subshell
+      load_spell $SPELL
 
-    set_script_directory
-    pre_remove
-    reaper  $INST_LOG  $MD5_LOG &&
-    reap_depends                &&
-    post_remove                 &&
-    remove_spell  $SPELL        &&
-    { [[ $TRIGGER == off ]] || trigger "dispel";} &&
-    remove_triggers $SPELL      &&
-    message  "${DISPEL_COLOR}Dispelled spell:"  \
-             "${SPELL_COLOR}${SPELL}"           \
-             "${DEFAULT_COLOR}" &&
-    activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
+      pre_pre_remove
+      pre_remove
+      reaper  $INST_LOG  $MD5_LOG &&
+      post_remove                 &&
+      remove_spell  $SPELL        &&
+      { [[ $TRIGGER == off ]] || trigger "dispel";} &&
+      remove_triggers $SPELL      &&
+      message  "${DISPEL_COLOR}Dispelled spell:"  \
+               "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" &&
+      activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
+    ) &&
+    reap_depends
 }
 
 #---------------------------------------------------------------------

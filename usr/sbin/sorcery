@@ -360,8 +360,6 @@ remove_pkgs()	{
 
 update_pkgs() {
 
-  rm  -rf        $UPDATE_SCRIPT
-
   if  ps  -C  cast  >  /dev/null;  then
     echo    "Unable to update sorcery concurrently while casting."
     sleep   5
@@ -370,6 +368,7 @@ update_pkgs() {
 
   message  "${CHECK_COLOR}Updating ... please wait ... ${DEFAULT_COLOR}"
 
+  rm -rf $UPDATE_SCRIPT
   cat  << EOF >  $UPDATE_SCRIPT
 #!/bin/bash
 ############################################################
@@ -408,10 +407,8 @@ cast -q --queue
 
 fix_installed_spells     # check integrity of installed spells
 
-
-rm   -f  /tmp/cast
-
 EOF
+
   make_restore_script
 
   chmod  100     $RESTORE_SCRIPT
@@ -428,6 +425,7 @@ function make_restore_script() {
 # actually have their values filed in at script generation time
 # everything else must be back-quoted to work properly
 
+  rm $RESTORE_SCRIPT
   cat  << EOF >  $RESTORE_SCRIPT
 #!/bin/bash
 ############################################################

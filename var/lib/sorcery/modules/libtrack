@@ -26,19 +26,15 @@ function exists()  {
 ##
 #---------------------------------------------------------------------
 function track_manual()  {
-
   if  [[  -z  "$INSTALLWATCHFILE"  ]];  then
     echo "Can't tell installwatch to manually track... installwatch isn't running."
     return 1
   fi
-
   local  i
   for i in $* ; do
     [ -e $i ] && touch $i
   done
-
   return 0
-
 }
 
 
@@ -48,12 +44,10 @@ function track_manual()  {
 ##
 #---------------------------------------------------------------------
 function invoke_installwatch()  {
-
   if  [  -e  /usr/lib/installwatch.so  ];  then
     export  INSTALLWATCHFILE=$IW_LOG
     export  LD_PRELOAD=/usr/lib/installwatch.so
   fi
-
 }
 
 
@@ -63,10 +57,8 @@ function invoke_installwatch()  {
 ##
 #---------------------------------------------------------------------
 function devoke_installwatch()  {
-
   unset  LD_PRELOAD
   unset  INSTALLWATCHFILE
-
 }
 
 
@@ -76,6 +68,7 @@ function devoke_installwatch()  {
 ##
 #---------------------------------------------------------------------
 function parse_iw()  {
+  local INPUT=$1
 
   # it is EXTREMELY IMPORTANT that this variable contains an actual
   # tab character and not some number of spaces. Otherwise BAD THINGS
@@ -83,9 +76,8 @@ function parse_iw()  {
   local TAB="	"
   OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
 
-  grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep "^/"
-  cat                $IW_LOG | cut -f4 | grep "^/"
-
+  grep -v "$OMIT_IN" $INPUT | cut -f3 | grep "^/"
+  cat                $INPUT | cut -f4 | grep "^/"
 }
 
 
@@ -94,33 +86,34 @@ function parse_iw()  {
 ## Creates the install log containing all files installed by the spell.
 ##
 #---------------------------------------------------------------------
-function track()  {
-  debug  "libtrack" "Running track() on $SPELL"
-  local TMP_LOG=$1
+function create_install_log()  {
+  debug  "libtrack" "$FUNCNAME on $SPELL"
+  local INPUT=$1
+  local OUTPUT=$2
 
-  parse_iw                           |
-  sort                               |
-  uniq                               |
+  rm -f $OUTPUT
+  parse_iw $INPUT                     |
+  sort                                |
+  uniq                                |
   install_log_filter $INSTALL_ROOT "" |
-  grep -v -x ""                      |
-  filter  "$EXCLUDED"                |
-  filter  "$LOCAL_EXCLUDED"          |
+  grep -v -x ""                       |
+  filter  "$EXCLUDED"                 |
   install_log_filter "" $INSTALL_ROOT |
-  exists                             >  $TMP_LOG
+  exists                              >  $OUTPUT
 
-  echo  "$C_LOG_COMP"               >>  $TMP_LOG
-  echo  "$MD5_LOG"                  >>  $TMP_LOG
-  echo  "$INST_LOG"                 >>  $TMP_LOG
+  echo "$C_LOG_COMP"                  >> $OUTPUT
+  echo "$MD5_LOG"                     >> $OUTPUT
+  echo "$INST_LOG"                    >> $OUTPUT
 
 }
 
 #---------------------------------------------------------------------
 ## Makes a list of files with the md5sum
 #---------------------------------------------------------------------
-function md5list() {
+function create_md5list() {
   local INPUT=$1
   local OUTPUT=$2
-  debug  "libtrack" "Running md5list() on $SPELL"
+  debug  "libtrack" "$FUNCNAME on $SPELL"
   while read LINE ; do
     debug "libtrack" "Checking file $LINE"
     if  [ !  -p "$LINE" ] && [ ! -d "$LINE" ] && [ -e "$LINE" ] ; then
@@ -133,34 +126,48 @@ function md5list() {
 #---------------------------------------------------------------------
 ##
 ## Creates a bzip/gzip'ed tar file containing an archived backup of
-## file specified on standard input
+## file specified on standard input into $CACHE_COMP
 ## @stdin files, one per line, to put into the archive
 ## @param directory input files are relative to
 ##
 #---------------------------------------------------------------------
-function archive()  {
+function create_cache_archive()  {
 
-  debug  "libtrack" "Running archive() on $SPELL"
+  debug  "libtrack" "$FUNCNAME on $SPELL"
   if    [  "$ARCHIVE"  ==  "off"  ]; then
-    debug "libtrack" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
+    debug "libtrack" "$FUNCNAME - ARCHIVE=$ARCHIVE, aborting archival."
     return
   fi
-  debug "libtrack" "archive() - ARCHIVE=$ARCHIVE, archiving."
+  debug "libtrack" "$FUNCNAME - ARCHIVE=$ARCHIVE, archiving."
+  local input=$1
+  local CACHE=$2
+  local CACHE_COMP=$3
 
   message  "${MESSAGE_COLOR}Creating cache file" \
            "${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
-  pushd $1 &>/dev/null
-  if  [  "$COMPRESSBIN" == "tar"  ]; then
-    tar --no-recursion -cPf "$CACHE_COMP" -T -
-  else
-    tar --no-recursion --"$COMPRESSBIN" -cPf "$CACHE_COMP" -T -
-  fi
+
+  local TMP_DATA=$TMP_DIR/foo.data
+  local TMP_MDATA=$TMP_DIR/foo.mdata
+  seperate_state_files $input $TMP_DATA $TMP_MDATA
+
+  pushd $STATE_ROOT &>/dev/null
+  install_log_filter $STATE_ROOT "" < $TMP_MDATA |
+  tar --no-recursion -cPf "$CACHE" -T -
   popd &>/dev/null
 
+  pushd $INSTALL_ROOT &>/dev/null
+  install_log_filter $STATE_ROOT "" < $TMP_DATA |
+  tar --no-recursion -rPf "$CACHE" -T -
+  popd &>/dev/null
+  if  [  "$COMPRESSBIN" != "tar"  ]; then
+    $COMPRESSBIN -c $CACHE > $CACHE_COMP
+  fi
 }
 
+#---------------------------------------------------------------------
 # this is to filter the install log from one form to another
 # for install_root/track_root conversions
+#---------------------------------------------------------------------
 function install_log_filter() {
   sed "s:^$1:$2:"
 }
@@ -168,7 +175,145 @@ function md5_log_filter() {
   sed "s:  $1:  $2:"
 }
 
+#---------------------------------------------------------------------
+# @param input file (can be /dev/stdin)
+# @param output file (can be /dev/stdout)
+# @param input format (root/log/filterable)
+# @param output format (root/log/filterable)
+# @param filter callback (optional install_log_filter, could be
+#                        md5_log_filter)
+#
+# This filters an install log from a given format into another format
+#
+# root: relative to / all paths are relative to / file existence tests
+# should work, INSTALL_ROOT and STATE_ROOT are prepended to data and
+# state files repsectively
+#
+# log: relative to track_root etc, format used in the logs (see note on
+# special behavior below)
+#
+# filterable: track_root/install_root/state_root stripped out files can
+# have filters applied to them
+#
+# "Special" handling applies depending on whether STATE_ROOT is inside
+# or outside INSTALL_ROOT.
+# For converting into log format:
+# If STATE_ROOT is within INSTALL_ROOT
+# eg: STATE_ROOT=/opt/stuff INSTALL_ROOT=/opt/stuff
+# or  STATE_ROOT=/opt/stuff/state INSTALL_ROOT=/opt/stuff
+# the portion of INSTALL_ROOT within STATE_ROOT is replaced with TRACK_ROOT
+# if STATE_ROOT is outside of INSTALL_ROOT (eg /opt/stuff and /opt/state)
+# then STATE_ROOT is left as is
+#
+# Converting from log to root format is the inverse, and of course going
+# to filterable format just requires removing whatever the expected prefix is.
+#
+#
+#
+#---------------------------------------------------------------------
+function log_adjuster() {
+  local input=$1
+  local output=$2
+  local informat=$3
+  local outformat=$4
+  local callback=${5:-install_log_filter}
 
+  local data_in data_out metadata_in metadata_out cat_metadata
+
+
+  if [[ "$informat" == root ]] ; then
+    data_in=$INSTALL_ROOT
+    if [[ "$outformat" == log ]] ; then
+      # root to log
+      data_out=$TRACK_ROOT
+
+      # if the STATE_ROOT is within the install root, then the state files are
+      # adjusted relative to track_root, otherwise they are left as is
+      if ! [[ ${STATE_ROOT##$INSTALL_ROOT*} ]] ; then
+        metadata_in=$STATE_ROOT
+        metadata_out=$TRACK_ROOT${STATE_ROOT##$INSTALL_ROOT}
+      else
+        cat_metadata=yes
+      fi
+    elif [[ $outformat == filterable ]] ; then
+      # root to filterable
+      data_out=""
+      metadata_in=$STATE_ROOT
+      metadata_out=""
+    fi
+  elif [[ "$informat" == log ]] ; then
+    data_in=$TRACK_ROOT
+    if [[ "$outformat" == root ]] ; then
+      # log to root
+      data_out=$INSTALL_ROOT
+      if ! [[ ${STATE_ROOT##$INSTALL_ROOT*} ]] ; then
+        # we actually could do this another way by stripping off
+        # $TRACK_ROOT${STATE_ROOT##$INSTALL_ROOT}, and replacing
+        # it with $STATE_ROOT, but i think below is simpler and equivalent
+        metadata_in=$TRACK_ROOT
+        metadata_out=$INSTALL_ROOT
+      else
+        cat_metadata=yes
+      fi
+    elif [[ "$outformat" == filterable ]] ; then
+      # log to filterable
+      data_out=""
+      metadata_out=""
+      if ! [[ ${STATE_ROOT##$INSTALL_ROOT*} ]] ; then
+        metadata_in=$TRACK_ROOT${STATE_ROOT##$INSTALL_ROOT}
+      else
+        metadata_in=$STATE_ROOT
+      fi
+    fi
+  elif [[ "$informat" == filterable ]] ; then
+    data_in=""
+    metadata_in=""
+    if [[ "$outformat" == root ]] ; then
+      # filterable to root
+      data_out=$INSTALL_ROOT
+      metadata_out=$STATE_ROOT
+    elif [[ "$outformat" == log ]] ; then
+      # filterable to log
+      data_out=$TRACK_ROOT
+      if ! [[ ${STATE_ROOT##$INSTALL_ROOT*} ]] ; then
+        metadata_out=$TRACK_ROOT${STATE_ROOT##$INSTALL_ROOT}
+      else
+        metadata_out=$STATE_ROOT
+      fi
+    fi
+  fi
+
+  local TMP_DATA=$TMP_DIR/foo.data
+  local TMP_MDATA=$TMP_DIR/foo.mdata
+  seperate_state_files $input $TMP_DATA $TMP_MDATA
+  {
+    if [[ $cat_metadata ]] ; then
+      cat $TMP_MDATA
+    else
+      eval "$callback \"$metadata_in\" \"$metadata_out\" < $TMP_MDATA"
+    fi
+    eval "$callback \"$data_in\" \"$data_out\" < $TMP_DATA"
+  } > $output
+}
+
+function seperate_state_files() {
+  local REAL_LOG_DIR=${LOG_DIRECTORY#$STATE_ROOT}
+  local REAL_STATE_DIR=${STATE_DIRECTORY#$STATE_ROOT}
+
+  # the input file is almost certainly a pipe, and things get weird
+  # since we have to grep twice, so just dump the data into a unique
+  # file, the loop below shouldnt go forever unless theres ~30,000 pipes
+
+  local FILE=$TMP_DIR/ssf.$RANDOM
+  while test -e $FILE; do
+    FILE=$TMP_DIR/ssf.$RANDOM
+    echo "random file exists, trying again"
+  done
+  cat $1 > $FILE
+  grep -v "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE > $2
+  grep    "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE > $3
+  return 0
+}
 
 #---------------------------------------------------------------------
 ## @License

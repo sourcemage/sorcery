@@ -1,0 +1,170 @@
+#
+# $TABLET_PATH/$SPELL/<timestamp>/
+#                          spell/<all spell files>
+#                          section/<all files from the section dir>
+#                          grimoire/<all files from the grimoire dir>
+#                          logs/[install,md5sum,compile] (links to real files)
+#                          roots (all important root dirs)
+#                    (other stuff tbd)
+#
+#
+
+
+# FIXME make this eventually give up
+function tablet_get_path() {
+  local SPELL=$1
+  local tb_dir=$TABLET_PATH/$SPELL/$(date +%Y%m%d%H%M%S)
+  local sleep_time
+  local made
+  
+  mkdir -p $TABLET_PATH/$SPELL &&
+  for (( i=0 ; $i < 20 ; i++ )) ; do
+    if mkdir $tb_dir > /dev/null; then
+      made=1
+      break
+    fi
+    let sleep_time=$RANDOM%3
+    sleep $sleep_time
+    tb_dir=$TABLET_PATH/$SPELL/$(date +%Y%m%d%H%M%S)
+  done
+  if [[ $made ]]; then
+    echo $tb_dir
+    return 0
+  fi
+  return 1
+}
+
+#----------------------------------------------------------------------
+# @param spell name
+# @param timestamp (optional)
+#----------------------------------------------------------------------
+function tablet_find_spell_dir() {
+  local SPELL=$1
+  if ! test -d $TABLET_PATH; then
+    mkdir $TABLET_PATH
+    return 1
+  fi
+  local base_dir=$TABLET_PATH/$SPELL
+  if ! [[ $base_dir ]] || ! test -d $base_dir ; then
+    return 1
+  fi
+  if [[ $2 ]] ; then
+    local timestamp=$2
+    if test -d $base_dir/$timestamp; then
+      echo $base_dir/$timestamp
+      return 0
+    fi
+    return 1 # requested a dir that was not there
+  fi
+  # print the newest one
+  local spell_dir=$(find $base_dir -mindepth 1 -maxdepth 1 -type d|sort|uniq|head -n 1)
+  if ! [[ $spell_dir ]] ; then
+    # base dir exists but is empty ( ideally this wont happen, but play it safe)
+    return 1
+  fi
+  echo $spell_dir
+  return 0
+}
+
+#----------------------------------------------------------------------
+# @param spell name
+# @param spell file within the tablet
+# @param timestamp (optional)
+# @return always true
+# @stdout the file if it exists, or empty
+#----------------------------------------------------------------------
+function tablet_find_spell_file() {
+  if tablet_dir=$(tablet_find_spell_dir $1 $3); then
+    test -e $tablet_dir/$2 && echo $tablet_dir/$2
+  else
+    echo ""
+  fi
+}
+
+function tablet_install_spell_files() {
+  pushd $1 &>/dev/null
+
+  # directories
+  mkdir spell section grimoire
+
+  local spell_files=$(find $SCRIPT_DIRECTORY -type f)
+  if [[ $spell_files ]] ; then cp $spell_files spell; fi
+
+  local section_files=$(find $SECTION_DIRECTORY -maxdepth 1 -type f)
+  if [[ $section_files ]] ; then cp $section_files section; fi
+
+  local grimoire_files=$(find $GRIMOIRE -maxdepth 1 -type f)
+  if [[ $grimoire_files ]] ; then cp $grimoire_files grimoire; fi
+
+  # magic values we want to be able to easily look up
+  echo $VERSION > version
+  echo $UPDATED > updated
+  echo $BUILD_API > build_api
+  echo $SECTION > section_name
+  echo installed > status # this could be held or something else
+
+  # SPELL_CONFIG and persistent variables
+  test -e $SPELL_CONFIG && cp $SPELL_CONFIG spell_config
+  test -e $SPELL_CONFIG.p && cp ${SPELL_CONFIG}.p spell_config.p
+
+  # depends info
+  test -e $spell_depends && cp $spell_depends depends
+
+  # logs
+  mkdir logs
+  ln -s $INST_LOG logs/install
+  ln -s $MD5_LOG logs/md5sum
+  ln -s $C_LOG_COMP logs/compile
+
+  # cache archive
+  ln -s $CACHE_COMP cache
+
+  # roots
+  echo INSTALL_ROOT="$INSTALL_ROOT" > roots
+  echo TRACK_ROOT="$TRACK_ROOT" >> roots
+  echo STATE_ROOT="$STATE_ROOT" >> roots
+
+  # all the sources and their urls
+  get_spell_files_and_urls > sources
+
+  popd &>/dev/null
+}
+
+
+# this is to set a spell based on whats in the installed grimoire
+# possibly for re-casting, not sure what else...
+function tablet_set_spell() {
+  codex_clear_current_spell
+  SPELL=$1
+  SPELL_DIRECTORY=$(tablet_find_spell_dir $SPELL) || return 1
+
+  # Directories
+  SCRIPT_DIRECTORY=$SPELL_DIRECTORY/spell
+  SECTION_DIRECTORY=$SPELL_DIRECTORY/section
+  GRIMOIRE=$SPELL_DIRECTORY/grimoire
+
+  # Names
+  SECTION=$(<$SPELL_DIRECTORY/section)
+
+  SPELL_CONFIG="$SPELL_DIRECTORY/spell_config"
+  if  [ -f  $SPELL_CONFIG  ]; then
+    .  $SPELL_CONFIG > /dev/null  2> /dev/null
+  fi
+
+  persistent_load
+  .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
+  persistent_clear
+
+  BUILD_API=$(<$SPELL_DIRECTORY/build_api)
+  # if BUILD_API isnt set something is wrong, but just be safe
+  [[ -z $BUILD_API ]] && BUILD_API=1
+
+  INST_LOG=$SPELL_DIRECTORY/logs/install
+  MD5_LOG=$SPELL_DIRECTORY/logs/md5sum
+  C_LOG_COMP=$SPELL_DIRECTORY/logs/compile
+
+  . $SPELL_DIRECTORY/roots
+  . $STATE_CONFIG
+
+  return 0
+}

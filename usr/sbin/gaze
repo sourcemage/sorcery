@@ -207,23 +207,23 @@ function alien()  {
   message  "security feature!  Files could still be lurking"
   message  "undetected on this box."
 
-  rm    -f  /tmp/gaze.found
-  rm    -f  /tmp/gaze.known
+  rm    -f  $TMP_DIR/gaze.found
+  rm    -f  $TMP_DIR/gaze.known
 
   message  "Discovering ambient files..."
-  find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >/tmp/gaze.found
+  find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >$TMP_DIR/gaze.found
  
   message  "Discovering installed files..."
-  cat  $INSTALL_LOGS/*  /etc/sorcery/update/sorcery-${SORCERY_BRANCH}.log  |  files  |  sort  >  /tmp/gaze.known
+  cat  $INSTALL_LOGS/*  /etc/sorcery/update/sorcery-${SORCERY_BRANCH}.log  |  files  |  sort  >  $TMP_DIR/gaze.known
 
-  diff  -B  -a  -d  /tmp/gaze.found  /tmp/gaze.known  |
+  diff  -B  -a  -d  $TMP_DIR/gaze.found  $TMP_DIR/gaze.known  |
   grep  -v  "^> "                                     |
   grep      "^< "                                     |
   cut  -c  3-                                         |
   filter  "$PROTECTED"
 
-  rm  -f  /tmp/gaze.found
-  rm  -f  /tmp/gaze.known
+  rm  -f  $TMP_DIR/gaze.found
+  rm  -f  $TMP_DIR/gaze.known
 
 }
 
@@ -781,9 +781,9 @@ function any_voyeur()
          sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
   [ $FILE ] || return 1
   debug "voyeur" "Looking at spell \"$FILE\""
-    nice -n +20				\
-       tail /tmp/$FILE.compile.log	\
-           --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
+  nice -n +20				\
+    tail /tmp/sorcery/cast/`ls "/tmp/liblock-0/cast.$FILE"`/$FILE.compile.log \
+         --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
 }
 
 #-----
@@ -1455,10 +1455,15 @@ function gaze_show_held_spells () {
 
 parse()  {
 
-  # since this wont run as root mk_tmp_dirs wont work, but to maintain the
-  # "TMP_DIR is always set as a global" invariant set it to something...
+  # Maintain "TMP_DIR is always set as a global" invariant in the case of
+  # non-root users, this leaves vague security holes but they're limited 
+  # to files the non-root user can access.
   # a future goal is to make mk_tmp_dirs work for regular users too...
-  export TMP_DIR=/tmp
+  if  [  "$UID"  -gt  0  ];  then
+    export TMP_DIR=/tmp
+  else
+    mk_tmp_dirs gaze
+  fi
   if [ $1 == "-q" ]; then
         shift;
         GAZE_VERBOSE=0

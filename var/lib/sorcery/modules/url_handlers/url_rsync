@@ -76,7 +76,7 @@ function url_rsync_run_rsync() {
   if [ $TOTAL -lt 10 ] ; then
     rsync -rz --delete --stats --progress "$1" "$2" #few files - big files
   else
-    rsync -rz --delete --stats -vv "$1" "$2" | tee /tmp/rsyncout$$ |
+    rsync -rz --delete --stats -vv "$1" "$2" | tee $TMP_DIR/rsyncout$$ |
     while read line ; do
       if [ "$position" == "c" ] ;then
         #make the progress bar - as quick as possible
@@ -94,9 +94,9 @@ function url_rsync_run_rsync() {
     progress_bar $TOTAL $TOTAL 50 # make the progress bar show 100, on success
 
     echo
-    tail -n 25 /tmp/rsyncout$$ | head -n 12 #stats w/o useless stack stats
+    tail -n 25 $TMP_DIR/rsyncout$$ | head -n 12 #stats w/o useless stack stats
     echo
-    rm -f /tmp/rsyncout$$
+    rm -f $TMP_DIR/rsyncout$$
   fi
   return $retcode
 }

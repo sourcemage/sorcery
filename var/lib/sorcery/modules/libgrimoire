@@ -72,7 +72,7 @@ function uncompress() {
   # failure of this function.
   local a=$?
   [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
-  echo "$a"  > /tmp/libgrimoire.uncompress.$$
+  echo "$a"  > $TMP_DIR/libgrimoire.uncompress.$$
   return $a
 
 }
@@ -117,12 +117,12 @@ function real_unpack() {
   } &&
   {
 
-    # This section takes care of what happens if the md5sum doesn't match
-    # /tmp/libgrimoire.uncompress.$$ is set in uncompress. It's the only way to
-    # get the return value since it's in a pipe.
+    # This section takes care of what happens if the md5sum doesn't match.
+    # $TMP_DIR/libgrimoire.uncompress.$$ is set in uncompress. It's the only
+    # way to get the return value since it's in a pipe.
     if ! [[ $2 ]] ; then
 
-      rm /tmp/libgrimoire.uncompress.$$
+      rm $TMP_DIR/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
       case $MD5SUM_DL in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
@@ -133,7 +133,7 @@ function real_unpack() {
 
     elif [[ $2 == "IGNORE" ]] ; then
 
-      rm /tmp/libgrimoire.uncompress.$$
+      rm $TMP_DIR/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was purposefully left out for the uncompressed $1."
       message "${QUERY_COLOR}Would you like to abort so you can validate the source yourself via some alternate method?"
       case $MD5SUM_DL in
@@ -143,9 +143,9 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
            abort_all)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
       esac
 
-    elif [[  `cat /tmp/libgrimoire.uncompress.$$` != 0  ]]  ; then
+    elif [[  `cat $TMP_DIR/libgrimoire.uncompress.$$` != 0  ]]  ; then
 
-      rm /tmp/libgrimoire.uncompress.$$
+      rm $TMP_DIR/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different for uncompressed $1."
       case $MD5SUM_DL in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
@@ -155,7 +155,7 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
       esac
 
     fi
-    rm /tmp/libgrimoire.uncompress.$$
+    rm $TMP_DIR/libgrimoire.uncompress.$$
 
   }
 

@@ -1,0 +1,396 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Delve is a tool for running individual spell files during the
+## build and install phase. This can be used as a debugging tool or to
+## "force" a spell to be installed. Use with caution and keep your hands
+## off if you dont know what you are doing.
+##
+## @Copyright 2004 the Source Mage Team
+## @Author Andrew Stitt
+#---------------------------------------------------------------------
+
+function help() {
+
+  cat  <<  EOF
+Delve allows the running of single spell files in the build/install phase
+
+NOTE: this is a low level tool and should not be necessary in normal
+situations. It is a bit of a big hammer not everything is a nail :)
+You can do serious harm to your box if used improperly, also little
+sanity checking is done because it is intended to circumvent some of
+the normal restrictions of cast. Please use with care or not at all.
+
+Usage:
+
+delve spellname SPELL_FILE [... SPELL_FILE]
+delve spellname success|failure
+delve spellname all
+
+Paramters
+
+-f | --force                    Continue running files even if one fails
+                                (use with caution!)
+
+-c | --continue start end       Run all the files from start to end:
+
+delve spellname INSTALL end
+will run everything for spellname from INSTALL to success or fail
+
+Spell file names and other values:
+start, PRE_BUILD, config_loc, BUILD, PRE_INSTALL, INSTALL, POST_BUILD,
+POST_INSTALL, FINAL, TRIGGERS, end, success, failure, all.
+
+"start" is a place holder for the start of the process, mostly only
+meaningful with the -c option.
+
+"config_loc" is the phase of cast where it asks you about adding stuff to
+./configure
+
+"end" can be either success or failure depending on the return value of
+the previous state (note, without -f delve will bail out immediatly).
+
+"all" runs all the states for a given spell.
+
+All other files should be self evident
+
+Delve is conscious of build api versions and will refuse to run files
+that do not exist in the spell's api. The -c option will file in the
+appropriate files for the spell.
+
+EOF
+
+  exit  1
+
+}
+
+#---------------------------------------------------------------------------
+## Loads OPTS and all the other log files to provide the appropriate
+## environment for spell files
+#---------------------------------------------------------------------------
+function delve_log_helper() {
+  # must declare OPS before sourcing config
+  local OPTS
+  run_spell_config
+
+  get_uncommitted_depends_file $SPELL spell_depends
+  if test -e $spell_depends && test -e $ABANDONED_DEPENDS/$SPELL ; then
+    cp $ABANDONED_DEPENDS/$SPELL $spell_depends
+  fi
+  test -e $spell_depends &&
+  OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
+
+  # these have to go somewhere where future delves can find them
+  C_LOG=/tmp/sorcery/delve/$SPELL.compile.log
+  C_FIFO=/dev/stdout
+  IW_LOG="/tmp/sorcery/delve/$SPELL.iw"
+  VOYEUR_STDOUT=/dev/stdout
+  VOYEUR_STDERR=/dev/stderr
+  touch $C_LOG
+
+}
+
+#---------------------------------------------------------------------------
+## Determines if a step is valid for the current spell
+## @param name of step
+## @param all the remaining parameters are numbers for which the step is valid
+## @stdout a complaint if the step is not valid
+##
+## if the BUILD_API number is not found in the parameter list complain
+## and return 1
+#---------------------------------------------------------------------------
+function delve_is_valid_step() {
+  local STEP=$1
+  local found
+  shift
+  for api in $@; do
+    if [ "$BUILD_API" == "$api" ] ; then
+      found=yes
+      break
+    fi
+  done
+  if [[ ! $found ]] ; then
+    message "Refusing to run $STEP for build api $BUILD_API"
+    return 1
+  fi
+  return 0
+}
+
+function delve_pre_build() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step PRE_BUILD 1 2 || return 1
+  run_pre_build
+}
+
+function delve_config_loc() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step config_loc 1 2 || return 1
+  run_config_loc
+}
+
+function delve_build() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step BUILD 1 2 || return 1
+  [ -d $SOURCE_DIRECTORY ] || {
+    message "Ack! there is no $SOURCE_DIRECTORY"
+    return 1
+  }
+  delve_log_helper
+  (
+    run_build
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+}
+
+function delve_pre_install() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step BUILD 2 || return 1
+  delve_log_helper
+  (
+    run_pre_install
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+}
+
+function delve_install() {
+  debug "delve" "Running $FUNCNAME"
+
+  delve_is_valid_step BUILD 2 || return 1
+  delve_log_helper
+  [ -d $SOURCE_DIRECTORY ] || {
+    message "Ack! there is no $SOURCE_DIRECTORY"
+    return 1
+  }
+  cd $SOURCE_DIRECTORY
+  (
+    run_install
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+}
+
+function delve_post_build() {
+  debug "delve" "Running $FUNCNAME"
+
+  delve_is_valid_step BUILD 1 || return 1
+  delve_log_helper
+  [ -d $SOURCE_DIRECTORY ] || {
+    message "Ack! there is no $SOURCE_DIRECTORY"
+    return 1
+  }
+  cd $SOURCE_DIRECTORY
+  (
+    run_post_build
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+}
+
+function delve_post_install() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step BUILD 1 2 || return 1
+  delve_log_helper
+  [ -d $SOURCE_DIRECTORY ] || {
+    message "Ack! there is no $SOURCE_DIRECTORY"
+    return 1
+  }
+  [ "$BUILD_API" == "2" ] && cd $SOURCE_DIRECTORY # dirty hack
+  (
+    run_post_install
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+
+}
+
+function delve_final() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step BUILD 2 || return 1
+  delve_log_helper
+  [ -d $SOURCE_DIRECTORY ] || {
+    message "Ack! there is no $SOURCE_DIRECTORY"
+    return 1
+  }
+  (
+    run_final
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+
+}
+
+function delve_triggers() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step TRIGGERS 1 2 || return 1
+  run_triggers
+}
+
+function delve_spell_success() {
+  debug "delve" "Running $FUNCNAME"
+  SUCCESS_LIST=/dev/null
+  delve_log_helper
+  run_spell_success
+}
+
+function delve_spell_failure() {
+  debug "delve" "Running $FUNCNAME"
+  FAILED_LIST=/dev/null
+  delve_log_helper
+  run_spell_failure 2
+}
+
+#---------------------------------------------------------------------------
+## @param begin state
+## @param end state
+## @global BUILD_API
+## fill in the states from begin to end from the given BUILD_API
+#---------------------------------------------------------------------------
+function delve_make_continuation() {
+  local begin=$1
+  local end=$2
+  local API1="start PRE_BUILD config_loc BUILD POST_BUILD POST_INSTALL TRIGGERS end"
+  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL POST_INSTALL FINAL TRIGGERS end"
+  local THIS_API
+  case $BUILD_API in 
+    1) THIS_API=$API1 ;;
+    2) THIS_API=$API2 ;;
+    *) message "Unknown api for spell $SPELL: \"$BUILD_API\"" ; return 1;;
+  esac
+  local phase=0
+  local state
+  local states
+  for state in $THIS_API; do
+    case $phase in
+      0)
+        if [ "$state" == "$begin" ]; then
+          phase=1
+        fi
+        states="$state"
+      ;;
+      1)
+        states="$states $state"
+        if [ "$state" == "$end" ]; then
+          phase=2
+          break
+        fi
+    esac
+  done
+  if [ $phase != 2 ] ; then
+    message "Error making continuation"
+    return 1
+  fi
+  echo $states
+  return 0
+}
+
+#---------------------------------------------------------------------------
+## fills in STATES, continue_start, continue_end, and FORCE as applicable
+#---------------------------------------------------------------------------
+function process_parameters() {
+  for param in $@ ; do
+    case $param in
+        -f|--force) FORCE=on ;;
+     -c|--continue) continue_start=$2
+                    continue_end=$3
+                    shift 2
+                    ;;
+             start) ;;
+         PRE_BUILD) STATES="$STATES $param" ;;
+        config_loc) STATES="$STATES $param" ;;
+             BUILD) STATES="$STATES $param" ;;
+       PRE_INSTALL) STATES="$STATES $param" ;;
+           INSTALL) STATES="$STATES $param" ;;
+        POST_BUILD) STATES="$STATES $param" ;;
+      POST_INSTALL) STATES="$STATES $param" ;;
+             FINAL) STATES="$STATES $param" ;;
+          TRIGGERS) STATES="$STATES $param" ;;
+           success) STATES="$STATES $param" ;;
+           failure) STATES="$STATES $param" ;;
+               end) STATES="$STATES $param" ;;
+               all) ALL=on ;;
+                 *) SPELL=$param
+    esac
+  done
+}
+
+#---------------------------------------------------------------------------
+## This is obviously the main function of delve, it loads the spell
+## figures out what states to run and then loops through them.
+#---------------------------------------------------------------------------
+function main() {
+
+  local STATES STATE
+  local FORCE ALL SPELL
+  local continue_start continue_end
+  process_parameters $@
+
+  codex_does_spell_exist $SPELL || return 1
+  codex_set_current_spell_by_name $SPELL
+  load_build_api
+  if [[ $continue_start ]] && [[ $continue_end ]] ; then
+    STATES=$(delve_make_continuation $continue_start $continue_end)
+  elif [[ $ALL ]] ; then
+    STATES=$(delve_make_continuation start end)
+  fi
+
+  echo "DEBUG: $STATES"
+
+  local last_rc=0
+  for STATE in $STATES; do
+    message "Running state $STATE"
+    case $STATE in
+             start) ;;
+         PRE_BUILD) delve_pre_build ;;
+        config_loc) delve_config_loc ;;
+             BUILD) delve_build ;;
+       PRE_INSTALL) delve_pre_install ;;
+           INSTALL) delve_install ;;
+        POST_BUILD) delve_post_build ;;
+      POST_INSTALL) delve_post_install ;;
+             FINAL) delve_final ;;
+          TRIGGERS) delve_triggers ;;
+           success) delve_spell_success ;;
+           failure) delve_spell_failure ;;
+               end)if [[ $last_rc == 0 ]] ; then
+                      delve_spell_success
+                    else
+                      delve_spell_failure
+                    fi ;;
+     esac
+     last_rc=$?
+     if [[ $last_rc == 1 ]] && [ "$FORCE" != 1 ] ; then
+       message "$STATE failed!"
+       return 1
+     fi
+  done
+}
+
+. /etc/sorcery/config
+if    [  $#      -eq  0  ];  then  help  |  $PAGER
+elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
+elif  [  "$UID"  -gt  0  ];  then
+  echo  "Enter the root password, please."
+  su -c "$0 $*" root
+else
+  # Make a nice dir structure to put stuff in, this exits if it fails
+  mk_tmp_dirs delve
+  main  $*
+fi
+
+debug "delve" "exiting..."
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -39,9 +39,6 @@ function update_sorcery_scripts() {
   }
 
   FORCE_DOWNLOAD=1
-  C_LOG=/tmp/$SPELL.compile.log
-  TMP_LOG="/tmp/$SPELL-$BRANCH"
-  IW_LOG="/tmp/$SPELL.iw"
 
   # sorcery is not a spell
   # there is no spoon
@@ -56,7 +53,7 @@ function update_sorcery_scripts() {
   FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
-  cd $INSTALL_ROOT/usr/src                      &&
+  cd $BUILD_DIRECTORY
   bzip2  -cdf   $FILENAME                       |
   tar --owner=root --group=root -xf /dev/stdin  &&
   cd      $SOURCE_DIRECTORY                     &&
@@ -406,22 +403,52 @@ function symlinks()  {
 ## @Stdout filtered list
 ## First argument is a file that contains (basic) grep regular expressions.
 ## They are joined with \|'s and given to grep -v.
-## Which will ## filter standard input to remove and remove entries
+## Which will filter standard input to remove and remove entries
 ## that match.
 ## Used to filter out excluded or protected files from install logs.
 ##
 #---------------------------------------------------------------------
 function filter() {
   local thing RID_LIST
-  if  [  -f  $1  ];  then
-    RID_LIST=$(for  thing in  $(cat $@);   do  echo  -n  "$thing\|"; done
-              echo  -n  "/dev/null")
+  local files each
+  for each in $@; do
+    test -f $each && files="$files $each"
+  done
+    
+  if [[ $files ]] ; then
+    RID_LIST=$(while read thing; do
+                 echo -n "$thing\|"
+               done < $files
+               echo -n /dev/null)
     grep  -v  "$RID_LIST"
   else
     cat
   fi
 }
 
+#---------------------------------------------------------------------
+## @param filename
+## @Stdin list of files/dirs/..
+## @Stdout filtered list
+## First argument is a file that contains (basic) grep regular expressions.
+## They are joined with \|'s and given to grep
+## Which will filter standard input to remove and remove entries
+## that do not match.
+## Used to filter in config files from install logs.
+##
+#---------------------------------------------------------------------
+function filter_in() {
+  local thing RID_LIST
+  if  [  -f  $1  ];  then
+    RID_LIST=$(while read thing; do
+                 echo  -n  "$thing\|"
+               done < $@
+               echo  -n  "/dev/null")
+    grep  "$RID_LIST"
+  else
+    cat
+  fi
+}
 
 #---------------------------------------------------------------------
 ## @Stdin list of files
@@ -1089,16 +1116,9 @@ function prune()  { (
   local NO_KEEP KEEP
   local NUM_NO_KEEP=0
   
-  # This if is useless. The su will run, then exit. The rest of the script will
-  # continue to run as the original user, with no environment change
-  # Who put this here? Why??
-  if  [  "$UID"  !=  0  ];  then
-    echo  "Enter the root password, please."
-    su  - -c "DISPLAY=$DISPLAY PATH=$PATH"
-  fi
-
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
-  KEEP="/tmp/prune.keep"
+  KEEP="$TMP_DIR/prune.keep"
+  rm -rf $KEEP
   generate_keep_list  >  $KEEP
 
   message "${MESSAGE_COLOR}Cleaning up source cache (${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"

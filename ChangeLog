@@ -1,3 +1,39 @@
+2004-12-07 Andrew Stitt <astitt@sourcemage.org>
+	* libtrack: add a log_adjuster function which handles re-arranging
+	  of log files to various formats (relative to /, with TRACK_ROOT
+	  as needed, or without STATE_ROOT/INSTALL_ROOT at all)
+	* libtrack: rename some functions: archive ->
+	  create_cache_archive, md5list -> create_md5list, track ->
+	  create_install_log, and fiddle with their parameters so they
+	  are more general
+	* libdownload: make sure the SOURCE_URL parameters are in the
+	  right order, remove some useless pushd's and popd's
+	* build_api/common: fix up spell success code to address some
+	  problems, use log_adjuster and add to the tablet
+	* libtablet: initial cut at the installed grimoire and some support code
+	* libsorcery: add a filter_in function that does the inverse
+	  of filter, enhance both to work with multiple parameters
+	* delve: add a new tool to run indivdual portions of a spell,
+	  addresses bugs 1879 and 6281
+	* alter: update to use functions which changes names in libtrack
+	  (archive -> create_cache_archive, md5list -> create_md5list,
+	  track -> create_install_log)
+	* state: add a path to the tablet directory
+	* config: remove some stuff and add volatiles and configs files
+	* volatiles: add, stuff in here is ignored by cleanse (bug 7545)
+	* configs: add, this addresses bug 7550, these files are treated
+	  differently by dispel and soon resurrect
+	* sorcery: fix some spacing and clean up some files and stuff
+	* build: ignore the {arch} directory
+	* cleanse, alter, cast, gaze, build_api/api1, build_api/api2,
+	  libdispel, libgrimoire, libtrack, url_rsync: use TMP_DIR
+	  instead of /tmp or something else (bug 7536)
+	* libmisc: make mk_tmp_dirs have an optional parameter for the base dir
+	* cleanse: fix up the startup code to use mk_tmp_dirs, use the
+	  volatiles file and log_adjuster as needed
+	* libdispel: fix up code to use tablet if its there, and treat
+	  config files specially
+
 2004-12-07 Paul Mahon <pmahon@sourcemage.org>
 	* libmisc: Quote $@ for multi-word parameters
 
@@ -113,7 +149,7 @@
 	* url_rsync, libsorcery: apply patches from Eric listed below
 
 2004-11-20 Eric Sandall <eric@sandall.us>
-	* url_rsync: Don't depend n a grimoire existing tto determine
+	* url_rsync: Don't depend on a grimoire existing to determine
 	  if rsync is available. Bug #7661
 	* libsorcery: Now uncompresses Sorcery to $INSTALL_ROOT/usr/src
 	  instead of /usr/src. Bug #7659

@@ -31,7 +31,7 @@ function get_spell_files_and_urls() {
 
   debug "libdownload" "get_file_and_urls - SPELL=$SPELL"
   local url src
-  for src in $( compgen -v SOURCE | grep '^SOURCE[[:digit:]]*$' ) ; do
+  for src in $(compgen -v SOURCE | grep '^SOURCE[[:digit:]]*$'|sort|uniq) ; do
     url="$src"'_URL[*]'
 	src=${!src}
 	[[ ${src%%[^[:graph:]]*} ]] && echo ${src} ${!url}
@@ -109,7 +109,6 @@ function download_files() {
              "${REASON}"
     # slight bug with connect if we aren't using summon...
     connect                                                                 &&
-    pushd /tmp &>/dev/null
     download_from_internet "$REAL_FILE" "$URLS" "$USE_LF_FB" "$URL_OPTIONS" &&
     # make sure some filename exists...probably not needed
     { [ -z "$FILE" ] && FILE=$REAL_FILE || true;}                           &&
@@ -123,8 +122,8 @@ function download_files() {
       rc=1
       # maybe do some more stuff here...
     }
-    popd &>/dev/null
   done
+  popd &>/dev/null
   return $rc
 }
 
