@@ -411,50 +411,6 @@ function install_pam_confs()  {
 
 #---------------------------------------------------------------------
 ##
-## Copies xinetd configuration files to /etc/xinetd.d/
-## Accepts list of services to be installed.
-#---------------------------------------------------------------------
-function install_xinetd_confs()  { (
-
-  debug  "libgrimoire" "Running install_xinetd_confs() on $SPELL"
-
-  LIST=$@
-
-  debug  "libgrimiore" "services from install_xinetd_confs to be activated : '$LIST'"
-  
-  # Something is seriously wrong if this doesn't already exist.
-  mkdir  -p  /etc/xinetd.d
-  cd       "$SCRIPT_DIRECTORY/xinetd.d"
-
-  for  SERVICE  in  $LIST;  do
-    for  FILE  in  `ls`;  do
-      if    grep  -q  "service $SERVICE"   $FILE
-      then  
-        debug  "libgrimoire" "Activating service in install_xinetd_confs for '$FILE'"
-        # activate service.
-        cp  $FILE  /etc/xinetd.d
-      fi
-    done
-  done
-
-  LD_PRELOAD_OLD="$LD_PRELOAD"
-  unset LD_PRELOAD
-
-  # only restart if xinetd script installed and xinetd is available.
-  if  [   -n  "$LIST"  ]  &&  ps  -C  xinetd  >  /dev/null ;  then
-    if  [  -x  /etc/init.d/runlevels/%3/xinetd  ] ; then
-      /sbin/telinit  run  xinetd  restart
-    else
-      message "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}" 
-    fi
-  fi
-
-  export LD_PRELOAD="$LD_PRELOAD_OLD"
-
-) }
-
-#---------------------------------------------------------------------
-##
 ## Installs init scripts in /etc/init.d, and creates links in
 ## /etc/rc*.d
 ## Accepts list of scripts to be installed.
