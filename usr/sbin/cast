@@ -1324,9 +1324,13 @@ function pass_five()  {
 
   debug "cast" "Function : pass_five"
 
+  # must exist or we get problems with checks here.
+  touch $SUCCESS_LIST
+  touch $FAILED_LIST
+  
   debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST`"
   debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST`"
-  
+
   if [ -e $SUCCESS_LIST ] ; then
 
 	  message "${MESSAGE_COLOR}Finished processing install requests."
@@ -1365,7 +1369,7 @@ function pass_five()  {
     set_term_title "Casting failed."
     message "${DEFAULT_COLOR}"
     return 1
-  
+
   fi 
   
   debug "cast" "End of pass_five"
@@ -1401,7 +1405,10 @@ function int_trap()
 }
 
 function cleanup() {
-	rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+  
+  debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END`"
+  rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+
 }
 
 function main()	{
