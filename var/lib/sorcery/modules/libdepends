@@ -299,6 +299,9 @@ function private_run_depends()
   local spell_depends
   hash_put "depends_looked_at" "$SPELL" "start"
 
+  locate base_deps
+  base_deps=$(search_depends_status $DEPENDS_STATUS basesystem|cut -f2 -d:)
+
   
   # We only need to run the stuff if we are going to be casting.
   # It only needs to be added to the casting hash table if we are
@@ -952,9 +955,18 @@ function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   hash_put "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
+
   for child in ${NEW_DEPENDS[*]}; do
     hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
   done
+
+  # force implied basesystem dependency in the depends tree
+  if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
+     [[ $SPELL != basesystem ]] &&
+     ! echo $base_deps| grep -q $SPELL; then
+    hash_append "$CAST_HASH" "$SPELL" "basesystem"
+    hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
+  fi
   
   spells=( ${spells[*]} ${NEW_DEPENDS[*]} )
 

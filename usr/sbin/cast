@@ -49,6 +49,8 @@ Optional Parameters:
 -B  |  --recast-up              Recast dependent spells, even if they are
                                 already installed...
 
+-b  |  --force-base-dep         Force all spells to depend on basesystem
+
        --from   directory       Specify an alternate for $SOURCE_CACHE
        --url    URL             Specify an alternate download URL
 
@@ -91,6 +93,7 @@ function process_parameters()  {
     -r|--reconfigure)  RECONFIGURE="$1"; COMPILE="$1";   shift 1  ;;
     -R|--recast-down)  RECAST_DOWN="$1";                 shift 1  ;;
       -B|--recast-up)  RECAST_UP="$1";                   shift 1  ;;
+ -b|--force-base-dep)  FORCE_BASESYSTEM_DEPENDS=on;      shift 1  ;;
         -c|--compile)  COMPILE="$1";                     shift 1  ;;
        -d|--download)  export  FORCE_DOWNLOAD="$1";      shift 1  ;;
               --from)  export  SOURCE_CACHE=$2;          shift 2  ;;
@@ -162,6 +165,7 @@ function strip_parameters()  {
                       -V)  shift 2  ;;
         -R|--recast-down)  shift 1  ;;
           -B|--recast-up)  shift 1  ;;
+     -b|--force-base-dep)  shift 1  ;;
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;

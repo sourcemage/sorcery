@@ -495,34 +495,11 @@ update_queue () {
 
 rebuild()  {
 
+  lock_file $INSTALL_QUEUE
   rm  -rf  $INSTALL_QUEUE
-
-  message  "To do a non recursive rebuild"
-  message  "all installed spells must be fixed first."
-  sleep  3
-  cleanse --fix
-
-  for  LINE  in  `cat  $SPELL_STATUS`;  do
-      SPELL=`echo  "$LINE"  |  cut  -d : -f1`
-     STATUS=`echo  "$LINE"  |  cut  -d : -f3`
-    SECTION=`find_section  $SPELL`
-    if  [  "$STATUS"   ==  "installed"  ]   &&
-        [  "$SECTION"  !=  "sgl"        ]   &&
-        [  "$SECTION"  !=  "sections"   ]   &&
-	! spell_exiled $SPELL           ;  then
-      echo  $SPELL  >>  $INSTALL_QUEUE
-    fi
-  done
-
-  unset  SPELL
-  cast --queue
-
-#Taken care of cast --queue now:
-#  if    query  "Edit Rebuild/Install Queue?" n
-#  then  edit_file  $INSTALL_QUEUE
-#  fi
-#  cast --compile  `cat  $INSTALL_QUEUE`
-#  rm                      $INSTALL_QUEUE
+  get_all_spells_with_status installed >> $INSTALL_QUEUE
+  unlock_file $INSTALL_QUEUE
+  cast -c -b --queue
 
 }
 
