@@ -89,10 +89,12 @@ function query_services() {
   local XINETD INIT BOTH found
 
   test -d $SCRIPT_DIRECTORY/xinetd.d &&
-  XINETD_SCRIPTS=$(find $SCRIPT_DIRECTORY/xinetd.d -maxdepth 1 -type f -a -not -name '.*')
+  XINETD_SCRIPTS=$(find $SCRIPT_DIRECTORY/xinetd.d -maxdepth 1 -type f \
+                                                         -a -not -name '.*')
 
   test -d $SCRIPT_DIRECTORY/init.d &&
-  INIT_SCRIPTS=$(find $SCRIPT_DIRECTORY/init.d -maxdepth 1 -type f -a -not -name '.*' -a -not -name '*.conf')
+  INIT_SCRIPTS=$(find $SCRIPT_DIRECTORY/init.d -maxdepth 1 -type f \
+                                  -a -not -name '.*' -a -not -name '*.conf')
 
   local new_init_inst new_init_ninst new_init_enab new_init_disab
   local new_xinetd_inst new_xinetd_ninst new_xinetd_enab new_xinetd_disab
@@ -126,13 +128,17 @@ function query_services() {
   done
 
   for tmp in $BOTH ; do
-    message "${QUERY_COLOR}Would you like to install the init and/or xinetd script for $tmp?${DEFAULT_COLOR}"
-    dual_service_query $tmp choice "$XINETD_INSTALLED" "$XINETD_NOT_INSTALLED" "$INIT_INSTALLED" "$INIT_NOT_INSTALLED" n n
+    message "${QUERY_COLOR}Would you like to install the init and/or" \
+            "xinetd script for $tmp?${DEFAULT_COLOR}"
+    dual_service_query $tmp choice "$XINETD_INSTALLED" "$XINETD_NOT_INSTALLED" \
+                                   "$INIT_INSTALLED" "$INIT_NOT_INSTALLED" n n
     if [[ $choice == both ]] ; then
       list_add new_init_inst $tmp
       list_add new_xinetd_inst $tmp
-      message "${QUERY_COLOR}Would you like to enable $tmp through init and/or xinetd?${DEFAULT_COLOR}"
-      dual_service_query $tmp choice "$XINETD_ENABLED" "$XINETD_DISABLED" "$INIT_ENABLED" "$INIT_DISABLED" n n
+      message "${QUERY_COLOR}Would you like to enable $tmp through init" \
+              "and/or xinetd?${DEFAULT_COLOR}"
+      dual_service_query $tmp choice "$XINETD_ENABLED" "$XINETD_DISABLED" \
+                                     "$INIT_ENABLED" "$INIT_DISABLED" n n
 
       case $choice in
           both) list_add new_init_enab $tmp
@@ -561,7 +567,7 @@ function resurrect()  {  (
   fi
 
   # run ldconfig 
-	message "${MESSAGE_COLOR}Updating the shared libraries ...${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Updating the shared libraries ...${DEFAULT_COLOR}"
   release_saved_libraries
 
 )  }

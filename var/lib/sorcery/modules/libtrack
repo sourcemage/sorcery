@@ -158,9 +158,11 @@ function create_cache_archive()  {
   pushd $INSTALL_ROOT &>/dev/null
   install_log_filter $STATE_ROOT "" < $TMP_DATA |
   tar --no-recursion -rPf "$CACHE" -T -
+  rm $TMP_DATA $TMP_MDATA
   popd &>/dev/null
   if  [  "$COMPRESSBIN" != "tar"  ]; then
     $COMPRESSBIN -c $CACHE > $CACHE_COMP
+    rm $CACHE
   fi
 }
 
@@ -283,8 +285,14 @@ function log_adjuster() {
     fi
   fi
 
-  local TMP_DATA=$TMP_DIR/foo.data
-  local TMP_MDATA=$TMP_DIR/foo.mdata
+  local TMP_SSF=$TMP_DIR/$RANDOM
+  while ! mkdir $TMP_SSF; do
+    TMP_SSF=$TMP_DIR/$RANDOM
+    sleep 1
+  done
+  local TMP_DATA=$TMP_SSF/foo.data
+  local TMP_MDATA=$TMP_SSF/foo.mdata
+  
   seperate_state_files $input $TMP_DATA $TMP_MDATA
   {
     if [[ $cat_metadata ]] ; then
@@ -294,6 +302,8 @@ function log_adjuster() {
     fi
     eval "$callback \"$data_in\" \"$data_out\" < $TMP_DATA"
   } > $output
+  rm $TMP_DATA $TMP_MDATA
+  rmdir $TMP_SSF
 }
 
 function seperate_state_files() {
