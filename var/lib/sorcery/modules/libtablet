@@ -316,11 +316,38 @@ function tablet_find_spell_dir() {
   function tablet_find_spell_dir_sub() {
     tablet_is_spell_version_installed $SPELL $1 quiet &&
     tablet_does_tablet_point_to_itself $1 quiet &&
-    __spell_dir=$1
+    __spell_dir=$1 &&
     BREAK=yes
   }
   iterate tablet_find_spell_dir_sub $'\n' \
                    $(find $base_dir -mindepth 1 -maxdepth 1 -type d)
+  if ! [[ $__spell_dir ]] ; then
+    # base dir exists but is empty ( ideally this wont happen, but play it safe)
+    return 1
+  fi
+  eval "$2=\"$__spell_dir\""
+  return 0
+}
+
+#----------------------------------------------------------------------
+# @param spell name
+# @param upvar
+# quicker dirtier version of above without special checks since the
+# tablet in a cache tarball has nothing to do with the installed system
+#----------------------------------------------------------------------
+function tablet_find_resurrect_dir() {
+  local SPELL=$1
+  if ! test -d $TABLET_PATH; then
+    mkdir -p $TABLET_PATH
+    return 1
+  fi
+  local __spell_dir
+  local base_dir=$TABLET_PATH/$SPELL
+  if ! [[ $base_dir ]] || ! test -d $base_dir ; then
+    return 1
+  fi
+
+  local __spell_dir=$(find $base_dir -mindepth 1 -maxdepth 1 -type d|head -n 1)
   if ! [[ $__spell_dir ]] ; then
     # base dir exists but is empty ( ideally this wont happen, but play it safe)
     return 1

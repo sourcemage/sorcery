@@ -116,7 +116,8 @@ function reaper()  {
   # convert from TRACK_ROOT to / for protected filtering,
   # then to INSTALL_ROOT.
   # INSTALL_ROOT is relative to /, TRACK_ROOT is arbitrary.
-  log_adjuster $1 /dev/stdout log filterable          |
+  seperate_state_files $1 /dev/stdout /dev/null       |
+  log_adjuster /dev/stdin /dev/stdout log filterable  |
   filter_protected                                    |
   log_adjuster /dev/stdin /dev/stdout filterable root |
   while read ITEM; do
@@ -127,17 +128,59 @@ function reaper()  {
   done
 
   if test -f $REAPER_FILES ; then
-    sed "s:^$TRACK_ROOT::" $REAPER_FILES |
-    grep -v /var/log/sorcery             |
-    filter_configs -v                    |
-    sed "s:^:$INSTALL_ROOT:"             |
+    sed "s:^$INSTALL_ROOT::" $REAPER_FILES |
+    grep -v /var/log/sorcery               |
+    filter_configs -v                      |
+    sed "s:^:$INSTALL_ROOT:"               |
     reap_config_files
 
-    sed "s:^$TRACK_ROOT::" $REAPER_FILES |
-    grep -v /var/log/sorcery             |
-    filter_configs                       |
-    sed "s:^:$INSTALL_ROOT:"             |
+    sed "s:^$INSTALL_ROOT::" $REAPER_FILES |
+    grep -v /var/log/sorcery               |
+    filter_configs                         |
+    sed "s:^:$INSTALL_ROOT:"               |
     reap_regular_files
+  fi
+
+  [ -f $REAPER_SYMS ] && rm -f `cat $REAPER_SYMS` 2>/dev/null
+  [ -f $REAPER_DIRS ] && rmdir `sort -r $REAPER_DIRS` 2>/dev/null
+  [ -f $REAPER_FILES ] && rmdir `dirnames < $REAPER_FILES |uniq|sort  -r` 2>/dev/null
+
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+}
+
+#---------------------------------------------------------------------
+## @param file
+##
+## First argument is a file containing install log, removes state files
+##
+#---------------------------------------------------------------------
+function reap_state_files()  {
+#  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
+
+  debug  "libsorcery" "Running reaper() on $1"
+
+  local UNIQUE="$$.$RANDOM"
+  local REAPER_FILES="$TMP_DIR/reaper.$UNIQUE.files"
+  local REAPER_DIRS="$TMP_DIR/reaper.$UNIQUE.dirs"
+  local REAPER_SYMS="$TMP_DIR/reaper.$UNIQUE.syms"
+
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+
+  # convert from TRACK_ROOT to / for protected filtering,
+  # then to INSTALL_ROOT.
+  # INSTALL_ROOT is relative to /, TRACK_ROOT is arbitrary.
+  seperate_state_files $1 /dev/null /dev/stdout       |
+  log_adjuster /dev/stdin /dev/stdout log root        |
+  grep -v ${LOG_DIRECTORY#$STATE_ROOT}                |
+  while read ITEM; do
+    if   test -h  "$ITEM"; then echo "$ITEM" >> $REAPER_SYMS
+    elif test -f  "$ITEM"; then echo "$ITEM" >> $REAPER_FILES
+    elif test -d  "$ITEM"; then echo "$ITEM" >> $REAPER_DIRS
+    fi
+  done
+
+  if test -f $REAPER_FILES ; then
+    cat $REAPER_FILES | xargs rm
   fi
 
   [ -f $REAPER_SYMS ] && rm -f `cat $REAPER_SYMS` 2>/dev/null
@@ -219,7 +262,6 @@ function pre_remove() {
 ## Run the POST_REMOVE script if it exists.
 #-----
 function post_remove() {
-
   # what is the point of this?
   LD_PRELOAD_OLD="$LD_PRELOAD"
   unset LD_PRELOAD
@@ -251,12 +293,12 @@ function dispel_spell() {
 
     (
       # this function messes with the environment a lot leave it in a subshell
-      load_spell $SPELL
-
-      pre_pre_remove
-      pre_remove
+      load_spell $SPELL           &&
+      pre_pre_remove              &&
+      pre_remove                  &&
       reaper  $INST_LOG  $MD5_LOG &&
       post_remove                 &&
+      reap_state_files $INST_LOG  &&
       remove_spell  $SPELL        &&
       { [[ $TRIGGER == off ]] || trigger "dispel";} &&
       remove_triggers $SPELL      &&

@@ -183,7 +183,8 @@ function resurrect()  { (
   # notice the magic dot
   local TABLET_PATH=.$TABLET_PATH
   test -d $TABLET_PATH &&
-  local OLD_TABLET_DIR=$(tablet_find_spell_dir $SPELL)
+  local OLD_TABLET_DIR
+  tablet_find_resurrect_dir $SPELL OLD_TABLET_DIR
   local TMP_VERSION=$VERSION
   if [[ $OLD_TABLET_DIR ]] && test -d $OLD_TABLET_DIR ; then
     debug "libresurrect" "loading tablet at $OLD_TABLET_DIR"
@@ -322,7 +323,7 @@ function resurrect_sub() {
 
   local res_fail=0 BREAK
   function resurrect_install_conf_sub() {
-    test -d $1 ||
+    test -d .$1 ||
     internal_install_config_file .$1 ${INSTALL_ROOT}${1} $savetime \
                                                          $OLD_MD5_LOG || {
       res_fail=1
@@ -419,7 +420,8 @@ function internal_install_config_file() {
   # if the file does not exist, 
   if ! test -e $to; then
     # copy the new one in (plus leading directories)
-    tar -c $from | tar -xv $to
+    mkdir -p $(dirname $to) &&
+    cp -p $from $to
 
   # to get here the file must exist
   elif test -d $to; then
