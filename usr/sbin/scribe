@@ -453,7 +453,6 @@ do_update() {
 
 }
 
-
 #####################################
 #update()
 #
@@ -475,8 +474,14 @@ if [ $i_count == 0 ]; then
     
     #for each grimoire
     for j in $grimoires; do
-     i=`basename "$j"`
-        
+        i=`basename "$j"`
+
+        if codex_is_local $i; then
+            message "${SPELL_COLOR}$i${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+            continue
+        fi
+
+
         #if it exists and has metadata
         if [ -e $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE ] || fix_metadata $i; then
             
@@ -499,9 +504,15 @@ else
     #for each given grimoire, update
     for ((x=0; x <= $i_count-1; x++))
       do
+
       
       #if the codex exists
       if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
+
+        if codex_is_local ${ITEMS[$x]}; then
+            message "${SPELL_COLOR}${ITEMS[$x]}${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+            continue
+        fi
           
           #if a FROM is given, check its validity
           if [ -n "${SOURCES[$x]}" ]; then
@@ -624,6 +635,32 @@ learn() {
 
 }
 
+function localize() {
+    for (( k=0; k < i_count; k++ )); do 
+        grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
+        if ! [ $grimoire ]; then
+            message "No such grimoire"
+            continue
+        fi
+        modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "yes"
+        echo "Processed $grimoire"
+    done
+}
+
+
+function unlocalize() {
+    for (( k=0; k < i_count; k++ )); do
+        grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
+        if ! [ $grimoire ]; then
+            message "No such grimoire"
+            continue
+        fi
+        modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "no"
+        echo "Processed $grimoire"
+    done
+}
+
+
 ####################################
 #process_parameters()
 #
@@ -651,6 +688,8 @@ process_parameters()  {
                                                       se|set) FUNCTION="set";;
                                          i|in|ind|inde|index) FUNCTION="index";;
 									rei|reind|reinde|reindex) FUNCTION="reindex";;
+                                                    localize) FUNCTION="localize";;
+                                                  unlocalize) FUNCTION="unlocalize";;
                                                            *) #unrecognized function. give help
                                                               help    ;;
  esac
@@ -733,6 +772,8 @@ main()        {
       swap) swap ;;
       index) index ;;
 	  reindex) reindex ;;
+      localize) localize ;;
+      unlocalize) unlocalize ;;
       *) help ;;
     esac
 }

@@ -308,12 +308,31 @@ function get_held () {
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
-function modify_local_config()  {
-
+function modify_local_config() {
   debug "libstate" "modify_local_config() - $*"
+    modify_config $LOCAL_CONFIG $@
+}
+
+
+#---------------------------------------------------------------------
+## @param Filename
+## @param variable
+## @param value
+## @param command (optional)
+##
+## Modifies (or adds) an entry in the local/config.
+## If "command" is the third argument, a space will separate the 
+## variable and value rather than the equals sign.
+##
+#---------------------------------------------------------------------
+function modify_config()  {
+
+  debug "libstate" "modify_config() - $*"
+  local FILE=$1
+  shift;
   
   if ! [[ $1 ]]; then
-    debug "libstate" "modify_local_config() - Warning: No name given for config option."
+    debug "libstate" "modify_config() - Warning: No name given for config option."
     return 1
   fi
   
@@ -325,8 +344,8 @@ function modify_local_config()  {
   else separator="=" ; fi
   
   # remove previous reference
-  tLOCAL_CONFIG=`lock_start_transaction $LOCAL_CONFIG`
-  grep  -v  "^[[:blank:]]*${1}${separator}" $LOCAL_CONFIG >  $tLOCAL_CONFIG
+  tFILE=`lock_start_transaction $FILE`
+  grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
 
   # justifying...
   EQUALS_COL=$((20-${#1}))
@@ -336,13 +355,31 @@ function modify_local_config()  {
     TEMP="$TEMP "
   done
   
-  debug "libstate" "modify_local_config() - entering new value into $tLOCAL_CONFIG"
+  debug "libstate" "modify_local_config() - entering new value into $tFILE"
   # put new value and justification in
-  echo  "${TEMP}${1}${separator}\"${2}\""  >>  $tLOCAL_CONFIG
+  echo  "${TEMP}${1}${separator}\"${2}\""  >>  $tFILE
 
-  lock_commit_transaction $LOCAL_CONFIG
+  lock_commit_transaction $FILE
     
 }
+
+#---------------------------------------------------------------------
+## @param grimoire-name
+##
+## returns 0 if the grimoire is set local, 0 otherwise.
+#---------------------------------------------------------------------
+function codex_is_local () {(
+    g_name=$1
+
+    grimoire=$(codex_find_grimoire_by_name $g_name)
+    if ! [[ $grimoire ]]; then
+        return 1
+    fi
+
+    . "$grimoire/GRIMOIRE"
+
+    [[ $CODEX_IS_LOCAL == "yes" ]]
+)}
 
 
 #---------------------------------------------------------------------
