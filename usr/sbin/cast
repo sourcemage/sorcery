@@ -95,25 +95,33 @@ function set_successful_cast() {
 
 function run_conflicts() {
     
-     debug "cast" "Starting run_conflicts() on $SPELL"
-    local CONFLICTS
-    if    [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-        CONFLICTS=$( source $SCRIPT_DIRECTORY/CONFLICTS )
-        if [ $CONFLICTS ]; then
-            message "${SPELL_COLOR}${SPELL} ${MESSAGE_COLOR}conflicts with:"
-            message "${SPELL_COLOR}"
-            echo "$CONFLICTS" | column
-            message "${DEFAULT_COLOR}"
-            if  query "Do you want to dispel these?" "n" 
-            then
-              dispel "$CONFLICTS"
-            else
-              echo $SPELL >> $FAILED_LIST
-              return 1
-            fi
-        fi
-     fi
- }
+  debug "cast" "Starting run_conflicts() on $SPELL"
+
+  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
+    local CONFLICTS=$( . $SCRIPT_DIRECTORY/CONFLICTS )
+
+    local tmp to_dispel=""
+    for  tmp  in  $CONFLICTS  ;  do
+      local spell_and_default
+      explode  $tmp  ':'  spell_and_default
+
+      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}."
+      text="$text Dispel"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
+
+      if  query  "$text"  ${spell_and_default[1]}  ;  then
+	to_dispel="$to_dispel ${spell_and_default[0]}"
+      else
+        echo  $SPELL  >>  $FAILED_LIST
+        return  1
+      fi
+
+      dispel  $to_dispel
+    done
+  fi
+
+}
 
 
 # checks for a security file

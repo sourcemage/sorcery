@@ -799,16 +799,18 @@ function real_installed_version()  {
 
 #---------------------------------------------------------------------
 ## @param spell
+## @param default answer to dispel query
 ## @Type API
+## If the default answer is anything other than 'y' then 'n' is assumed.
 ## returns the given spellname if it is installed
 ##
 #---------------------------------------------------------------------
 function real_conflicts() {
 
-  debug  "libgrimoire" "Running conflicts() on $1"
+  debug  "libgrimoire" "Running conflicts() on $1. Default query answer $2."
 
   if  spell_installed  $1;  then
-    echo $1 
+    [  "$2"  =  y  ]  &&  echo  "$1:y"  ||  echo  "$1:n"
   fi
 
   true
