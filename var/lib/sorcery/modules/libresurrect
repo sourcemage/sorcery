@@ -186,13 +186,13 @@ function resurrect()  { (
   local OLD_TABLET_DIR=$(tablet_find_spell_dir $SPELL)
   local TMP_VERSION=$VERSION
   if [[ $OLD_TABLET_DIR ]] && test -d $OLD_TABLET_DIR ; then
-    message "libresurrect" "loading tablet at $OLD_TABLET_DIR"
+    debug "libresurrect" "loading tablet at $OLD_TABLET_DIR"
     tablet_set_spell $SPELL $OLD_TABLET_DIR
     # some earlier tablets didnt have the version (oops)
     VERSION=${VERSION:-$TMP_VERSION}
   else
     unset $OLD_TABLET_DIR
-    message "libresurrect" "no tablet"
+    debug "libresurrect" "no tablet"
     codex_set_current_spell_by_name $SPELL
     # loading the spell may give us a different version which we dont want
     VERSION=${TMP_VERSION}
@@ -294,7 +294,7 @@ function resurrect_sub() {
   # 10) if theres a PRE_RESURRECT run it or fail/rollback
   if test -x $SPELL_DIRECTORY/PRE_RESURRECT ; then
     . $SPELL_DIRECTORY/PRE_RESURRECT || {
-      message "libresurrect" "PRE_RESURRECT failed"
+      debug "libresurrect" "PRE_RESURRECT failed"
       resurrect_fail 1
       return 1
     }
@@ -311,7 +311,7 @@ function resurrect_sub() {
     # in this context we prepend a .
     test -d $line || echo .$line
   done | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
-    message "libresurrect" "Failed to install regular files"
+    debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
   }
@@ -333,7 +333,7 @@ function resurrect_sub() {
   iterate resurrect_install_conf_sub $'\n' "$(<$NEW_DATA_F_C)"
 
   [[ $res_fail == 0 ]] || {
-    message  "libresurrect" "Failed to install config files"
+    debug "libresurrect" "Failed to install config files"
     resurrect_fail 1
     return 1
   }
