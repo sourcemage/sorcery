@@ -1,0 +1,211 @@
+.TH SORCERY_CONFIG 5 "September 2004" "Source Mage GNU Linux" "File Formats"
+.SH NAME
+sorcery configuration \- reference on sorcery's configuration options
+.SH DESCRIPTION
+The sorcery scripts can be configured by a variety of options,
+best set using the
+.I sorcery
+command. The configuration files determine which features the sorcery
+source-based package management system should use and how it should behave.
+.SH "SUMMARY"
+The default configuration files are found under /etc/sorcery.
+Any local versions of these files are found under /etc/sorcery/local.
+Many of the default config files can be overridden by a local version.
+/etc/sorcery/local also contains spell configurations.
+.SH "WARNING"
+You should
+.I not
+modify any files directly in /etc/sorcery. They set vital defaults and paths.
+They will also be overwritten by every sorcery update you run.
+Therefore, you should only modify the files in /etc/sorcery/local.
+Normally, using sorcery to modify them should work fine.
+Keep in mind that if you manually change an option line to a complicated
+expression or add lines to a config file, the next time you edit the file
+using sorcery your changes will most likely be lost.
+.SH "MISC GLOBAL FILES"
+This section describes the files in /etc/sorcery.
+.PP
+.I accounts
+.IP
+contains information for sorcery on what spell needs which user to
+exist and his GIDs.
+.PP
+.I groups
+.IP
+contains the names for those groups.
+.PP
+.I version
+.IP
+contains the current version of sorcery.
+.PP
+.I internal_version
+.IP
+contains 0. No discernible use.
+.PP
+.I dialogrc
+.IP
+contains the options for dialog, the menu program sorcery uses.
+.PP
+.I licenses/
+.IP
+directory containing the licenses of all spells in the grimoire
+(except some in z-rejected)
+.PP
+.I mirror/
+.IP
+directory containing lists of mirrors for the sorcery mirror configuration.
+.SH "GLOBAL CONFIG FILES"
+to be done
+.SH "LOCAL MISC FILES"
+todo
+.SH "LOCAL CONFIG FILES"
+todo
+.SH "FEATURE CONFIG OPTIONS"
+.PP
+.I ARCHIVE
+.IP
+This enables a very useful feature to make sorcery create a compressed .tar
+of all files installed by a spell. If the spell breaks for some reason,
+it can be used to resurrect the spell without the need to recompile it.
+
+Use
+.I dispel -d <spell> <version>
+to resurrect from cache.
+.I cast <spell>
+will also do this, but only when the version hasn't changed.
+
+Turning this feature off will save a good amount of space (a few hundred megs
+on a desktop system), however, it will make recovering a lot harder.
+.PP
+.I AUTOFIX
+.IP
+This will make sorcery run a cleanse --fix after a sorcery upgrade,
+to check if any became broken by the update.
+.PP
+.I AUTOPRUNE
+.IP
+This will make sorcery remove old logs, sources and caches on a sorcery upgrade.
+.PP
+.I CABAL
+.IP
+Turn this on if you want to administrate a group of sorcery boxes.
+This will make the changes on all boxes.
+.PP
+.I CCACHE
+.IP
+This will create a cache of compiled files for spells,
+slowing down the first compile but speeding up upgrades by detecting which
+files have not changed. This will also consume some disk space on /var.
+.PP
+.I COLOR
+.IP
+If you have this on, you will have colorized messages.
+Turning this off will get you back to black and white.
+.PP
+.I CONFIG_LOC
+.IP
+This makes sorcery ask "do you want to add -- options to ./configure".
+This enables you to add your custom options. However, you cannot remove
+the spell's default config options.
+.PP
+.I GATHER_DOCS
+.IP
+With this option enabled, sorcery will copy any documentation it finds in the
+source to /usr/share/doc/<spell>.
+.PP
+.I MAIL_REPORTS
+.IP
+This option will run "mail" to send the compile logs (the output of a cast)
+to the email set in "Email of Sorcerer" in the Option menu.
+.PP
+.I PRESERVE
+.IP
+This option will make dispel not dispel modified config files.
+Turning this option off will cause dispel to rename them to <file>.YYYYMMDD.
+
+Note that a dispel is usually run just before a spell is installed,
+so turning this off will replace old config files with defaults, too.
+.PP
+.I SUSTAIN
+.IP
+This option will keep dispel from dispelling spells that are vital for sorcery
+to run. Note that this can be temporally overridden by the
+.I --nosustain
+option for dispel, so there is no real reason to turn this off.
+.PP
+.I TMPFS
+.IP
+This will make sorcery create a tmpfs (ramdisk) for the sources for
+faster compilation. Note that the filesystem cache usually keeps
+much-used files in RAM anyway, so it is questionable that a speed
+increase really is achieved.
+.PP
+.I VIEW_REPORTS
+.IP
+This will prompt you at the end of a cast if want to view the compile log.
+.PP
+.I VOYEUR
+.IP
+This will filter out all the compile-time messages. While this makes the compile
+nicer to look at, you won't get a "hey, it's doing something" feeling.
+
+.I NOTE:
+This option might also keep spell and sorcery queries from reaching you.
+If you have this off and a spell fails for mysterious reasons, try
+.I cast -V on
+<spell> to find out what's happening.
+.PP
+.I REAP
+.IP
+Turning this option off will keep sorcery from removing files in a dispel.
+This kind of takes the purpose out of dispelling, and might cause strange
+behavior in an upgrade when the files aren't overwritten for some reason
+(e.g. they moved).
+
+This can also be turned off temporarily with the
+.I --noreap
+option, so again, there is no real reason to have this one off.
+.PP
+.I NET_SELECT
+.IP
+This feature will use the "netselect" command to find which one of the mirrors
+set for a spell has the lowest ping and therefore (hopefully) the highest
+bandwidth. Note that except for very large source files, this test may take
+longer than the actual download.
+.PP
+.I CLEAN_SOURCE
+.IP
+With this off, sorcery will leave the source directory in /usr/src if the
+spell fails, so you can figure out what went wrong.
+If you don't find yourself doing that, it is safe to turn this off.
+It will make for an uncluttered /usr/src.
+.PP
+.I CROSS_INSTALL
+.IP
+This will make sorcery attempt to build the spell for a different architecture.
+
+.I NOTE:
+This is not really supported yet. We are working on getting this to work,
+but right now it is
+.I not recommended
+to use this option.
+.PP
+.I SET_TERM_TITLE
+.IP
+This will make cast set the terminal/screen title if run in an
+xterm/rxvt/screen.
+.SH "AUTHOR"
+Original version by Karsten Behrmann.
+.PP
+Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
+.SH "REPORTING BUGS"
+.PP
+Report bugs to bugzilla <http://bugs.sourcemage.org>
+.SH "SEE ALSO"
+cast(8), cleanse(8), dispel(8), gaze(1), grimoire(5),
+scribbler(8), scribe(8), sorcery(8), summon(8)
+.PP
+.SH "WARRANTY"
+.PP
+This is free software with ABSOLUTELY NO WARRANTY
+
