@@ -76,7 +76,7 @@ get_group_name() {
 ##
 #---------------------------------------------------------------------
 get_gids_for_account() {
-    
+
   if  grep  -q  "^$1:"  $ACCOUNT_LIST;  then
     ENTRY=`grep "^1:" $ACCOUNT_LIST`
     i=4
@@ -84,17 +84,17 @@ get_gids_for_account() {
      NEW=`echo $ENTRY | cut -d : -f$i`
      GROUPS="$GROUPS $NEW"
       let i++
-    done 
+    done
   fi
-  return $GROUPS  
+  return $GROUPS
 }
 
 
 #---------------------------------------------------------------------
 ##=item exists_account <system account>
-## 
+##
 ## returns 0 if exists, 1 if not.
-## 
+##
 #---------------------------------------------------------------------
 exists_account() {
 
@@ -145,7 +145,7 @@ guess_compressor()  {
 
   local OUTPUT=`$FILEPROG -b "$1"`
   local COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f1`
-  [ "$COMPRESSOR" = "GNU" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2` 
+  [ "$COMPRESSOR" = "GNU" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
   debug "libgrimoire" "guess_compressor() - guessed $1 compressor to be <$COMPRESSOR>"
   echo $COMPRESSOR
 }
@@ -161,7 +161,7 @@ guess_compressor()  {
 uncompress() {
   debug "libgrimoire" "uncompress - $*"
   set +x #This is here so Duff's super debugging info doesn't screw the next step up
-  
+
   # Outer subshell is necessary to redirect stderr to stdout
   (
     #Inner subshell decompresses archive to stdout
@@ -177,9 +177,9 @@ uncompress() {
             tar)  cat           $1  ;;
               *)  cat           $1  ;;
     esac
-    ) | tee /dev/stderr | md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing 
+    ) | tee /dev/stderr | md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing
   ) 2>&1
-  
+
   #This temp file is here because this function MUST NOT send
   # anything to stdout or stderr, and upack needs a way to get the success or
   # failure of this function.
@@ -187,7 +187,7 @@ uncompress() {
   [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
   echo "$a"  > /tmp/libgrimoire.uncompress.$$
   return $a
-  
+
 }
 
 
@@ -214,35 +214,35 @@ unpack() {
   uncompress $FILENAME $COMPRESSOR $2 | \
   {
 
-    # This section takes the uncompressed stream and turns it into the 
+    # This section takes the uncompressed stream and turns it into the
     # fully unarchived form.
     case  $COMPRESSOR  in
-            bzip2|gzip|compress*|tar) 
+            bzip2|gzip|compress*|tar)
                     tar   --owner=root  --group=root  -xf  /dev/stdin 2> /dev/null || cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
 	            unzip  -q  $FILENAME                               ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
                 *)  cat > /dev/null                                    ;;
     esac
-    
-  } && 
-  { 
-  
+
+  } &&
+  {
+
     # This section takes care of what happens if the md5sum doesn't match
-    # /tmp/libgrimoire.uncompress.$$ is set in uncompress. It's the only way to 
+    # /tmp/libgrimoire.uncompress.$$ is set in uncompress. It's the only way to
     # get the return value since it's in a pipe.
     if ! [[ $2 ]] ; then
-      
+
       rm /tmp/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
-      case $MD5SUM_DL in 
+      case $MD5SUM_DL in
                off)  message "${RED}Continuing!"               ; return 0 ;;
          ask_abort)  query "Abort?" "y"         && return 1  ||  return 0 ;;
         ask_ignore)  query "Abort?" "n"         && return 1  ||  return 0 ;;
-              on|*)  message "${RED}Aborting.${DEFAULT_COLOR}" ; return 1 ;; 
-      esac      
+              on|*)  message "${RED}Aborting.${DEFAULT_COLOR}" ; return 1 ;;
+      esac
 
-    elif [[ $2 == "IGNORE" ]] ; then 
+    elif [[ $2 == "IGNORE" ]] ; then
 
       rm /tmp/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was purposefully left out for the uncompressed $1."
@@ -257,18 +257,18 @@ unpack() {
 
       rm /tmp/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different for uncompressed $1."
-      case $MD5SUM_DL in 
+      case $MD5SUM_DL in
                off)  message "${RED}Continuing!${DEFAULT_COLOR}" ; return 0 ;;
          ask_abort)  query "Abort?" "y"         && return 1   ||   return 0 ;;
         ask_ignore)  query "Abort?" "n"         && return 1   ||   return 0 ;;
-              on|*)  message "${RED}Aborting.${DEFAULT_COLOR}"   ; return 1 ;; 
+              on|*)  message "${RED}Aborting.${DEFAULT_COLOR}"   ; return 1 ;;
       esac
 
     fi
     rm /tmp/libgrimoire.uncompress.$$
-    
-  } 
-  
+
+  }
+
   #By this point, the archive is unarchived, and we know the MD5 check was good.
   return 0
 
@@ -278,22 +278,22 @@ unpack() {
 #---------------------------------------------------------------------
 #=item md5_file_check <md5>
 ##
-## Checks that the stdin matches the argument. 
+## Checks that the stdin matches the argument.
 ## Note that DEBUG output may dissapear if it's /dev/stderr due to
 ## uncompress' 2>/dev/null.
 ##
 #---------------------------------------------------------------------
 md5_tar_check()  {
 
-  local md5 
-  
+  local md5
+
   debug "libgrimoire" "md5_tar_check() - Checking MD5 sum"
-  
+
   #Do the md5
   md5=`md5sum /dev/stdin | awk '{print $1}'`
   debug "libgrimoire" "md5_tar_check() - MD5 of tarball is $md5."
   debug "libgrimoire" "md5_tar_check() - argument received is $1."
-  
+
   #See if they match
   if [[ $1 == $md5 ]] ; then
     debug "libgrimoire" "md5_tar_check() - MD5 Sum Success ( $1 == $md5 )"
@@ -301,15 +301,15 @@ md5_tar_check()  {
   fi
 
   #See of we need to md5sum it at all
-  if [[ ${MD5SUM_DL:-on} == off ]] || ! [[  $1  ]] ; then 
+  if [[ ${MD5SUM_DL:-on} == off ]] || ! [[  $1  ]] ; then
     debug "libgrimoire" "md5_tar_check() - Skipping check"
     return 0
   fi
-  
+
   #If we get here, the md5's don't match, but should.
   debug "libgrimoire" "md5_tar_check() - bad md5"
   return 1
-  
+
 }
 
 
@@ -317,7 +317,7 @@ md5_tar_check()  {
 ##=item prepare_install
 ##
 ## Prepares to install the spell.  Writes the boost lock file.  If the
-## spell is installed already, the libraries are saved with 
+## spell is installed already, the libraries are saved with
 ## save_libraries() and the spell is dispelled.  Usually called from
 ## the BUILD sript of a spell.
 ##
@@ -325,7 +325,7 @@ md5_tar_check()  {
 prepare_install() {
 
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
-  
+
   message  "${MESSAGE_COLOR}Preparing to install"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
@@ -343,7 +343,7 @@ prepare_install() {
       trap  "spell_recover"  SIGINT
       save_libraries
       dispel  --nosustain  $SPELL
- 
+
     fi
 
     rm  -f  /tmp/$SPELL.iw
@@ -362,7 +362,7 @@ prepare_install() {
 ##
 ##    mk_source_dir  $SOURCE_DIRECTORY  2g
 ##
-## Example2:  Create a mount at /tmp/newdir, defaults to 1GB size 
+## Example2:  Create a mount at /tmp/newdir, defaults to 1GB size
 ##
 ##    mk_source_dir  /tmp/newdir
 ##
@@ -378,7 +378,7 @@ mk_source_dir() {
   local SIZE=${SIZE:=1g}
 
   if  [  -n  "$NEW_DIR"  ];  then
- 
+
     rm_source_dir  $NEW_DIR
     mkdir     $NEW_DIR  &&
     if  [[  $TMPFS == on  ]]; then
@@ -404,9 +404,9 @@ rm_source_dir() {
   debug  "libgrimoire" "Running rm_source_dir() on $DEAD_DIR"
 
   if  [  -n  "$DEAD_DIR"  ] &&  [  -d  "$DEAD_DIR"  ];  then
-    
+
     pushd $BUILD_DIRECTORY 2>&1  >  /dev/null
- 
+
     umount  -l  $DEAD_DIR  2>  /dev/null
 
     # We don't really want to use "rm -rf", but if not using tmpfs,
@@ -418,10 +418,10 @@ rm_source_dir() {
     # c) $DEAD_DIR containing metacharacters (like newline)
     mv  "$DEAD_DIR"  "/usr/src/deaddir"  &&
     rm  -rf          "/usr/src/deaddir"  2>  /dev/null
-    
+
     popd  2>&1  >  /dev/null
     true
- 
+
   fi
 
 }
@@ -460,20 +460,20 @@ make() {
   else
     # Check there is a reasonable value.
     [ $MAKE_NJOBS -gt 0 ] &&
-    JOBS="$MAKE_NJOBS"    || 
+    JOBS="$MAKE_NJOBS"    ||
     JOBS="1" # Use default of one when MAKE_NJOBS is nonsense.
   fi
 
   debug  "libgrimoire"  "make: running with $JOBS jobs"
-  /usr/bin/make -j $JOBS "$@"
-  
+  /usr/bin/make -j $JOBS -S "$@"
+
   # Cache the result
   local  STATUS=$?
-  
+
   if [[ $STATUS -ne 0 ]] && [[ $JOBS != 0 ]] ; then
     query "Running make with $MAKE_NJOBS jobs failed. Attempt to run with a single job?" y &&
     # Try again
-    /usr/bin/make -j1 "$@"
+    /usr/bin/make -j1 -S "$@"
     STATUS=$?
   fi
 
@@ -528,8 +528,8 @@ gather_docs()  {
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
-    debug  "libgrimoire" "Running gather_docs() on $SPELL" 
-  
+    debug  "libgrimoire" "Running gather_docs() on $SPELL"
+
     DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
     mkdir  -p  $DOC_DIR
 
@@ -647,7 +647,7 @@ install_services()  { (
     done
   fi
   unlock_file $SCRIPT_DIRECTORY/services
-  
+
 ) }
 
 
@@ -669,11 +669,11 @@ default_post_build() {
   ldconfig
   # release_saved_libraries
   cd  /
-  
+
   # Note: bad function name is boost
   boost
   unlock_resources "libgrimoire" "install"
-  
+
 
 }
 
@@ -701,7 +701,7 @@ installed_version()  {
 #---------------------------------------------------------------------
 conflicts() {
 
-  debug  "libgrimoire" "Running conflicts() on $1" 
+  debug  "libgrimoire" "Running conflicts() on $1"
 
   if  spell_installed  $1;  then
     dispel  $1
@@ -709,7 +709,7 @@ conflicts() {
 
   true
 
-} 
+}
 
 
 #---------------------------------------------------------------------
@@ -719,8 +719,8 @@ conflicts() {
 ## files that exist.
 ##
 #---------------------------------------------------------------------
-exists()  {  
-  while  read  ITEM;  do  [  -e  "$ITEM"  ]  &&  echo  $ITEM;  done;  
+exists()  {
+  while  read  ITEM;  do  [  -e  "$ITEM"  ]  &&  echo  $ITEM;  done;
 }
 
 
@@ -801,7 +801,7 @@ EOT
 #---------------------------------------------------------------------
 ##=item ask_continue_with_rejected
 ##
-## Part two of the warn_rejected funtion, ask if user wants to continue 
+## Part two of the warn_rejected funtion, ask if user wants to continue
 ## anyway. (defaults to NO), unless running in UNATTEND_SAFE mode.
 ##
 #---------------------------------------------------------------------
@@ -810,7 +810,7 @@ function ask_continue_with_rejected()
   if spell_installed "$SPELL" && [ -e $SCRIPT_DIRECTORY/UNATTEND_SAFE ]; then
     message $(cat <<EOT
 ${MESSAGE_COLOR}$SPELL ${FILE_COLOR}is${MESSAGE_COLOR} installed, and has been
-determined to be ${FILE_COLOR}safe 
+determined to be ${FILE_COLOR}safe
 EOT
   )
     message $(cat <<EOT
