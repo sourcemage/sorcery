@@ -166,7 +166,7 @@ mirror_menu()  {
 show_spells()	{ (
 
   local  SECTION=`codex_find_section_by_name $1`
-  local  SPELLS=`codex_get_spells  $SECTION`
+  local  SPELLS=`codex_get_spells_in_section  $SECTION`
 
   for  SPELL  in  $SPELLS;  do
 
@@ -370,9 +370,6 @@ update_pkgs() {
 
   message  "${CHECK_COLOR}Updating ... please wait ... ${DEFAULT_COLOR}"
 
-  wait_flag_up
-  wait_flag $$ &
-
   cat  << EOF >  $UPDATE_SCRIPT
 #!/bin/bash
 ############################################################
@@ -411,8 +408,6 @@ cast -q --queue
 
 fix_installed_spells     # check integrity of installed spells
 
-
-wait_flag_down
 
 rm   -f  /tmp/cast
 
@@ -556,7 +551,7 @@ make_checklist()  {
 
 
   local  SECTION=`codex_find_section_by_name  $1`
-  local   SPELLS=`codex_get_spells  $SECTION`
+  local   SPELLS=`codex_get_spells_in_section  $SECTION`
 
   for  SPELL in $SPELLS;  do
 
@@ -1339,7 +1334,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
        AUTOFIX=${AUTOFIX:=on}
      UPDATEFIX=${UPDATEFIX:=off}
      AUTOPRUNE=${AUTOPRUNE:=off}
-         CABAL=${CABAL:=off}
         CCACHE=${CCACHE:=off}
          COLOR=${COLOR:=on}
     CONFIG_LOC=${CONFIG_LOC:=on}
@@ -1367,7 +1361,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "AUTOFIX"        "Toggle"  "$AUTOFIX"        "$F_HELP"   \
       "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"   \
       "AUTOPRUNE"      "Toggle"  "$AUTOPRUNE"      "$U_HELP"   \
-      "CABAL"          "Toggle"  "$CABAL"          "$B_HELP"   \
       "CCACHE"         "Toggle"  "$CCACHE"         "$G_HELP"   \
       "COLOR"          "Toggle"  "$COLOR"          "$C_HELP"   \
       "CONFIG_LOC"     "Toggle"  "$CONFIG_LOC"     "$L_HELP"   \
@@ -1384,7 +1377,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1397,7 +1390,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
              AUTOFIX)        AUTOFIX=on  ;;
            UPDATEFIX)      UPDATEFIX=on  ;;
            AUTOPRUNE)      AUTOPRUNE=on  ;;
-               CABAL)          CABAL=on  ;;
               CCACHE)         CCACHE=on  ;;
                COLOR)          COLOR=on  ;;
           CONFIG_LOC)     CONFIG_LOC=on  ;;
@@ -1417,7 +1409,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1567,39 +1559,20 @@ main_menu()  {
       OK="Select"
   CANCEL="Exit"
   while
-    if  [  "$CABAL"  ==  "on"  ] ;  then 
-        COMMAND=`eval $DIALOG ' --title "Main Menu"             \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell        Menu"     "$S_HELP"     \
-                       "O"  "Option       Menu"     "$O_HELP"     \
-                       "L"  "Log          Menu"     "$L_HELP"     \
-                       "Q"  "Queue        Menu"     "$Q_HELP"     \
-                       "F"  "Foreground   Execute"  "$F_HELP"     \
-                       "B"  "Background   Execute"  "$B_HELP"     \
-                       "I"  "Install Root Menu"   "$I_HELP"     \
-                       "C"  "Cabal        Menu"     "$C_HELP"'`
-
-    else
-      COMMAND=`eval $DIALOG ' --title "Main Menu"               \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell        Menu"     "$S_HELP"     \
-                       "O"  "Option       Menu"     "$O_HELP"     \
-                       "L"  "Log          Menu"     "$L_HELP"     \
-                       "Q"  "Queue        Menu"     "$Q_HELP"     \
-                       "F"  "Foreground   Execute"  "$F_HELP"     \
-                       "B"  "Background   Execute"  "$B_HELP"     \
-                       "I"  "Install Root Menu"   "$I_HELP"'`
-    fi
+    COMMAND=`eval $DIALOG ' --title "Main Menu"               \
+                     --item-help                              \
+                     --ok-label      "$OK"                    \
+                     --cancel-label  "$CANCEL"                \
+                     --menu                                   \
+                     "Sorcery Version  $SORCERY_VERSION"      \
+                     0 0 0                                    \
+                     "S"  "Spell        Menu"     "$S_HELP"     \
+                     "O"  "Option       Menu"     "$O_HELP"     \
+                     "L"  "Log          Menu"     "$L_HELP"     \
+                     "Q"  "Queue        Menu"     "$Q_HELP"     \
+                     "F"  "Foreground   Execute"  "$F_HELP"     \
+                     "B"  "Background   Execute"  "$B_HELP"     \
+                     "I"  "Install Root Menu"   "$I_HELP"'`
   do
 
     case  $COMMAND in
@@ -1609,7 +1582,6 @@ main_menu()  {
       Q)  queue_menu          ;;
       F)  foreground_execute  ;;
       B)  background_execute  ;;
-      C)  cabal_menu          ;;
       I)  install_root_menu   ;;
     esac
 

@@ -109,7 +109,8 @@ function run_build()  {
       default_build
     fi &&
     persistent_save
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) && # see bug 7201
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)      && # see bug 7201
 
   install_xinetd &&
   install_initd
@@ -202,7 +203,7 @@ function real_default_build() {
 #If these switches are used, they stop distcc and ccache from working
 #  We could write wrappers for all of the possible binaries
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
-	
+
   ./configure --prefix=${INSTALL_ROOT}/usr  \
           --sysconfdir=${INSTALL_ROOT}/etc  \
        --localstatedir=${INSTALL_ROOT}/var  \

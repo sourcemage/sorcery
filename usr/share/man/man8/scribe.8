@@ -2,15 +2,16 @@
 .SH NAME
 scribe \- tracks, adds and removes grimoires
 .SH SYNOPSIS
-.B scribe [re]index
+.BI "scribe add|update" " <grimoire> " [[from] " <source url> " ]
 .PP
-.BI "scribe [add|remove|update|fix]" " <grimoire> " [[from] " <source url> " ]
+.BI "scribe fix|reindex|remove" " <grimoire> ..."
 .PP
-.BI "scribe swap " "<grimoire> <another grimoire>"
+.BI "scribe index "
 .PP
-.BI "scribe [transcribe|learn|forget] " <spell>
+.BI "scribe set|swap " "<grimoire> <another grimoire>"
 .PP
-.BI "scribe set " value
+.BI "scribe [un]localize" "<grimoire> "
+.PP
 .SH "DESCRIPTION"
 .I scribe
 is part of the
@@ -18,7 +19,7 @@ is part of the
 source-code package management suite.
 Scribe is a utility for controlling the grimoires in your codex,
 and the spells in your grimoires.
-.PP
+
 The main use of scribe is simply to update the grimoires by
 .BR "scribe(8) update" "; this can be automated or invoked indirectly through"
 .BR "sorcery(8) system-update" .
@@ -35,13 +36,33 @@ from
 .PP
 It should be noted that the source url listed above can be any source such as
 cvs, rsync, http, ftp, etc.
+.SH "GRIMOIRE NAMES"
+Grimoires are internally represented by the full path to them. They can be uniquely described on the command line by listing the name and however many subdirectories are needed to form a unique name.
+.PP
+For example you may have two grimoires:
+.PP
+.B /var/lib/sorcery/codex/stable
+.PP
+and
+.PP
+.B /root/grimoires/stable
+.PP
+These can be uniquely identified with
+.B "codex/stable "
+and
+.B "grimoires/stable "
+.PP
+If just
+.B "stable "
+was specified it would match the first of the two grimoires listed in scribe index.
+.PP
 .SH "OPTIONS"
 With each of these command line options, it is only necessary to specify enough of the verb to disambiguate
 the command from the others. For example,
 .IR "scribe u" " is equivalent to "
 .IR "scribe up" "; both are shorthands for the long version " "scribe update"
 .PP
-.B scribe [re]index
+.B scribe index
 .PP
 Displays a list of all currently used grimoires, in order. If reindexed then
 scribe rebuilds the spell location indexes for sorcery.
@@ -76,14 +97,28 @@ Updates the grimoire specified by
 Updates the grimoire specified by
 .IR grimoire " from the url " url .
 .PP
+.BI "scribe reindex"
+.PP
+Rebuild all grimoire's spell lookup tables.
+.PP
+.BI "scribe reindex " grimoire ...
+.PP
+Rebuild specified grimoire's spell lookup tables. This must be done if
+a spell is added or removed from a grimoire. This is done automatically
+on scribe update and scribe add.
+.PP
 .BI "scribe fix"
 .PP
-I'm sure this does something terribly complicated.
+Repairs a grimoire's metadata (url to download from).
 .PP
 .BI "scribe remove " grimoire
 .PP
-Deletes the grimoire
+Deletes the grimoire.
 .IR grimoire " from the codex."
+.PP
+.BI "scribe set " "grimoire1 grimoire2"
+.PP
+Set grimoire1 before grimoire2
 .PP
 .BI "scribe swap " "grimoire1 grimoire2"
 .PP
@@ -91,17 +126,6 @@ Changes the order the specified grimoires are listed in the
 .I index
 by swapping their positions.
 .PP
-.BI "scribe set "
-.PP
-I can't tell by looking at the code what this is meant to do. Maybe I need more sleep.
-.PP
-.BI "scribe transcribe"
-.PP
-.BI "scribe learn"
-.PP
-.BI "scribe forget"
-.PP
-These functions are currently unimplemented, and I don't know what their intention is.
 .SH "AUTHOR"
 The Source Mage GNU Linux Team <http://www.sourcemage.org>
 .PP

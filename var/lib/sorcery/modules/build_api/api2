@@ -40,20 +40,19 @@ function run_build_spell() {
     VOYEUR_STDERR=/dev/null
   fi
                       
-  run_pre_build				|| return 1
-
-  run_config_loc                        || return 2  # don't feel like making up a new number
-
+  run_pre_build                         || return 1
+  run_config_loc                        || return 2
   (
-  run_build                             &&
-  run_pre_install			&&
-  run_install				|| return 2
-  run_post_install			&&
-  run_final				|| return 3
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) || # see bug 7201
-                                           return $?  # this is needed to pass $? up
+    run_build                           &&
+    run_pre_install                     &&
+    run_install                         || return 2
+    run_post_install                    &&
+    run_final                           || return 3
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \ # see bug 7201
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT) || 
+  return $?  # this is needed to pass $? up if the ( ) fails
 
-  run_triggers				|| return 4
+  run_triggers                          || return 4
   return 0
 }
 #---------------------------------------------------------------------
@@ -238,13 +237,13 @@ function real_default_build() {
   #If these switches are used, they stop distcc and ccache from working
   #  We could write wrappers for all of the possible binaries
   [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
-	
+        
   ./configure --prefix=${INSTALL_ROOT}/usr  \
-	  --sysconfdir=${INSTALL_ROOT}/etc  \
+          --sysconfdir=${INSTALL_ROOT}/etc  \
        --localstatedir=${INSTALL_ROOT}/var  \
-	      --mandir=${INSTALL_ROOT}/usr/share/man   \
-	     --infodir=${INSTALL_ROOT}/usr/share/info  \
-		       $OPTS                 &&
+              --mandir=${INSTALL_ROOT}/usr/share/man   \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
+                       $OPTS                 &&
   make
 
 }

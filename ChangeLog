@@ -1,5 +1,42 @@
 2004-11-02 Andrew Stitt <astitt@sourcemage.org>
-	* build_api1/build_api2: remove call to install_services
+	* build, install: strip out .arch-id files in case run from arch
+	* cabal, libcabal, sorcery, config: move libcabal to its own utility
+	  and remove unnecessary references to it in the sorcery script and
+	  config file.
+	* cabal: use modify_local_config in the one location that modifies
+	  the configuration
+	* libsorcery, sorcery, libwait_flag: remove libwait_flag as its mostly
+	  unused and provides no useful functionality (trying to weed
+	  out unnecessary feature creep) bug 7549.
+	* url_cvs, url_rsync, url_svn: ensure S_FILE is declared local
+	* build_api/api1, build_api/api2: tabs -> spaces, fix line
+	  justification where a poor job was done
+	* libcast: move report_install closer to its friends and use
+	  let instead of (( ))
+	* libtrack: remove syms_not_owned (depreciated and unused)
+	* build_api/common, libgrimoire: move real_prepare_install,
+	  gather_docs and install_pam_confs out of libgrimoire and into
+	  common since they are only called during the build pipeline anyway
+	* scribe: rewrite majority of the code. Change parameter parsing
+	  to just figure out the subcommand, hand off the rest of the parsing
+	  to the subroutines, this makes it so that commands that dont need
+	  "from url" dont use it. Stop assuming that grimoires live in
+	  CODEX_ROOT. Allow rsyncing and dont needless tar and untar rsync
+	  grimoires. Fix bug 7519 scribe add only adds once. Grimoire
+	  names now use first match semantics for naming, but can be
+	  named by prepending subdirectory names: eg codex/stable.
+	* libcodex: hand in hand with scribe updates, update this library
+	  in a number of ways. Reorganize the functions. Remove tmpfs
+	  functions. Optimize the heck out of as many functions as
+	  possible, add a codex_set_current_spell_quick to speed up
+	  spell sourcing in situations where it needs to be really fast
+	  like scribe --sweep (converting that code is not done yet).
+	* libsecurity, gaze: fix function call names based on changes 
+	  to libcodex
+	* scribe.8: update manual
+	
+2004-11-02 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/api1, build_api/api2: remove call to install_services
 	* libgrimoire: remove install_services (bug 7598)
 
 2004-11-01 Andrew Stitt <astitt@sourcemage.org>

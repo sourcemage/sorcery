@@ -238,7 +238,7 @@ function gaze_catalog()  {
   local grimoire
 
   if [[ $# -gt 0 ]]; then
-        grimoire=$(codex_find_grimoire_by_name $1)
+        grimoire=$(codex_find_grimoire $1)
         if [[ $? != 0 ]]; then
             echo "No such grimoire $1"
             exit 1;
@@ -260,7 +260,7 @@ function gaze_catalog()  {
     echo  "-------------------------------------------------"
     echo  "SECTION:  $(  basename  $SECTION  )"  
     echo  "-------------------------------------------------"
-    for  spell  in  `codex_get_spells $SECTION`;  do
+    for  spell  in  `codex_get_spells_in_section $SECTION`;  do
        echo `basename $spell`
       ((  COUNT++  ))
     done
@@ -286,7 +286,7 @@ function gaze_catalog_html()  {
   fi
     
   if [[ $# -gt 0 ]]; then
-        grimoire=$(codex_find_grimoire_by_name $1)
+        grimoire=$(codex_find_grimoire $1)
         if [[ $? != 0 ]]; then
             echo "No such grimoire $1"
             exit 1;
@@ -394,7 +394,7 @@ function gaze_catalog_html()  {
     echo  "<th colspan=\"${COLS}\">"
     echo  "<h2>$( basename  $SECTION )</h2>"
     echo  "</th></tr>"
-    for  SPELL  in  `codex_get_spells  $SECTION`;  do
+    for  SPELL  in  `codex_get_spells_in_section  $SECTION`;  do
       (
         codex_set_current_spell  $SPELL
 
@@ -967,7 +967,7 @@ function gaze_show_section()  {
 #---------------------------------------------------------------------
 function gaze_show_section_version_table()  {
 
-   local  SPELLS=`codex_get_spells $1`
+   local  SPELLS=`codex_get_spells_in_section $1`
 
    (
 
@@ -1120,7 +1120,7 @@ function gaze_show_versions()  {
 #---------------------------------------------------------------------
 function gaze_show_section_license_table()  {
 
-   local  SPELLS=`codex_get_spells $1`
+   local  SPELLS=`codex_get_spells_in_section $1`
 
    (
 

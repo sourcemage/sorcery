@@ -15,9 +15,6 @@
 ##
 #---------------------------------------------------------------------
 
-
-
-
 #---------------------------------------------------------------------
 ## @param filename
 ## @Stdout compressor
@@ -204,37 +201,6 @@ function md5_tar_check()  {
   return 1
 
 }
-#---------------------------------------------------------------------
-## @Type API
-## Prepares to install the spell.  If the spell is installed already,
-## the libraries are saved with save_libraries() and the spell is dispelled.
-## Usually called from the BUILD or PRE_INSTALL script of a spell.
-## Locks "libgrimoire" "install" before proceeding.
-## If the spell is not installed (or held) the spell is not dispelled.
-##
-#---------------------------------------------------------------------
-function real_prepare_install() {
-
-  debug  "libgrimoire" "Running prepare_install() on $SPELL"
-
-  message  "${MESSAGE_COLOR}Preparing to install"  \
-           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
-
-  lock_resources "libgrimoire" "install"
-
-    if  spell_installed  $SPELL   ||
-        spell_held       $SPELL
-    then
-
-      trap  "spell_recover"  SIGINT
-      save_libraries
-      dispel  --notriggers --nosustain  $SPELL
-
-    fi
-}
-
-
-
 
 
 #---------------------------------------------------------------------
@@ -351,62 +317,6 @@ function make() {
 
 }
 
-
-#---------------------------------------------------------------------
-##
-## Gathers all documentation files from source archive and installs
-## them as part of the spell
-##
-#---------------------------------------------------------------------
-function gather_docs()  {
-
-  if  [  "$GATHER_DOCS"  ==  "on"  ]; then
-
-    debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
-
-    DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
-    mkdir  -p  $DOC_DIR
-
-    for i in ${DOCS[@]}
-    do
-      cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
-    done
-
-    # what is this here for and why isn't it part of the standard DOCS
-    # variable?
-    cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
-
-    # making installed docs readable for all users.
-    chmod -fR a+r $DOC_DIR
-
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Copies pam configuration files to /etc/pam.d/
-##
-#---------------------------------------------------------------------
-function install_pam_confs()  {
-
-  debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
-
-  if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
-    cd       "$SCRIPT_DIRECTORY/pam.d"
-
-    mkdir  -p  /etc/pam.d
-
-    for  FILE  in  `ls`;  do
-      if  !  [  -f  /etc/pam.d/$FILE  ];  then
-        cp  $FILE   /etc/pam.d
-      fi
-    done
-
-  fi
-
-}
 
 
 #---------------------------------------------------------------------

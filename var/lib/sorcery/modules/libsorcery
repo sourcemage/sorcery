@@ -634,8 +634,6 @@ function list_install_queue() {
 function update_install_queue()  { (
 
   message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
-  wait_flag_up
-
   rm  -f  $INSTALL_QUEUE
   for  LINE  in  `all_spell_status`;  do
 
@@ -659,8 +657,6 @@ function update_install_queue()  { (
   lock_file $INSTALL_QUEUE
   echo -e "$QUEUE" | sort | uniq > $INSTALL_QUEUE
   unlock_file $INSTALL_QUEUE
-
-  wait_flag_down
 
 ) }
 
@@ -794,48 +790,6 @@ function fix_installed_spells()  {
   if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
 }
 
-
-#---------------------------------------------------------------------
-##
-## Casts all spells in the install queue.
-##
-## DEPRICATED: tagged for removal - nkj
-##
-#---------------------------------------------------------------------
-function upgrade_install_queue()  {
-
-  if  [  -f  $INSTALL_QUEUE  ];  then
-    lock_file $INSTALL_QUEUE
-
-    message  "The following spells will be updated:"
-    cat  $INSTALL_QUEUE
-
-    unset  SPELL
-    if    query  "Do you wish to edit ${FILE_COLOR}$INSTALL_QUEUE${DEFAULT_COLOR}?" n
-    then  edit_file  $INSTALL_QUEUE
-    fi
-
-    if  [  -n  "`cat  $INSTALL_QUEUE`"  ];  then
-      cast      `cat  $INSTALL_QUEUE`
-      rm              $INSTALL_QUEUE
-    fi
-
-    unlock_file $INSTALL_QUEUE
-  else
-    message  "No spells will be updated."
-  fi
-
-  local ANSWER
-
-  [  "$AUTOFIX"  ==  "on"  ]  &&  ANSWER=y  ||  ANSWER=n
-  if  query  "Attempt to fix spells that may have become broken ?" $ANSWER;  then
-    cleanse  --fix;
-  fi
-
-  if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
-}
-
-
 #---------------------------------------------------------------------
 ## @Stdout log files list
 ## Returns a list of the log files for each spell.
@@ -860,7 +814,6 @@ function log_list()  {
 #---------------------------------------------------------------------
 function clean_logs()  {
 
-  wait_flag_down
   message "${CHECK_COLOR}Cleaning log files... ${DEFAULT_COLOR} "
 
   debug  "libsorcery" "Running clean_logs()"

@@ -241,6 +241,17 @@ function view_compile_log()  {
     report $C_LOG  "Compile log"
 }
 
+#---------------------------------------------------------------------
+## Report that something got installed, and possibly display the report
+## Pawns the work off to <@function var.lib.sorcery.modules.libsorcery,report>
+## @Globals INST_LOG
+#---------------------------------------------------------------------
+function report_install()  {
+
+  debug "libcast" "In report_install, INST_LOG=$INST_LOG"
+  report  $INST_LOG  "Install log"
+
+}
 
 #---------------------------------------------------------------------
 ## @param spellname
@@ -349,7 +360,7 @@ function show_download_progress()  {
     LC=`cat  $download_log  2>/dev/null  |  wc  -l  |  tr  -d ' '`
 
     if  [  "$LC"  !=  "$LC_OLD"  ];  then
-      ((  LC_OLD++  ))
+      let LC_OLD++
       sed  -n ${LC_OLD},${LC}p  $download_log
       LC_OLD=$LC
     fi
@@ -386,19 +397,6 @@ function show_downloading()  {
   
   show_download_progress $download_log
   debug "libcast" "Out of show_downloading"
-}
-
-
-#---------------------------------------------------------------------
-## Report that something got installed, and possibly display the report
-## Pawns the work off to <@function var.lib.sorcery.modules.libsorcery,report>
-## @Globals INST_LOG
-#---------------------------------------------------------------------
-function report_install()  {
-
-  debug "libcast" "In report_install, INST_LOG=$INST_LOG"
-  report  $INST_LOG  "Install log"
-
 }
 
 #---------------------------------------------------------------------

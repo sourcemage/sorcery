@@ -70,42 +70,6 @@ function devoke_installwatch()  {
 }
 
 
-
-#---------------------------------------------------------------------
-## @param filename
-##
-## First argument is a file containing a list of files.  Checks for
-## broken symbolic links.
-##
-## This function is depreciated....
-##
-#---------------------------------------------------------------------
-function syms_not_owned()  {
-
-  cat  $1  |
-  while  read  ITEM;  do
-
-    if  [  -h  "$ITEM"  ]   &&
-        [  -f  "$ITEM"  ];  then
-
-      DEST=$(  basename  $(  ls   -la  "$ITEM"  |
-                             cut  -d  '>'  -f2  |
-                             cut  -c  2-
-                          )
-            )
-
-      if  !  grep  -q  "$DEST"  "$1"
-      then   echo  -n  "$ITEM\|"
-             echo      "$ITEM"  >>  /tmp/$SPELL.rejected.symlinks
-      fi
-
-    fi
-
-  done
-
-}
-
-
 #---------------------------------------------------------------------
 ##
 ## Parses the installwatch log for files installed by a spell.

@@ -6,7 +6,6 @@
 ## written by someone who never used cabal or looked at this code before.
 ##
 ## @Globals CABAL_DIRECTORY CABAL_NAMES MAX_CABALS
-##
 #---------------------------------------------------------------------
 
 #------------------
@@ -230,12 +229,8 @@ function set_max_cabals()  {
                         "$PROMPT"             \
                         0 0  "$MAX_CABALS"'`
   then
-
     MAX_CABALS=$NEW_MAX
-    TEMP=`grep  -v  "MAX_CABALS="       $LOCAL_CONFIG`
-    echo  "$TEMP"                   >   $LOCAL_CONFIG
-    echo  "MAX_CABALS=$MAX_CABALS"  >>  $LOCAL_CONFIG
-
+    modify_local_config "MAX_CABALS" $MAX_CABALS
   fi
 
 }
@@ -387,7 +382,10 @@ function cabal_copy()  {
   SOURCE_MESSAGE="Please enter source files and directories."
     DEST_MESSAGE="Please enter destination directory."
 
-  mkdir  -p  $CABAL_OUTPUT
+  mkdir  -p  $CABAL_OUTPUT || {
+    messasge "Failed to make CABAL_OUTPUT directory $CABAL_OUTPUT"
+    exit 1
+  }
 
        SOURCE=`eval $DIALOG  --inputbox  "$SOURCE_MESSAGE"  0 0`  &&
   DESTINATION=`eval $DIALOG  --inputbox  "$DEST_MESSAGE"    0 0`  &&
@@ -420,7 +418,10 @@ function cabal_execute()  {
 
   COMMAND_MESSAGE="Please enter command to be execute remotely on cabal."
 
-  mkdir  -p  $CABAL_OUTPUT
+  mkdir  -p  $CABAL_OUTPUT || {
+    messasge "Failed to make CABAL_OUTPUT directory $CABAL_OUTPUT"
+    exit 1
+  }
 
   COMMAND=`eval $DIALOG  '--inputbox  "$COMMAND_MESSAGE"  0 0'`  &&
     CABAL=`select_cabal`                                  &&
@@ -530,6 +531,9 @@ function cabal_menu()  {
 
 }
 
+. /etc/sorcery/config
+DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
+cabal_menu
 
 #---------------------------------------------------------------------
 ##=back
