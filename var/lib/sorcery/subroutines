@@ -14,6 +14,17 @@ sound()  {
 }
 
 
+get_uid_gid_for_account()  {
+
+  if  [  -f  /etc/config/local/ids  ];  then
+    IDS="/etc/config/local/ids"
+  else
+    IDS="/etc/config/ids"
+  fi
+  grep "$1:" $IDS | cut -d : -f2
+
+}
+
 
 ############################################################
 #  Any sorcery related script may prompt
@@ -524,11 +535,22 @@ is_depends()  {  (
 in_depends()  {
   #  Was $1 presented as a depenency for $SPELL
 
-  if    grep  -q  "^$SPELL:$1"  $DEPENDS_STATUS
+  if    grep  -q  "^$SPELL:$1:"  $DEPENDS_STATUS
   then  true
   else  false
   fi
 
+}
+
+
+has_depends() {
+  #  Has $1 had it's dependencies resolved?
+    
+  if    grep  -q  "^$1:"  $DEPENDS_STATUS
+  then  true
+  else  false
+  fi
+        
 }
 
 
@@ -556,16 +578,18 @@ depends()  {
 
   echo  "Running depends() on $1"  >>  $DEBUG
 
-  if  ! spell_installed  $1   &&
-      ! spell_held       $1
+  if  !  spell_installed  $1   &&
+      !  spell_held       $1   &&
+      !  has_depends      $1
   then
-    if  !  is_depends    $1  &&
-        !  spell_exiled  $1  &&
-        !  query  "Install required dependency $1 $4?" y
-    then  return  1
-    else
-      cast  --deps  $1
+    if  !  is_depends    $1
+    then
+      if !  spell_exiled  $1  &&
+         !  query  "Install required dependency $1 $4?" y
+      then  return  1
+      fi
     fi
+    cast  --deps  $1
   fi
   add_depends  "$SPELL"  "$1"  "on"  "required"  "$2"  "$3"
 
