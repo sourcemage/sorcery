@@ -1218,6 +1218,7 @@ TMP_HELP="Attempt to compile entirely in RAM?"
  NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
  CS_HELP="Clean up source directories after failures?"
  CI_HELP="Non-native installation / cross compilation"
+ ST_HELP="Set xterm title/screen window title on cast?"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -1239,6 +1240,7 @@ TMP_HELP="Attempt to compile entirely in RAM?"
     NET_SELECT=${NET_SELECT:=off}
   CLEAN_SOURCE=${CLEAN_SOURCE:=off}
  CROSS_INSTALL=${CROSS_INSTALL:=off}
+SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
@@ -1247,28 +1249,29 @@ TMP_HELP="Attempt to compile entirely in RAM?"
                         --checklist             \
                         ""                      \
                         0 0 0                   \
-      "ARCHIVE"       "Toggle"  "$ARCHIVE"       "$I_HELP"   \
-      "AUTOFIX"       "Toggle"  "$AUTOFIX"       "$F_HELP"   \
-      "AUTOPRUNE"     "Toggle"  "$AUTOPRUNE"     "$U_HELP"   \
-      "CABAL"         "Toggle"  "$CABAL"         "$B_HELP"   \
-      "CCACHE"        "Toggle"  "$CCACHE"        "$G_HELP"   \
-      "COLOR"         "Toggle"  "$COLOR"         "$C_HELP"   \
-      "CONFIG_LOC"    "Toggle"  "$CONFIG_LOC"    "$L_HELP"   \
-      "GATHER_DOCS"   "Toggle"  "$GATHER_DOCS"   "$D_HELP"   \
-      "MAIL_REPORTS"  "Toggle"  "$MAIL_REPORTS"  "$M_HELP"   \
-      "PATCH"         "Toggle"  "$PATCH"         "$X_HELP"   \
-      "PRESERVE"      "Toggle"  "$PRESERVE"      "$P_HELP"   \
-      "SOUND"         "Toggle"  "$SOUND"         "$S_HELP"   \
-      "SUSTAIN"       "Toggle"  "$SUSTAIN"       "$T_HELP"   \
-      "TMPFS"         "Toggle"  "$TMPFS"         "$TMP_HELP" \
-      "VIEW_REPORTS"  "Toggle"  "$VIEW_REPORTS"  "$R_HELP"   \
-      "VOYEUR"        "Toggle"  "$VOYEUR"        "$V_HELP"   \
-      "REAP"          "Toggle"  "$REAP"          "$E_HELP"   \
-      "NET_SELECT"    "Toggle"  "$NET_SELECT"    "$NS_HELP"  \
-      "CLEAN_SOURCE"  "Toggle"  "$CLEAN_SOURCE"  "$CS_HELP"  \
-      "CROSS_INSTALL" "Toggle"  "$CROSS_INSTALL" "$CI_HELP"'`
+      "ARCHIVE"        "Toggle"  "$ARCHIVE"        "$I_HELP"   \
+      "AUTOFIX"        "Toggle"  "$AUTOFIX"        "$F_HELP"   \
+      "AUTOPRUNE"      "Toggle"  "$AUTOPRUNE"      "$U_HELP"   \
+      "CABAL"          "Toggle"  "$CABAL"          "$B_HELP"   \
+      "CCACHE"         "Toggle"  "$CCACHE"         "$G_HELP"   \
+      "COLOR"          "Toggle"  "$COLOR"          "$C_HELP"   \
+      "CONFIG_LOC"     "Toggle"  "$CONFIG_LOC"     "$L_HELP"   \
+      "GATHER_DOCS"    "Toggle"  "$GATHER_DOCS"    "$D_HELP"   \
+      "MAIL_REPORTS"   "Toggle"  "$MAIL_REPORTS"   "$M_HELP"   \
+      "PATCH"          "Toggle"  "$PATCH"          "$X_HELP"   \
+      "PRESERVE"       "Toggle"  "$PRESERVE"       "$P_HELP"   \
+      "SOUND"          "Toggle"  "$SOUND"          "$S_HELP"   \
+      "SUSTAIN"        "Toggle"  "$SUSTAIN"        "$T_HELP"   \
+      "TMPFS"          "Toggle"  "$TMPFS"          "$TMP_HELP" \
+      "VIEW_REPORTS"   "Toggle"  "$VIEW_REPORTS"   "$R_HELP"   \
+      "VOYEUR"         "Toggle"  "$VOYEUR"         "$V_HELP"   \
+      "REAP"           "Toggle"  "$REAP"           "$E_HELP"   \
+      "NET_SELECT"     "Toggle"  "$NET_SELECT"     "$NS_HELP"  \
+      "CLEAN_SOURCE"   "Toggle"  "$CLEAN_SOURCE"   "$CS_HELP"  \
+      "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
+      "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1277,31 +1280,32 @@ TMP_HELP="Attempt to compile entirely in RAM?"
 
       case  $TOGGLE  in
 
-             ARCHIVE)       ARCHIVE=on  ;;
-             AUTOFIX)       AUTOFIX=on  ;;
-           AUTOPRUNE)     AUTOPRUNE=on  ;;
-               CABAL)         CABAL=on  ;;
-              CCACHE)        CCACHE=on  ;;
-               COLOR)         COLOR=on  ;;
-          CONFIG_LOC)    CONFIG_LOC=on  ;;
-         GATHER_DOCS)   GATHER_DOCS=on  ;;
-        MAIL_REPORTS)  MAIL_REPORTS=on  ;;
-               PATCH)         PATCH=on  ;;
-            PRESERVE)      PRESERVE=on  ;;
-               SOUND)         SOUND=on  ;;
-             SUSTAIN)       SUSTAIN=on  ;;
-               TMPFS)         TMPFS=on  ;;
-        VIEW_REPORTS)  VIEW_REPORTS=on  ;;
-              VOYEUR)        VOYEUR=on  ;;
-                REAP)          REAP=on  ;;
-	  NET_SELECT)    NET_SELECT=on  ;;
-        CLEAN_SOURCE)  CLEAN_SOURCE=on  ;;
-       CROSS_INSTALL) CROSS_INSTALL=on  ;;
+             ARCHIVE)        ARCHIVE=on  ;;
+             AUTOFIX)        AUTOFIX=on  ;;
+           AUTOPRUNE)      AUTOPRUNE=on  ;;
+               CABAL)          CABAL=on  ;;
+              CCACHE)         CCACHE=on  ;;
+               COLOR)          COLOR=on  ;;
+          CONFIG_LOC)     CONFIG_LOC=on  ;;
+         GATHER_DOCS)    GATHER_DOCS=on  ;;
+        MAIL_REPORTS)   MAIL_REPORTS=on  ;;
+               PATCH)          PATCH=on  ;;
+            PRESERVE)       PRESERVE=on  ;;
+               SOUND)          SOUND=on  ;;
+             SUSTAIN)        SUSTAIN=on  ;;
+               TMPFS)          TMPFS=on  ;;
+        VIEW_REPORTS)   VIEW_REPORTS=on  ;;
+              VOYEUR)         VOYEUR=on  ;;
+                REAP)           REAP=on  ;;
+	  NET_SELECT)     NET_SELECT=on  ;;
+        CLEAN_SOURCE)   CLEAN_SOURCE=on  ;;
+       CROSS_INSTALL)  CROSS_INSTALL=on  ;;
+      SET_TERM_TITLE) SET_TERM_TITLE=on  ;;
       esac
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done

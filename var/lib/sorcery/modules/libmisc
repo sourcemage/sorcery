@@ -491,6 +491,24 @@ function select_list()
     eval ''$returnvar'='${temp[$number]}''
 }
 
+#---------------------------------------------------------------------
+## @param title
+## 
+## sets the terminal title if TERM=xterm|rxvt or the window title if
+## TERM=screen
+##
+#---------------------------------------------------------------------
+function set_term_title()
+{
+    if [ "$SET_TERM_TITLE" != "on" ]; then return; fi
+    case $TERM in
+        xterm*|rxvt)  echo -ne "\e]0;$@\007"
+                      ;;
+             screen)  echo -ne "\ek$@\e\\"
+                      ;;
+                  *) ;;
+    esac
+}
 
 #---------------------------------------------------------------------
 ## @License

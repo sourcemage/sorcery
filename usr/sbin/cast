@@ -988,6 +988,7 @@ function report_install()  {
 function cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
+  set_term_title "Casting spell [$SPELL]"
   run_details                                 && #run by can_resurect now, but it's a minor expense
   run_security                                &&
   run_conflicts                               &&
@@ -1230,6 +1231,11 @@ function pass_five()  {
   done | column
   message "${DEFAULT_COLOR}"
   
+  if [[ $SOME_CAST_FAILED ]];  then
+      set_term_title "Casting successfull."
+  else
+      set_term_title "Casting failed."
+  fi
   [[ $SOME_CAST_FAILED ]] || return 1
 
 }
