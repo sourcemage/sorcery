@@ -281,7 +281,13 @@ function sound()  {
 ##
 #---------------------------------------------------------------------
 function edit_file()  {
-  ${EDITOR:-nano -w} $1
+  if  [  -z  "$EDITOR"  ] ; then
+    EDITOR="nano -w"
+  fi
+  
+  # send file to the editor.
+  $EDITOR $1
+
 }
 
 

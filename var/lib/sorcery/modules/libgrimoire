@@ -513,6 +513,8 @@ function real_default_build() {
   ./configure --prefix=${INSTALL_ROOT}/usr  \
           --sysconfdir=${INSTALL_ROOT}/etc  \
        --localstatedir=${INSTALL_ROOT}/var  \
+              --mandir=${INSTALL_ROOT}/usr/share/man   \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
                        $OPTS                 &&
   make                                       &&
   prepare_install                            &&
@@ -643,6 +645,8 @@ function install_initd_confs()  { (
 
   debug  "libgrimoire" "Running install_initd_confs() on $SPELL"
 
+  local enable_script="$1"
+  shift
   LIST="$@"
   
   debug  "libgrimiore" "install_initd_confs LIST: '$LIST'"
@@ -651,7 +655,7 @@ function install_initd_confs()  { (
   mkdir  -p  $INSTALL_ROOT/etc/init.d
 
   for  INITSCRIPT  in  $LIST;  do
-    init_install  ${INITSCRIPT}
+    init_install  $enable_script ${INITSCRIPT}
   done
 
 ) }

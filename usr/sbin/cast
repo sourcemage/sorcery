@@ -178,19 +178,25 @@ function use_xinetd()  { (
     else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
     fi
 
-    # now we install the selected services.
-    # no need to disable any here, in install_xinetd_confs the
-    # files found in xinet.d/ spell dir and not passed here will
-    # be installed and disabled.
-    debug "cast" "use_xinetd: about to call install_xinetd_confs"
-    install_xinetd_confs $SERVICES
-
     echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
 
   fi
 
 ) }
 
+function install_xinetd() { (
+    # now we install the selected services.
+    # no need to disable any here, in install_xinetd_confs the
+    # files found in xinet.d/ spell dir and not passed here will
+    # be installed and disabled.
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] 
+  then
+    SERVICES=""
+    . $SPELL_CONFIG
+    debug "cast" "use_xinetd: about to call install_xinetd_confs"
+    install_xinetd_confs $SERVICES
+  fi
+) }
 
 # Automagic initscript installation.
 function use_initd()  { (
@@ -218,32 +224,38 @@ function use_initd()  { (
         INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
       fi
     done
+  fi
     
+  tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
+      $SPELL_CONFIG )
+  echo $tmp > $SPELL_CONFIG
+  echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
+  echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
+) }
+
+function install_initd() { (
     debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
     debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
     debug "cast" "saving initscripts"
     
+    INITDSCRIPTS=""
+    INITDSCRIPTS_DISABLED=""
+    . $SPELL_CONFIG
+
+#    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
     # now we install the selected scripts.
     if  [  -n  "$INITDSCRIPTS"  ] ; then
       debug "cast" "use_initd: about to call install_initd_confs"
-      install_initd_confs $ALL_INITSCRIPTS
+      install_initd_confs enabled $INITDSCRIPTS
     fi
 
     # and disable the others.
     if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
       debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
-      install_initd_confs $INITDSCRIPTS_DISABLED
+      install_initd_confs disabled $INITDSCRIPTS_DISABLED
     fi
     
-    tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
-        $SPELL_CONFIG )
-    echo $tmp > $SPELL_CONFIG
-    echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
-    echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
-  fi
-
 ) }
-
 
 function run_pre_build() {
 
@@ -349,7 +361,13 @@ function run_build()  {
           .  $SCRIPT_DIRECTORY/BUILD
   else
     default_build
-  fi
+  fi &&
+
+  #
+  # check for and install scripts (needs to be in installwatch, but how?)
+  #
+  install_xinetd &&
+  install_initd
 
   if  [  "$?"  ==  0  ];  then
     create_compile_log
@@ -1259,6 +1277,7 @@ function pass_five()  {
 	  done | column
    
     set_term_title "Casting successfull."
+    message "${DEFAULT_COLOR}"
     return 0
 
   else 
