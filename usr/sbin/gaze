@@ -95,8 +95,13 @@ pam		<empty>		Display installed or held spells that are
 orphans		<empty>		Display installed spells that have no
 				  explicit dependencies on them.
 
-depends		spell		Displays the spells that explicitly
-				  or recursively depend on this spell.
+depends		spell [level]		Displays the spells that explicitly or
+				    recursively depend on this spell, up to $level levels.
+                    $level is kinda infinity if omitted.
+
+dependencies    spell [level]     Displays the spells $spell explicitly or 
+                        recursively depends on, up to $level levels.
+                        $level is kinda infinity if omitted.
 
 \$SPELL_SCRIPT	spell	will print the spell script for that spell.
 EOF
@@ -1117,10 +1122,58 @@ gaze_show_where() {
 }
 
 gaze_show_depends() {
-    local spell="$@"
+    local spell="$1"
+    local MAX_DEPTH=$2 #as a global for show_depends.
 
-    codex_does_spell_exist "$@" && show_depends "$spell" | sort | uniq
+    codex_does_spell_exist "$spell" && show_depends "$spell" | sort | uniq
 }
+
+gaze_show_dependencies() {
+    local SPELL=$1
+    [[ $# == 2 ]] && MAX_DEPTH=$2
+
+    (
+        query() {
+            return 0
+        }
+        depends() {
+                recurse $1 $DEPTH "depends"
+                return 0
+        }
+        optional_depends() {
+                recurse $1 $DEPTH "optional"
+                return 0
+        }
+        requires() {
+                recurse $1 $DEPTH "requires"
+                return 0
+        }
+        repeat () {
+            local CHAR="$1" COUNT="$2"
+    
+            while (( COUNT-- )); do echo -en "$CHAR"; done
+        }
+    
+        recurse () {
+            local name=$1 DEPTH=$2 WHAT=$3
+    
+            [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
+    
+            repeat "\t" $DEPTH
+            echo "$name ($WHAT)"
+    
+            local SPELL=$(codex_find_spell_by_name $name)
+            [[ -e "$SPELL/DEPENDS" ]] &&
+            (
+                    (( DEPTH++ ))
+                    source "$SPELL/DEPENDS" 2>/dev/null
+            )
+        }
+        recurse $SPELL
+    )
+}
+
+
 
 parse()  {
 
@@ -1170,7 +1223,8 @@ parse()  {
           search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
-         depends)  gaze_show_depends  "$2"               ;;
+    dependencies)  shift; gaze_show_dependencies $@      ;;
+         depends)  shift; gaze_show_depends  "$@"        ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
          history)  show_history  "$2"                    ;;
      website|url)  shift; gaze_show_website           $@ ;;
