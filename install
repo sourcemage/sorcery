@@ -1,17 +1,20 @@
 #!/bin/bash
 
-SORCERY_VERSION=`/usr/sbin/gaze installed sorcery`
-SORCERY_LIBS=${INSTALL_ROOT}/var/lib/sorcery/modules
-
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
 # encapsulates the filters necessary to strip CVS files and EMACS temporary files
 function install__find_non_volatile() {
-  find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~'
+  find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*'
 }
 
+if [[ $1 ]] ; then
+  INSTALL_ROOT=$1
+else
+  INSTALL_ROOT=""
+fi
 # First clean out all libraries.
 echo "Cleaning out all old sorcery libraries..."
+SORCERY_LIBS=${INSTALL_ROOT}/var/lib/sorcery/modules
 rm -rf $SORCERY_LIBS
 
 # Install the executables
@@ -66,12 +69,6 @@ for FILE in                                           \
     chmod -v +x "$FILE"
   fi
 done
-
-# Convert an old-style grimoire into a scribe managed one.
-if ! [ -d "${INSTALL_ROOT}/var/lib/sorcery/codex" ]; then
- source ./convert
-fi
-
 
 #---------------------------------------------------------------------
 ##=back

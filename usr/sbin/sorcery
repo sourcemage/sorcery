@@ -34,11 +34,14 @@ Optional Parameters:
 
 -h  |  --help		Display this help screen
 
--u  |  update		Update the sorcery scripts only.
-
 -s  |  system-update	Perform a system update (updates sorcery, grimoire,
 			  and spells).
 			  [ scribe update, sorcery queue, cast --queue ]
+-u  |  update		Update the sorcery scripts only.
+-g  |  upgrade		Do not update grimoire, just any spells that need to
+			  be upgraded.  [ sorcery queue, cast --queue ]
+
+-r  |  rebuild		rebuild all spells
 
 -q  |  queue		Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
@@ -46,14 +49,10 @@ Optional Parameters:
 review-queue		Review the install queue for each spell's history 
 			  since each was last installed.
 
--g |  upgrade		Do not update grimoire, just any spells that need to
-			  be upgraded.  [ sorcery queue, cast --queue ]
-
-show-held          Shows all held spells.
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
 
--v | --version		Print the sorcery version
+-v  | --version		Print the sorcery version
 
 EOF
 
@@ -132,7 +131,7 @@ mirror_menu()  {
          MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
       fi  &&
 
-      modify_local_config "$MIRROR" "$MIRROR_URL" &&
+      modify_config $CONFIG_CACHE/url "$MIRROR" "$MIRROR_URL" &&
 
       eval $DIALOG  '--msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 0 0'
 
@@ -483,7 +482,7 @@ EOF
     message  "scripts are lost, Source Mage can be restored by"
     message  "running the following script:"
     message  "${FILE_COLOR}"
-    message  "            ${RESTORE_SCRIPT}"
+    message  "            bash ${RESTORE_SCRIPT}"
     message  "${MESSAGE_COLOR}"
     message  "If for some reason this does not work, see the"
     message  "Source Mage website at http://www.sourcemage.org/"
@@ -776,12 +775,13 @@ optimization_menu(){
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
 
-  local    SPEEDY_HELP="Optimize to increase performance of generated code, conflicts with 'tiny'"
-  local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules (unsafe)"
-  local      TINY_HELP="Optimize to decrease size of generated code, conflicts with 'speedy'"
-  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
-  local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink"
-  local STATIC_HELP="Compile libraries statically"
+  local COMBRELOC_HELP="Speed up loading libs, also needed for prelink (LDFLAGS=-z combreloc)"
+  local   PRELINK_HELP="Speed up loading applications by pre-linking libraries (CFLAGS=-DPIC -fPIC)"
+  local     RISKY_HELP="Optimize by violating ANSI/IEEE (unsafe) (CFLAGS=-ffast-math -funroll-loops)"
+  local    SPEEDY_HELP="Optimize generated code, conflicts with 'tiny' (CFLAGS=$FAST)"
+  local    STATIC_HELP="Compile libraries statically (LDFLAGS=-static)"
+  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information (LDFLAGS=-s)"
+  local      TINY_HELP="Optimize to smaller generated code, conflicts with 'speedy' (CFLAGS=$SMALL)"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -790,12 +790,13 @@ optimization_menu(){
                               --checklist               \
                               "$OPT_HELP"               \
                                0 0 0                    \
-        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
-        "risky"     "          +speed"         "$RISKY"     "$RISKY_HELP"     \
         "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
-        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
+        "prelink"   "          +speed"  "$PRELINK"   "$PRELINK_HELP"   \
+        "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
+        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
+        "static"    " ++size   +speed"  "$STATIC"    "$STATIC_HELP"    \
         "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
-        "static"    " ++size  +speed"   "$STATIC"    "$STATIC_HELP"'`
+        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"'`
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`
@@ -1260,7 +1261,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
   U_HELP="Automatically remove old sources and install caches upon sorcery update?"
   V_HELP="View compilation as it happens?"
-  X_HELP="Download and apply xdelta patches when available?"
  NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
  CS_HELP="Clean up source directories after failures?"
  CI_HELP="Non-native installation / cross compilation"
@@ -1277,7 +1277,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   MAIL_REPORTS=${MAIL_REPORTS:=off}
          TMPFS=${TMPFS:=on}
   VIEW_REPORTS=${VIEW_REPORTS:=off}
-         PATCH=${PATCH:=on}
       PRESERVE=${PRESERVE:=on}
        SUSTAIN=${SUSTAIN:on}
         VOYEUR=${VOYEUR:=on}
@@ -1303,7 +1302,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CONFIG_LOC"     "Toggle"  "$CONFIG_LOC"     "$L_HELP"   \
       "GATHER_DOCS"    "Toggle"  "$GATHER_DOCS"    "$D_HELP"   \
       "MAIL_REPORTS"   "Toggle"  "$MAIL_REPORTS"   "$M_HELP"   \
-      "PATCH"          "Toggle"  "$PATCH"          "$X_HELP"   \
       "PRESERVE"       "Toggle"  "$PRESERVE"       "$P_HELP"   \
       "SUSTAIN"        "Toggle"  "$SUSTAIN"        "$T_HELP"   \
       "TMPFS"          "Toggle"  "$TMPFS"          "$TMP_HELP" \
@@ -1315,7 +1313,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1333,7 +1331,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
           CONFIG_LOC)     CONFIG_LOC=on  ;;
          GATHER_DOCS)    GATHER_DOCS=on  ;;
         MAIL_REPORTS)   MAIL_REPORTS=on  ;;
-               PATCH)          PATCH=on  ;;
             PRESERVE)       PRESERVE=on  ;;
              SUSTAIN)        SUSTAIN=on  ;;
                TMPFS)          TMPFS=on  ;;
@@ -1348,7 +1345,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1484,22 +1481,19 @@ foreground_execute() {
 
 main_menu()  {
 
+  S_HELP="Easy spell management."
+  O_HELP="Change sorcery options and features."
+  L_HELP="View and edit sorcery generated log files."
+  Q_HELP="View and edit sorcery queues."
+  F_HELP="Process queues while you watch and wait."
+  B_HELP="Process queues in the background."
+  E_HELP="Exit without processing queues."
+  I_HELP="Setting your install/state/track root locations"
+  C_HELP="Administrate groups of Unix/Linux boxes."
+      OK="Select"
+  CANCEL="Exit"
   while
-
-    S_HELP="Easy spell management."
-    O_HELP="Change sorcery options and features."
-    L_HELP="View and edit sorcery generated log files."
-    Q_HELP="View and edit sorcery queues."
-    F_HELP="Process queues while you watch and wait."
-    B_HELP="Process queues in the background."
-    E_HELP="Exit without processing queues."
-    I_HELP="Setting your install root location for cross compile environment."
-    C_HELP="Administrate groups of Unix/Linux boxes."
-        OK="Select"
-    CANCEL="Exit"
-
-    if  [  "$CABAL"  ==  "on"  ]  &&  [  "$CROSS_INSTALL"  ==  "on"  ];  then 
-
+    if  [  "$CABAL"  ==  "on"  ] ;  then 
         COMMAND=`eval $DIALOG ' --title "Main Menu"             \
                        --item-help                              \
                        --ok-label      "$OK"                    \
@@ -1507,51 +1501,16 @@ main_menu()  {
                        --menu                                   \
                        "Sorcery Version  $SORCERY_VERSION"      \
                        0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
+                       "S"  "Spell        Menu"     "$S_HELP"     \
+                       "O"  "Option       Menu"     "$O_HELP"     \
+                       "L"  "Log          Menu"     "$L_HELP"     \
+                       "Q"  "Queue        Menu"     "$Q_HELP"     \
+                       "F"  "Foreground   Execute"  "$F_HELP"     \
+                       "B"  "Background   Execute"  "$B_HELP"     \
                        "I"  "Install Root Menu"   "$I_HELP"     \
-                       "C"  "Cabal      Menu"     "$C_HELP"'`
-
-    elif  [  "$CABAL"  ==  "on"  ]; then
-
-        COMMAND=`eval $DIALOG ' --title "Main Menu"             \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
-                       "C"  "Cabal      Menu"     "$C_HELP"'`
-
-		elif [  "$CROSS_INSTALL"  ==  "on"  ];  then
-
-      COMMAND=`eval $DIALOG ' --title "Main Menu"               \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
-                       "I"  "Install Root Menu"   "$I_HELP"'`
+                       "C"  "Cabal        Menu"     "$C_HELP"'`
 
     else
-
       COMMAND=`eval $DIALOG ' --title "Main Menu"               \
                        --item-help                              \
                        --ok-label      "$OK"                    \
@@ -1559,14 +1518,14 @@ main_menu()  {
                        --menu                                   \
                        "Sorcery Version  $SORCERY_VERSION"      \
                        0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"'`
+                       "S"  "Spell        Menu"     "$S_HELP"     \
+                       "O"  "Option       Menu"     "$O_HELP"     \
+                       "L"  "Log          Menu"     "$L_HELP"     \
+                       "Q"  "Queue        Menu"     "$Q_HELP"     \
+                       "F"  "Foreground   Execute"  "$F_HELP"     \
+                       "B"  "Background   Execute"  "$B_HELP"     \
+                       "I"  "Install Root Menu"   "$I_HELP"'`
     fi
-
   do
 
     case  $COMMAND in
@@ -1577,28 +1536,13 @@ main_menu()  {
       F)  foreground_execute  ;;
       B)  background_execute  ;;
       C)  cabal_menu          ;;
-      I)  cross_install_menu  ;;
+      I)  install_root_menu   ;;
     esac
 
   done
 
 }
 
-
-#---------------------------------------------------------------------
-#-item sorcery_show_held_spells 
-##
-## prints all held spells.
-##
-## cli function
-#---------------------------------------------------------------------
-sorcery_show_held_spells () {
-    message -n "${MESSAGE_COLOR}the following spells are set to"
-    message -n "${DEFAULT_COLOR} hold"
-    message    "${SPELL_COLOR}"
-    get_held | sort | column
-    message -n "${DEFAULT_COLOR}"
-}
 
 
 #---------------------------------------------------------------------
@@ -1639,7 +1583,6 @@ main() {
              -q|queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
            -r|rebuild)  rebuild                                 ;;
-            show-held) sorcery_show_held_spells                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
 

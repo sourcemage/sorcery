@@ -18,6 +18,7 @@
 # /etc/sorcery/config
 
 # global options that can be changed to suit your needs.
+#Perhaps this should be moved to the config? (Duff, 04/07)
 
 [ -z "$LOCK_DIR"  ] && LOCK_DIR=/tmp/lockdir
 [ -z "$MAX_SLEEP" ] && MAX_SLEEP=2
@@ -33,7 +34,7 @@
 ##     summon       | spell name       | when downloading a spell
 ##     network      | network          | ?
 ##     solo         | resource name    | when using a resource exclusively 
-##     libgrimoire  | install          | ?
+##     libgrimoire  | install          | when a spell is in the install stage
 ## locking solo will not cause these routines to behave any different.
 ## catching it has to be done externally (see cast for an example)
 ##
@@ -314,11 +315,30 @@ function lock_commit_transaction()
   lock_file $LOCK_TRANSACTIONS
   for i in $* ; do
     TMP_FILE=${LOCK_TRANSACTIONS}.$(grep ".*:$i:$$" $LOCK_TRANSACTIONS | cut -d : -f 1)
-    [ -e $TMP_FILE ] && cp $TMP_FILE $i && rm $TMP_FILE
+    [ -e $TMP_FILE ] && cp $TMP_FILE $i
+    if [ $? -ne 0 ] ; then
+      message "${PROBLEM_COLOR}Transaction commit failed on $i."
+      message "${DEFAULT_COLOR}The modified file is stored in $TMP_FILE."
+      message "This normaly happens when the disk runs out of space."
+      if ! query "Do you wish to continue?" "n" ; then
+        exit 1
+      fi
+    else
+      rm $TMP_FILE      
+    fi
     unlock_file $i
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.new
-    grep -v ".*:$i:$$" $LOCK_TRANSACTIONS.new >$LOCK_TRANSACTIONS
-    rm $LOCK_TRANSACTIONS.new 
+    if [ $? -ne 0 ] ; then
+      message "${PROBLEM_COLOR}Transaction commit failed on $LOCK_TRANSACTIONS."
+      message "${DEFAULT_COLOR}"
+      message "This normaly happens when the disk runs out of space."
+      if ! query "Do you wish to continue?" "n" ; then
+        exit 1
+      fi
+    fi
+    grep -v ".*:$i:$$" $LOCK_TRANSACTIONS.new >$LOCK_TRANSACTIONS &&
+    { rm $LOCK_TRANSACTIONS.new ||
+      message "${PROBLEM_COLOR}Very odd case. Quitting."; exit 1; }
   done
   unlock_file $LOCK_TRANSACTIONS  
 

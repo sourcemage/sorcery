@@ -231,15 +231,6 @@ function real_prepare_install() {
       dispel  --notriggers --nosustain  $SPELL
 
     fi
-   
-    # I dont think there is any point in having this here
-    # since its possible for a spell to (wrongly) install files before
-    # the make install phase, and by removing this we are just ignoring
-    # those files and leaving them as aliens.
-    # the track code will automatically filter out /usr/src anyways.
-    # (afk 4/17/04)
-    #rm  -f  /tmp/$SPELL.iw
-    true
 }
 
 
@@ -371,7 +362,7 @@ function gather_docs()  {
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
-    debug  "libgrimoire" "Running gather_docs() on $SPELL"
+    debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
 
     DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
     mkdir  -p  $DOC_DIR
@@ -381,10 +372,12 @@ function gather_docs()  {
       cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
     done
 
+    # what is this here for and why isn't it part of the standard DOCS
+    # variable?
     cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
 
-		# making installed docs readable for all users.
-		chmod -fR a+r $DOC_DIR
+    # making installed docs readable for all users.
+    chmod -fR a+r $DOC_DIR
 
   fi
 
@@ -569,41 +562,17 @@ function real_conflicts() {
 #---------------------------------------------------------------------
 function warn_rejected()
 {
-  message $(cat <<EOT
-${MESSAGE_COLOR}This spell is considered ${PROBLEM_COLOR}rejected${DEFAULT_COLOR}${MESSAGE_COLOR} because of the following reason:
-EOT
-  )
-  message ""
-  message $(cat <<EOT
-${PROBLEM_COLOR}$REJECT${DEFAULT_COLOR}${MESSAGE_COLOR}.
-EOT
-  )
-  message ""
-  message $(cat <<EOT
-Please view the software website for more information:
-EOT
-  )
-  message ""
-  message $(cat <<EOT
-${DEFAULT_COLOR}$WEB_SITE${MESSAGE_COLOR}.
-EOT
-  )
-  message ""
-  message $(cat <<EOT
-You may continue casting the spell and it will still be tracked by Sorcery.
-EOT
-  )
-  message $(cat <<EOT
-However, the software installation process may have questions that need to be
-EOT
-  )
-  message $(cat <<EOT
-answered and/or licensing agreements that must be agreed to.${DEFAULT_COLOR}
-EOT
-  )
-  message ""
+  message "${MESSAGE_COLOR}This spell is considered${PROBLEM_COLOR}" \
+          "rejected${DEFAULT_COLOR}${MESSAGE_COLOR} because of the"   \
+          "following reason:\n"
+  message "${PROBLEM_COLOR}$REJECT${DEFAULT_COLOR}${MESSAGE_COLOR}.\n"
+  message "Please view the software website for more information:\n"
+  message "${DEFAULT_COLOR}$WEB_SITE${MESSAGE_COLOR}\n"
+  message "You may continue casting the spell and it will still be tracked" \
+          "by Sorcery.\nHowever, the software installation process may have" \
+          "questions that need to be\nanswered and/or licensing agreements" \
+          "that must be agreed to.${DEFAULT_COLOR}\n"
 }
-
 
 
 #---------------------------------------------------------------------
@@ -616,59 +585,25 @@ EOT
 function ask_continue_with_rejected()
 {
   if spell_installed "$SPELL" && [ -e $SCRIPT_DIRECTORY/UNATTEND_SAFE ]; then
-    message $(cat <<EOT
-${MESSAGE_COLOR}$SPELL ${FILE_COLOR}is${MESSAGE_COLOR} installed, and has been
-determined to be ${FILE_COLOR}safe
-EOT
-  )
-    message $(cat <<EOT
-for unattended update ${DEFAULT_COLOR} ${MESSAGE_COLOR}, so the prompt will be skipped.${DEFAULT_COLOR}
-EOT
-    )
-    message ""
+    message "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${MESSAGE_COLOR} is" \
+            "installed, and has been determined" \
+            "to be ${FILE_COLOR}safe\nfor unattended" \
+            "update${DEFAULT_COLOR}${MESSAGE_COLOR}, so the prompt will" \
+            "be skipped.${DEFAULT_COLOR}\n"
     return
   fi
-
-  message ""
-  message $(cat <<EOT
-${MESSAGE_COLOR}Allowing the next question to timeout will choose not to install this spell.
-EOT
-    )
-  message $(cat <<EOT
-This means that rejected spells ${PROBLEM_COLOR}will not be installed or updated automatically.
-EOT
-    )
-  message ""
-  message $(cat <<EOT
-${DEFAULT_COLOR}${MESSAGE_COLOR}If you want a rejected spell to be installed or updated you must
-EOT
-    )
-  message $(cat <<EOT
-confirm your decision now or cast the spell later.${DEFAULT_COLOR}
-EOT
-  )
-  message ""
+  message "\n${MESSAGE_COLOR}Allowing the next question to timeout will" \
+          "choose not to install this spell.\nThis means that rejected" \
+          "spells ${PROBLEM_COLOR}will not be installed or updated" \
+          "automatically.\n"
+  message "${DEFAULT_COLOR}${MESSAGE_COLOR}If you want a rejected spell to" \
+          "be installed or updated you must\nconfirm your decision now or" \
+          "cast the spell later.${DEFAULT_COLOR}\n"
   if ! query  "CONTINUE casting?" n; then
-    message ""
-    message "${MESSAGE_COLOR}You chose to stop the installation, or you let the prompt timeout."
-    message "Maybe you'll be braver next time?${DEFAULT_COLOR}"
-	
-   	# check for more spells to be cast before exiting.
-    if  [  -n  "$SPELLS"  ] ; then
-      message ""
-      message "${MESSAGE_COLOR}We will skip casting $SPELL, but still more spells to be cast so "
-      message "continuing on...${DEFAULT_COLOR}"
-      message ""
-
-      # now remove the spell from our list of spells to cast.
-      TEMP_SPELLS=$(echo "$SPELLS" |grep -v "$SPELL")
-      SPELLS=$TEMP_SPELLS
-      return 1
-    fi
+    return 1
   fi
-
-  message ""
-  message "${MESSAGE_COLOR}OK, here we go... you are on your own!${DEFAULT_COLOR}"
+  message "\n${MESSAGE_COLOR}OK, here we go... you are on your" \
+          "own!${DEFAULT_COLOR}"
 }
 
 #---------------------------------------------------------------------

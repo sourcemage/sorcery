@@ -85,7 +85,7 @@
 # Private function.  Strips off the cvs:// prefix from cvs urls
 #
 #---------------------------------------------------------------------
-url_cvs_strip_prefix() {
+function url_cvs_strip_prefix() {
   echo $1 | sed 's/^cvs:\/\///'
 }
 
@@ -96,8 +96,8 @@ url_cvs_strip_prefix() {
 ## Fetch the specified cvs url.
 ##
 #---------------------------------------------------------------------
-url_cvs_download() { 
-  if ! spell_installed cvs; then
+function url_cvs_download() { 
+  if [ ! -x /usr/bin/cvs ]; then
     return 1;
   fi
 
@@ -153,7 +153,7 @@ url_cvs_download() {
 ## I get around to implementing it.
 ##
 #---------------------------------------------------------------------u
-url_cvs_verify() {
+function url_cvs_verify() {
   true
 }
 
@@ -164,8 +164,37 @@ url_cvs_verify() {
 ## Set options for url handling
 ##
 #---------------------------------------------------------------------
-url_cvs_set_options() {
+function url_cvs_set_options() {
   eval "$1=1"
+}
+
+#---------------------------------------------------------------------
+##=item url_cvs_hostname <url>
+##
+## Get the hostname of the url
+##
+#---------------------------------------------------------------------
+function url_cvs_hostname() {
+  echo $1|sed 's/^[^@]*@\([^:]*\):.*$/\1/'
+}
+
+#---------------------------------------------------------------------
+##=item url_cvs_netselect <url>
+##
+## Gets a netselect type output for the url
+##
+#---------------------------------------------------------------------
+function url_cvs_netselect() {
+  local tmp_hostname url_speed each
+
+  for each in $@ ; do
+    tmp_hostname=$(url_cvs_hostname $each)
+    # since we had to pull the url appart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
 }
 
 #---------------------------------------------------------------------

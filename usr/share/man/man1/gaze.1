@@ -1,4 +1,4 @@
-.TH GAZE "1" "August 2002" "Source Mage GNU Linux" "User Commands"
+.TH GAZE "1" "August 2004" "Source Mage GNU Linux" "User Commands"
 .SH NAME
 gaze \- query/view sorcery package management information
 .PP
@@ -11,13 +11,19 @@ gaze \- query/view sorcery package management information
 alien|prune|pam|orphans
 .PP
 .B gaze
-short|what|where|website|url|sources|maintainer <spell>
+activity|install-queue|remove-queue|show\-held
+.PP
+.B gaze
+short|what|where|website|url|sources|source\_urls <spell>
 .PP
 .B gaze
 compile|install|version|versions|sum|md5sum|size <spell>
 .PP
 .B gaze
-license  spell|section|license [spell|section|license] 
+maintainer <section>
+.PP
+.B gaze
+license  spell|section|license
 .PP
 .B gaze
 export|import [snapshot]
@@ -53,10 +59,10 @@ installed [spell]
 section [section]
 .PP
 .B gaze
-voyeur [delay or spell]
+voyeur [delay | spell]
 .PP
 .B gaze
-$SPELL_SCRIPT <spell>
+SCRIPT NAME <spell>
 .PP
 .B gaze
 history <spell>
@@ -92,6 +98,9 @@ sorcery package management system
 removes all old source code and old backups. otherwise the source code from
 previous versions is kept so that the packages can be rolled back to older
 versions. This does not delete sources that are up to date, but not installed.
+
+NOTE: This is deprecated. Use 
+.I cleanse --sweep
 .PP
 .B pam
 .IP
@@ -100,6 +109,25 @@ display spells installed that are pam aware
 .B orphans
 .IP
 display installed spells that have no explicit dependencies on them
+.PP
+.B activity
+.IP
+show the activity log.
+(note: this is actually a log of all that happened involving sorcery,
+such as casts, summons etc.)
+.PP
+.B install-queue
+.IP
+shows the queue of spells waiting to be installed
+.PP
+.B remove-queue
+.IP
+shows the queue of spells waiting to be removed
+.PP
+.B show\-held
+.IP
+shows all spells currently held
+(which means they are not to be updated)
 .PP
 .B service
 port|acronym
@@ -136,11 +164,16 @@ spell
 .IP
 list all source files contained in a spell
 .PP
-.B maintainer
+.B source_urls
 spell
 .IP
+lists the urls to all files contained in a spell
+.PP
+.B maintainer
+section
+.IP
 display the email address of the person currently responsible for
-maintaining a specified spell
+maintaining a specified section
 .PP
 .B compile
 spell
@@ -166,7 +199,7 @@ in all grimoires. If used without a spell name, then lists order of available
 grimoires.
 .PP
 .B license
-spell|section|license [spell|section|license]
+spell|section|license
 .IP
 view the license(s) of the given spell(s), or spells in given section(s),
 or view the information about given license(s)
@@ -201,12 +234,12 @@ command (see the export option)
 .B grimoire
 grimoire-name
 .IP
-prints specified grimoire or all grimoires if grimoire-name is omitted
-.PP
+prints specified grimoire's spells or all grimoires if grimoire-name is omitted
 .PP
 .B grimoires
 .IP
 displays installed grimoires by name only
+.PP
 .B html
 [-s] grimoire-name
 .IP
@@ -231,18 +264,18 @@ specified in the 'yyyymmdd' format, where y=year, m=month, and d=day
 .B older
 date
 .IP
-print packages that are older than a specified date. the date must be 
-specified in the 'yyyymmdd' format, where y=year, m=month, and d=day
+print packages that were first submitted before a specified date.
+the date must be specified like for
+.I gaze newer
 .PP
 .B from
 <path/>file
 .IP
-find out what spell has
+find out what spell has installed
 .I <path>/file
-installed
 .PP
 .B installed
-<spell>
+[spell]
 .IP
 view all installed packages and corresponding version numbers or check
 to see whether a particular package is installed and if it is
@@ -255,23 +288,25 @@ view a list of all sections in the software catalogue or display a list
 of packages from a specific section
 .PP
 .B voyeur
+[spell | delay]
+.IP
+start looking at what cast is compiling at the moment and outputs its
+compiler messages. A spell can be optionally specified, or a delay
+after which to abort when no casts could be found.
+.PP
+.B SCRIPT NAME
 <spell>
 .IP
-start looking at what cast is compiling at the moment and outputs it. A
-spell can be optionally specified.
-.PP
-.B $SPELL_SCRIPT
-spell
-.IP
-replace $SPELL_SCRIPT with any of the following 
-BUILD | CONFIGURE | CONFLICTS | DETAILS | DEPENDS | HISTORY | PATCH | POST_BUILD | POST_INSTALL | POST_REMOVE | PRE_REMOVE | PRE_BUILD | PREPARE | PROVIDES | TRIGGERS 
-to show spell scripts for the
-.I spell
+replace SCRIPT NAME with any of the following 
+BUILD | CONFIGURE | CONFLICTS | DETAILS | DEPENDS | FINAL | HISTORY | INSTALL | PATCH | POST_BUILD | POST_INSTALL | POST_REMOVE | PRE_BUILD | PRE_INSTALL | PRE_REMOVE | PREPARE | PROVIDES | TRIGGERS 
+to show that spell script for the spell
 .PP
 .B history
 <spell>
 .IP
-show history for a spell
+show history for a spell (alias for
+.I gaze HISTORY <spell>
+)
 .PP
 .B checkmd5s
 [spell | section | ... ]
@@ -291,13 +326,13 @@ shows the spells that spell explicitly or recursively depends on.
 Up to level $level if specified.
 .SH "AUTHOR"
 Original version written by Brian Peterson, modified by Kyle Sallee and updated 
-by Thomas Stewart,
+by Thomas Stewart and Karsten Behrmann
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .SH "REPORTING BUGS"
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-cast(8), dispel(8), grimoire(5), invoke(8), sorcery(8), scribe(8), summon(8)
+cast(8), cleanse(8), dispel(8), grimoire(5), scribbler(8), scribe(8), sorcery(8), summon(8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY
 

@@ -36,19 +36,27 @@ Optional Parameters:
 
 -q  |  --quiet			Do not be verbose, show less info
 -t  |  --dot                    Display progress as dots, not percent
+-V [on|off]			Override \$VOYEUR setting
 
 -f  |  --fix			Discover and fix broken spells
 -n  |  --nofix			Discover, but do not fix broken spells
+				(Both deprecated, use cleanse instead)
 
--d  |  --download		Force download of sources (overwrite existing files)
+-d  |  --download		Force download of sources (overwrite existing
+                                files)
 
--s				Download 1st, cast 2nd
-    |  --deps			Configure spells and determine dependencies,
+-s				Download all given spells before compiling
+       --deps			Configure spells and determine dependencies,
 				but do not cast.
 
 -c  |  --compile		Ignore $INSTALL_CACHE and compiles
 -r  |  --reconfigure		Select new dependencies for spells
 
+-R  |  --recast-down		Recast depended-upon spells, even if they are
+                                already installed...
+-B  |  --recast-up		Recast dependent spells, even if they are
+                                already installed...
+				
        --from	directory	Specify an alternate for $SOURCE_CACHE
        --url	URL		Specify an alternate download URL
 
@@ -62,39 +70,6 @@ EOF
   exit  1
 
 }
-
-
-
-function set_failed_cast() {     # this is never called... erics (2004-01-28)
-
-  debug "cast" "Function : set_failed_cast"
-
-  if [[ $FAILED_CASTS ]] ; then
-    FAILED_CASTS="$FAILED_CASTS $SPELL"
-  else
-    FAILED_CASTS="$SPELL"
-  fi
-
-  debug "set_failed_cast" "Value for FAILED CASTS : '$FAILED_CASTS'"
-
-}
-
-# this is called from resurrect, but the global variable it sets
-# isn't used anywhere astitt (2004-03-12)
-function set_successful_cast() {
-  
-  debug "cast" "Function : set_successful_cast"
-
-  if [[ $SUCCESSFUL_CASTS ]] ; then
-    SUCCESSFUL_CASTS="$SUCCESSFUL_CASTS $SPELL"
-  else
-    SUCCESSFUL_CASTS="$SPELL"
-  fi
-
-  debug "set_successful_cast" "Value for SUCCESSFUL CASTS : '$SUCCESSFUL_CASTS'"
-
-}
-
 
 
 function lib_dirs()  {
@@ -315,7 +290,7 @@ function sym_check()  { (
 ) }
 
 
-md5sum_check()  { (
+function md5sum_check()  { (
 
   if  [  "$MD5SUM_CHECK"  ==  "off"  ];  then
     return
@@ -552,8 +527,11 @@ function process_parameters()  {
 
           -q|--quiet)  QUIET="yes"                ;      shift 1  ;;
 	    -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
+	          -V)  export VOYEUR_OVERRIDE="$2";	 shift 2  ;;
               --deps)  export  DEPS_ONLY="$1";           shift 1  ;;
     -r|--reconfigure)  RECONFIGURE="$1";                 shift 1  ;;
+    -R|--recast-down)  RECAST_DOWN="$1";                 shift 1  ;;
+      -B|--recast-up)  RECAST_UP="$1";                   shift 1  ;;
         -c|--compile)  COMPILE="$1";                     shift 1  ;;
        -d|--download)  export  FORCE_DOWNLOAD="$1";      shift 1  ;;
               --from)  export  SOURCE_CACHE=$2;          shift 2  ;;
@@ -623,6 +601,7 @@ function strip_parameters()  {
 
                   --deps)  shift 1  ;;
 	        -d|--dot)  shift 1  ;;
+		      -V)  shift 2  ;;
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
@@ -655,14 +634,17 @@ function strip_parameters()  {
 function acquire_cast_lock() {
   # locking - blocks normal spells if a solo cast is running,
   # solo casts if any cast is running
-  message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} casts to complete..."
+  message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR}" \
+          "casts to complete..."
   lock_resources "solo" "cast"
   if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
-    message -n "Waiting for ${SPELL_COLOR}all other${DEFAULT_COLOR} spells to complete..."
+    message -n "Waiting for ${SPELL_COLOR}all other${DEFAULT_COLOR}" \
+               "spells to complete..."
     excllock_resources "cast" "$SPELL"
   else
-    message -n "Waiting for any other casts of ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} to complete..."
+    message -n "Waiting for any other casts of" \
+               "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} to complete..."
     lock_resources "cast" "$SPELL"
     unlock_resources "solo" "cast"
   fi
@@ -687,32 +669,27 @@ function cast_spell()  { (
   run_security  &&
   run_conflicts &&
 
-  # this is already done by run_details, and should go away (afk 4/10/04)
-  run_spell_config                            &&
-
-  # depends should not be an issue here, the whole point of using make
-  # was to avoid having to care at this point
-  # this line may disappear (afk 4/10/04)
-  satisfy_depends             && #needed or optional deps dont get passed??
-  show_downloading            && 
-  verify_sources              ||   return 1
+  show_downloading $SPELL
+  verify_sources ||   return 1
   
   # wait for solo casts, to finish and ensure that others can't
   acquire_cast_lock
 
-
   # all this needs to reorganized and stuff...later
 
-  CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
-  C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
-  TMP_LOG="/tmp/$SPELL-$VERSION"
-  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
-  MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
   IW_LOG="/tmp/$SPELL.iw"
 
-
   #some minor discussion occured about having this, i'll leave it out for now
-  #activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
+  activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
+
+  # must declare OPS before sourcing config
+  local OPTS
+  run_spell_config                            
+
+  # this should probably be moved...
+  spell_depends=$(hash_get uncommitted_hash $SPELL)
+  test -e $spell_depends && 
+  OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
   
   # this will run through the whole build process
   run_build_spell
@@ -721,23 +698,16 @@ function cast_spell()  { (
   # This is the home for anything and everything we do
   # when a phase4 succeeds or fails, no more spreading things out
   # into multiple functions.
-  cd /
 
+  cd /
 
   pop_install_queue "$SPELL"    
 
   # hooks back out to the build_api to do whatever needs to be done
   if [ $rc == 0 ] ; then
-    create_compile_log
     run_spell_success
-    CAST_EXIT_STATUS=0
   else
-    if [ $rc != 1 ] ; then # dont munge the log if pre_build failed
-      create_compile_log
-      view_compile_log
-    fi
-    run_spell_failure
-    CAST_EXIT_STATUS=$rc
+    run_spell_failure $rc
   fi
 
 
@@ -745,54 +715,11 @@ function cast_spell()  { (
   #It's OK to try to release a lock you don't have
   unlock_resources "solo" "cast"
 
-  return $CAST_EXIT_STATUS
+  return $rc
 
 ) }
 
 ##Removed *_solo functions, Duff 2002/11/01
-
-#---------------------------------------------------------------------
-## @Globals SPELL VERSION
-## @return 0 if SPELL is installed and it's version equals VERSION
-## @return 1 otherwise
-## VERSION should be set by run_details before.
-## Checks if the most recent version of SPELL is installed.
-#---------------------------------------------------------------------
-function current_sources()  {
-
-  spell_installed  $SPELL  &&
-  [  "$VERSION"  ==  "`installed_version  $SPELL`"  ]
-
-}
-
-#---------------------------------------------------------------------
-## @Globals D_LOG COMPILE FORCE_COMPILE SPELL
-## Downloads the sources by calling summon if it has to.
-## It downloads if COMPILE || FORCE_COMPILE || ! current_sources
-## || ! (spell_installed $SPELL || spell_held $SPELL)
-## It logs the download-process in D_LOG
-## Always touches ${D_LOG}.done.$SPELL at the end to signal that
-## it is done.
-#---------------------------------------------------------------------
-function run_summon()  {
-
-  touch $D_LOG
-  if 	[[ $COMPILE ]] 			|| 
-  		[[ $FORCE_COMPILE ]] 	|| 
-		! current_sources 		|| 
-		! (spell_installed $SPELL || spell_held $SPELL) 
-  then
-    lock_file   $D_LOG
-    
-    ( . summon  $SPELL  >>  $D_LOG  2>&1 )
-    
-    unlock_file $D_LOG
-  fi
-  
-  #This is to notify show_downloading that it is done this source
-  touch "${D_LOG}.done.$SPELL"
-
-}
 
 #---------------------------------------------------------------------
 ## @Globals SPELLS
@@ -813,11 +740,22 @@ function pass_one()  {
   echo -n "Computing previously installed dependencies..."
   compute_installed_depends "already_cast"
   echo
-  compute_uninstalled_depends "to_cast" "bad_cast" $SPELLS
+  compute_uninstalled_depends "to_cast" "back_hash" "bad_spells" $SPELLS
+
+  # special case of no spell making it through dependency resolution
+  SPELLS=$(hash_get_table_fields "to_cast")
+  if [ -z "$SPELLS" ] ; then 
+    local cannot_cast=$(hash_get_table_fields "bad_spells")
+    message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Cannot cast these spells:${DEFAULT_COLOR}"
+    message "---------------------------"
+    message "${SPELL_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column 
+    message "${DEFAULT_COLOR}"
+    exit 1
+  fi
 
   message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
   depends_to_Makefile to_cast already_cast > $MAKEFILE
-  SPELLS=$(hash_get_table_fields "to_cast")
 
   if  [  -n  "$DEPS_ONLY"  ] ;  then  
    	for i in $SPELLS ; do
@@ -848,7 +786,7 @@ function depends_to_Makefile()
 	# Spells that are actualy going to be cast
 	for i in $( hash_get_table_fields $1 ) ; do
 		echo "$i : $(hash_get "$1" "$i")"
-		echo -e "\t@$0 $args $i"
+		echo -e "\t@bash $0 $args $i"
 		echo
 	done
 	
@@ -859,32 +797,23 @@ function depends_to_Makefile()
 		echo
 	done
 	local all_spells=$({ hash_get_table_fields $1 ; hash_get_table_fields $2; } | tr '[:cntrl:]' ' ')
+        # make will run the all target, which would be the spells we care about
 	echo "all : $all_spells"
+        echo
+        # if dependency rules fail us, match here after everything else
+	# has had the chance, and do nothing, instead of exit early...
+        echo %:
+	echo -e "\t@echo -n"
 	echo
+        # this caused a rather nasty bug where a file in the current directory
+	# had the same name as a spell, and make thought it had already "made"
+	# that spell
 	echo ".PHONY : all $all_spells"
 
 #	export SPELLS="$all_spells"
 	
 }
 
-
-#---------------------------------------------------------------------
-## @Globals SPELLS
-## @Arguments spellname
-## calls run_details and run_summon for every element in SPELLS
-## doesn't actually build anything, just summons it.
-#---------------------------------------------------------------------
-function build_sources()  {
-
-  for  SPELL  in  $SPELLS;  do
-    ( run_details                       &&
-#      satisfy_depends  && (duff, probably not needed 10/07)
-      run_summon
-      debug "cast" "Out of run_summon."
-    )
-  done
-
-}
 
 #---------------------------------------------------------------------
 ## @Arguments Spells to be cast
@@ -929,14 +858,22 @@ function pass_two()  {
 #---------------------------------------------------------------------
 ## @param spellname
 ## @Globals SPELL
-## Sets SPELL to the spellname and calls build_sources with spellname
-## as argument.
+## Sets SPELL to the spellname and calls summon_spells with spellname
+## as argument. This is equivalent to calling summon, but without the
+## overhead.
 ## (Is being called by make)
 #---------------------------------------------------------------------
 function pass_three()  {
   debug "cast" "pass_three - $*"
-  SPELL=$1
-  build_sources $*
+  local SPELL=$1
+  local download_log=$(get_spell_dl_log $SPELL)
+  touch $download_log
+  lock_file   $download_log
+  summon_spells "$SPELL" &>  $download_log
+  unlock_file   $download_log
+  
+  #This is to notify show_downloading that it is done this source
+  touch "${download_log}.done"
 }
 
 #---------------------------------------------------------------------
@@ -1029,19 +966,15 @@ function pass_five()  {
 
 #---------------------------------------------------------------------
 ## @Arguments Spells to cast
-## @Globals CAST_PASS D_LOG 
+## @Globals CAST_PASS
 ## 
 ## Starts the passes and sets CAST_PASS accordingly.
-## D_LOG is being set and the file is being cleared if it does already
-## exists 
 #---------------------------------------------------------------------
 function pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
   PASS_ZERO="y"  #<--- What is this here for? (Duff, 03/02/13)
-  export  D_LOG="/tmp/sorcery/cast/$$/downloading.$RANDOM"
-  rm -f $D_LOG 2>/dev/null
-
+                 # grep says that its used in run_fix (afk, June 04)
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
   debug "pass_zero" "   and with spells : '$SPELLS'"
   export  CAST_PASS="one";    pass_one $*  &&
@@ -1050,8 +983,6 @@ function pass_zero()  {
   debug "pass_zero" "Starting pass 5 with: '$@'"
   export  CAST_PASS="five";  pass_five "$@"
 
-  rm  -f   $D_LOG*
-  
 
 }
 
@@ -1070,26 +1001,27 @@ function int_trap()
 #---------------------------------------------------------------------
 ## @Globals RM_AT_END
 ## RM_AT_END is being set in main.
-## Used for cleaning up. Deleting some files and /tmp/sorcery/cast/$$
-## basically.
+## Used for cleaning up. Deleting some files and $TMP_DIR.
 #---------------------------------------------------------------------
 function cleanup() {
-  
   debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
-  rm -rf /tmp/sorcery/cast/$$
-
+  rm -rf $TMP_DIR
 }
 #---------------------------------------------------------------------
-## Safely creates /tmp/sorcery/cast/$$
+## Safely creates $TMP_DIR and exports the variable so we can use it
+## even in subprocesses called through make.
 #---------------------------------------------------------------------
 function mk_tmp_dirs() {
-	debug "$FUNCNAME" "Making tmp dirs for $$"
-	if [ -d /tmp/sorcery/cast/$$ ] ; then
-		echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
-		rm -rf /tmp/sorcery/cast/$$
-	fi
-	mkdir -p /tmp/sorcery/cast/$$
+  debug "$FUNCNAME" "Making tmp dirs for $$"
+  # in order for TMP_DIR to make it through make and into pass_three/four
+  # we must export
+  export TMP_DIR=/tmp/sorcery/cast/$$
+  if [ -d $TMP_DIR ] ; then
+    echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
+    rm -rf $TMP_DIR
+  fi
+  mkdir -p $TMP_DIR
 }
 
 #---------------------------------------------------------------------
@@ -1127,8 +1059,8 @@ function main()	{
 		  return 1
 	  fi
 	
-	  MAKEFILE="/tmp/sorcery/cast/$$/Makefile"
-	  export ENV_CACHE=${ENV_CACHE:-/tmp/sorcery/cast/$$/envCache}
+	  MAKEFILE="$TMP_DIR/Makefile"
+	  export ENV_CACHE=${ENV_CACHE:-$TMP_DIR/envCache}
 	  echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
 	  export RM_AT_END="$RM_AT_END"
 	  BASE_SPELLS=" $SPELLS "
@@ -1151,6 +1083,8 @@ function main()	{
 
 
 . /etc/sorcery/config
+[[ $VOYEUR_OVERRIDE ]] && VOYEUR="$VOYEUR_OVERRIDE"
+export TOP_LEVEL=${TOP_LEVEL:-$SHLVL}
 
 if    [  $#      -eq  0  ];  then  help  |  $PAGER
 
@@ -1167,35 +1101,33 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
 
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
-	  # and fill it up with stuff the feel the need to delete
-    export RM_AT_END=${RM_AT_END:-"/tmp/sorcery/cast/$$/tmplist"}
-	  touch $RM_AT_END
-	  chown root:root $RM_AT_END
-	  echo -n '' > $RM_AT_END
+    # and fill it up with stuff we feel the need to delete
+    export RM_AT_END=${RM_AT_END:-"$TMP_DIR/tmplist"}
+    touch $RM_AT_END
+    chown root:root $RM_AT_END
+    chmod 600 $RM_AT_END
+    echo -n '' > $RM_AT_END
   fi
   
-  export SAFE_CAST=/tmp/sorcery/cast/$$/casting.safe
-  export SUCCESS_LIST="/tmp/sorcery/cast/$$/success_list"
-  export FAILED_LIST="/tmp/sorcery/cast/$$/failed_list"
+  export SAFE_CAST=$TMP_DIR/casting.safe
+  export SUCCESS_LIST="$TMP_DIR/success_list"
+  export FAILED_LIST="$TMP_DIR/failed_list"
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
   echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST" >> $RM_AT_END
-  exec $SAFE_CAST "$@"
+  exec bash $SAFE_CAST "$@"
   
 else
-
   if  [[  $NICE != "0"  ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
   trap int_trap INT
   main  $*
-  if [ $SHLVL -eq 2 ] ; then
-	unlock_file $SAFE_CAST
-	cleanup
-  else
-  	rm -rf /tmp/sorcery/cast/$$
+  if [ $SHLVL -eq $TOP_LEVEL ] ; then
+    unlock_file $SAFE_CAST
+    cleanup
   fi
 
 fi

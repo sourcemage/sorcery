@@ -42,7 +42,7 @@
 # Private function.  Strips off the dir:/[//] prefix from dir urls
 #
 #---------------------------------------------------------------------
-url_dir_strip_prefix() {
+function url_dir_strip_prefix() {
   echo $1 | sed 's/^dir:\/\///' | sed 's/^dir://'
 }
 
@@ -53,7 +53,7 @@ url_dir_strip_prefix() {
 ## Copies the specified dir url.
 ##
 #---------------------------------------------------------------------
-url_dir_download() {
+function url_dir_download() {
 
   local DIRNAME=`url_dir_strip_prefix $1`
 
@@ -90,12 +90,37 @@ url_dir_download() {
 ## directory exists OR if the dir is an empty string.
 ##
 #---------------------------------------------------------------------
-url_dir_verify() {
+function url_dir_verify() {
 
   DIRNAME=`url_dir_strip_prefix $1`
   if  [  -n  "$DIRNAME"  ]; then
       [  -d  "$DIRNAME"  ]
   fi
+}
+
+#---------------------------------------------------------------------
+##=item url_dir_hostname <url>
+##
+## Assume that the directory is on localhost, someday this should
+## check to see if the directory is on a networked filesystem.
+##
+#---------------------------------------------------------------------
+function url_dir_hostname(){
+  echo localhost
+}
+
+#---------------------------------------------------------------------
+##=item url_dir_netselect <url>
+##
+## fake netselect data on the assumption that the data is on the
+## localhost
+##
+#---------------------------------------------------------------------
+function url_dir_netselect() {
+  local each
+  for each in $@; do
+    echo "0 $each"
+  done
 }
 
 

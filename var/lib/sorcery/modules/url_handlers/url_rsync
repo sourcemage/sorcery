@@ -50,7 +50,7 @@
 # Private function.  Strips off the rsync:// prefix from rsync urls
 #
 #---------------------------------------------------------------------
-url_rsync_strip_prefix() {
+function url_rsync_strip_prefix() {
   echo $1 | sed 's/^rsync:\/\///'
 }
 
@@ -61,7 +61,7 @@ url_rsync_strip_prefix() {
 ## Fetch the specified rsync url.
 ##
 #---------------------------------------------------------------------
-url_rsync_download() { 
+function url_rsync_download() { 
   if ! spell_installed rsync; then
     return 1;
   fi
@@ -141,7 +141,7 @@ url_rsync_download() {
 ## I get around to implementing it.
 ##
 #---------------------------------------------------------------------u
-url_rsync_verify() {
+function url_rsync_verify() {
   true
 }
 
@@ -152,8 +152,30 @@ url_rsync_verify() {
 ## Set options for url handling
 ##
 #---------------------------------------------------------------------
-url_rsync_set_options() {
+function url_rsync_set_options() {
   eval "$1=1"
+}
+
+
+#---------------------------------------------------------------------
+##=item url_rsync_hostname <url>
+##
+## Gets the hostname for this rsync type url
+##
+#---------------------------------------------------------------------
+function url_rsync_hostname() {
+  echo $1|sed 's|^.*//\(.*\)::.*$|\1|'
+}
+
+#---------------------------------------------------------------------
+##=item url_rsync_netselect <url>
+##
+## run netselect on the url, this will also expand and rank when there
+## are multiple A records
+##
+#---------------------------------------------------------------------
+function url_rsync_netselect() {
+  netselect -s 1000 $@ 2>/dev/null
 }
 
 #---------------------------------------------------------------------

@@ -27,7 +27,7 @@
 # Private Function.  Strip tar & compression extensions off filename 
 #
 #---------------------------------------------------------------------
-url_http_strip_extension()  {  
+function url_http_strip_extension()  {  
   echo  $1               |
   sed  "s/\.tar\.gz$//"  |
   sed  "s/\.tgz$//"      |
@@ -41,7 +41,7 @@ url_http_strip_extension()  {
 # Private Function.  Sets wget options
 #
 #---------------------------------------------------------------------
-url_http_set_wget_options()  {
+function url_http_set_wget_options()  {
   if    [  -n  "$ACTIVE_FTP"  ]
   then  unset  PASSIVE
   else         PASSIVE="--passive-ftp"
@@ -81,7 +81,7 @@ url_http_set_wget_options()  {
 # partially downloaded or previously downloaded files.
 #
 #---------------------------------------------------------------------
-url_http_erase()  {
+function url_http_erase()  {
   local  S_FILE=$1
 
   if  [  -z  "$CONTINUE"  ];  then
@@ -97,7 +97,7 @@ url_http_erase()  {
 # as a side-effect.
 #
 #---------------------------------------------------------------------
-url_http_call_wget()  {  
+function url_http_call_wget()  {  
   local  FILENAME=$1
   local  STRIPPED_FILENAME=$2
   local  URL=$3
@@ -105,9 +105,14 @@ url_http_call_wget()  {
   debug 'url_http' "call wget: $*"
 
   url_http_erase  $STRIPPED_FILENAME   &&  
-  # eval is used here due to screwy IFS (maybe)
-  eval "wget $WGET_OPTIONS $URL"      &&
+  wget $WGET_OPTIONS "$URL"            &&
   FILE="$FILENAME"
+  if [ ! -e "$FILE" ]; then
+    # stupid http site trying to be nice and re-direct us, this is a failure
+    # even though wget doesnt notice it...
+    rm $FILENAME*
+    return 1
+  fi
 }
 
 
@@ -117,7 +122,7 @@ url_http_call_wget()  {
 ## Downloads the specified http url.
 ##
 #---------------------------------------------------------------------
-url_http_download() {
+function url_http_download() {
   local  URL=$1
 
   url_http_set_wget_options  $URL
@@ -144,7 +149,7 @@ url_http_download() {
 ## Downloads the specified https url.
 ##
 #---------------------------------------------------------------------
-url_https_download() {
+function url_https_download() {
   url_http_download  $1
 }
 
@@ -155,7 +160,7 @@ url_https_download() {
 ## Downloads the specified http url.
 ##
 #---------------------------------------------------------------------
-url_ftp_download() {
+function url_ftp_download() {
   local  URL=$1
 
   url_http_set_wget_options  $URL
@@ -192,7 +197,7 @@ url_ftp_download() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-url_http_verify() {
+function url_http_verify() {
   local  URL=$1
 
   if [  -n  "$URL"  ]; then
@@ -213,7 +218,7 @@ url_http_verify() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-url_https_verify() {
+function url_https_verify() {
   url_http_verify  $1
 }
 
@@ -231,7 +236,7 @@ url_https_verify() {
 #  is in the directory listing.
 # 
 #---------------------------------------------------------------------
-url_ftp_verify() {
+function url_ftp_verify() {
   local  URL=$1
 
   if  [  -n  "$URL"  ];  then
@@ -248,6 +253,38 @@ url_ftp_verify() {
       false
     fi
   fi   
+}
+
+#---------------------------------------------------------------------
+##=item url_<prefix>_hostname <url>
+##
+## Gets the hostname out of the url
+#---------------------------------------------------------------------
+function url_http_hostname() {
+  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+}
+function url_https_hostname() {
+  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+}
+function url_ftp_hostname() {
+  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+}
+
+#---------------------------------------------------------------------
+##=item url_<prefix>_netselect <url>
+##
+## Run netselect on the url, netselect understands these urls and
+## we can take advantage of its multi-A record handling
+##
+#---------------------------------------------------------------------
+function url_http_netselect() {
+  netselect -s 1000 $@ 2>/dev/null
+}
+function url_https_netselect() {
+  netselect -s 1000 $@ 2>/dev/null
+}
+function url_ftp_netselect() {
+  netselect -s 1000 $@ 2>/dev/null
 }
 
 

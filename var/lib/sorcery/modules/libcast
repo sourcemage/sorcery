@@ -104,6 +104,7 @@ function use_xinetd()  { (
     debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
     debug "cast" "setting up depends for services"
 
+    # what is this for?
     for  SERVICE  in  $SERVICES;  do
       for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
 
@@ -164,14 +165,18 @@ function use_initd()  { (
 
     . $SPELL_CONFIG
 
-    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+    local ALL_INITSCRIPTS=`find "$SCRIPT_DIRECTORY/init.d/" -type f -not -name "*.conf" -printf '%f '`
     debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
 
-    for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
+    local INITSCRIPT
+    for  INITSCRIPT in $ALL_INITSCRIPTS  ;  do
+
       echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
           grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-      if  query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
+      local default_answer=n
+      grep -Fq 'ESSENTIAL=yes' "$SCRIPT_DIRECTORY/init.d/$INITSCRIPT" && default_answer=y
+      if  query  "Invoke $INITSCRIPT at boot via init?"  $default_answer  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
         init_prepare_install  $INITSCRIPT
       else
@@ -194,8 +199,8 @@ function use_initd()  { (
 ## started at bootup.
 #---------------------------------------------------------------------
 function install_initd() { (
-    debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
-    debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
+    debug "cast" "install_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
+    debug "cast" "install_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
     debug "cast" "saving initscripts"
     
     INITDSCRIPTS=""
@@ -205,13 +210,13 @@ function install_initd() { (
 #    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
     # now we install the selected scripts.
     if  [  -n  "$INITDSCRIPTS"  ] ; then
-      debug "cast" "use_initd: about to call install_initd_confs"
+      debug "cast" "install_initd: about to call install_initd_confs"
       install_initd_confs enabled $INITDSCRIPTS
     fi
 
     # and disable the others.
     if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
-      debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
+      debug "cast" "install_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
       install_initd_confs disabled $INITDSCRIPTS_DISABLED
     fi
     
@@ -219,7 +224,7 @@ function install_initd() { (
 
 
 #---------------------------------------------------------------------
-## Takes the compile log, created by activate_voyeur and stuffs it into
+## Takes the compile log and stuffs it into
 ## our compile log directory.
 #---------------------------------------------------------------------
 function create_compile_log()  {
@@ -248,23 +253,6 @@ function view_compile_log()  {
 
 
 #---------------------------------------------------------------------
-## Turns on logging of the output from BUILD/COMPILE/INSTALL
-## Needs to be run after each script finishes because tee stops writing
-## upon EOF.
-#---------------------------------------------------------------------
-function activate_voyeur()  {
-
-  if  [  -z  "$SILENT"  ];  then
-    case  $VOYEUR  in
-      on)  tee  -a  $C_LOG  <  $C_FIFO              &  ;;
-       *)  tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &  ;;
-    esac
-  else     tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &
-  fi
-
-}
-
-#---------------------------------------------------------------------
 ## @param spellname
 ## calls run_details and returns the returnvalue of
 ## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
@@ -280,7 +268,6 @@ function resurrect()  {  (
 
   debug "libcast" "resurrect - $*"
 
-  run_prepare   &&
   can_resurect
 #  run_details  run by can_resurect now
 
@@ -313,13 +300,17 @@ function resurrect()  {  (
   if  $CONTINUE
   then
     run_conflicts    &&
+    # can this please go away?
     satisfy_depends  &&
-		
+
+    # new tarballs are cached relative to $INSTALL_ROOT
+    pushd $INSTALL_ROOT/ &>/dev/null
     if  [  -n  "$EXTENSION"  ];  then
       $COMPRESSBIN   -cd   $CACHE_COMP  |  tar  -Pkx  1>/dev/null  2>&1
     else
       tar  -Pkxf  $CACHE_COMP  1>/dev/null  2>&1
     fi 
+    popd &>/dev/null
 
     # minor hack until I re-write this (afk 4/12/2004)
     if [ $BUILD_API == 2 ] ; then
@@ -332,7 +323,6 @@ function resurrect()  {  (
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
     pop_install_queue "$SPELL"
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    set_successful_cast  "$SPELL"
     clear_line
     message  "${RESURRECT_COLOR}Resurrected spell:"  \
              "${SPELL_COLOR}${SPELL}"                \
@@ -354,19 +344,21 @@ function resurrect()  {  (
 
 
 #---------------------------------------------------------------------
+## LC means "line count" why not just type line_count?
 #---------------------------------------------------------------------
 function show_download_progress()  {
 
-  if  [  -f  "$D_LOG"   ]   &&
+  local download_log=$1
+  if  [  -f  "$download_log"   ]   &&
       [  -z  "$SILENT"  ];  then
 
     LC_OLD=${LC_OLD:-0}
 
-    LC=`cat  $D_LOG  2>/dev/null  |  wc  -l  |  tr  -d ' '`
+    LC=`cat  $download_log  2>/dev/null  |  wc  -l  |  tr  -d ' '`
 
     if  [  "$LC"  !=  "$LC_OLD"  ];  then
       ((  LC_OLD++  ))
-      sed  -n ${LC_OLD},${LC}p  $D_LOG
+      sed  -n ${LC_OLD},${LC}p  $download_log
       LC_OLD=$LC
     fi
 
@@ -379,23 +371,25 @@ function show_download_progress()  {
 #---------------------------------------------------------------------
 function show_downloading()  {
 
-#  COMPILE="y"
-  debug "cast" "Started show_downloading() on $SPELL"
-  while ! ( [[ $D_LOG ]] && 
-            [  -f "$D_LOG"  ] ) 
+  local SPELL=$1
+  local download_log=$(get_spell_dl_log $SPELL)
+  debug "cast" "Started show_downloading() on $SPELL from $download_log"
+
+  # poke around waiting for downloading to start
+  while ! ( [[ $download_log ]] && 
+            [  -f "$download_log"  ] ) 
   do
     sleep 1
   done
 
-  #The file is created in run_summon
-  until [  -f "${D_LOG}.done.$SPELL"  ] ;  do
-    show_download_progress
+  # isn't this out of band ipc great?
+  until [  -f "${download_log}.done"  ] ;  do
+    show_download_progress $download_log
     sleep 1
   done
   
-  rm "${D_LOG}.done.$SPELL"
-  show_download_progress
-
+  show_download_progress $download_log
+  debug "libcast" "Out of show_downloading"
 }
 
 
@@ -403,12 +397,13 @@ function show_downloading()  {
 #---------------------------------------------------------------------
 function report_install()  {
 
-  local INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   debug "libcast" "In report_install, INST_LOG=$INST_LOG"
   report  $INST_LOG  "Install log"
 
 }
 
 
-
+function get_spell_dl_log() {
+  echo "$TMP_DIR/download.$1"
+}
 

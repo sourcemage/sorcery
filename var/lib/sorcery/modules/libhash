@@ -139,6 +139,42 @@ function hash_get() {
   echo ${!VARIABLE_NAME}
 }
 
+#---------------------------------------------------------------------
+## @param table name
+## @param field name
+## @param value
+## 
+## Appends the value to the specified table/field.
+##
+#---------------------------------------------------------------------
+function hash_append() {
+  local VARIABLE_NAME
+  local old_value
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
+  old_value=${!VARIABLE_NAME}
+  if [[ -n $old_value ]] ; then
+    eval "${VARIABLE_NAME}=\"$old_value $3\""
+  else 
+    eval "${VARIABLE_NAME}=\"$3\""
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param table name
+## 
+## 'export' all the values in the table. This is useful for getting
+## hash table data from cast's pass_one/two into pass_three/pass_four
+## which are run through make. Essentially exporting lets us pass
+## the variables through make.
+##
+#---------------------------------------------------------------------
+function hash_export() {
+  local VARIABLE_NAME
+  hash_build_variable_name $1 "" VARIABLE_NAME
+  # make sure the hash has something in it before trying to export it
+  [[ $(eval echo '${!'$VARIABLE_NAME'*}') ]] &&
+  eval 'export ${!'$VARIABLE_NAME'*}'
+}
 
 #---------------------------------------------------------------------
 ## @param table name
@@ -216,6 +252,22 @@ function hash_get_table_fields()  {
     echo ${FIELD}${separator}
   done
   
+}
+
+#---------------------------------------------------------------------
+## @param table name
+## @Stdout Print the table in some reasonably readable form
+## As the name would imply, this is mainly for development use
+## and is not intended for regular use.
+##
+#---------------------------------------------------------------------
+
+function hash_debug_dump() {
+  local TABLE_NAME
+  local FIELD
+  for FIELD in $(hash_get_table_fields $1); do
+    echo "${FIELD} : $(hash_get $1 ${FIELD})"
+  done
 }
 
 

@@ -32,7 +32,7 @@
 # Private function.  Strips off the file:/[//] prefix from file urls
 #
 #---------------------------------------------------------------------
-url_file_strip_prefix() {
+function url_file_strip_prefix() {
   echo $1 | sed 's/^file:\/\///' | sed 's/^file://'
 }
 
@@ -43,7 +43,7 @@ url_file_strip_prefix() {
 ## Copies the specified file url.
 ##
 #---------------------------------------------------------------------
-url_file_download() {
+function url_file_download() {
   FILENAME=`url_file_strip_prefix $1`  &&
   [  -f  "$FILENAME"  ]                &&
   [  -r  "$FILENAME"  ]                &&
@@ -58,12 +58,36 @@ url_file_download() {
 ## OR if the file is an empty string.
 ##
 #---------------------------------------------------------------------
-url_file_verify() {
+function url_file_verify() {
   FILENAME=`url_file_strip_prefix $1`
   if -n "$FILENAME"; then
     [  -f  "$FILENAME"  ] &&
     [  -r  "$FILENAME"  ]
   fi
+}
+
+#---------------------------------------------------------------------
+##=item url_file_hostname <url>
+##
+## Assume that the file is on localhost, someday this should
+## check to see if the directory is on a networked filesystem.
+##
+#---------------------------------------------------------------------
+function url_file_hostname() {
+  echo localhost
+}
+
+#---------------------------------------------------------------------
+##=item url_file_netselect <url>
+##
+## Fake netselect data and assume the data is on the localhost
+##
+#---------------------------------------------------------------------
+function url_file_netselect() {
+  local each
+  for each in $@ ; do 
+    echo "0 $each"
+  done
 }
 
 
