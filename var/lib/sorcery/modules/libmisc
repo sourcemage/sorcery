@@ -120,7 +120,9 @@ message()    {
 #---------------------------------------------------------------------
 debug()  {
 
-#  local debugVar="DEBUG_${1}"
+  [[ $DEBUG ]] || return 0
+  
+  local debugVar="DEBUG_${1}"
   if [[ ${!debugVar} != "no" ]] ; then
     echo -n "$1($$): " >>$DEBUG
     shift
