@@ -169,3 +169,32 @@ function tablet_set_spell() {
 
   return 0
 }
+
+
+#----------------------------------------------------------------------
+## @param none
+## @stdout none
+## @globals $TABLET_PATH
+## Intended to be used by cleanse, this routine finds identical files in
+## $TABLET_PATH and hardlinks identical files together in order to save
+## space. This is done on the assumption that 1) tablet files are treated
+## as read only, and 2) anyone using the tablet for write operations (they
+## shouldnt be) will break the hardlinks
+#----------------------------------------------------------------------
+function tablet_coalesce_files() {
+  # NOTE: bug with filenames with spaces, usually/hopefully this wont happen
+  local car cdr i each
+  for each in $(find $TABLET_PATH -type f); do
+    hash_append tablet_coalesce $(md5sum $each 2>/dev/null)
+  done
+  # hash_get_table dumps out the table values one per line
+  # they are read into the stuff array and then if theres more than one
+  # thing we force hardlink them together
+  hash_get_table tablet_coalesce| while read -a cdr; do
+    car=${cdr[0]}
+    for (( i=1 ; i<${#cdr[*]} ; i++ )) ; do
+      ln -f $car ${cdr[$i]}
+    done
+  done
+  hash_unset tablet_coalesce
+}
