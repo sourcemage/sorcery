@@ -503,49 +503,63 @@ show_spell_component()  {
 
 long_search()  {
 
-meta_char="\b"
-remove_search="$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char"
+  local numSpells=`codex_get_all_spells|wc -l`
+  local atSpell=0
 
-if ! [ "$GAZE_VERBOSE" == "0" ]; then
-	echo -n "Searching...   "
-fi
+  if ! [[ $GAZE_VERBOSE == 0 ]] ; then
+	echo  "Searching...   "
+  fi
 
-let j=0	
+  let j=0	
   for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
 
-   if ! [ "$GAZE_VERBOSE" == "0" ]; then
-    progress_spinner
-   fi
-    codex_set_current_spell $SPELL_DIRECTORY
+    if ! [[ $GAZE_VERBOSE == 0 ]] ; then
+     progress_bar $((atSpell++)) "$numSpells" 40
+    fi
 
-    for item in $*; do 
-    
-    if  echo  $SPELL  |  grep  -q  -i  "$item"; then
-	SEARCH_RESULTS[$j]="$item -> $SPELL (Name Match)"
-    elif codex_get_spell_keywords $SPELL_DIRECTORY  |  grep  -q  -i  "$item"; then
-        SEARCH_RESULTS[$j]="$item -> $SPELL (Keyword Match)"
-    elif echo  $SHORT  |  grep  -q  -i  "$item"; then
-        SEARCH_RESULTS[$j]="$item -> $SPELL (Short Description)"
-    elif codex_get_spell_description $SPELL_DIRECTORY |  grep  -q  -i  "$item"; then
-        SEARCH_RESULTS[$j]="$item -> $SPELL (Description)"
-    fi
-   
-    if [ -n "${SEARCH_RESULTS[$j]}" ]; then 
-	if ! [ "$GAZE_VERBOSE" == "0" ]; then
-		echo -e "$remove_search${SEARCH_RESULTS[$j]}"
-		echo -n "Searching...   "
-	else
-		echo $SPELL
-	fi
-     let j++
-    fi
+	SPELL=`basename $SPELL_DIRECTORY`
+
+    for item in $*; do
+	
+		if [[ ${SPELL//$item/} != $SPELL ]] ; then
+			SEARCH_RESULTS[$j]="$item -> $SPELL (Name Match)"
+		else
+			SEARCH_RESULTS[$j]=`sed -n -e '
+s/^[[:blank:]]*SHORT=.*'$item'.*$/'$item' -> '$SPELL' (Short Description)/ip
+t QUIT
+s/<<[[:blank:]]*EOF/EOF/
+t LONG
+D
+q
+:LONG
+n
+s/^.*'$item'.*$/'$item' -> '$SPELL' (Description)/ip		
+t QUIT
+s/^EOF$/EOF/
+b LONG
+:QUIT
+q' $SPELL_DIRECTORY/DETAILS`
+		fi
+	
+#    	elif codex_get_spell_keywords $SPELL_DIRECTORY  |  grep  -q  -i  "$item"; then
+#        	SEARCH_RESULTS[$j]="$item -> $SPELL (Keyword Match)"
+
+    	if [[ ${SEARCH_RESULTS[$j]} ]]; then 
+			if [[ $GAZE_VERBOSE == 0 ]]; then
+				echo $SPELL
+			else
+				clear_line
+				echo ${SEARCH_RESULTS[$j]}
+			fi
+			let j++
+    	fi
     
     done  
   
   done
 
 if ! [ "$GAZE_VERBOSE" == "0" ]; then
-	echo -ne "$remove_search"
+	clear_line
 fi
 
 #This dumps the array at the end of the search
@@ -555,6 +569,7 @@ fi
 #   echo "${SEARCH_RESULTS[$dump_count]}"
 #   let dump_count++
 #  done
+unset SEARCH_RESULTS
 
 }
 

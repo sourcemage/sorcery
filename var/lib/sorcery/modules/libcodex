@@ -529,12 +529,17 @@ codex_set_current_spell()  {
   # Names
   SECTION=`basename $SECTION_DIRECTORY`
   SPELL=`basename $SPELL_DIRECTORY`
+  [[ $SPELL_SET == $SPELL ]] && return 0
+  
+  SPELL_DESCRIPTION=""
 
   SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
   if  [ -f  $SPELL_CONFIG  ]; then
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
-  .  $SPELL_DIRECTORY/DETAILS  >  /dev/null 2> /dev/null
+  SPELL_DESCRIPTION=`.  $SPELL_DIRECTORY/DETAILS 2>/dev/null`
+  SPELL_SET="$SPELL"
+  
 }
 
 
@@ -563,6 +568,7 @@ codex_set_current_spell_by_name()  {
 ##
 #---------------------------------------------------------------------
 codex_get_spell_description()  {
+  [[ SPELL_SET == $1 ]] && echo SPELL_DESCRIPTION
   codex_is_directory_a_spell  "$1"  &&  .  "$1/DETAILS"
 }
 
