@@ -30,7 +30,7 @@ function add_depends()
 	search_depends_status "$@" >/dev/null && remove_depends_status "$@"
 	
 	#ensure the info is valid (perhaps add check that spells exist?)
-	if ( [[ $3 != on ]]       && [[ $3 != off ]]       && [[ $3 != providedby ]]       )   ||
+	if ( [[ $3 != on ]]       && [[ $3 != off ]]       )   ||
            ( [[ $4 != required ]] && [[ $4 != optional ]]  )
 	then
 	  # unlock_file $DEPENDS_STATUS  Locking done in run_depends now
@@ -88,8 +88,8 @@ debug "DB" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 function search_depends_status()
 { # $1=spell, $2=(opt)depends
 
-	[ $# -eq 1 ] && grep "^`esc_str $1`:" $DEPENDS_STATUS
-	[ $# -gt 1 ] && grep "^`esc_str $1`:`esc_str $2`:" $DEPENDS_STATUS
+  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $DEPENDS_STATUS
+  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $DEPENDS_STATUS
 
 }
 
