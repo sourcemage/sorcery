@@ -121,8 +121,12 @@ function syms_not_owned()  {
 #---------------------------------------------------------------------
 function parse_iw()  {
 
+  # it is EXTREMELY IMPORTANT that this variable contains an actual
+  # tab character and not some number of spaces. Otherwise BAD THINGS
+  # will happen.
+  local TAB="	"
   OMIT="^$INSTALL_ROOT/dev\|^$INSTALL_ROOT/tmp\|^$INSTALL_ROOT/usr/src"
-  OMIT_IN="     rename\|        symlink\|       unlink"
+  OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
 
   grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep -v "$OMIT"
   cat                $IW_LOG | cut -f4 | grep -v "$OMIT" | grep "^/"

@@ -694,7 +694,7 @@ function real_query_string () {
 ##
 ## @return 1 option is not present in the config
 ## @return 0 option is present in the config (even if the option is
-##           empty string "")
+##           empty string "") and it's set.
 ##
 ## Retrieves setting from $SPELL_CONFIG file and optionally sets user
 ## supplied variable. Function is here to make possible changes to
@@ -710,21 +710,16 @@ function real_query_string () {
 #    return 0
 #}
 function config_get_option () {
-    eval "
-         [ -n \"$2\" ] && $2=\"\$$1\"
-
-         # If variable has some value, return 0
-         [ -n \"\$$1\" ] && return 0
-
-         # Variable don't have value, and we don't have config file return 1
-         test -e \"$SPELL_CONFIG.p\" || return 1
-
-         # If the variable name is in config file, it means that we have this variable, and it's empty
-         grep -qE \"^$1=\" \"$SPELL_CONFIG.p\" && return 0
-
-         # We dont' have this variable
-         return 1
-     "
+  # afrayedknot hates variable leakage
+  if real_list_find $1 $PERSISTENT_VARIABLES; then
+    # variable is known and valid
+    [[ -n $2 ]] && eval "$2=\"\$$1\""
+    return 0
+  else
+    # variable is not known and is invalid
+    eval "unset \"$1\""
+    return 1
+  fi
 }
 
 
@@ -752,8 +747,7 @@ function config_set_option () {
 ## @param question
 ## @param default answer
 ##
-## @return 0 for positive answer (y)
-## @return 1 for negative answer (n)
+## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## Return variable is also marked as persistent
@@ -761,24 +755,20 @@ function config_set_option () {
 #---------------------------------------------------------------------
 function real_config_query () {
     local ANSWER
-  
     if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
   
-        [ "$ANSWER" == "y" ] && return 0
-        [ "$ANSWER" == "n" ] && return 1
-        echo "Wrong value !!!"
-        exit 1
+        # already have a reasonable value...
+        [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
     fi
   
     if query "$2" $3; then
         config_set_option "$1" y
-        return 0
     else
         config_set_option "$1" n
-        return 1
     fi
+    return 0
 }
 
 #---------------------------------------------------------------------
@@ -788,8 +778,7 @@ function real_config_query () {
 ## @param option_yes
 ## @param option_no
 ##
-## @return 0 user supplied answer
-## @return 1 default answer is used
+## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## The string is added to the variable
@@ -802,7 +791,6 @@ function real_config_query_option () {
     if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
-        return 1
     fi
   
     if query "$2" $3; then
@@ -821,8 +809,7 @@ function real_config_query_option () {
 ## @param question
 ## @param default answer
 ##
-## @return 0 user supplied answer
-## @return 1 default answer is used
+## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## Return variable is also marked as persistent
@@ -837,11 +824,9 @@ function real_config_query_string () {
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
     else
         query_string ANSWER "$2" "$3"
-        RET=$?
         config_set_option "$1" "$ANSWER"
     fi
-    
-    return $RET
+    return 0
 }
 
 
@@ -850,8 +835,7 @@ function real_config_query_string () {
 ## @param question
 ## @param elements, ...
 ##
-## @return 0 user supplied answer
-## @return 1 default answer is used
+## @return 0 in all cases
 ##
 ## Asks user for string, with numbered possibilities listed
 ## Return variable is also marked as persistent
@@ -859,7 +843,6 @@ function real_config_query_string () {
 #---------------------------------------------------------------------
 function real_config_query_list () {
   local ANSWER
-  local RET=0
   local VARIABLE="$1"
   local QUESTION="$2"
   shift
@@ -879,12 +862,11 @@ function real_config_query_list () {
   else
     # we have to ask user
     select_list ANSWER $@
-    RET=$?
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 
   eval $VARIABLE=\"$ANSWER\"
-  return $RET
+  return 0
 }
 
 #---------------------------------------------------------------------
