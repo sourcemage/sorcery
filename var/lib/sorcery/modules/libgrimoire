@@ -436,44 +436,6 @@ function install_initd_confs()  { (
 
 
 #---------------------------------------------------------------------
-##
-## Appends the spell's services file to /etc/services
-## @Globals SCRIPT_DIRECTORY
-##
-#---------------------------------------------------------------------
-function install_services()  { (
-
-  debug  "libgrimoire" "Running install_services() on $SPELL"
-
-  if  [  -f  $SCRIPT_DIRECTORY/services  ];  then
-
-    local t_services=$( lock_start_transaction /etc/services )
-    local LINE=''
-    
-    cat  $SCRIPT_DIRECTORY/services  |  while  read  LINE;  do
-    
-      debug "install_services" "LINE : '$LINE'"
-	    explode "$LINE" '[\t ]+' tmp
-    
-      # Cleaning out existing lines in service file with
-      # tmp[0] is "service name", tmp[1] is "space", tmp[2] is "port/protocol"
-      debug "tmp[0]" "tmp 0 / 1 / 2 : '${tmp[0]}' / '${tmp[1]}' / '${tmp[2]}'"
-
-      tmp=$( grep  -ve "${tmp[0]}.*${tmp[1]//\//[/]}"  $t_services )
-
-      debug "install_services" "LINE var : '$LINE' "
-      echo  "$tmp" > $t_services
-      echo "$LINE" >> $t_services
-      
-    done
-  lock_commit_transaction /etc/services
-  fi
-
-) }
-
-
-
-#---------------------------------------------------------------------
 ## @Type API
 ## @param spell
 ## Returns the current version of the given spell
