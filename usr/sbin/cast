@@ -298,7 +298,7 @@ function cast_spell()  { (
 #---------------------------------------------------------------------
 ## @Globals SPELLS
 ## @Stdout User information ("Collating dependencies")
-## @Globals SPELL MAKEFILE DEPS_ONLY SPELLS_TO_CAST
+## @Globals SPELL MAKEFILE DEPS_ONLY
 ##
 ## Basically only gathers all dependencies and creates the Makefile
 ## (According to pass_zero it ought to take SPELLS as parameter, but
@@ -315,7 +315,8 @@ function pass_one()  {
   echo
   compute_uninstalled_depends "to_cast" "back_hash" "bad_spells" $SPELLS
 
-  SPELLS_TO_CAST=$(hash_get_table_fields "to_cast")
+  local SPELLS_TO_CAST=$(hash_get_table_fields "to_cast")
+  SPELLS=$SPELLS_TO_CAST
 
   # special case of no spell making it through dependency resolution
   # or if DEPS_ONLY is set, there arent any dependent spells to cast
@@ -340,7 +341,7 @@ function pass_one()  {
   # note: dependency information for all spells if it exists will be in
   # either the to_cast hash or the already_cast hash
   #
-  # note: SPELLS is not empty due to the check above
+  # note: SPELLS/SPELLS_TO_CAST  is not empty due to the check above
   #
   if  [[ "$DEPS_ONLY" ]] ;  then
     local dep_spell
@@ -422,7 +423,7 @@ function depends_to_Makefile()
   done
 
   # make will run the all target, which would be the spells we care about
-  echo "all : $3"
+  echo "all : $(echo $3|tr '[:cntrl:]' ' ')"
   echo
 
   # if dependency rules fail us, match here after everything else
@@ -469,19 +470,19 @@ function pass_two()  {
   rm -f $TMP_DIR/pass_three.done # dont return until this file exists
   if  [[  $SEPARATE   ]] ; then
     ( CAST_PASS="three" 
-      /usr/bin/make -j1 -k -f $MAKEFILE all
+      /usr/bin/make -j1 -k -f $MAKEFILE $*
       touch $TMP_DIR/pass_three.done
     )
   else
     ( CAST_PASS="three"
-      /usr/bin/make -j1 -k -f $MAKEFILE all
+      /usr/bin/make -j1 -k -f $MAKEFILE $*
       touch $TMP_DIR/pass_three.done
     ) &
   fi
   
   debug "cast" "Starting stage four make."
   
-  ( CAST_PASS="four" ; /usr/bin/make  -j1 -k -f $MAKEFILE all )
+  ( CAST_PASS="four" ; /usr/bin/make  -j1 -k -f $MAKEFILE $* )
   
   # in some very bad situations pass four can complete before three, and if
   # we return too soon more bad things can happen, so wait at least a little
@@ -639,7 +640,7 @@ function pass_zero()  {
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
   debug "pass_zero" "   and with spells : '$SPELLS'"
   export  CAST_PASS="one";    pass_one $*  &&
-  export  CAST_PASS="two";    pass_two $SPELLS_TO_CAST
+  export  CAST_PASS="two";    pass_two $SPELLS
   #pass_three and _four are hidden inside the makefile
   debug "pass_zero" "Starting pass 5 with: '$@'"
   export  CAST_PASS="five";  pass_five "$@"
