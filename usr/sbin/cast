@@ -203,11 +203,12 @@ function use_initd()  { (
 
   debug "cast" "In use_initd()"
 
+  INITDSCRIPTS=""
+  INITDSCRIPTS_DISABLED=""
+
   if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
     debug "cast" "use_initd: found an init.d directory - processing"
 
-    INITDSCRIPTS=""
-    INITDSCRIPTS_DISABLED=""
     . $SPELL_CONFIG
 
     local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
@@ -228,7 +229,7 @@ function use_initd()  { (
     
   tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
       $SPELL_CONFIG )
-  echo $tmp > $SPELL_CONFIG
+  echo "$tmp" > $SPELL_CONFIG
   echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
   echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
 ) }
@@ -337,28 +338,52 @@ function run_build()  {
   pwd
   message "$SPELL    $VERSION"
   if  [ -x ./configure ] || [ -x ./src/configure ] ; then
+		
     if  [[  $CONFIG_LOC  == on  ]]; then
+
       if  [  !  -d  $SM_CONFIG_OPTION_CACHE  ] ; then
         mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
       fi
+
       if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
         message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
         message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
         cat $SM_CONFIG_OPTION_CACHE/$SPELL | column
       fi
+
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
-        edit_file $SM_CONFIG_OPTION_CACHE/$SPELL
+				F_TMP=/tmp/cast.$$.configure
+        rm -f $F_TMP
+				
+        if [ -x ./configure ]; then
+          ./configure --help > $F_TMP
+        elif [ -x ./src/configure ]; then
+          ./src/configure --help > $F_TMP
+        fi
+
+        if [ -f $F_TMP ]; then
+          sedit 's/^/# /' $F_TMP
+        fi
+
+        cat $SM_CONFIG_OPTION_CACHE/$SPELL >> $F_TMP 2>/dev/null
+        edit_file $F_TMP
+        rm -f $SM_CONFIG_OPTION_CACHE/$SPELL
+        sedit '/^#.*$/d' $F_TMP
+        mv $F_TMP $SM_CONFIG_OPTION_CACHE/$SPELL
       fi
+
       # load custom OPTS
       if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
         OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
         message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
       fi
+
     fi
+
   fi
 
   if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-          .  $SCRIPT_DIRECTORY/BUILD
+    .  $SCRIPT_DIRECTORY/BUILD
   else
     default_build
   fi &&
@@ -972,6 +997,7 @@ function resurrect()  {  (
     run_post_install #bug 199
     
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
+    pop_install_queue "$SPELL"
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     set_successful_cast  "$SPELL"
     clear_line
@@ -1077,6 +1103,7 @@ function cast_spell()  { (
 		report_install						;
   then
 		sound  SUCCESS
+    pop_install_queue "$SPELL"    
 		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
 	    rm_source_dir
 		echo $SPELL >> $SUCCESS_LIST
