@@ -144,7 +144,7 @@ function guess_compressor()  {
 
   local OUTPUT=`$FILEPROG -b "$1"`
   local COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f1`
-  [ "$COMPRESSOR" = "GNU" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
+  [ "$COMPRESSOR" = "GNU" -o "$COMPRESSOR" = "POSIX" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
   debug "libgrimoire" "guess_compressor() - guessed $1 compressor to be <$COMPRESSOR>"
   echo $COMPRESSOR
 }
