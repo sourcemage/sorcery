@@ -227,12 +227,13 @@ function acquire_cast_lock() {
 ## @Globals SPELL
 #---------------------------------------------------------------------
 function cast_spell()  { (
+echo "cast_spell $@"
 
   debug "cast" "Casting spell [$SPELL]"
   set_term_title "Casting spell [$SPELL]"
 
-  run_details || return 1
-  load_build_api
+  run_details 
+  load_build_api || return 1
 
 # these both prompt, and prompting should NOT occur at this point
 # someday they will get split to a query and action pair (like use_xinetd
@@ -416,15 +417,33 @@ function pass_two()  {
   fi
   
   #make: -k keep going even if there's an error, -s silent, -f <file>
+  rm -f $TMP_DIR/pass_three.done # dont return until this file exists
   if  [[  $SEPARATE   ]] ; then
-    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -f $MAKEFILE all )
+    ( CAST_PASS="three" 
+      /usr/bin/make -j1 -k -f $MAKEFILE all
+      touch $TMP_DIR/pass_three.done
+    )
   else
-    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -f $MAKEFILE all ) &
+    ( CAST_PASS="three"
+      /usr/bin/make -j1 -k -f $MAKEFILE all
+      touch $TMP_DIR/pass_three.done
+    ) &
   fi
   
   debug "cast" "Starting stage four make."
   
   ( CAST_PASS="four" ; /usr/bin/make  -j1 -k -f $MAKEFILE all )
+  
+  # in some very bad situations pass four can complete before three, and if
+  # we return too soon more bad things can happen, so wait at least a little
+  # bit of time before giving up.
+  local i
+  let i=0
+  while ! test -e $TMP_DIR/pass_three.done; do 
+    sleep 5
+    let i+=5
+    [ $i > 60 ] && break
+  done
   rm $MAKEFILE
 
 }
@@ -446,7 +465,7 @@ function pass_three()  {
   summon_spells "$SPELL" &>  $download_log
   unlock_file   $download_log
   
-  #This is to notify show_downloading that it is done this source
+  # This is to notify show_downloading that it is done with this source
   touch "${download_log}.done"
 }
 
@@ -474,7 +493,6 @@ function pass_four()  {
 
   # We only want to trigger if the cast or resurect completed properly
   [ $? -eq 0 ] && trigger "cast"
-  
 }
 
 

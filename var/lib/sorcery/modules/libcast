@@ -22,7 +22,12 @@ function load_build_api() {
   case $BUILD_API in
     1) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
     2) source $SGL_LIBRARY_MODULES/build_api/api2 ;;
-    *) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
+    *) message "${PROBLEM_COLOR}Unknown build api version $BUILD_API, for" \
+               "$SPELL!!${DEFAULT_COLOR}"
+       message "Please update sorcery and see if the problem goes away."
+       message "If it doesnt this may be a bug, please contact" \
+               "the sorcery team. Thanks."
+       return 1 ;;
   esac
 
   # the following allows spell writers to override certain functions
@@ -36,6 +41,7 @@ function load_build_api() {
   elif [[ $USE_FUNCTIONS == "section" ]] ; then
     [ -x $SECTION_DIRECTORY/FUNCTIONS ] && . $SECTION_DIRECTORY/FUNCTIONS
   fi
+  return 0
 }
 
 
@@ -261,7 +267,7 @@ function resurrect()  {  (
 #  run_details  run by can_resurect now
 
   # needed because of build splitification
-  load_build_api
+  load_build_api || return 1
 
   STATUS=installed
 
