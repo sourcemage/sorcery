@@ -1013,8 +1013,10 @@ set_branch() {
 
   while
 
-    D_HELP="Nightly CVS snapshots"
+    D_HELP="Nightly devel snapshots"
+    T_HELP="Current release candidate or stable release"
     S_HELP="Current stable version"
+    C_HELP="Choose a custom version"
 
     COMMAND=`eval $DIALOG '  --title "Currently tracking : $SORCERY_BRANCH "  \
                       --item-help                               \
@@ -1024,7 +1026,9 @@ set_branch() {
                       ""                                        \
                       0 0 0                                     \
                       "S"  "Stable Branch"            "$S_HELP" \
-                      "D"  "Devel Branch"            "$D_HELP"'`
+                      "T"  "Test Branch"              "$T_HELP" \
+                      "D"  "Devel Branch"             "$D_HELP" \
+                      "C"  "Custom Branch"             "$C_HELP"'`
 
   do
 
@@ -1032,12 +1036,41 @@ set_branch() {
 
       S)  modify_local_config "SORCERY_BRANCH" "stable"  &&
           SORCERY_BRANCH="stable"                        ;;
+      T)  modify_local_config "SORCERY_BRANCH" "test"    &&
+          SORCERY_BRANCH="test"                          ;;
       D)  modify_local_config "SORCERY_BRANCH" "devel"   &&
-          SORCERY_BRANCH="devel"                        ;;
+          SORCERY_BRANCH="devel"                         ;;
+      C)  set_custom_branch                              ;;
 
     esac
 
   done
+
+}
+
+set_custom_branch() {
+
+
+  while
+
+    C_HELP="Please choose the sorcery release/version you want to use, this can be anything you want from download.sourcemage.org/sorcery/sorcery-<version>.tar.bz2"
+
+    COMMAND=`eval $DIALOG '  --title "Currently tracking : $SORCERY_BRANCH "  \
+                      --item-help                               \
+                      --ok-label      "Select"                  \
+                      --cancel-label  "Exit"                    \
+                      --inputbox                                \
+                      "$C_HELP"                                 \
+                      0 0                                       \
+                      "$SORCERY_BRANCH"'`
+
+   do
+
+     modify_local_config "SORCERY_BRANCH" "$COMMAND"   &&
+     SORCERY_BRANCH="$COMMAND"
+
+  done
+
 
 }
 

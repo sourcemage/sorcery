@@ -448,6 +448,22 @@ function persistent_add () {
 
 
 #---------------------------------------------------------------------
+## Unsets all persistent variables. Mainly usable as replacement of
+## persistent_save for functions which can be called by nonroot users
+## ( for example from 'gaze what' )
+## <pre>
+## Example:
+##    persistent_clear
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_clear () {
+    debug "persistent_clear - $*"
+    real_persistent_clear "$@"
+}
+
+
+#---------------------------------------------------------------------
 ## @param variables, ...
 ##
 ## Removes variable names from the list of persistent variables
@@ -479,7 +495,8 @@ function persistent_load () {
 
 #---------------------------------------------------------------------
 ## Saves variables marked as persistent to file "$SPELL_CONFIG". The
-## File is completely overwritten
+## File is completely overwritten. Also unsets all persistent
+## variables
 ## <pre>
 ## Example:
 ##    persistent_save
@@ -518,8 +535,8 @@ function query_string ()  {
 ## @param question
 ## @param default answer
 ##
-## @return 0 user supplied answer
-## @return 1 default answer is used
+## @return 0 for positive answer (y)
+## @return 1 for negative answer (n)
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## Return variable is also marked as persistent

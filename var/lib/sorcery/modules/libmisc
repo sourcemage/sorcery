@@ -623,7 +623,8 @@ function real_persistent_load () {
 
 #---------------------------------------------------------------------
 ## Saves variables marked as persistent to file "$SPELL_CONFIG". The
-## File is completely overwritten
+## File is completely overwritten. Also unsets all persistent
+## variables
 ##
 #---------------------------------------------------------------------
 function real_persistent_save () {
@@ -633,7 +634,24 @@ function real_persistent_save () {
     for VAR in $PERSISTENT_VARIABLES; do
         config_get_option $VAR TMP
         echo "$VAR=\"$TMP\"" >> "$SPELL_CONFIG.p"
+        unset "$VAR"
     done
+    unset PERSISTENT_VARIABLES
+}
+
+
+#---------------------------------------------------------------------
+## Unsets all persistent variables. Mainly usable as replacement of
+## persistent_save for functions which can be called by nonroot users
+## ( for example from 'gaze what' )
+##
+#---------------------------------------------------------------------
+function real_persistent_clear () {
+    local VAR
+    for VAR in $PERSISTENT_VARIABLES; do
+        unset "$VAR"
+    done
+    unset PERSISTENT_VARIABLES
 }
 
 
@@ -734,8 +752,8 @@ function config_set_option () {
 ## @param question
 ## @param default answer
 ##
-## @return 0 user supplied answer
-## @return 1 default answer is used
+## @return 0 for positive answer (y)
+## @return 1 for negative answer (n)
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## Return variable is also marked as persistent
