@@ -38,13 +38,18 @@ Command		Arguments	Description
 
 alien		<empty>		Discover untracked files.
 from		path/file	Discover what installed a file.
+
 search		"phrase"	Searches for "phrase" in the long and 
-				  short spell descriptions and in the spell 
-				  name.
+				  short spell descriptions and in the spell name.
+search      -name  "phrase" Searches for "phrase" in the spell name.
+search      -short "phrase" Searches for "phrase" in the short spell 
+                            descriptions
+
 service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
 what		spell		Print the spell's description.
+short           spell           Print the spell's short description.
 where		spell		Print the spell's section.
 website | url	spell		Print the spell's website.
 install		spell		View an install log.
@@ -59,15 +64,19 @@ compile		spell		View a compile log.
 sources		spell		List the source files for a spell.
 history		spell		Show history for a spell.
 
-sum		[spell]		Prints checksums.
+sum			[spell]		Prints checksums.
 md5sum		[spell]		Prints md5sums.
-export				Make snapshot of box's configuration.
+export					Make snapshot of box's configuration.
 import		snapshot	Restore snapshot.
 
 section		[section]	List grimoire sections.
 maintainer	[section]	See who is the maintainer for a section
-grimoire			View a text listing of the grimoire.
-html				View a html listing of the grimoire.
+grimoire	[grimoire]	View a text listing of all grimoires.
+                        Or of the specified grimoire.
+html	[-s]	[grimoire]	View a html listing of all grimoires.
+                        Or of the specified grimoire.
+                        Additionally displays links to the source files 
+                        when -s is given.
 
 newer		20020521	Show available spells newer than May 21, 2002.
 older		20010521	Show spells installed before May 21, 2001.
@@ -77,7 +86,7 @@ prune		<empty>		Removes all old sources from $SOURCE_CACHE
 				  $INSTALL_CACHE.
 
 voyeur		[delay or spell]  
-				Peak into spell compilation.
+				Peek into spell compilation.
 
 pam		<empty>		Display installed or held spells that are
 				  Linux-PAM aware.
@@ -89,14 +98,10 @@ orphans		<empty>		Display installed spells that have no
 depends		spell		Displays the spells that explicitly
 				  or recursively depend on this spell.
 
-spider		<empty>		Validates urls for entire grimoire.
-spider   <item> [<item> ...]	Validates urls for one or more items.  Items
-				  may be either spells or sections.
-
 \$SPELL_SCRIPT	spell	will print the spell script for that spell.
 EOF
 }
-
+#' Just ignore this... it's so my poor syntax hilighting works.'
 
 export_snapshot()  {
 
@@ -192,11 +197,27 @@ alien()  {
 
 gaze_catalog()  {
 
+  local grimoire
+
+  if [[ $# -gt 0 ]]; then
+        grimoire=$(codex_find_grimoire_by_name $1)
+        if [[ $? != 0 ]]; then
+            echo "No such grimoire $1"
+            exit 1;
+        fi  
+  fi
+
   echo  "Sorcery Grimoire for `date  -u`"
+
+  if [ $grimoire ]; then
+        echo "Grimoire: " $(basename $grimoire)
+  else
+        echo "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+  fi
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `codex_get_all_sections`;  do
+  for  SECTION  in  `codex_get_all_sections $grimoire`;  do
     echo 
     echo  "-------------------------------------------------"
     echo  "SECTION:  $(  basename  $SECTION  )"  
@@ -216,6 +237,21 @@ gaze_catalog()  {
 
 gaze_catalog_html()  {
 
+  local grimoire COLS=4
+
+  if [[ $1 == "-s" ]]; then
+        shift;
+        (( COLS++ ))
+  fi
+    
+  if [[ $# -gt 0 ]]; then
+        grimoire=$(codex_find_grimoire_by_name $1)
+        if [[ $? != 0 ]]; then
+            echo "No such grimoire $1"
+            exit 1;
+        fi
+  fi
+
   echo  "<html><head><title>Sorcery Grimoires for `date  -u`</title></head>"
   echo  "<body background=\"media/blackmarble.jpg\">"
 
@@ -223,8 +259,16 @@ gaze_catalog_html()  {
   echo  "        background=\"media/whitemarble.jpg\""
   echo  "        border=5>"
 
-  echo  "<tr><th colspan=4><font color=green  size=+1>"
-  echo  "Sorcery Grimoires<br>`date  -u`"
+  echo  "<tr><th colspan=${COLS}><font color=green  size=+1>"
+  echo  "Sorcery Grimoires<br>"
+  echo  $(date -u) "<br>"
+
+  if [ $grimoire ]; then
+        echo  "Grimoire: " $(basename $grimoire)
+  else
+        echo  "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+  fi
+
   echo  "</font></th></tr>"
 
   echo  "<tr>"
@@ -232,12 +276,13 @@ gaze_catalog_html()  {
   echo  "<th>Version</th>"
   echo  "<th>Updated</th>"
   echo  "<th>Website</th>"
+  [[ $COLS -eq 5 ]] && echo "<th>Source</th>"
   echo  "</tr>"
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `codex_get_all_sections`;  do
-    echo  "<tr><th colspan=4><font color="green">$( basename  $SECTION )</font></th></tr>"
+  for  SECTION  in  `codex_get_all_sections $grimoire`;  do
+    echo  "<tr><th colspan=${COLS}><font color="green">$( basename  $SECTION )</font></th></tr>"
     for  SPELL  in  `codex_get_spells  $SECTION`;  do
       (
         codex_set_current_spell  $SPELL
@@ -280,6 +325,11 @@ gaze_catalog_html()  {
           echo  "$UNSHRINK </td>"
         else
           echo  "<td></td>"
+        fi
+        if [[ $COLS -eq 5 ]]; then
+            echo "<td>"
+            echo "<a href=\"$SOURCE_URL\">$(echo $SOURCE | cut -c-25)</a>"
+            echo "</td>"
         fi
         echo  "</tr>"
       )
@@ -345,141 +395,6 @@ older()  {
 }
 
 
-#---------------------------------------------------------------------
-##=item gaze_spider_check <spell> <url> [<url> ...]
-##
-## Verifies urls for a particular spell.
-##
-#---------------------------------------------------------------------
-gaze_spider_check()  { (
-
-  SPELL=$1
-  shift  1
-  for  URL  in  $*;  do
-    GAZE_SPIDER_FAILURE_LOG=`url_verify  $URL`  ||
-    ( 
-      echo  "=================================="  >>  /tmp/spider.broke
-      echo  $(basename $SECTION)  $SPELL  $URL    >>  /tmp/spider.broke
-      echo  "----------------------------------"  >>  /tmp/spider.broke
-      echo  $GAZE_SPIDER_FAILURE_LOG              >>  /tmp/spider.broke
-      echo  "  "                                  >>  /tmp/spider.broke
-      echo  "- failed: $URL"
-    )
-  done
-
-) }
-
-
-#---------------------------------------------------------------------
-##=item gaze_get_spell_urls <spell>
-##
-## Echos all urls associated with a spell
-##
-#---------------------------------------------------------------------
-gaze_get_spell_urls() {
-  for i in ${!SOURCE*} ; do
-    echo "$i" | egrep -q "^SOURCE([[:digit:]]*)?_URL$" || continue
-    eval 'URL_LIST=${'$i'[*]}'
-    [  -n  "$URL_LIST"  ]  &&  echo  "$URL_LIST"
-  done
-}
-
-
-#---------------------------------------------------------------------
-##=item gaze_spider_spells <spell> [<spell> ...]
-##
-## Verfies that all given spell urls are valid.
-##
-#---------------------------------------------------------------------
-gaze_spider_spells()  {
-  if  [  -n  "$1"  ]; then
-    message "====================================================="
-    message "Checking Urls for Spells"
-    message "====================================================="
-    for  SPELL_DIRECTORY  in  $@;  do
-    (
-       codex_set_current_spell  $SPELL_DIRECTORY
-       local    URL_LIST=`gaze_get_spell_urls  $SPELL`
-       local    URL_COUNT=`echo $URL_LIST | wc -w | sed -e 's/ //g;'`
-       message  "Checking $URL_COUNT URLs for $SPELL"
-       gaze_spider_check  $SPELL  $URL_LIST
-    )
-    done
-    message "  "
-  fi
-}
-
-
-#---------------------------------------------------------------------
-##=item gaze_spider_sections <section> [<section> ...]
-##
-## Verfies that all spell urls in the given sections are valid.
-##
-#---------------------------------------------------------------------
-gaze_spider_sections()  {
-  for  SECTION  in  $SECTIONS;  do
-    message "====================================================="
-    message "Checking Urls in Section: $( basename $SECTION )"
-    message "====================================================="
-    local SPELLS=`codex_get_spells $SECTION`
-    for  SPELL  in  $SPELLS;  do
-    (
-       codex_set_current_spell $SPELL
-       message            "Checking URLs for $SPELL"
-       local              URL_LIST=`gaze_get_spell_urls  $SPELL`
-       gaze_spider_check  $SPELL  $URL_LIST
-    )
-    done
-    message " "
-  done
-}
-
-
-#---------------------------------------------------------------------
-##=item gaze_spider [<spell or section> ...]
-##
-## Verfies that spell urls are valid.  If no sections or spells are 
-## given, all spells are verified
-##
-#---------------------------------------------------------------------
-gaze_spider()  {
-
-  rm  -rf  /tmp/spider.broke
-  rm  -rf  /tmp/spider
-  mkdir    /tmp/spider
-  cd       /tmp/spider
-
-  message  "Writing broken URLs to /tmp/spider.broke"
-  message  "This test might take a while to complete"
-  message  "and consume significant resources."
-
-  unset  SECTIONS  SPELLS  UNKNOWN
-
-  [  -z  "$1"  ]  &&  SECTIONS=`codex_get_all_sections`
-
-  for  spell_or_section  in  $@;  do
-
-    if  codex_find_spell_or_section_by_name  $spell_or_section;  then
-      [  -n  "$CODEX_FOUND_SECTION"  ]  &&  SECTIONS="$SECTIONS $CODEX_FOUND_SECTION"
-      [  -n  "$CODEX_FOUND_SPELL"  ]    &&  SPELLS="$SPELLS $CODEX_FOUND_SPELL"
-    else
-      UNKNOWN="$spell_or_section $UNKNOWN"
-    fi 
-
-  done
-
-  gaze_spider_spells   $SPELLS
-  gaze_spider_sections $SECTIONS
-
-  [  -n  "$UNKNOWN"  ]                  &&
-  message "Unknown Spells or Sections"  &&
-  message "--------------------------"  &&
-  message "$UNKNOWN"
-
-  cd  /
-
-}
-
 
 show_from()  {
 
@@ -501,51 +416,162 @@ show_spell_component()  {
 }
 
 
-long_search()  {
+#-----------------------------------------------------------------------
+#
+# gaze_search 
+#
+# parameter processing for the search routines.
+# the case statement should be self-explanatory 
+#
+#-----------------------------------------------------------------------
 
-meta_char="\b"
-remove_search="$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char$meta_char"
+gaze_search() {
+    case $1 in
 
-if ! [ "$GAZE_VERBOSE" == "0" ]; then
-	echo -n "Searching...   "
-fi
+     -name) shift; real_name_search  "$@"  ;;
+    -short) shift; real_short_search "$@"  ;;
+         *)        real_long_search  "$@"  ;;
 
-let j=0	
+    esac
+}
+
+
+#-----------------------------------------------------------------------
+#
+# real_name_search pattern(s) 
+#
+# searches for pattern(s) in the name of all spells.
+# it searches in the codex.index files for the sake of speed 
+#
+#-----------------------------------------------------------------------
+
+real_name_search() {
+    local grimoire pattern
+
+    for grimoire in $(codex_get_all_grimoires); do
+        for pattern in "$@"; do
+            gawk ' BEGIN {
+                        OFS=""
+                        IGNORECASE=1
+                        quiet = "'$GAZE_VERBOSE'"
+                    }
+                    /^[^[:blank:]]*'"$pattern"'/ {
+                        if (quiet) {
+                            print $1
+                        }
+                        else {
+                            print "'"$pattern"' -> ", $1 
+                        }
+                    }
+                ' "$grimoire/$SPELL_INDEX_FILE"
+        done
+    done
+}
+
+
+#-----------------------------------------------------------------------
+#
+# grep_find_grimoire path filename pattern
+#
+# path should be a grimoire, since it only searches files in a specific
+# depth
+# filename is the filename it searches for in path
+# pattern is the pattern it searches for in the files
+#
+# returns the full path to the matching files
+# eg /var/lib/sorcery/codex/grimoire/games/coal/DETAILS
+#
+#-----------------------------------------------------------------------
+
+grep_find_grimoire() {
+        local path=$1
+        local name=$2
+        local pattern="$3"
+
+        grep -il -- "${pattern}" $( codex_find_in_grimoire "$path" "$name" )
+}
+
+
+#-----------------------------------------------------------------------
+#
+# real_short_search pattern(s) 
+#
+# searches for pattern(s) in the SHORT field of every SPELL in every 
+# grimoire
+#
+#-----------------------------------------------------------------------
+
+real_short_search() {
+    local pattern grimoire spell spellname
+
+    for pattern in "$@"; do
+        for grimoire in $(codex_get_all_grimoires); do
+            for spell in $(
+    grep_find_grimoire $grimoire "DETAILS" "SHORT=.*${pattern}"
+                        ); do
+
+                spellname=$(basename $(dirname $spell))
+                if [[ $GAZE_VERBOSE == 0 ]]; then
+                    echo $spellname
+                else
+                    echo "$pattern -> $spellname" 
+                fi
+
+            done
+        done
+    done
+}
+
+
+
+real_long_search()  {
+
+  local numSpells=`codex_get_all_spells|wc -l`
+  local atSpell=0
+  local file
+
+  if ! [[ $GAZE_VERBOSE == 0 ]] ; then
+	echo  "Searching...   "
+  fi
+
+  let j=0	
   for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
 
-   if ! [ "$GAZE_VERBOSE" == "0" ]; then
-    progress_spinner
-   fi
-    codex_set_current_spell $SPELL_DIRECTORY
+    if ! [[ $GAZE_VERBOSE == 0 ]] ; then
+     progress_bar $((atSpell++)) "$numSpells" 40
+    fi
 
-    for item in $*; do 
-    
-    if  echo  $SPELL  |  grep  -q  -i  "$item"; then
-	SEARCH_RESULTS[$j]="$item -> $SPELL (Name Match)"
-    elif codex_get_spell_keywords $SPELL_DIRECTORY  |  grep  -q  -i  "$item"; then
-        SEARCH_RESULTS[$j]="$item -> $SPELL (Keyword Match)"
-    elif echo  $SHORT  |  grep  -q  -i  "$item"; then
-        SEARCH_RESULTS[$j]="$item -> $SPELL (Short Description)"
-    elif codex_get_spell_description $SPELL_DIRECTORY |  grep  -q  -i  "$item"; then
-        SEARCH_RESULTS[$j]="$item -> $SPELL (Description)"
-    fi
-   
-    if [ -n "${SEARCH_RESULTS[$j]}" ]; then 
-	if ! [ "$GAZE_VERBOSE" == "0" ]; then
-		echo -e "$remove_search${SEARCH_RESULTS[$j]}"
-		echo -n "Searching...   "
-	else
-		echo $SPELL
-	fi
-     let j++
-    fi
+#	SPELL=`basename $SPELL_DIRECTORY`
+	file="$SPELL_DIRECTORY/DETAILS"
+	
+    for pattern in "$@"; do
+		grep -iq -- "$pattern" $file || continue
+		SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
+			/'"${pattern}"'/{
+				if(/^[[:blank:]]*SPELL/)	{print "(Name Match)";			exit 0;}
+				if(/^[[:blank:]]*SHORT/)	{print "(Short Description)";	exit 0;}
+				if(inLongDesc)	{print "(Description)";			exit 0;}
+			}
+			/cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
+			/^EOF$/{inLongDesc=0;} ' $file)
+    	
+		if [[ ${SEARCH_RESULTS[$j]} ]]; then 
+			SEARCH_RESULTS[$j]="$pattern ->  $(basename $SPELL_DIRECTORY) ${SEARCH_RESULTS[$j]}"
+			if [[ $GAZE_VERBOSE == 0 ]]; then
+				basename $SPELL_DIRECTORY
+			else
+				clear_line
+				echo ${SEARCH_RESULTS[$j]}
+			fi
+			let j++
+    	fi
     
     done  
   
   done
 
 if ! [ "$GAZE_VERBOSE" == "0" ]; then
-	echo -ne "$remove_search"
+	clear_line
 fi
 
 #This dumps the array at the end of the search
@@ -555,7 +581,8 @@ fi
 #   echo "${SEARCH_RESULTS[$dump_count]}"
 #   let dump_count++
 #  done
-  
+unset SEARCH_RESULTS
+
 }
 
 
@@ -587,28 +614,27 @@ service()  {
 ##
 #---------------------------------------------------------------------
 gaze_provides()  {
-	
-  for  SPELL  in  `codex_get_all_spells`;  do
-    if    [  -f  $SPELL/PROVIDES  ]  &&
-	  grep  -q  -i  "$1"  $SPELL/PROVIDES
-    then  echo  "$( basename  $SPELL )"
-    else
-      # FIXME: Remove lowercase provides in a few days.
-      if    [  -f  $SPELL/provides  ]  &&
-        grep  -q  -i  "$1"  $SPELL/provides
-      then  echo  "$( basename  $SPELL )"
-      fi
-    fi
+
+local spell
+
+  for feature in "$@"; do
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        message "${SPELL_COLOR}${feature}:${DEFAULT_COLOR}"
+        spell=$(find_providers "$feature")
+        if [[ "$spell" ]]; then
+                echo "$spell"
+        else
+                echo "no providers found"
+        fi
   done
-  
 }
 
 
 find_casting()  {
 
-  for  FILE in `ls  /var/lock/casting*  2>/dev/null`;  do
-    if  ps  `cat  $FILE  2>/dev/null`  |  grep  -q  cast;  then
-      echo  $FILE  |  sed  "s:/var/lock/casting.::"
+  for  FILE in `cat /tmp/locklist | grep :cast: 2>/dev/null`;  do
+    if  ps  `echo $FILE | cut -d':' -f3`  |  grep  -q  cast;  then
+      echo  $FILE  |  cut -d':' -f1
       return  0
     fi
   done
@@ -617,17 +643,17 @@ find_casting()  {
 }
 
 
-peak_casting()  {
+peek_casting()  {
 
-  if  [  -f     /var/lock/casting.$1   ]            &&
-      ps  `cat  /var/lock/casting.$1  2>/dev/null`  |
-      grep  -q  cast                                &&
+  if  [  -f   /tmp/locklist ]                                                &&
+      ps  `cat  /tmp/locklist | grep "$1"':cast' | cut -d':' -f3 2>/dev/null`  |
+      grep  -q  cast                                                         &&
       [  -f  /tmp/$1.compile.log  ]
   then
     nice  -n  +20                  \
     tail  -f  /tmp/$1.compile.log  \
           --follow=name            \
-          --pid=`cat /var/lock/casting.$1`  2>/dev/null
+          --pid=`cat  /tmp/locklist | grep "$1"':cast' | cut -d':' -f3 2>/dev/null`  2>/dev/null
   fi
 
 }
@@ -642,7 +668,7 @@ activate_voyeur()  {
   fi
 
   for  SPELL  in  $@;  do
-    peak_casting  $SPELL
+    peek_casting  $SPELL
   done
 
   DEFAULT_DELAY=${DEFAULT_DELAY:=60}
@@ -666,7 +692,7 @@ activate_voyeur()  {
 
     if    [  -z  "$ACTIVE_SPELL"  ];  
     then  break
-    else  peak_casting  $ACTIVE_SPELL
+    else  peek_casting  $ACTIVE_SPELL
     fi
 
   done
@@ -697,48 +723,55 @@ show_orphans()  {
 #---------------------------------------------------------------------
 gaze_show_website()  {
 
-  if  codex_set_current_spell_by_name  $1;  then
-    if  [  -n  "$WEB_SITE"  ];  then   
-      echo  $WEB_SITE
+  for spell in $@; do
+    if  codex_set_current_spell_by_name  $spell;  then
+      if  [  -n  "$WEB_SITE"  ];  then
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        echo  $WEB_SITE
+      else
+        echo  "  "
+        echo  "No website found for '$spell'.  If you know of a website for"
+        echo  "'$spell',  please let the Source Mage developers know so that"
+        echo  "it can be included in future versions of the Source Mage"
+        echo  "grimoire.  You can report the omission at the Source Mage"
+        echo  "bug tracking website:"
+        echo  "  "
+        echo  "           http://bugs.sourcemage.org/"
+      fi
     else
       echo  "  "
-      echo  "No website found for '$1'.  If you know of a website for"
-      echo  "'$1',  please let the Source Mage developers know so that"
-      echo  "it can be included in future versions of the Source Mage"
-      echo  "grimoire.  You can report the omission at the Source Mage"
-      echo  "bug tracking website:"
+      echo  "'$spell' is not a spell in the current grimoire(s).  If it's"
+      echo  "not a typo and it's a spell you'd really like to see, consider"
+      echo  "creating a spell for it yourself.  For instructions on how to"
+      echo  "write & submit spells, see the Source Mage Wiki:"
       echo  "  "
-      echo  "           http://bugs.sourcemage.org/"
+      echo  "             http://wiki.sourcemage.org."
     fi
-  else  
-    echo  "  "
-    echo  "'$1' is not a spell in the current grimoire(s).  If it's"
-    echo  "not a typo and it's a spell you'd really like to see, consider"
-    echo  "creating a spell for it yourself.  For instructions on how to"
-    echo  "write & submit spells, see the Source Mage Wiki:"
-    echo  "  "
-    echo  "             http://wiki.sourcemage.org."
-  fi
-
+  done
 }
 
 show_maintainer()  {
 
-  SECTION=`codex_find_section_by_name $1`
-  
-  if  [  -d  "$SECTION"  ];  then
+  for section in $@; do
+    ! [[ $GAZE_VERBOSE == 0 ]] &&
+    message "${SPELL_COLOR}${section}:${DEFAULT_COLOR}"
+    SECTION=`codex_find_section_by_name $section`
 
-    if  [  -f  "$SECTION/MAINTAINER"  ];  then
-      cat $SECTION/MAINTAINER
+    if  [  -d  "$SECTION"  ];  then
+
+      if  [  -f  "$SECTION/MAINTAINER"  ];  then
+        cat $SECTION/MAINTAINER
+      else
+        echo "No maintainer available for section '$( basename  $SECTION )'"
+      fi
+
     else
-      echo "No maintainer available for section '$( basename  $SECTION )'"
+
+      echo  "No such section"
+
     fi
-
-  else
-
-    echo  "No such section '$1'"
-
-  fi
+  done
 
 }
 
@@ -772,16 +805,14 @@ show_history()  {
 #---------------------------------------------------------------------
 gaze_show_section()  {
 
-  local  SECTION_NAMES=$@
+  local SECTION_NAME
 
-  if  [  -n  "$SECTION_NAMES"  ]; then
+  if  [  $# -gt 0  ]; then
 
     (
-      for  SECTION_NAME  in  $SECTION_NAMES;  do
-
-        local SECTION=`codex_find_section_by_name  $SECTION_NAME`  &&
-        codex_get_spell_names $SECTION 
-
+      for  SECTION_NAME  in  $@;  do
+        local SECTION=$(codex_find_section_by_name  $SECTION_NAME)
+        [[ $SECTION ]] && codex_get_spell_names $SECTION
       done
     ) | column
 
@@ -1018,8 +1049,78 @@ gaze_show_license()  {
 
 }
 
+gaze_show_installed() {
+
+  if    [  -z  "$1"    ]
+        then  $PAGER   $SPELL_STATUS
+  else
+        for spell in $@; do
+                ! [[ $GAZE_VERBOSE == 0 ]] &&
+                message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+                VERSION=$(installed_version  $spell)
+                if  [  -n  "$VERSION"  ]; then
+                        echo   "$VERSION"
+                else
+                        message  "not installed"
+                fi
+        done
+  fi
+}
+
+gaze_show_short_description() {
+
+  for spell in $@; do
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        (
+          codex_set_current_spell_by_name  $spell           &&
+          echo $SHORT
+        )                                                 ||
+        message  "No details found"
+  done
+}
+
+gaze_show_long_description() {
+
+  for spell in $@; do
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        (
+          codex_set_current_spell_by_name  $spell           &&
+          codex_get_spell_description  $SPELL_DIRECTORY
+        )                                       ||
+        message  "No details found"
+  done
+}
+
+gaze_show_where() {
+	for spell in $@; do
+		SECTION=$(codex_get_spell_section_name  $spell)
+                if ! [[ $GAZE_VERBOSE == 0 ]]; then
+		        if [[ $SECTION ]]; then
+			        message "$spell -> $SECTION"
+                        else
+                                message "$spell -> no such spell"
+                        fi
+		else
+                        [[ $SECTION ]] && message "$SECTION"
+		fi
+	done
+}
+
+gaze_show_depends() {
+    local spell="$@"
+
+    codex_does_spell_exist "$@" && show_depends "$spell" | sort | uniq
+}
 
 parse()  {
+
+  if [ $1 == "-q" ]; then
+        shift;
+        GAZE_VERBOSE=0
+  fi
+
 
   SPELL=$2
   SECTION=$2
@@ -1027,7 +1128,25 @@ parse()  {
 
   case  $1  in
 
-            html)  gaze_catalog_html                     ;;
+        # Spell components. In alphabetical order.
+           BUILD)  show_spell_component $1 $2            ;;
+       CONFIGURE)  show_spell_component $1 $2            ;;
+       CONFLICTS)  show_spell_component $1 $2            ;;
+         DETAILS)  show_spell_component $1 $2            ;;
+         DEPENDS)  show_spell_component $1 $2            ;;
+         HISTORY)  show_spell_component $1 $2            ;;
+           PATCH)  show_spell_component $1 $2            ;;
+      POST_BUILD)  show_spell_component $1 $2            ;;
+    POST_INSTALL)  show_spell_component $1 $2            ;;
+     POST_REMOVE)  show_spell_component $1 $2            ;;
+      PRE_REMOVE)  show_spell_component $1 $2            ;;
+       PRE_BUILD)  show_spell_component $1 $2            ;;
+         PREPARE)  show_spell_component $1 $2            ;;
+        PROVIDES)  show_spell_component $1 $2            ;;
+        TRIGGERS)  show_spell_component $1 $2            ;;
+
+        # Other options
+            html)  shift; gaze_catalog_html $@           ;;
           export)  export_snapshot                       ;;
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
@@ -1039,33 +1158,23 @@ parse()  {
            older)  older             $2                  ;;
            prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
-          spider)  shift; gaze_spider  $@                ;;
-        grimoire)  gaze_catalog  |   $PAGER              ;;
-         DETAILS)  show_spell_component $1 $2            ;;
-         DEPENDS)  show_spell_component $1 $2            ;;
-       CONFIGURE)  show_spell_component $1 $2            ;;
-       CONFLICTS)  show_spell_component $1 $2            ;;
-       PRE_BUILD)  show_spell_component $1 $2            ;;
-           BUILD)  show_spell_component $1 $2            ;;
-           PATCH)  show_spell_component $1 $2            ;;
-      POST_BUILD)  show_spell_component $1 $2            ;;
-    POST_INSTALL)  show_spell_component $1 $2            ;;
-      PRE_REMOVE)  show_spell_component $1 $2            ;;
-     POST_REMOVE)  show_spell_component $1 $2            ;;
-         PREPARE)  show_spell_component $1 $2            ;;
-         HISTORY)  show_spell_component $1 $2            ;;
-          search)  shift; long_search $@                 ;;
+        grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
+          search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
-        provides)  gaze_provides "$2"                    ;;
-         depends)  show_depends  "$2"  |  sort  |  uniq  ;;
+        provides)  shift; gaze_provides $@               ;;
+         depends)  gaze_show_depends  "$2"               ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
-     website|url)  gaze_show_website  "$2"               ;;
-      maintainer)  show_maintainer  "$2"                 ;;
          history)  show_history  "$2"                    ;;
+     website|url)  shift; gaze_show_website           $@ ;;
+      maintainer)  shift; show_maintainer             $@ ;;
+       installed)  shift; gaze_show_installed         $@ ;;
+           short)  shift; gaze_show_short_description $@ ;;
+            what)  shift; gaze_show_long_description  $@ ;;
+           where)  shift; gaze_show_where             $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
-                  codex_set_current_spell_by_name  $2  
+                  codex_set_current_spell_by_name  $2
               fi
               display  $COMPILE_LOGS/$SPELL-$VERSION.bz2   \
                        "Compile log for $SPELL does not exist"
@@ -1074,15 +1183,6 @@ parse()  {
     install)  display  $INSTALL_LOGS/$SPELL-$VERSION   \
               "Install log for $SPELL does not exist"
               ;;
-
-    installed)  if    [  -z  "$SPELL"    ]
-                then  $PAGER   $SPELL_STATUS
-                elif  [  -n  "$VERSION"  ]
-                then  echo   "$VERSION"
-                else  message  "$SPELL is not installed";  false
-                fi
-                ;;
-
 
     sum)  [  -n  "$SPELL"  ]                         &&
           checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
@@ -1094,19 +1194,6 @@ parse()  {
              md5sum_files  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
              md5sum_files  "$INSTALL_LOGS/*"
              ;;
-
-
-    what)  (
-              codex_set_current_spell_by_name  $2           &&  
-              codex_get_spell_description  $SPELL_DIRECTORY
-           )                                       || 
-           message  "Details for $2 not found"
-           ;;
-
-    where)  SECTION=`codex_get_spell_section_name  $2`  &&
-            echo     "$SECTION"             ||
-            message  "$2 not found"
-            ;;
 
    voyeur)  shift  1;  activate_voyeur  $@  ;;
 
@@ -1120,7 +1207,7 @@ parse()  {
 
 
 . /etc/sorcery/config
-if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  $@;  fi
+if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  "$@";  fi
 
 
 #---------------------------------------------------------------------

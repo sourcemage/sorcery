@@ -117,8 +117,8 @@ function get_depends_options()
     return
   }
 
-  local START="`esc_str $1`"
-  [ -n "$2" ] && START="$START:`esc_str $2`"
+  local START="$(esc_str $1):"
+  [ -n "$2" ] && START="${START}$(esc_str $2):"
   debug "libstate" "get_depends_options() - START=$START"
   awk -F ':' "/^$START/ { if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $DEPENDS_STATUS
 }
@@ -142,8 +142,7 @@ function remove_depends_status()
 	a5=${a5:-.*}
 	a6=${a6:-.*}
 
-	grep -v "^$a1:$a2:$a3:$a4:$a5:$a6$" $DEPENDS_STATUS > $DEPENDS_STATUS_BACKUP
-	if [[ $? == 0 ]] ; then  cp $DEPENDS_STATUS_BACKUP $DEPENDS_STATUS ; fi
+	sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" $DEPENDS_STATUS
 
 }
 

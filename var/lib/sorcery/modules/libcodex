@@ -265,6 +265,33 @@ codex_get_all_grimoires() {
 }
 
 
+
+#---------------------------------------------------------------------
+##=item codex_find_grimoire_by_name  <grimoire name>
+## 
+## prints the grimoire's path and returns 0 if there is one, 1 otherwise 
+## example:
+## codex_find_grimoire_by_name xfce; echo "returned $?"
+## /var/lib/sorcery/codex/xfce
+## returned 0
+##
+#---------------------------------------------------------------------
+codex_find_grimoire_by_name() {
+  local grimoire
+  
+  for grimoire in $(codex_get_all_grimoires); do 
+        name=$(basename $grimoire)
+        if [[ $1 == $name ]]; then 
+                echo $grimoire
+                return 0
+        fi
+  done
+
+  return 1
+}
+
+
+
 #---------------------------------------------------------------------
 ##=item codex_get_section_names <grimoire>
 ## 
@@ -333,14 +360,21 @@ codex_get_all_section_names() {
 
 
 #---------------------------------------------------------------------
-##=item codex_get_all_sections
+##=item codex_get_all_sections <grimoire-pathes (optional)>
 ##
-## Lists all sections from all grimoires.
+## Lists all sections from all grimoires
+## or only from the specified grimoires.
 ##
 #---------------------------------------------------------------------
 codex_get_all_sections() {
 
-  iterate "codex_get_sections" $'\n' `codex_get_all_grimoires`
+  if [[ $# -gt 0 ]]; then
+        iterate "codex_get_sections" $'\n' $@
+  else
+        iterate "codex_get_sections" $'\n' `codex_get_all_grimoires`
+  fi
+
+
 }
 
 
@@ -373,9 +407,8 @@ codex_does_spell_exist() {
     fi
   done
  
-  return 0  #Do this or cast --queue will quit if even one spell doesn't exist
-#  return $retValue
-
+  return $retValue
+ 
 }
 
 
@@ -430,10 +463,11 @@ codex_get_spell_names() {
 
 
 #---------------------------------------------------------------------
-##=item codex_get_all_spells
+##=item codex_get_all_spells <grimoire-pathes (optional)>
 ##
-## Lists all spells in all grimoires.  Nothing is listed if no spells 
-## exist in any of grimoires.
+## Lists all spells in all grimoires or only from the specified 
+## grimoires. Nothing is listed if no spells exist in any of grimoires. 
+##
 ##
 ## NOTE: This should be fixed so only the first of duplicate spells 
 ##  are listed.
@@ -441,7 +475,7 @@ codex_get_spell_names() {
 #---------------------------------------------------------------------
 codex_get_all_spells() {
 
-  iterate "codex_get_spells" $'\n' `codex_get_all_sections | grep -v "is not a"`
+  iterate "codex_get_spells" $'\n' `codex_get_all_sections $@ | grep -v "is not a"`
   
 }
 
@@ -506,6 +540,8 @@ codex_find_spell_or_section_by_name()  {
 codex_clear_current_spell()  {
   unset GRIMOIRE SECTION SECTION_DIRECTORY SPELL 
   unset SPELL_DIRECTORY SCRIPT_DIRECTORY SPELL_DESCRIPTION
+  unset VERSION SHORT UPDATED SOURCE WEB_SITE ENTERRED MAINTAINER
+  unset MD5 LICENSE
 }
 
 
@@ -520,6 +556,8 @@ codex_clear_current_spell()  {
 ##
 #---------------------------------------------------------------------
 codex_set_current_spell()  {
+
+  codex_clear_current_spell
   SPELL_DIRECTORY=$1
 
   # Directories
@@ -529,12 +567,14 @@ codex_set_current_spell()  {
 
   # Names
   SECTION=`basename $SECTION_DIRECTORY`
-
+  SPELL=`basename $SPELL_DIRECTORY`
+  
   SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
   if  [ -f  $SPELL_CONFIG  ]; then
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
-  .  $SPELL_DIRECTORY/DETAILS  >  /dev/null 2> /dev/null
+  .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
+  
 }
 
 
@@ -581,6 +621,13 @@ codex_get_spell_keywords()  {
   fi
 }
 
+#---------------------------------------------------------------------
+##=item codex_cache_spell_lookup <spell> <grimoire-path> [grimoire-path ...]
+##
+## Searches the indicies of the specified grimories for a spell.
+## This will return only the first match found.
+##
+#---------------------------------------------------------------------
 codex_cache_spell_lookup()  {
 
 	debug "libcodex" "looking up $1 in ${2}'s cache"
@@ -602,16 +649,31 @@ codex_cache_spell_lookup()  {
 
 }
 
+#---------------------------------------------------------------------
+##=item codex_check_cache <grimoire-path>
+##
+## Checks that the cache exists. if it doesn't exist, make it.
+## If it still doesn't exist, the barf an error
+##
+#---------------------------------------------------------------------
 codex_check_cache()  {
 
-	[ -f $1/$SPELL_INDEX_FILE ] || codex_create_cache
-	if ! [ -f $1/$SPELL_INDEX_FILE ] ; then
-		message "${PROBLEM_COLOR}Eeek, $2 isn not a grimoire!${DEFAULT_COLOR}"
+    if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
+        codex_create_cache
+    fi
+	if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
+		message "${PROBLEM_COLOR}Eeek, $2 is not a grimoire!${DEFAULT_COLOR}" >&2
 		exit 1
 	fi
 }
 
-
+#---------------------------------------------------------------------
+##=item codex_create_cache [<grimoire-path>]
+##
+## Creates the cache/index for the specified grimoire, or all if none
+## is asked for.
+##
+#---------------------------------------------------------------------
 codex_create_cache()  {
 	
 	debug "libcodex" "codex_create_cache - $*"
@@ -619,11 +681,46 @@ codex_create_cache()  {
 	[[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 
 	for i in $list ; do
-		find $i -name DETAILS -follow -perm +700 |		\
+        codex_find_in_grimoire $i "DETAILS" | \
 			sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' |	\
 			sort > $i/$SPELL_INDEX_FILE
+
+        codex_list_provides $i > "$i/$PROVIDE_INDEX_FILE"
 	done
 
+}
+
+
+
+#---------------------------------------------------------------------
+##=item codex_find_in_grimoire [<grimoire-path>] [<file-name>}
+##
+## Prints every file matching file-name in grimoire
+##
+#---------------------------------------------------------------------
+codex_find_in_grimoire () {
+    find "$1" -follow -perm +700 -maxdepth 3 -mindepth 3 -name "$2"
+}
+
+
+
+#---------------------------------------------------------------------
+##=item codex_list_provides [<grimoire-path>]
+## 
+## returns all providers in grimoire in the form of "provides spell"
+## for instance:
+## shell /home/martin/p4/grimoire/shell-term-fm/sash
+## 
+#---------------------------------------------------------------------
+codex_list_provides () {
+    grimoire=$1
+
+    for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
+        spell=$(dirname $file)
+        for provides in $(cat $file); do
+            echo "$provides $spell"
+        done
+    done | sort
 }
 
 

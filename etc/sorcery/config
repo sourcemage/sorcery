@@ -24,13 +24,13 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
            CABAL_KEYS=$CABAL_DIRECTORY/keys
          CABAL_OUTPUT=/tmp/cabal.output
 
-	  SGL_LIBRARY=/var/lib/sorcery
+          SGL_LIBRARY=/var/lib/sorcery
   SGL_LIBRARY_MODULES=${SGL_LIBRARY}/modules
            ARCH_SPECS=${SGL_LIBRARY}/archspecs
              EXCLUDED=${SGL_LIBRARY}/excluded
-	        CODEX=${SGL_LIBRARY}/codex
-	    WORKCODEX=${SGL_LIBRARY}/workcodex
-	   TMPFSCODEX=${SGL_LIBRARY}/tmpfscodex
+                CODEX=${SGL_LIBRARY}/codex
+            WORKCODEX=${SGL_LIBRARY}/workcodex
+           TMPFSCODEX=${SGL_LIBRARY}/tmpfscodex
             PROTECTED=${SGL_LIBRARY}/protected
                  SOLO=${SGL_LIBRARY}/solo
           SUBROUTINES=${SGL_LIBRARY}/subroutines
@@ -66,7 +66,8 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
         INSTALL_CACHE=/var/cache/sorcery
          SOURCE_CACHE=${SOURCE_CACHE:=/var/spool/sorcery}
 
-	 SPELL_INDEX_FILE=codex.index
+         SPELL_INDEX_FILE=codex.index
+       PROVIDE_INDEX_FILE=provides.index
 
 #  Override the following variables in /etc/sorcery/local/config
 #  Or by exporting them before casting or dispelling.
@@ -88,8 +89,8 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
                VOYEUR=${VOYEUR:=on}
          PROMPT_DELAY=${PROMPT_DELAY:=150}
            MAX_CABALS=${MAX_CABALS:=16}
-	   NET_SELECT=${NET_SELECT:=off}
-	    MD5SUM_DL=${MD5SUM_DL:=off}
+           NET_SELECT=${NET_SELECT:=off}
+            MD5SUM_DL=${MD5SUM_DL:=off}
          CLEAN_SOURCE=${CLEAN_SOURCE:=off}
 
             LDD_CHECK=${LDD_CHECK:=on}
@@ -104,8 +105,17 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
            KERNEL_URL=ftp://ftp.kernel.org
           XFREE86_URL=ftp://ftp.xfree86.org/pub/XFree86
           SORCERY_URL=http://download.sourcemage.org/sorcery/
-      SOURCEFORGE_URL=http://belnet.dl.sourceforge.net/sourceforge
-         FALLBACK_URL=http://download.sourcemage.org/mirror/test
+      SOURCEFORGE_URL=http://unc.dl.sourceforge.net/sourceforge
+
+               # Set FURLNUM to nr. of fallback urls.
+			   #
+               FURLNUM=4 
+FALLBACK_URL_MIRROR[0]=http://smgl.positivism.org
+FALLBACK_URL_MIRROR[1]=ftp://thefrayedknot.armory.com/sorcery
+FALLBACK_URL_MIRROR[2]=http://warlocks.damnserver.com/smgl-mirror/devel
+FALLBACK_URL_MIRROR[3]=http://download.sourcemage.com/smgl-mirror/devel
+#FALLBACK_URL_MIRROR[4]=http://download.sourcemage.org/mirror/devel
+FALLBACK_URL=${FALLBACK_URL_MIRROR[$((${RANDOM} * ${FURLNUM} / 32768))]}
 
            CODEX_ROOT=${CODEX_ROOT:=/var/lib/sorcery/codex}
             CODEX_URL=${CODEX_URL:=http://codex.sourcemage.org}
@@ -136,10 +146,12 @@ DEPENDS_STATUS_BACKUP=/var/state/sorcery/depends.backup
         DEFAULT_COLOR="${DEFAULT}"
 
                 PAGER=${PAGER:=less}
-	     FILEPROG=${FILEPROG:=file}
+             FILEPROG=${FILEPROG:=file}
            DIALOGPROG=${DIALOGPROG:=dialog}
 
-		DEBUG=${DEBUG:=/dev/null}
+                DEBUG=${DEBUG:=/dev/null}
+
+          INSTALL_ROOT="" # was "/"
 
          ARCHITECTURE=${ARCHITECTURE:=i386}
         OPTIMIZATIONS=${OPTIMIZATIONS:=strip}
@@ -156,3 +168,4 @@ PROGRESS_SPINNER_CHARS='-\|/'
 . $COMPILE_CONFIG
 optimize
 [  -r  $GRIMOIRE_LIST  ]  &&  .  $GRIMOIRE_LIST
+

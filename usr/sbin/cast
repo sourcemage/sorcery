@@ -43,7 +43,7 @@ Optional Parameters:
 -d  |  --download		Force download of sources (overwrite existing files)
 
 -s				Download 1st, cast 2nd
-    |  --deps			Configure spells and determine dependencies, 
+    |  --deps			Configure spells and determine dependencies,
 				but do not cast.
 
 -c  |  --compile		Ignore $INSTALL_CACHE and compiles
@@ -54,7 +54,7 @@ Optional Parameters:
 
        --pam			Re-casts all installed spells that
 				can use Linux-PAM
-       
+
        --queue                  Casts all spells listed in $INSTALL_QUEUE
 
 EOF
@@ -99,12 +99,12 @@ run_security() {
       tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
         if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
           if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
-            return 0 
+            return 0
           fi
           return 1
         else
           if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
-            return 0 
+            return 0
           fi
           return 1
         fi
@@ -202,7 +202,7 @@ run_pre_build() {
 
   cd  $BUILD_DIRECTORY
 
-  verify_sources && 
+  verify_sources &&
   if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
     debug "cast" "run_pre_build() - Prebuild script exists, now sourcing "
     . $SCRIPT_DIRECTORY/PRE_BUILD
@@ -213,7 +213,7 @@ run_pre_build() {
 }
 
 
-rack()  {
+create_compile_log()  {
 
   message  "${MESSAGE_COLOR}Creating"                        \
            "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.bz2"  \
@@ -284,10 +284,11 @@ run_build()  {
       fi
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
         edit_file $SM_CONFIG_OPTION_CACHE/$SPELL
-        if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-          OPTS="$OPTS `cat $SM_CONFIG_OPTION_CACHE/$SPELL`"
-          message "${MESSAGE_COLOR} OPTS= ${SPELL_COLOR}$OPTS"
-        fi
+      fi
+      # load custom OPTS
+      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
+        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
+        message "${MESSAGE_COLOR} OPTS= ${SPELL_COLOR}$OPTS"
       fi
     fi
   fi
@@ -299,14 +300,14 @@ run_build()  {
   fi
 
   if  [  "$?"  ==  0  ];  then
-    rack
+    create_compile_log
   else
     sound  FAILURE
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
              "${DEFAULT_COLOR}"
     view_compile_log
-    rack
+    create_compile_log
     false
   fi
 
@@ -858,13 +859,19 @@ strip_parameters()  {
 
 }
 
-
+can_resurect()  {
+	debug "cast" "can_resurect - $*"
+	run_details		&&
+	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
+	debug "cast" "I am able to resurect."
+}
 resurrect()  {  (  
 
   debug "cast" "resurect - $*"
 
   run_prepare   &&
-  run_details  
+  can_resurect
+#  run_details  run by can_resurect now
 
   STATUS=installed
 
@@ -876,9 +883,7 @@ resurrect()  {  (
 
   CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
 
-  if  [      -f   $CACHE_BZ  ]  &&
-      bzip2  -tf  $CACHE_BZ    
-  then
+  if bzip2  -tf  $CACHE_BZ ; then
     
     run_conflicts    &&
     satisfy_depends  &&
@@ -959,13 +964,11 @@ report_install()  {
 cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
-  run_details                                 &&
+  run_details                                 && #run by can_resurect now, but it's a minor expense
   run_security                                &&
   run_conflicts                               &&
   run_spell_config                            &&
-  debug "DB" "cast_spell run_conflicts done"  &&
-#  satisfy_depends             &&  #Not needed since make dakes care of deps now?
-  debug "DB" "cast_spell about to show_d/l" &&
+  satisfy_depends             && #needed or optional deps dont get passed??
   show_downloading            ||   return 1
   
   # Some checks must be made at this poit to see if it's safe to start building
@@ -982,24 +985,22 @@ cast_spell()  { (
     unlock_resources "castSOLO" "SOLO"
   fi
                                
-  run_pre_build               &&
-  run_build                   &&
-  run_post_build              &&
-  run_post_install            &&
-  add_spell $SPELL installed $VERSION &&
-  cd  /                       &&
-  report_install              &&
-  sound  SUCCESS
-  if [ $? -eq 0 ] ; then
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    rm_source_dir
-	echo $SPELL >> $SUCCESS_LIST
+  if	run_pre_build              			&&
+		run_build                   		&&
+		run_post_build              		&&
+		run_post_install            		&&
+		add_spell $SPELL installed $VERSION	&&
+		cd  /                       		&&
+		report_install						;
+  then
+		sound  SUCCESS
+		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+	    rm_source_dir
+		echo $SPELL >> $SUCCESS_LIST
   else
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     rm  -f  $CASTING
-    if [[  $CLEAN_SOURCE == on ]]; then
-      rm_source_dir
-    fi
+    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1
   fi
 
@@ -1060,7 +1061,7 @@ pass_one()  {
    	done  
   fi
   
-  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$"`
+  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$" | grep -v "^.PHONY$"`
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
@@ -1094,7 +1095,12 @@ function depends_to_Makefile()
 	
 	echo "all: $tmp_list"
 	echo
-	
+
+        # All targets are PHONY
+        # See http://bugs.sourcemage.org/show_bug.cgi?id=2674 for details
+        echo ".PHONY: all $all_spells"
+        echo
+
 #	export SPELLS="$all_spells"
 	
 }
@@ -1131,14 +1137,14 @@ function pass_two()  {
   
   #make: -k keep going even if there's an error, -s silent, -f <file>
   if  [[  $SEPARATE   ]] ; then
-    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -s -f $MAKEFILE all )
+    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -f $MAKEFILE all )
   else
-    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -s -f $MAKEFILE all ) &
+    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -f $MAKEFILE all ) &
   fi
   
   debug "cast" "Starting stage four make."
   
-  ( CAST_PASS="four" ; /usr/bin/make  -j1 -k -s -f $MAKEFILE all )
+  ( CAST_PASS="four" ; /usr/bin/make  -j1 -k -f $MAKEFILE all )
   rm $MAKEFILE
 
 }
@@ -1154,13 +1160,15 @@ pass_four()  {
   debug "cast" "pass_four - $*"
   SPELL=$1
   trigger "pre_cast"
-
-  if ! [[ $COMPILE ]] && (spell_installed $SPELL ||spell_held $SPELL) ; then
+  if ! [[ $COMPILE ]] &&  can_resurect $SPELL ; then
     resurrect     $SPELL
   else
     cast_spell $*
   fi
-  trigger "cast"
+
+  #We only want to trigger if the cast ot resurect completed properly
+  [ $? -eq 0 ] && trigger "cast"
+  
 }
 
 
@@ -1216,6 +1224,7 @@ pass_zero()  {
 main()	{
 
   debug "cast" "main() - $*"
+  local T_SPELLS=""
   process_parameters        $*
   SPELLS=`strip_parameters  $*`
 
@@ -1225,7 +1234,17 @@ main()	{
 
   else
 
-    codex_does_spell_exist $SPELLS || return 1
+	for spell in $SPELLS ; do
+		codex_does_spell_exist $spell
+		if [ $? -eq 0 ] ; then
+			T_SPELLS="$T_SPELLS $spell"
+		fi
+	done
+	SPELLS=$T_SPELLS
+	
+	if ! [[ $SPELLS ]]; then
+		return 1
+	fi
 	
 	MAKEFILE="/tmp/Makefile.cast.$$"
 	SUCCESS_LIST="$0.success_list"

@@ -90,6 +90,7 @@ function run_configure() {
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
     . $SCRIPT_DIRECTORY/CONFIGURE
+    true  # otherwise if CONFIGURE returns `false' DEPENDS is not executed
   fi
 
 }
@@ -100,7 +101,7 @@ function run_spell_config() {
   debug "libdepends" "run_spell_config() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
     
   if  [  -x  $SPELL_CONFIG  ];  then
-    debug "libdepends" "satisfy_depends() - found $SPELL_CONFIG"
+    debug "libdepends" "run_spell_config() - found $SPELL_CONFIG"
 	.  $SPELL_CONFIG
   fi
   
@@ -121,7 +122,7 @@ function show_depends()  {
 
       if    [  "$STATUS"  ==  "on"  ]; then
         echo          $1
-        show_depends  $1
+        show_depends  $SPELL
       fi
       
     }
@@ -139,7 +140,9 @@ function satisfy_depends()
   debug "libdepends" "Running satisfy_depends() on $SPELL"  
   local DEP
  
-  unset  OPTS  
+  unset  OPTS
+
+  # some spells apply changes to OPTS directly
   run_spell_config
 
   local LINE=''
@@ -195,7 +198,8 @@ function satisfy_depends()
   # TODO: Do something about exiled spells so that they've got `off'
   #       in DEPENDS_STATUS file, or something else do improve this
   #
-  OPTS=`get_depends_options "$SPELL"`
+  local OPTS_DEPENDS=$(get_depends_options "$SPELL")
+  OPTS="$OPTS $OPTS_DEPENDS"
   debug 'libdepends' "satisfy_depends() - final OPTS=$OPTS"
 
 }
@@ -239,7 +243,7 @@ function depends()
 {
 
   if spell_exiled $1 ; then 
-    message "$SPELL_COLOR}$1${DEFUALT_COLOR} has been exiled!"
+    message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
     return 1
   fi
   private_common_depends "$1" "on" "required" "$2" "$3"
@@ -249,7 +253,7 @@ function optional_depends()
 {
 
   if spell_exiled $1 ; then 
-    message "$SPELL_COLOR}$1${DEFUALT_COLOR} has been exiled!"
+    message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
     return 1
   fi
   
@@ -370,8 +374,7 @@ function private_run_depends()
   run_details     	  && 
   run_configure   	  && 
   run_depends $1  	  && 
-  private_add_depends ||
-  private_remove_dependees
+  private_add_depends
   
 }
 
