@@ -811,24 +811,27 @@ function reaper()  { (
 function pop_queue() {  (
 
   local ITEM=`esc_str $2`
+  local exit_code=0
 
-  tQUEUE_FILE=`lock_start_transaction $1`
-  if  !  [  -f  "$1"  ];  then  return  1;  fi
-
-  if  [  -n  "$ITEM"  ];  then
+  tQUEUE_FILE=$( lock_start_transaction $1 )
+  if  !  [  -f  "$1"  ];  then
+    exit_code=1
+  elif  [  -n  "$ITEM"  ];  then
     grep  -v  "^$ITEM\$"  $1 > $tQUEUE_FILE
   else
-
     FOUND=`sed  -n  1p  $1`
 
-    if  [  -z  "$FOUND"  ];  then  return  1;  fi
-
-    FOUND=`esc_str $FOUND`
-    grep  -v  "^$FOUND$"  $1 > tQUEUE_FILE
-    echo  $FOUND
-
+    if  [  -z  "$FOUND"  ];  then
+      exit_code=1
+    else
+      FOUND=`esc_str $FOUND`
+      grep  -v  "^$FOUND$"  $1 > tQUEUE_FILE
+      echo  $FOUND
+    fi
   fi
   lock_commit_transaction $1
+
+  return $exit_code
 
 ) }
 
@@ -858,9 +861,9 @@ function pop_install_queue() {
 ##
 #---------------------------------------------------------------------
 function push_queue()  {
-  lock_file $1
+
   pop_queue  "$1"  "$2";  echo  "$2" >>  $1;
-  unlock_file $1
+
 }
 
 
