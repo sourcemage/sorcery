@@ -3,16 +3,24 @@
 SORCERY_VERSION=`/usr/sbin/gaze installed sorcery`
 
 if [ ! -x /usr/sbin/lockexec ] ; then
-    echo <<EOS
+    cat <<EOS 1>&2
 
-WARNING: You don't appear to have lockexec installed. This update will likely 
-go wrong shortly. It may help you to symlink /usr/sbin/lockexec to /bin/true 
-and cast lockexec. 
-
-Don't interrupt this process too soon, or you won't have cast or a grimore.
+WARNING: You don't appear to have lockexec installed. I'm going to create a
+         filthy hack to keep this process going, but you need to cast
+	 lockexec asap.
 
 EOS
+    echo '#!/bin/sh
+lockfile=$1
+touch $lockfile
+shift
+"\$@"
+rm $lockfile
+' > /usr/sbin/lockexec && chmod 755 /usr/sbin/lockexec
+
 fi
+
+exit
 
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
