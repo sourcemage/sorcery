@@ -204,7 +204,7 @@ function uncompress() {
 ## Note: zip is a special cast because it doesn't work with streams.
 ##
 #---------------------------------------------------------------------
-function unpack() {
+function real_unpack() {
 
   message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"
   message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
@@ -326,7 +326,7 @@ function md5_tar_check()  {
 ## the BUILD sript of a spell.
 ##
 #---------------------------------------------------------------------
-function prepare_install() {
+function real_prepare_install() {
 
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
@@ -372,7 +372,7 @@ function prepare_install() {
 ##    mk_source_dir  /tmp/newdir
 ## </pre>
 #---------------------------------------------------------------------
-function mk_source_dir() {
+function real_mk_source_dir() {
 
   debug  "libgrimoire" "Running mk_source_dir() on $SOURCE_DIRECTORY"
 
@@ -438,7 +438,7 @@ function rm_source_dir() {
 ## Used if no PRE_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function default_pre_build() {
+function real_default_pre_build() {
 
   debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -502,7 +502,7 @@ function make() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function default_build() {
+function real_default_build() {
 
 (
 #If these switches are used, they stop distcc and ccache from working
@@ -657,7 +657,7 @@ function install_services()  { (
 ## Used if no POST_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function default_post_build() {
+function real_default_post_build() {
 
   install_pam_confs
   install_services
@@ -682,7 +682,7 @@ function default_post_build() {
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
-function installed_version()  {
+function real_installed_version()  {
 
   local spell="$1"
 
@@ -697,7 +697,7 @@ function installed_version()  {
 ## returns the given spellname if it is installed
 ##
 #---------------------------------------------------------------------
-function conflicts() {
+function real_conflicts() {
 
   debug  "libgrimoire" "Running conflicts() on $1"
 

@@ -243,7 +243,7 @@ function compute_depends()
 }
 
 
-function depends()
+function real_depends()
 {
     local INST
     if ! codex_does_spell_exist $1 &> /dev/null; then
@@ -253,18 +253,18 @@ function depends()
         [[ $? ]]     || return 1
         [[ ! $INST ]] && return 1
         shift
-        real_depends "$INST" "$@"
+        work_depends "$INST" "$@"
 
     else
-        real_depends      "$@"
+        work_depends      "$@"
     fi
 }
 
-function requires() { #deprecated, martin 20030906
+function real_requires() { #deprecated, martin 20030906
     depends "$@"
 }
 
-function optional_depends()
+function real_optional_depends()
 {
     local INST
 
@@ -278,9 +278,9 @@ function optional_depends()
         [[ ! $INST ]] && return 1
         [[ $INST == "[none]" ]] && return 0
         shift
-        real_optional_depends "no_question" "$INST $@"
+        work_optional_depends "no_question" "$INST $@"
     else
-        real_optional_depends "$@" 
+        work_optional_depends "$@" 
     fi
 }
 
@@ -338,7 +338,7 @@ function select_provider()
     eval ''$returnvar'='$TO_STORE''
 }
 
-function real_depends()
+function work_depends()
 {
 
   if spell_exiled $1 ; then 
@@ -349,7 +349,7 @@ function real_depends()
 
 }
 
-function real_optional_depends()
+function work_optional_depends()
 {
   local NOQUESTION=false
 
@@ -398,50 +398,50 @@ function real_optional_depends()
 ## C<requires email-client> returns true if evolution is installed.
 ##
 #---------------------------------------------------------------------
-real_requires()  { #deprecated, martin 20030906 
-
-  local CANDIDATES SATISFIED CANDIDATE 
-  local temp found
-
-  CANDIDATES=$(  find_providers  $1  )
-
-  for   CANDIDATE  in       $CANDIDATES;  do
-	if spell_installed $CANDIDATE	|| spell_held $CANDIDATE ; then
-	   message "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a" \
-  	   	"${MESSAGE_COLOR}$1${DEFAULT_COLOR}."
-	   message "You already have ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR} providing that. "\
-	    "Using ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR}."
-	   CANDIDATES="$CANDIDATE"
-	   SATISFIED="true"
-	   break
-	 else
-        temp="$temp"$'\n'"$CANDIDATE"
-	fi	 
-  done
-  if ! [[ $SATISFIED ]] ; then
-    message  "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a"  \
-             "${MESSAGE_COLOR}$1${DEFAULT_COLOR}"   \
-             "which can be provided by:"
-    message  "${FILE_COLOR}$CANDIDATES${DEFAULT_COLOR}"
-
-    SATISFIED="false"
-    for  CANDIDATE  in  $CANDIDATES;  do
-      if    query "Cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}? " "y"  && 
-            depends  $CANDIDATE
-      then  SATISFIED="true";  break
-      else
-            message "Didn't cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}."
-      fi
-    done
-  fi
-  
-  if [[ $SATISFIED ]] ; then
-    private_common_depends "$CANDIDATE" "on" "required" "" ""
-  else
-    return 1
-  fi
-  
-}
+#requires()  { #deprecated, martin 20030906 
+#
+#  local CANDIDATES SATISFIED CANDIDATE 
+#  local temp found
+#
+#  CANDIDATES=$(  find_providers  $1  )
+#
+#  for   CANDIDATE  in       $CANDIDATES;  do
+#	if spell_installed $CANDIDATE	|| spell_held $CANDIDATE ; then
+#	   message "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a" \
+#  	   	"${MESSAGE_COLOR}$1${DEFAULT_COLOR}."
+#	   message "You already have ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR} providing that. "\
+#	    "Using ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR}."
+#	   CANDIDATES="$CANDIDATE"
+#	   SATISFIED="true"
+#	   break
+#	 else
+#        temp="$temp"$'\n'"$CANDIDATE"
+#	fi	 
+#  done
+#  if ! [[ $SATISFIED ]] ; then
+#    message  "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a"  \
+#             "${MESSAGE_COLOR}$1${DEFAULT_COLOR}"   \
+#             "which can be provided by:"
+#    message  "${FILE_COLOR}$CANDIDATES${DEFAULT_COLOR}"
+#
+#    SATISFIED="false"
+#    for  CANDIDATE  in  $CANDIDATES;  do
+#      if    query "Cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}? " "y"  && 
+#            depends  $CANDIDATE
+#      then  SATISFIED="true";  break
+#      else
+#            message "Didn't cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}."
+#      fi
+#    done
+#  fi
+#  
+#  if [[ $SATISFIED ]] ; then
+#    private_common_depends "$CANDIDATE" "on" "required" "" ""
+#  else
+#    return 1
+#  fi
+#  
+#}
 
 
 function private_common_depends()
