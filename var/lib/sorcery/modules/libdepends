@@ -209,7 +209,7 @@ function compute_depends()
   debug "libdepends" "compute_depends of $*"
   local outVar="$1"
   shift
-  BASE_SPELLS="$*"
+  BASE_SPELLS=( $@ )
   
   local i
   SPELLS=()
@@ -232,7 +232,7 @@ function compute_depends()
     eval "$outVar=\"${!outVar}${SPELL}: "`hash_get "libdepends" "$SPELL"`$'\n'\"
   done
 
-  SPELLS="$BASE_SPELLS"
+  SPELLS="${BASE_SPELLS[*]}"
 }
 
 
@@ -537,6 +537,10 @@ function private_remove_dependees()
 
 	local spell i
 	echo "Removing dependees of $1"
+
+	# spell is being removed from cast list, add to FAILED_LIST
+	echo "$1" >> $FAILED_LIST
+
 	for spell in $(private_list_dependees $1) ; do
 		hash_unset "libdepends" "${SPELLS[spell]}"
 		SPELLS[spell]=""
