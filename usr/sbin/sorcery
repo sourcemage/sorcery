@@ -778,11 +778,11 @@ optimization_menu(){
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
 
-  local    SPEEDY_HELP="Optimize to increase performance of generated code (safe)"
-  local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules"
-  local      TINY_HELP="Optimize to decrease size of generated code (safe)"
+  local    SPEEDY_HELP="Optimize to increase performance of generated code, conflicts with 'tiny'"
+  local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules (unsafe)"
+  local      TINY_HELP="Optimize to decrease size of generated code, conflicts with 'speedy'"
   local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
-  local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink (safe)"
+  local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -792,9 +792,9 @@ optimization_menu(){
                               "$OPT_HELP"               \
                                0 0 0                    \
         "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
-        "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
+        "risky"     "          +speed"         "$RISKY"     "$RISKY_HELP"     \
         "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
-        "tiny"      "  -size"           "$TINY"      "$TINY_HELP"      \
+        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
         "strip"     " --size"           "$STRIP"     "$STRIP_HELP"'`
   then
 
