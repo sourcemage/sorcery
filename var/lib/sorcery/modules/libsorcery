@@ -373,31 +373,22 @@ function symlinks()  {
 ## @param filename
 ## @Stdin list of files/dirs/..
 ## @Stdout filtered list
-## First argument is a file that contains filenames.  C<filter> will
-## filter standard input to remove any filenames that match an entry
-## in that file.  Used to filter out excluded or protected files from
-## a list of files.
+## First argument is a file that contains (basic) grep regular expressions.
+## They are joined with \|'s and given to grep -v.
+## Which will ## filter standard input to remove and remove entries
+## that match.
+## Used to filter out excluded or protected files from install logs.
 ##
 #---------------------------------------------------------------------
 function filter() {
-
+  local thing RID_LIST
   if  [  -f  $1  ];  then
-
-     DIRS=`directories  <  $1  2>/dev/null`
-    FILES=`files        <  $1  2>/dev/null`
-     SYMS=`symlinks     <  $1  2>/dev/null`
-
-    RID_LIST=`for  DIR   in  $DIRS;   do  echo  -n  "^$DIR\|";     done
-              for  FILE  in  $FILES;  do  echo  -n  "^$FILE\$\|";  done
-              for  SYM   in  $SYMS;   do  echo  -n  "^$SYM\$\|";   done
-              echo  -n  "/dev/null"`
-
+    RID_LIST=$(for  thing in  $(cat $@);   do  echo  -n  "$thing\|"; done
+              echo  -n  "/dev/null")
     grep  -v  "$RID_LIST"
-
   else
     cat
   fi
-
 }
 
 
