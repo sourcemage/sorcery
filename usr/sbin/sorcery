@@ -49,7 +49,6 @@ review-queue		Review the install queue for each spell's history
 -g |  upgrade		Do not update grimoire, just any spells that need to
 			  be upgraded.  [ sorcery queue, cast --queue ]
 
-show-held          Shows all held spells.
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
 
@@ -1585,21 +1584,6 @@ main_menu()  {
 }
 
 
-#---------------------------------------------------------------------
-#-item sorcery_show_held_spells 
-##
-## prints all held spells.
-##
-## cli function
-#---------------------------------------------------------------------
-sorcery_show_held_spells () {
-    message -n "${MESSAGE_COLOR}the following spells are set to"
-    message -n "${DEFAULT_COLOR} hold"
-    message    "${SPELL_COLOR}"
-    get_held | sort | column
-    message -n "${DEFAULT_COLOR}"
-}
-
 
 #---------------------------------------------------------------------
 #-item sorcery_hold_spells <spells>
@@ -1639,7 +1623,6 @@ main() {
              -q|queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
            -r|rebuild)  rebuild                                 ;;
-            show-held) sorcery_show_held_spells                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
 

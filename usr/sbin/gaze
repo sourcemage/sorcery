@@ -112,6 +112,9 @@ install-queue	<empty>		View the install queue
 remove-queue	<empty>		View the remove queue
 
 checkmd5s       spell/section/<empty> Print a md5 check of spells
+
+show-held          Shows all held spells.
+
 EOF
 }
 #' Just ignore this... it's so my poor syntax hilighting works.'
@@ -1317,6 +1320,21 @@ gaze_show_size () {
     done
 }
 
+#---------------------------------------------------------------------
+#-item gaze_show_held_spells 
+##
+## prints all held spells.
+##
+## cli function
+#---------------------------------------------------------------------
+function gaze_show_held_spells () {
+    message -n "${MESSAGE_COLOR}The following spells are set to"
+    message -n "${DEFAULT_COLOR} hold"
+    message    "${SPELL_COLOR}"
+    get_held | sort | column
+    message -n "${DEFAULT_COLOR}"
+}
+
 
 parse()  {
 
@@ -1376,6 +1394,7 @@ parse()  {
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
        installed)  shift; gaze_show_installed         $@ ;;
+       show-held)  gaze_show_held_spells                 ;;
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
