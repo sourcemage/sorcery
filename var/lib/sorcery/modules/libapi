@@ -9,8 +9,7 @@
 ## added.
 ## @NOTE This library must not contain any logic. It is simply a set of wrapper functions.
 ##
-#----------------------------------------
-
+#---------------------------------------------------------------------
 # functions defined in here: (in alphabetical order)
 #    config_query           (libmisc)
 #    config_query_list      (libmisc)
@@ -52,39 +51,124 @@
 #    spell_installed        (libstate)
 #    spell_ok               (libstate)
 #    unpack                 (libgrimoire)   
-
+#
 # troublemakers SOURCE_CACHE, OPTS, CFLAGS, CXXFLAGS, CPPFLAGS, CC and LDFLAGS
-
+#---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-## @Type API
-## @param spell/service
-## @param enabled options (optional)
-## @param description (optional)
-## @param grimoires (optional)
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
-## Denotes that a spell requires another spell to work.
+# the follow should be arranged in alphabetical order as in the list above
+# if this is not the case, please file a bug
 #---------------------------------------------------------------------
-function depends () {
-    debug "libapi" "depends - $*"
-    real_depends "$@"
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query> for more details.
+## @param config file variable
+## @param question
+## @param default answer
+##
+## @return 0 in all cases
+##
+## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query DETAILED "Detailed questions ?" n; then
+##    if [ $DETAILED == y ]; then
+##        ....
+##    fi
+##    echo The reply for last question was: $DETAILED
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query () {
+    debug "libapi" "config_query - $*"
+    real_config_query "$@"
 }
 
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_list> for more details.
+## @param config file variable, return variable
+## @param question
+## @param elements, ...
+##
+## @return 0 in all cases
+##
+## Asks user for string, with numbered possibilities listed
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query_list COLOR "What color ?" "red" "white" "blue"
+##    echo Your color is $COLOR
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query_list () {
+    debug "libapi" "config_query_list - $*"
+    real_config_query_list "$@"
+}
 
 #---------------------------------------------------------------------
-## @Type API
-## @param spell/service
-## @param enabled options (optional)
-## @param disabled options (optional)
-## @param description (optional)
-## @param grimoires (optional)
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_optional_depends> for more details.
-## Denotes that a spell can use another spell for additional functionality.
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_option> for more details.
+## @param config file variable
+## @param question
+## @param default answer [y|n]
+## @param option_yes - can't be empty string
+## @param option_no - can't be empty string
+##
+## @return 0 in all cases
+##
+## Asks user for string, with default answer and timeout (like query)
+## The string is added to the variable
+## If you want to use empty string, place there dummy string and remove
+## it later by list_remove function. Also for one config variable, all
+## option_yes and option_no have to be different.
+## Return variable is also marked as persistent
+
+## <pre>
+## Example 1:
+##    config_query_option OPT "Use X ?" y "--with-x" "--without-x"
+##    config_query_option OPT "Use jpeg ?" y "--with-jpeg" "--do-not-use-jpeg"
+##    echo All selected options together: $OPT
+##
+## Example 2:
+## CONFIGURE:
+## config_query_option ASK "Use X11 ?" y --with-x11 EMPTY1
+## config_query_option ASK "Use Alsa ?" y --with-alsa EMPTY2
+##
+## BUILD:
+## local TEMP="$ASK"
+## list_remove TEMP EMPTY1 EMPTY2
+## ./configure $TEMP
+## ...
+## </pre>
+##
 #---------------------------------------------------------------------
-function optional_depends () {
-    debug "libapi" "optional_depends - $*"
-    real_optional_depends "$@"
+function config_query_option () {
+    debug "libapi" "config_query_option - $*"
+	 real_config_query_option "$@"
+}
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_string> for more details.
+## @param config file variable, return variable
+## @param question
+## @param default answer
+##
+## @return 0 in all cases
+##
+## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query_string REAL_NAME "What is your real name ?" "nobody"
+##    echo Hi $REAL_NAME
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query_string () {
+    debug "libapi" "config_query_string - $*"
+    real_config_query_string "$@"
 }
 
 
@@ -99,6 +183,20 @@ function optional_depends () {
 function conflicts () {
     debug "libapi" "conflicts - $*"
     real_conflicts "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
+## Denotes that a spell requires another spell to work.
+#---------------------------------------------------------------------
+function depends () {
+    debug "libapi" "depends - $*"
+    real_depends "$@"
 }
 
 
@@ -203,53 +301,72 @@ function default_post_install () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param file to unpack 
-## @param md5sum
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_unpack> for more details.
+## @param Spell name
+## @param Provider name
+## @param If empty get the uncommited spell info, if anything else get
+## info from the committed ($DEPENDS_STATUS) database. If the uncommited
+## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS instead.
 ##
-## Given a file, unpack runs the decompression program for that file,
-## as well as untar'ing the file if appropriate and if the MD5
-## matches.
-## Note: zip is a special cast because it doesn't work with streams.
+## @See <@function var.lib.sorcery.modules.libstate.html,real_get_spell_provider,> for more details.
 ##
+## @return 0 if a provider could be found 1 if not
+## @stdout the provider name(s)
 #---------------------------------------------------------------------
-function unpack () {
-    debug "libapi" "unpack - $*"
-    real_unpack "$@"
+function get_spell_provider() {
+    debug "libapi" "get_spell_provider - $*"
+    real_get_spell_provider "$@"
 }
-
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_requires> for more details.
-## Only a call to depends. Deprecated.
+## @param spell
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_install_version> for more details.
+## Returns the current version of the given spell
+##
 #---------------------------------------------------------------------
-function requires () {
-    debug "libapi" "requires - $*"
-    real_depends "$@"
+function installed_version () {
+    debug "libapi" "installed_version - $*"
+    real_installed_version "$@"
 }
 
-
 #---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_query> for more details.
-## @param question 
-## @param default answer
+## @param return_var
+## @param elements, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_remove> for more details.
 ##
-## @return 0 on yes
-## @return 1 on no
-##
-## Asks the user a yes/no question.  First argument is the question to
-## ask, second argument is the default answer.  If a timeout occurs
-## before the question is answered, the given default answer is 
-## applied.  Returns true or false based on the answer given.
+## Removes from the list string(s). Strings are kept to be unique and
+## are separated by spaces
+## <pre>
+## Example:
+##    MY_LIST="--disable-static --enable-dynamic"
+##    list_remove MY_LIST "--enable-dynamic"
+## </pre>
 ##
 #---------------------------------------------------------------------
-function query () {
-    debug "libapi" "query - $*"
-    real_query "$@"
+function list_remove () {
+    debug "libapi" "list_remove - $*"
+	 real_list_remove "$@"
 }
 
+#---------------------------------------------------------------------
+## @param return_var
+## @param elements, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_add> for more details.
+##
+## Puts in the list string(s). Strings are kept to be unique and are
+## separated by spaces
+## <pre>
+## Example:
+##    list_add MY_LIST "--with-x"
+##    list_add MY_LIST "--with-jpeg" $OTHER_OPTS
+##    echo $MY_LIST
+## </pre>
+##
+#---------------------------------------------------------------------
+function list_add () {
+    debug "libapi" "list_add - $*"
+    real_list_add "$@"
+}
 
 #---------------------------------------------------------------------
 ## @Type API
@@ -264,42 +381,29 @@ function message () {
     real_message "$@"
 }
 
-
 #---------------------------------------------------------------------
-## @Type API
-## @param sed command
-## @param file
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_sedit> for more details.
+## @param string
+## @param elements, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_find> for more details.
 ##
-## First argument is a sed command.  Second argument is a file.  
-## sedit performs the sed command on the file, modifiying the 
-## original file.  For example, 
-## <br>sedit "s/foo/bar/g" /tmp/somefile <br>
-## will replace all occurances of foo with bar in /tmp/somefile.  
-## This function is often used in spells to make changes to source
-## files before compiling.  See the sed man page for more information.
+## return 0 at least one element is in list
+## return 1 none of supplied elements is not in list
+##
+## Finds if at least one of given elements is in the string. Warning,
+## this function takes real string, not variable name as other list_*
+## functions
+## <pre>
+## Example:
+##    if list_find MY_LIST "--with-x"; then
+##        ... we have to compile X components in
+##    fi
+## </pre>
 ##
 #---------------------------------------------------------------------
-function sedit () {
-    debug "libapi" "sedit - $*"
-    real_sedit "$@"
+function list_find () {
+    debug "libapi" "list_find - $*"
+    real_list_find "$@"
 }
-
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_prepare_install> for more details.
-## Prepares to install the spell.  Writes the boost lock file.  If the
-## spell is installed already, the libraries are saved with
-## save_libraries() and the spell is dispelled.  Usually called from
-## the BUILD sript of a spell.
-##
-#---------------------------------------------------------------------
-function prepare_install () {
-    debug "libapi" "prepare_install - $*"
-    real_prepare_install "$@"
-}
-
 
 #---------------------------------------------------------------------
 ## @Type API
@@ -323,6 +427,254 @@ function mk_source_dir () {
     real_mk_source_dir "$@"
 }
 
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_cast> for more details.
+## @param spell that triggers
+## @param action
+##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function on_cast () {
+    debug "libapi" "on_cast - $*"
+    real_on_cast "$@"
+}
+
+
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell that triggers
+## @param action
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_dispel> for more details.
+##
+## Used by spells to make adding triggers nice.
+##
+#---------------------------------------------------------------------
+function on_dispel () {
+    debug "libapi" "on_dispel - $*"
+    real_on_dispel "$@"
+}
+
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_pre_cast> for more details.
+## @param spell that triggers
+## @param action
+##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function on_pre_cast () {
+    debug "libapi" "on_pre_cast - $*"
+    real_on_pre_cast "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell that triggers
+## @param action
+## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_pre_dispel> for more details.
+##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function on_pre_dispel () {
+    debug "libapi" "on_pre_dispel - $*"
+    real_on_pre_dispel "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param disabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_optional_depends> for more details.
+## Denotes that a spell can use another spell for additional functionality.
+#---------------------------------------------------------------------
+function optional_depends () {
+    debug "libapi" "optional_depends - $*"
+    real_optional_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @param variables, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_add> for more details.
+##
+## Adds variable names to the list of persistent variables
+## <pre>
+## Example:
+##    persistent_add MY_VARIABLE
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_add () {
+    debug "libapi" "persistent_add - $*"
+    real_persistent_add "$@"
+}
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_clear> for more details.
+## Unsets all persistent variables. Mainly usable as replacement of
+## persistent_save for functions which can be called by nonroot users
+## ( for example from 'gaze what' )
+## <pre>
+## Example:
+##    persistent_clear
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_clear () {
+    debug "persistent_clear - $*"
+    real_persistent_clear "$@"
+}
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_load> for more details.
+## Loads persistent variables stored in file "$SPELL_CONFIG"
+## <pre>
+## Example:
+##    persistent_load
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_load () {
+    debug "libapi" "persistent_load - $*"
+	 real_persistent_load "$@"
+}
+
+#---------------------------------------------------------------------
+## @param variables, ...
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_remove> for more details.
+##
+## Removes variable names from the list of persistent variables
+## <pre>
+## Example:
+##    persistent_remove MY_VARIABLE
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_remove () {
+    debug "libapi" "persistent_remove - $*"
+	 real_persistent_remove "$@"
+}
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_save> for more details.
+## Saves variables marked as persistent to file "$SPELL_CONFIG". The
+## File is completely overwritten. Also unsets all persistent
+## variables
+## <pre>
+## Example:
+##    persistent_save
+## </pre>
+##
+#---------------------------------------------------------------------
+function persistent_save () {
+    debug "libapi" "persistent_save - $*"
+    real_persistent_save "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_prepare_install> for more details.
+## Prepares to install the spell.  Writes the boost lock file.  If the
+## spell is installed already, the libraries are saved with
+## save_libraries() and the spell is dispelled.  Usually called from
+## the BUILD sript of a spell.
+##
+#---------------------------------------------------------------------
+function prepare_install () {
+    debug "libapi" "prepare_install - $*"
+    real_prepare_install "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param Provider name
+## @See <@function var.lib.sorcery.modules.libstate.html,real_provider_ok> for more details.
+##
+## @return 0 if any provider of $1 is installed
+#---------------------------------------------------------------------
+function provider_ok() {
+    debug "libapi" "provider_ok - $*"
+    real_provider_ok "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_query> for more details.
+## @param question 
+## @param default answer
+##
+## @return 0 on yes
+## @return 1 on no
+##
+## Asks the user a yes/no question.  First argument is the question to
+## ask, second argument is the default answer.  If a timeout occurs
+## before the question is answered, the given default answer is 
+## applied.  Returns true or false based on the answer given.
+##
+#---------------------------------------------------------------------
+function query () {
+    debug "libapi" "query - $*"
+    real_query "$@"
+}
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_query_string> for more details.
+## @param return_var
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+## <pre>
+## Example:
+##    query_string YOUR_HOST "What is your hostname ?" "localhost"
+## </pre>
+##
+#---------------------------------------------------------------------
+function query_string ()  {
+    debug "libapi" "query_string  - $*"
+    real_query_string "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_requires> for more details.
+## Only a call to depends. Deprecated.
+#---------------------------------------------------------------------
+function requires () {
+    debug "libapi" "requires - $*"
+    real_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param sed command
+## @param file
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_sedit> for more details.
+##
+## First argument is a sed command.  Second argument is a file.  
+## sedit performs the sed command on the file, modifiying the 
+## original file.  For example, 
+## <br>sedit "s/foo/bar/g" /tmp/somefile <br>
+## will replace all occurances of foo with bar in /tmp/somefile.  
+## This function is often used in spells to make changes to source
+## files before compiling.  See the sed man page for more information.
+##
+#---------------------------------------------------------------------
+function sedit () {
+    debug "libapi" "sedit - $*"
+    real_sedit "$@"
+}
 
 #---------------------------------------------------------------------
 ## @Type API
@@ -372,390 +724,22 @@ function spell_exiled() {
     real_spell_exiled "$@"
 }
 
-#---------------------------------------------------------------------
-## @Type API
-## @param Provider name
-## @See <@function var.lib.sorcery.modules.libstate.html,real_provider_ok> for more details.
-##
-## @return 0 if any provider of $1 is installed
-#---------------------------------------------------------------------
-function provider_ok() {
-    debug "libapi" "provider_ok - $*"
-    real_provider_ok "$@"
-}
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param spell
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_install_version> for more details.
-## Returns the current version of the given spell
+## @param file to unpack 
+## @param md5sum
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_unpack> for more details.
+##
+## Given a file, unpack runs the decompression program for that file,
+## as well as untar'ing the file if appropriate and if the MD5
+## matches.
+## Note: zip is a special cast because it doesn't work with streams.
 ##
 #---------------------------------------------------------------------
-function installed_version () {
-    debug "libapi" "installed_version - $*"
-    real_installed_version "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @param Spell name
-## @param Provider name
-## @param If empty get the uncommited spell info, if anything else get
-## info from the committed ($DEPENDS_STATUS) database. If the uncommited
-## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS instead.
-##
-## @See <@function var.lib.sorcery.modules.libstate.html,real_get_spell_provider,> for more details.
-##
-## @return 0 if a provider could be found 1 if not
-## @stdout the provider name(s)
-#---------------------------------------------------------------------
-function get_spell_provider() {
-    debug "libapi" "get_spell_provider - $*"
-    real_get_spell_provider "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_cast> for more details.
-## @param spell that triggers
-## @param action
-##
-## Used by spells to make adding triggerse nice.
-##
-#---------------------------------------------------------------------
-function on_cast () {
-    debug "libapi" "on_cast - $*"
-    real_on_cast "$@"
-}
-
-
-
-#---------------------------------------------------------------------
-## @Type API
-## @param spell that triggers
-## @param action
-## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_dispel> for more details.
-##
-## Used by spells to make adding triggers nice.
-##
-#---------------------------------------------------------------------
-function on_dispel () {
-    debug "libapi" "on_dispel - $*"
-    real_on_dispel "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_pre_cast> for more details.
-## @param spell that triggers
-## @param action
-##
-## Used by spells to make adding triggerse nice.
-##
-#---------------------------------------------------------------------
-function on_pre_cast () {
-    debug "libapi" "on_pre_cast - $*"
-    real_on_pre_cast "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @Type API
-## @param spell that triggers
-## @param action
-## @See <@function var.lib.sorcery.modules.libtriggers.html,real_on_pre_dispel> for more details.
-##
-## Used by spells to make adding triggerse nice.
-##
-#---------------------------------------------------------------------
-function on_pre_dispel () {
-    debug "libapi" "on_pre_dispel - $*"
-    real_on_pre_dispel "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @param return_var
-## @param elements, ...
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_remove> for more details.
-##
-## Removes from the list string(s). Strings are kept to be unique and
-## are separated by spaces
-## <pre>
-## Example:
-##    MY_LIST="--disable-static --enable-dynamic"
-##    list_remove MY_LIST "--enable-dynamic"
-## </pre>
-##
-#---------------------------------------------------------------------
-function list_remove () {
-    debug "libapi" "list_remove - $*"
-	 real_list_remove "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @param return_var
-## @param elements, ...
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_add> for more details.
-##
-## Puts in the list string(s). Strings are kept to be unique and are
-## separated by spaces
-## <pre>
-## Example:
-##    list_add MY_LIST "--with-x"
-##    list_add MY_LIST "--with-jpeg" $OTHER_OPTS
-##    echo $MY_LIST
-## </pre>
-##
-#---------------------------------------------------------------------
-function list_add () {
-    debug "libapi" "list_add - $*"
-    real_list_add "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @param string
-## @param elements, ...
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_find> for more details.
-##
-## return 0 at least one element is in list
-## return 1 none of supplied elements is not in list
-##
-## Finds if at least one of given elements is in the string. Warning,
-## this function takes real string, not variable name as other list_*
-## functions
-## <pre>
-## Example:
-##    if list_find MY_LIST "--with-x"; then
-##        ... we have to compile X components in
-##    fi
-## </pre>
-##
-#---------------------------------------------------------------------
-function list_find () {
-    debug "libapi" "list_find - $*"
-    real_list_find "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @param variables, ...
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_add> for more details.
-##
-## Adds variable names to the list of persistent variables
-## <pre>
-## Example:
-##    persistent_add MY_VARIABLE
-## </pre>
-##
-#---------------------------------------------------------------------
-function persistent_add () {
-    debug "libapi" "persistent_add - $*"
-    real_persistent_add "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_clear> for more details.
-## Unsets all persistent variables. Mainly usable as replacement of
-## persistent_save for functions which can be called by nonroot users
-## ( for example from 'gaze what' )
-## <pre>
-## Example:
-##    persistent_clear
-## </pre>
-##
-#---------------------------------------------------------------------
-function persistent_clear () {
-    debug "persistent_clear - $*"
-    real_persistent_clear "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @param variables, ...
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_remove> for more details.
-##
-## Removes variable names from the list of persistent variables
-## <pre>
-## Example:
-##    persistent_remove MY_VARIABLE
-## </pre>
-##
-#---------------------------------------------------------------------
-function persistent_remove () {
-    debug "libapi" "persistent_remove - $*"
-	 real_persistent_remove "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_load> for more details.
-## Loads persistent variables stored in file "$SPELL_CONFIG"
-## <pre>
-## Example:
-##    persistent_load
-## </pre>
-##
-#---------------------------------------------------------------------
-function persistent_load () {
-    debug "libapi" "persistent_load - $*"
-	 real_persistent_load "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_persistent_save> for more details.
-## Saves variables marked as persistent to file "$SPELL_CONFIG". The
-## File is completely overwritten. Also unsets all persistent
-## variables
-## <pre>
-## Example:
-##    persistent_save
-## </pre>
-##
-#---------------------------------------------------------------------
-function persistent_save () {
-    debug "libapi" "persistent_save - $*"
-    real_persistent_save "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_query_string> for more details.
-## @param return_var
-## @param question
-## @param default answer
-##
-## @return 0 user supplied answer
-## @return 1 default answer is used
-##
-## Asks user for string, with default answer and timeout (like query)
-## <pre>
-## Example:
-##    query_string YOUR_HOST "What is your hostname ?" "localhost"
-## </pre>
-##
-#---------------------------------------------------------------------
-function query_string ()  {
-    debug "libapi" "query_string  - $*"
-    real_query_string "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query> for more details.
-## @param config file variable
-## @param question
-## @param default answer
-##
-## @return 0 in all cases
-##
-## Asks user for string, with default answer and timeout (like query)
-## Return variable is also marked as persistent
-## <pre>
-## Example:
-##    config_query DETAILED "Detailed questions ?" n; then
-##    if [ $DETAILED == y ]; then
-##        ....
-##    fi
-##    echo The reply for last question was: $DETAILED
-## </pre>
-##
-#---------------------------------------------------------------------
-function config_query () {
-    debug "libapi" "config_query - $*"
-    real_config_query "$@"
-}
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_option> for more details.
-## @param config file variable
-## @param question
-## @param default answer [y|n]
-## @param option_yes - can't be empty string
-## @param option_no - can't be empty string
-##
-## @return 0 in all cases
-##
-## Asks user for string, with default answer and timeout (like query)
-## The string is added to the variable
-## If you want to use empty string, place there dummy string and remove
-## it later by list_remove function. Also for one config variable, all
-## option_yes and option_no have to be different.
-## Return variable is also marked as persistent
-
-## <pre>
-## Example 1:
-##    config_query_option OPT "Use X ?" y "--with-x" "--without-x"
-##    config_query_option OPT "Use jpeg ?" y "--with-jpeg" "--do-not-use-jpeg"
-##    echo All selected options together: $OPT
-##
-## Example 2:
-## CONFIGURE:
-## config_query_option ASK "Use X11 ?" y --with-x11 EMPTY1
-## config_query_option ASK "Use Alsa ?" y --with-alsa EMPTY2
-##
-## BUILD:
-## local TEMP="$ASK"
-## list_remove TEMP EMPTY1 EMPTY2
-## ./configure $TEMP
-## ...
-## </pre>
-##
-#---------------------------------------------------------------------
-function config_query_option () {
-    debug "libapi" "config_query_option - $*"
-	 real_config_query_option "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_string> for more details.
-## @param config file variable, return variable
-## @param question
-## @param default answer
-##
-## @return 0 in all cases
-##
-## Asks user for string, with default answer and timeout (like query)
-## Return variable is also marked as persistent
-## <pre>
-## Example:
-##    config_query_string REAL_NAME "What is your real name ?" "nobody"
-##    echo Hi $REAL_NAME
-## </pre>
-##
-#---------------------------------------------------------------------
-function config_query_string () {
-    debug "libapi" "config_query_string - $*"
-    real_config_query_string "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_list> for more details.
-## @param config file variable, return variable
-## @param question
-## @param elements, ...
-##
-## @return 0 in all cases
-##
-## Asks user for string, with numbered possibilities listed
-## Return variable is also marked as persistent
-## <pre>
-## Example:
-##    config_query_list COLOR "What color ?" "red" "white" "blue"
-##    echo Your color is $COLOR
-## </pre>
-##
-#---------------------------------------------------------------------
-function config_query_list () {
-    debug "libapi" "config_query_list - $*"
-    real_config_query_list "$@"
+function unpack () {
+    debug "libapi" "unpack - $*"
+    real_unpack "$@"
 }
 
 #---------------------------------------------------------------------
