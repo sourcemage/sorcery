@@ -12,7 +12,7 @@ function install__find_non_volatile() {
 # Install the executables
 install__find_non_volatile etc usr/sbin var/lib | (
   while read SCRIPT; do
-    /usr/bin/install --owner=root --group=root --mode=755 -vpD "${SCRIPT}" "/${SCRIPT}"
+    /usr/bin/install --owner=root --group=root --mode=755 -vpD "${SCRIPT}" "${INSTALL_ROOT}/${SCRIPT}"
   done
 )
 
@@ -20,32 +20,43 @@ install__find_non_volatile etc usr/sbin var/lib | (
 install__find_non_volatile usr/man | (
   while read DOC; do
     /usr/bin/install --owner=root --group=root --mode=644 -vpD "${DOC}"    "/${DOC}"
-    gzip  --best  -vf "/${DOC}"
+    gzip  --best  -vf "${INSTALL_ROOT}/${DOC}"
   done
 )
 
 # Install the GNU General Public License
-  /usr/bin/install --owner=root --group=root --mode=644 -vpD "COPYING"   "/usr/doc/sorcery/COPYING"
+  /usr/bin/install --owner=root --group=root --mode=644 -vpD "COPYING"   "${INSTALL_ROOT}/usr/doc/sorcery/COPYING"
 
 # Install the run_compiler script with the same names as gcc
-BUILD_DIR=/var/lib/sorcery/build
+BUILD_DIR=${INSTALL_ROOT}/var/lib/sorcery/build
 for COMPILER in "cc" "gcc" "c++" "g++"; do
   ln -svf $BUILD_DIR/run_compiler $BUILD_DIR/$COMPILER
 done
 
+mkdir -p                                   \
+  ${INSTALL_ROOT}/var/cache/sorcery        \
+  ${INSTALL_ROOT}/var/spool/sorcery        \
+  ${INSTALL_ROOT}/var/log/sorcery/compile  \
+  ${INSTALL_ROOT}/var/log/sorcery/install  \
+  ${INSTALL_ROOT}/var/log/sorcery/md5sum   \
+  ${INSTALL_ROOT}/var/log/sorcery/queue    \
+  ${INSTALL_ROOT}/var/state/sorcery
+
 # Create other files which should exist, but aren't installed by sorcery
-for FILE in                        \
-  /etc/sorcery/local/config         \
-  /etc/sorcery/local/compile_config  \
+for FILE in                                         \
+  ${INSTALL_ROOT}/etc/sorcery/local/config          \
+  ${INSTALL_ROOT}/etc/sorcery/local/compile_config  \
+  ${INSTALL_ROOT}/var/state/sorcery/packages        \
+  ${INSTALL_ROOT}/var/state/sorcery/depends         \
   ; do
   if  ! [[  -x $FILE  ]]; then
     touch $FILE
     chmod -v +x $FILE
   fi
 done
-  
+
 # Convert an old-style grimoire into a scribe managed one.
-if ! [ -d /var/lib/sorcery/codex ]; then
+if ! [ -d ${INSTALL_ROOT}/var/lib/sorcery/codex ]; then
  . convert
 fi
 
