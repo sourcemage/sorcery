@@ -214,11 +214,11 @@ unpack() {
     # fully unarchived form.
     case  $COMPRESSOR  in
             bzip2|gzip|compress*|tar) 
-                    tar   --owner=root  --group=root  -xf  /dev/stdin  ;;
+                    tar   --owner=root  --group=root  -xf  /dev/stdin 2> /dev/null || cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
 	            unzip  -q  $FILENAME                               ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
-                *)  false                                              ;;
+                *)  cat > /dev/null                                    ;;
     esac
     
   } && 
@@ -288,6 +288,7 @@ md5_tar_check()  {
   #Do the md5
   md5=`md5sum /dev/stdin | awk '{print $1}'`
   debug "libgrimoire" "md5_tar_check() - MD5 of tarball is $md5."
+  debug "libgrimoire" "md5_tar_check() - argument received is $1."
   
   #See if they match
   if [[ $1 == $md5 ]] ; then
@@ -296,12 +297,13 @@ md5_tar_check()  {
   fi
 
   #See of we need to md5sum it at all
-  if [[ ${MD5SUM_DL:-off} == off ]] || ! [[  $1  ]] ; then 
+  if [[ ${MD5SUM_DL:-on} == off ]] || ! [[  $1  ]] ; then 
     debug "libgrimoire" "md5_tar_check() - Skipping check"
     return 0
   fi
   
   #If we get here, the md5's don't match, but should.
+  debug "libgrimoire" "md5_tar_check() - bad md5"
   return 1
   
 }
