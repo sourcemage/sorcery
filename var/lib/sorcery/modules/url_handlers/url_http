@@ -131,15 +131,7 @@ function url_http_download() {
   [  -z  "$FILE"  ]  &&  FILE=`basename  $S_URL`
   local  S_FILE=`url_http_strip_extension $FILE`
 
-  if  url_http_call_wget  $FILE  $S_FILE  $URL;  then
-    true
-  elif  [  "$NO_FUZZ"  ==  "on"  ]; then  
-    false
-  else  
-    url_http_call_wget  $S_FILE.tar.bz2  $S_FILE  $S_URL.tar.bz2 ||
-    url_http_call_wget  $S_FILE.tar.gz   $S_FILE  $S_URL.tar.gz  ||
-    url_http_call_wget  $S_FILE.tgz      $S_FILE  $S_URL.tgz
-  fi
+  url_http_call_wget  $FILE  $S_FILE  $URL
 }
 
 
@@ -169,24 +161,7 @@ function url_ftp_download() {
   [[  $FILE  ]]  ||  FILE=`basename  $S_URL`
   local  S_FILE=`url_http_strip_extension $FILE`
 
-  if  url_http_call_wget  $FILE  $S_FILE $URL;  then
-    true
-  elif  [  "$NO_FUZZ"  ==  "on"  ]; then  
-    false
-  else
-    local  DIRECTORY=`dirname $URL`
-    local  OUTPUT=`wget  $WGET_OPTIONS  -O -  "$DIRECTORY/"  2>&1`
-
-    if  echo  $OUTPUT  |  grep  -q  $S_FILE.tar.bz2;  then
-      url_http_call_wget  $S_FILE.tar.bz2  $S_FILE  $S_URL.tar.bz2
-    elif  echo  $OUTPUT  |  grep  -q  $S_FILE.tar.gz;  then
-      url_http_call_wget  $S_FILE.tar.gz   $S_FILE  $S_URL.tar.gz
-    elif  echo  $OUTPUT  |  grep  -q  $S_FILE.tgz;  then
-      url_http_call_wget  $S_FILE.tgz      $S_FILE  $S_URL.tgz
-    else  
-      false
-    fi
-  fi
+  url_http_call_wget  $FILE  $S_FILE $URL
 }
 
 
