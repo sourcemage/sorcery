@@ -49,6 +49,10 @@ review-queue		Review the install queue for each spell's history
 upgrade			Do not update grimoire, just any spells that need to
 			  be upgraded.  [ sorcery queue, cast --queue ]
 
+show-held          Shows all held spells.
+hold   <spell|s>   Sets spells' status to held.
+unhold <spell|s>   Sets spells' status to installed.
+
 -v | --version		Print the sorcery version
 
 EOF
@@ -621,30 +625,8 @@ hold_pkgs()  {
                         0 0 0                  \
                         '$CHECKLIST`
   then
-
-    tSPELL_STATUS=`lock_start_transaction $SPELL_STATUS`
-    rm $tSPELL_STATUS 2>/dev/null
-
-    for  LINE  in  `cat  $SPELL_STATUS`;  do
-
-      explode "$LINE" ":" "array"
-
-        SPELL="${array[0]}"
-         DATE="${array[1]}"
-       STATUS="${array[2]}"
-      VERSION="${array[3]}"
-
-      if    echo  -e  "$OUTLIST"  |  grep  -q  "^`esc_str $SPELL`$";  then
-        STATUS="held";
-      else
-        STATUS=${STATUS/held/installed}
-      fi
-
-      echo  "$SPELL:$DATE:$STATUS:$VERSION"  >>  $tSPELL_STATUS
-
-    done
-    lock_commit_transaction "$SPELL_STATUS"
-
+        set_unheld $(get_held)
+        set_held   $OUTLIST
   fi
 
 }
@@ -1448,6 +1430,44 @@ main_menu()  {
 }
 
 
+#---------------------------------------------------------------------
+#-item sorcery_show_held_spells 
+##
+## prints all held spells.
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_show_held_spells () {
+    message -n "${MESSAGE_COLOR}the following spells are set to"
+    message -n "${DEFAULT_COLOR} hold"
+    message    "${SPELL_COLOR}"
+    get_held | sort | column
+    message -n "${DEFAULT_COLOR}"
+}
+
+
+#---------------------------------------------------------------------
+#-item sorcery_hold_spells <spells>
+##
+## sets <spells>'s status to held
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_hold_spells () {
+    set_held $@
+}
+
+
+#---------------------------------------------------------------------
+#-item sorcery_unhold_spells <spells>
+##
+## unholds <spells>'s status. (Sets it to installed)
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_unhold_spells () {
+    set_unheld $@
+}
 
 
 main() {
@@ -1464,6 +1484,11 @@ main() {
                 queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
               rebuild)  rebuild                                 ;;
+            show-held) sorcery_show_held_spells                 ;;
+                 hold) shift; sorcery_hold_spells   "$@"        ;;
+               unhold) shift; sorcery_unhold_spells "$@"        ;;
+
+
             -h|--help)  help                                    ;;
          -v|--version)  echo $SORCERY_VERSION                   ;;
                     *)  help                                    ;;
