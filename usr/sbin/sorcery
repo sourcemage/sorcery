@@ -1225,7 +1225,6 @@ feature_menu()  {
   M_HELP="Email reports?"
   P_HELP="Preserve modified files or backup them up and overwrite with defaults?"
   R_HELP="Prompt to view reports?"
-  S_HELP="Play audio with prompts?"
 TMP_HELP="Attempt to compile entirely in RAM?"
   T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
   U_HELP="Automatically remove old sources and install caches upon sorcery update?"
@@ -1249,7 +1248,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   VIEW_REPORTS=${VIEW_REPORTS:=off}
          PATCH=${PATCH:=on}
       PRESERVE=${PRESERVE:=on}
-         SOUND=${SOUND:=off}
        SUSTAIN=${SUSTAIN:on}
         VOYEUR=${VOYEUR:=on}
           REAP=${REAP:=on}
@@ -1276,7 +1274,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "MAIL_REPORTS"   "Toggle"  "$MAIL_REPORTS"   "$M_HELP"   \
       "PATCH"          "Toggle"  "$PATCH"          "$X_HELP"   \
       "PRESERVE"       "Toggle"  "$PRESERVE"       "$P_HELP"   \
-      "SOUND"          "Toggle"  "$SOUND"          "$S_HELP"   \
       "SUSTAIN"        "Toggle"  "$SUSTAIN"        "$T_HELP"   \
       "TMPFS"          "Toggle"  "$TMPFS"          "$TMP_HELP" \
       "VIEW_REPORTS"   "Toggle"  "$VIEW_REPORTS"   "$R_HELP"   \
@@ -1287,7 +1284,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1307,7 +1304,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
         MAIL_REPORTS)   MAIL_REPORTS=on  ;;
                PATCH)          PATCH=on  ;;
             PRESERVE)       PRESERVE=on  ;;
-               SOUND)          SOUND=on  ;;
              SUSTAIN)        SUSTAIN=on  ;;
                TMPFS)          TMPFS=on  ;;
         VIEW_REPORTS)   VIEW_REPORTS=on  ;;
@@ -1321,7 +1317,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1355,6 +1351,7 @@ option_menu()  {
     N_HELP="Enter the process priority (nice value) to use for sorcery"
     S_HELP="Sorcery development options (debugging)"
     W_HELP="Enter maximum timeout (seconds) for summoning sources"
+    Z_HELP="Select sorcery sound scheme"
 
 
     COMMAND=`eval $DIALOG '  --title "Option Menu"              \
@@ -1376,7 +1373,8 @@ option_menu()  {
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
-                      "W"  "Summon Timeout Value"     "$W_HELP"'`
+                      "W"  "Summon Timeout Value"     "$W_HELP" \
+                      "Z"  "Select Sound Scheme"      "$Z_HELP"'`
 
   do
 
@@ -1395,6 +1393,7 @@ option_menu()  {
       O)  optimize_architecture  ;;
       S)  sorcery_devel_settings ;;
       W)  set_http_ftp_timeout   ;;
+      Z)  sound_schemes_menu     ;;
 
     esac
 

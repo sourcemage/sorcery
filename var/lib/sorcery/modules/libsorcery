@@ -1815,6 +1815,85 @@ function filename_indicates_compression()  {
 
 #---------------------------------------------------------------------
 ##
+## Setup sound menu from existing installed sorcery sound spells.
+## Currently no check done for installed sound schemes, just message 
+## to user. 
+##
+## Passes name of chosen scheme to the set_sound_scheme funtion.
+## 
+#---------------------------------------------------------------------
+funtion sound_schemes_menu() {
+
+		SOUND_HELP="Here you can choose your prefered sound scheme"
+    FER_SOUND="Ferris sound scheme"
+    MIS_SOUND="Misc sound scheme"
+    SIM_SOUND="Simpsons sound scheme"
+		STA_SOUND="Startrek sound scheme"
+		OFF_SOUND="Sound off"
+
+   if  SOUND_CHECKS=`eval $DIALOG '  --title  "Sound Schemes"    \
+                                     --cancel-label  "Exit"      \
+                                     --ok-label      "Select"    \
+                                     --item-help                 \
+                                     --menu                      \
+                                     "$SOUND_HELP"               \
+                                     0 0 0                       \
+                        "OFF"  "$OFF_SOUND"   "$SOUND_HELP"      \
+                        "FER"  "$FER_SOUND"   "$SOUND_HELP"      \
+                        "MIS"  "$MIS_SOUND"   "$SOUND_HELP"      \
+                        "SIM"  "$SIM_SOUND"   "$SOUND_HELP"      \
+                        "STA"  "$STA_SOUND" "$SOUND_HELP"'`
+  then
+
+    for  CHECK  in  $SOUND_CHECKS;  do
+      case  $CHECK  in
+        OFF)  modify_local_config "SOUND" "off"  &&
+              SOUND=off  
+              ;;
+        FER)  set_sound_theme ferris    ;;
+        MIS)  set_sound_theme misc      ;;
+        SIM)  set_sound_theme simpsons  ;;
+        STA)  set_sound_theme startrek  ;;
+      esac
+    done
+
+	fi
+	
+}
+
+
+#---------------------------------------------------------------------
+## @param sound scheme name 
+##
+## Here the passed scheme is set as default sound scheme. 
+## If the sound spell is not installed it will be cast for the user.
+##
+#---------------------------------------------------------------------
+function set_sound_theme()  {
+	
+  modify_local_config "SOUND" "on"        &&
+  modify_local_config "SOUND_THEME" "$1"  &&
+  SOUND=on                                &&
+  SOUND_THEME=$1                          
+
+   
+  if  ! spell_installed $1
+  then 
+    eval $DIALOG '--msgbox "Sorcery has determined that the $SOUND_THEME  \
+                            theme must be installed to work. It will now  \
+														be cast for you!" 0 0' 
+		cast sorcery-sound-$SOUND_THEME
+  else
+    eval $DIALOG '--msgbox "The $SOUND_THEME theme is installed and ready  \
+                            for you to enjoy your new sounds!" 0 0' 
+  fi
+
+  goodbye 
+
+}
+
+#---------------------------------------------------------------------
+##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
 ## the Free Software Foundation; either version 2 of the License, or
