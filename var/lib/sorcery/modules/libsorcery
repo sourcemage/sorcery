@@ -1533,21 +1533,19 @@ find_pam_aware()  { (
 #---------------------------------------------------------------------
 verify_source()  { (
 
-  VERIFIED="true"
 
   for  SOURCE_FILE  in  $@;  do
-    if  !  guess_filename  $SOURCE_CACHE/$1  >/dev/null
+    if  !  guess_filename  $SOURCE_CACHE/$SOURCE_FILE  >/dev/null
     then
       message  "${PROBLEM_COLOR}Missing ${FILE_COLOR}${1}${DEFAULT_COLOR}"
       message  "${PROBLEM_COLOR}Cast aborting.${DEFAULT_COLOR}"
       activity_log  "cast"  "$SPELL"  "$VERSION"  "failed"  \
                     "because it was missing source:  $1"
-      VERIFIED=false
-      break
+      return 1 
     fi
   done
 
-  $VERIFIED
+  return 0
 
 ) }
 

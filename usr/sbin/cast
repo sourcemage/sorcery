@@ -983,7 +983,8 @@ cast_spell()  { (
   run_conflicts                               &&
   run_spell_config                            &&
   satisfy_depends             && #needed or optional deps dont get passed??
-  show_downloading            ||   return 1
+  show_downloading            && 
+  verify_sources              ||   return 1
   
   # Some checks must be made at this poit to see if it's safe to start building
   message -n "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} spells to complete..."
@@ -999,7 +1000,7 @@ cast_spell()  { (
     unlock_resources "castSOLO" "SOLO"
   fi
                                
-  if	run_pre_build              			&&
+  if    run_pre_build              			&&
 		run_build                   		&&
 		run_post_build              		&&
 		run_post_install            		&&
