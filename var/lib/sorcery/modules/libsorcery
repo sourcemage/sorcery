@@ -29,10 +29,12 @@ function update_sorcery_scripts() {
     #Keep this outer if until basesystem is in the grimoires properly.
     #(2002/10/13)
     if [[ `codex_find_spell_by_name basesystem` ]] ; then
-      if ! ( spell_installed basesystem || spell_held basesystem  ) ; then
+      if ! spell_ok basesystem  ; then
         cast basesystem
       fi
-      cleanse --fix basesystem
+      if [ "$UPDATEFIX" == on ] ; then
+        cleanse --fix basesystem
+      fi
     fi
   }
 
