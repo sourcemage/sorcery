@@ -1618,14 +1618,13 @@ prune()  { (
 ## Adds /var/lib/sorcery/build to the C<PATH>
 ##
 #---------------------------------------------------------------------
-invoke_build_dir()  {
 
-  if    [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache  ||
-        [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc
-  then  export  PATH="/var/lib/sorcery/build:$PATH"
-  fi
-
-}
+invoke_build_dir() { 
+  { 
+    { [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache ; }  || 
+    { [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc ; } 
+  }  &&  export  PATH="/var/lib/sorcery/build:$PATH" 
+} 
 
 
 #---------------------------------------------------------------------
