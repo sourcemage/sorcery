@@ -675,14 +675,24 @@ function install_services()  { (
 
     local t_services=$( lock_start_transaction /etc/services )
     local LINE=''
+    
     cat  $SCRIPT_DIRECTORY/services  |  while  read  LINE;  do
-	    explode "$LINE" '\t| ' tmp
-      # tmp[0] is "service name", tmp[1] is "port/protocol"
-      tmp=$( grep  -v  "${tmp[0]}[^/]*/${tmp[1]#*/}"  $t_services )
-      echo "$tmp" > $t_services
+    
+      debug "install_services" "LINE : '$LINE'"
+	    explode "$LINE" '[\t ]+' tmp
+    
+      # Cleaning out existing lines in service file with
+      # tmp[0] is "service name", tmp[1] is "space", tmp[2] is "port/protocol"
+      debug "tmp[0]" "tmp 0 / 1 / 2 : '${tmp[0]}' / '${tmp[1]}' / '${tmp[2]}'"
+
+      tmp=$( grep  -ve "${tmp[0]}.*${tmp[1]//\//[/]}"  $t_services )
+
+      debug "install_services" "LINE var : '$LINE' "
+      echo  "$tmp" > $t_services
       echo "$LINE" >> $t_services
+      
     done
-	lock_commit_transaction /etc/services
+  lock_commit_transaction /etc/services
   fi
 
 ) }
