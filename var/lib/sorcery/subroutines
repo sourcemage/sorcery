@@ -4,6 +4,9 @@ sound()  {
     on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
          if  [  -e  $SOUND_FILE  ];  then
            (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
+	   echo "Playing $SOUND_FILE"  >>  $DEBUG
+	 else
+	   echo "Error playing $SOUND_FILE: no such file"  >>  $DEBUG
          fi
     ;;
   esac
@@ -22,6 +25,8 @@ sound()  {
 query()  { (
 #  2 arguments
 #  query  "what do you want?  "  DEFAULT
+
+  echo  "Running query() with the following arguments: '$1' and '$2'"  >>  $DEBUG
 
   if  [  -z  "$SILENT"  ];  then
 
@@ -54,8 +59,18 @@ query()  { (
 ) }
 
 
-message()    {  [  -n  "$SILENT"  ]  ||  echo  -e  "$*";  }
-edit_file()  {  ${EDITOR:-nano}  $1;                      }
+message()    {
+
+  [  -n  "$SILENT"  ]  ||  echo  -e  "$*"
+
+}
+
+
+edit_file()  {
+
+  ${EDITOR:-nano}  $1
+  
+}
 
 
 report() {
@@ -63,13 +78,14 @@ report() {
   if  !  [  -f  $1  ];  then  return;  fi
 
   if  [  "$VIEW_REPORTS"  ==  "on"  ];  then
-
+    echo  "Prompting to view $2 for $SPELL"  >>  $DEBUG
     VIEW_PROMPT="View $2 for ${SPELL_COLOR}${SPELL}-${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}?"
     sound  REPORT
-    if  query  "$VIEW_PROMPT" n;  then  less  $1;  fi
+    if  query  "$VIEW_PROMPT" n;  then  $PAGER  $1;  fi
   fi
 
   if  [  "$MAIL_REPORTS"  ==  "on"  ];  then
+    echo  "Mailing report ($2) for $SPELL to $SORCERER"  >>  $DEBUG
     date  -u  |
     mail  -s  "Sorcery Report : $HOSTNAME : $2 for $SPELL-$VERSION"  \
               $SORCERER  -a  $1  2>/dev/null
@@ -89,6 +105,8 @@ report() {
 
 guess_filename()  {
 
+  echo  "Running guess_filename() on $FILENAME"  >>  $DEBUG
+  
   FILENAME=$1
   BASENAME=`echo  $FILENAME         |
             sed  "s/\.tar\.gz$//"   |
@@ -111,8 +129,10 @@ testpack() {
   FILENAME=`guess_filename                $1`  ||
   FILENAME=`guess_filename  $SOURCE_CACHE/$1`
 
-  [  -f  $FILENAME  ]                                    &&
-  COMPRESSOR=`file  -b  $FILENAME  |  cut  -d ' '  -f1`  &&
+  [  -f  $FILENAME  ]                                       &&
+  echo  "Running testpack() on $FILENAME"  >>  $DEBUG       &&
+  COMPRESSOR=`$FILEPROG  -b  $FILENAME  |  cut  -d ' '  -f1`    &&
+  echo  "Compressor guessed to be $COMPRESSOR"  >>  $DEBUG  &&
   
   case  $COMPRESSOR  in
         bzip2)  bzip2  -tf   $FILENAME   1>/dev/null 2>&1  ;;
@@ -129,8 +149,10 @@ testpack() {
 
 unpack() {
 
-    FILENAME=`guess_filename  $SOURCE_CACHE/$1`          &&
-  COMPRESSOR=`file  -b  $FILENAME  |  cut  -d ' '  -f1`  &&
+    FILENAME=`guess_filename  $SOURCE_CACHE/$1`             &&
+  echo  "Running unpack() on $FILENAME"  >>  $DEBUG         &&  
+  COMPRESSOR=`$FILEPROG  -b  $FILENAME  |  cut  -d ' '  -f1`    &&
+  echo  "Compressor guessed to be $COMPRESSOR"  >>  $DEBUG  &&
 
   case  $COMPRESSOR  in
         bzip2)  bzip2  -cdf   $FILENAME  |  tar   --owner=root  --group=root  -xf  -  ;;
@@ -159,6 +181,8 @@ save_libraries()  {
   if    [  -z  "$SOURCE_DIRECTORY"  ]
   then  return
   fi
+
+  echo  "Running save_libraries()"  >>  $DEBUG
 
   OLD_LIBS=$SOURCE_DIRECTORY/old.libraries
   mkdir  -p  $OLD_LIBS
@@ -213,6 +237,8 @@ release_saved_libraries()  {  ldconfig;  }
 
 prepare_install() {
 
+  echo  "Running prepare_install() on $SPELL"  >>  $DEBUG
+  
   message  "${MESSAGE_COLOR}Preparing to install"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
@@ -238,6 +264,8 @@ prepare_install() {
 
 rm_source_dir() {
 
+  echo  "Running rm_source_dir() on $SOURCE_DIRECTORY"  >>  $DEBUG
+  
   cd  /
 
   DEAD_DIR=$1
@@ -253,6 +281,8 @@ rm_source_dir() {
 
 
 mk_source_dir() {
+
+  echo  "Running mk_source_dir() on $SOURCE_DIRECTORY"  >>  $DEBUG
 
   NEW_DIR=$1
   NEW_DIR=${NEW_DIR:=$SOURCE_DIRECTORY}
@@ -295,6 +325,8 @@ default_build() {
 
 gather_docs()  {
 
+  echo  "Running gather_docs() on $SPELL"  >>  $DEBUG
+  
   DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
   mkdir  -p  $DOC_DIR
   cp         $SOURCE_DIRECTORY/README*     $DOC_DIR  2>/dev/null
@@ -313,6 +345,8 @@ gather_docs()  {
 
 install_pam_confs()  {
 
+  echo  "Running install_pam_confs() on $SPELL"  >>  $DEBUG
+
   if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
     cd       "$SCRIPT_DIRECTORY/pam.d"
 
@@ -330,6 +364,8 @@ install_pam_confs()  {
 
 
 install_xinetd_confs()  { (
+
+  echo  "Running install_xinetd_confs() on $SPELL"  >>  $DEBUG
 
   if  [  -d  "$SCRIPT_DIRECTORY/xinetd.d"  ];  then
 
@@ -355,6 +391,7 @@ install_xinetd_confs()  { (
 
 install_services()  { (
 
+  echo  "Running install_services() on $SPELL"  >>  $DEBUG
 
   if  [  -f  $SCRIPT_DIRECTORY/services  ];  then
 
@@ -393,6 +430,8 @@ default_post_build() {
 
 find_section()  {
 
+  echo  "Running find_section() on $1"  >>  $DEBUG
+  
   for  SECTION  in  `ls  $GRIMOIRE`;  do
     [  -x  $GRIMOIRE/$SECTION/$1/DETAILS  ]   &&
     echo             $SECTION                 &&
@@ -434,6 +473,8 @@ installed_version()  {
 
 remove_spell()  {
 
+  echo  "Running remove_spell() on $1"  >>  $DEBUG
+  
   grep  -v  "^$1:"       $SPELL_STATUS_BACKUP  >  $SPELL_STATUS
   cp    $SPELL_STATUS    $SPELL_STATUS_BACKUP
 
@@ -513,6 +554,8 @@ add_depends()  {
 
 depends()  {
 
+  echo  "Running depends() on $1"  >>  $DEBUG
+
   if  ! spell_installed  $1   &&
       ! spell_held       $1
   then
@@ -530,6 +573,8 @@ depends()  {
 
 
 conflicts() {
+
+  echo  "Running conflicts() on $1"  >>  $DEBUG
 
   if  spell_installed  $1;  then
     dispel  $1
@@ -638,6 +683,8 @@ reap_config_files()  {
 
 reaper()  { (
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
+
+  echo  "Running reaper() on $1"  >>  $DEBUG
 
   if  !  [  "$REAP"  ==  "on"  ]   ||
       !  [  -f  $1             ];  then  return
@@ -835,6 +882,8 @@ optimize()  {
 
 optional_depends()  {
 
+  echo  "Running optional_depends() on $1"  >>  $DEBUG
+
   # parameters:  $1 = spell name
   #              $2 = configure parameter if spell wanted
   #              $3 = configure parameter if spell declined
@@ -934,6 +983,8 @@ log_list()  {
 
 clean_logs()  {
 
+  echo  "Running clean_logs()"  >>  $DEBUG
+  
   LOGS=`log_list`
 
   for  FILE  in  `ls  $INSTALL_LOGS`;  do
@@ -980,7 +1031,7 @@ activity_log()  { (
 
 
 #######################################################
-# Following functions are used by cast and leach
+# Following functions are used by cast and summon
 ######################################################
 
 run_details() {
@@ -1122,6 +1173,8 @@ exists()  {  while  read  ITEM;  do  [  -e  $ITEM  ]  &&  echo  $ITEM;  done;  }
 
 track()  {
 
+  echo  "Running track() on $SPELL"  >>  $DEBUG
+
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
 
   export  IFS="$TAB_ENTER_IFS"
@@ -1151,6 +1204,8 @@ track()  {
 
 
 archive()  {
+
+  echo  "Running archive() on $SPELL"  >>  $DEBUG
 
   LINES=`wc  -l  <  $INST_LOG`
   ((  CHUNKS     =  LINES  /  1024  ))
@@ -1198,6 +1253,8 @@ archive()  {
 
 
 boost()	{ (
+
+  echo  "Running boost() on $SPELL"  >>  $DEBUG
 
      CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
   CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
@@ -1313,6 +1370,8 @@ generate_keep_list()  { (
 
 
 prune()  { (
+
+  echo  "Running prune()"  >>  $DEBUG
 
   KEEP="/tmp/prune.keep"
   generate_keep_list  >  $KEEP
