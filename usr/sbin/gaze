@@ -606,9 +606,9 @@ gaze_provides()  {
 
 find_casting()  {
 
-  for  FILE in `ls  /var/lock/casting*  2>/dev/null`;  do
-    if  ps  `cat  $FILE  2>/dev/null`  |  grep  -q  cast;  then
-      echo  $FILE  |  sed  "s:/var/lock/casting.::"
+  for  FILE in `cat /tmp/locklist | grep :cast: 2>/dev/null`;  do
+    if  ps  `echo $FILE | cut -d':' -f3`  |  grep  -q  cast;  then
+      echo  $FILE  |  cut -d':' -f1
       return  0
     fi
   done
@@ -619,15 +619,15 @@ find_casting()  {
 
 peak_casting()  {
 
-  if  [  -f     /var/lock/casting.$1   ]            &&
-      ps  `cat  /var/lock/casting.$1  2>/dev/null`  |
-      grep  -q  cast                                &&
+  if  [  -f   /tmp/locklist ]                                                &&
+      ps  `cat  /tmp/locklist | grep "$1"':cast' | cut -d':' -f3 2>/dev/null`  |
+      grep  -q  cast                                                         &&
       [  -f  /tmp/$1.compile.log  ]
   then
     nice  -n  +20                  \
     tail  -f  /tmp/$1.compile.log  \
           --follow=name            \
-          --pid=`cat /var/lock/casting.$1`  2>/dev/null
+          --pid=`cat  /tmp/locklist | grep "$1"':cast' | cut -d':' -f3 2>/dev/null`  2>/dev/null
   fi
 
 }
