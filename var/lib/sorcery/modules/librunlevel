@@ -1,11 +1,11 @@
 # lib_runlevel v0.9
 # Installs selected scripts and set run levels and priorities
 # scripts to be installed require the following:
-# SGL-script-version=<date in yearmonthday format>
-# if SGL-script-version=custom it will be left alone.
+# SMGL-script-version=<date in yearmonthday format>
+# if SMGL-script-version=custom it will be left alone.
 # this sets the run levels and priority for links
-# SGL-START:<runlevels separated by space>:S<priority>
-# SGL-STOP:<runlevels separated by space>:K<priority>
+# SMGL-START:<runlevels separated by space>:S<priority>
+# SMGL-STOP:<runlevels separated by space>:K<priority>
 
 initdir=/etc/init.d
 savetime=$(date +%Y%m%d%H%M)
@@ -16,7 +16,7 @@ savetime=$(date +%Y%m%d%H%M)
 linkscript ()
 {
     truncname=$(echo $init_script | cut -d. -f1)
-    for action in SGL-START SGL-STOP
+    for action in SMGL-START SMGL-STOP
       do
 # this pulls the second field to get runlevel
       for level in $(grep "# $action" $initdir/$init_script | cut -d: -f2)
@@ -46,9 +46,9 @@ installscript ()
     if [ -n "$1" ] && [ -e $SCRIPT_DIRECTORY/init.d/$1 ]; then
 # set init_script to script name
 	init_script=$1
-	sglver=$(grep "# SGL-script-version=" $SCRIPT_DIRECTORY/init.d/$init_script | cut -d= -f2)
+	sglver=$(grep "# SMGL-script-version=" $SCRIPT_DIRECTORY/init.d/$init_script | cut -d= -f2)
 	if [ -e $initdir/$init_script ]; then
-	    installedver=$(grep "# SGL-script-version=" $initdir/$init_script | cut -d= -f2)
+	    installedver=$(grep "# SMGL-script-version=" $initdir/$init_script | cut -d= -f2)
 	    if [ ! -n "$installedver" ]; then
 		installedver=$((0))
 	    fi
