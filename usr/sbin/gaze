@@ -596,6 +596,7 @@ gaze_provides()  {
 local spell
 
   for feature in "$@"; do
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
         message "${SPELL_COLOR}${feature}:${DEFAULT_COLOR}"
         spell=$(find_providers "$feature")
         if [[ "$spell" ]]; then
@@ -703,6 +704,7 @@ gaze_show_website()  {
   for spell in $@; do
     if  codex_set_current_spell_by_name  $spell;  then
       if  [  -n  "$WEB_SITE"  ];  then
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         echo  $WEB_SITE
       else
@@ -730,7 +732,7 @@ gaze_show_website()  {
 show_maintainer()  {
 
   for section in $@; do
-
+    ! [[ $GAZE_VERBOSE == 0 ]] &&
     message "${SPELL_COLOR}${section}:${DEFAULT_COLOR}"
     SECTION=`codex_find_section_by_name $section`
 
@@ -787,10 +789,8 @@ gaze_show_section()  {
 
     (
       for  SECTION_NAME  in  $@;  do
-
-        local SECTION=`codex_find_section_by_name  $SECTION_NAME`  &&
-        codex_get_spell_names $SECTION 
-
+        local SECTION=$(codex_find_section_by_name  $SECTION_NAME)
+        [[ $SECTION ]] && codex_get_spell_names $SECTION
       done
     ) | column
 
@@ -1033,6 +1033,7 @@ gaze_show_installed() {
         then  $PAGER   $SPELL_STATUS
   else
         for spell in $@; do
+                ! [[ $GAZE_VERBOSE == 0 ]] &&
                 message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
                 VERSION=$(installed_version  $spell)
                 if  [  -n  "$VERSION"  ]; then
@@ -1047,6 +1048,7 @@ gaze_show_installed() {
 gaze_show_short_description() {
 
   for spell in $@; do
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
           codex_set_current_spell_by_name  $spell           &&
@@ -1059,6 +1061,7 @@ gaze_show_short_description() {
 gaze_show_long_description() {
 
   for spell in $@; do
+        ! [[ $GAZE_VERBOSE == 0 ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
           codex_set_current_spell_by_name  $spell           &&
@@ -1071,14 +1074,24 @@ gaze_show_long_description() {
 gaze_show_where() {
 	for spell in $@; do
 		SECTION=$(codex_get_spell_section_name  $spell)
-		if [[ $SECTION ]]; then
-			message "$spell -> $SECTION"
+                if ! [[ $GAZE_VERBOSE == 0 ]]; then
+		        if [[ $SECTION ]]; then
+			        message "$spell -> $SECTION"
+                        else
+                                message "$spell -> no such spell"
+                        fi
 		else
-			message "$spell not found"
+                        [[ $SECTION ]] && message "$SECTION"
 		fi
 	done
 }
 parse()  {
+
+  if [ $1 == "-q" ]; then
+        shift;
+        GAZE_VERBOSE=0
+  fi
+
 
   SPELL=$2
   SECTION=$2
