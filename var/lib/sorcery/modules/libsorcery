@@ -417,7 +417,8 @@ function save_libraries()  {
   if  [  "$SPELL"  ==  "glibc"         ]   ||
       [  "$SPELL"  ==  "glibc-custom"  ] ;  then
     if [ -e $OLD_LIBS/ld-$OLD_VERSION.so ] ; then 
-    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld-linux.so.2
+      [[ `uname -m` == ppc* ]] && ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld.so.1 ||
+      ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld-linux.so.2 
     fi
   fi
 
