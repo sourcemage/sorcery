@@ -406,6 +406,21 @@ function codex_does_spell_exist() {
 
 
 #---------------------------------------------------------------------
+## @param servicename
+## @return 0 if service exists
+## @return 1 otherwise
+## checks if servicename exists.
+#---------------------------------------------------------------------
+function codex_does_service_exist()
+{
+   local SERVICE="$@" 
+    for GRIMOIRE in $(codex_get_all_grimoires); do
+        grep -qE '^'$SERVICE' ' "$GRIMOIRE/$PROVIDE_INDEX_FILE" && return 0
+    done
+}   
+
+
+#---------------------------------------------------------------------
 ## @param spell name
 ## @Stdout spell name
 ## Given a valid spell name, this function lists the full path to the 
