@@ -213,6 +213,14 @@ dl_source()  {
       if  get  "$LFURLFILE" $*;  then
         activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
       else
+        local i
+        local offset=$[${RANDOM} % $FURLNUM]
+        for (( i=0; $i < $FURLNUM; i++ ));  do
+          if  get  "${FALLBACK_URL_MIRROR[$[($i + $offset) % $FURLNUM]]}/$FILE";  then
+            activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
+            return
+          fi
+        done
         message  "${PROBLEM_COLOR}Download of"            \
                  "${FILE_COLOR}${FILE}${DEFAULT_COLOR}"   \
                  "${PROBLEM_COLOR}for spell"              \
