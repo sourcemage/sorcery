@@ -783,6 +783,7 @@ optimization_menu(){
   local      TINY_HELP="Optimize to decrease size of generated code, conflicts with 'speedy'"
   local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
   local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink"
+  local STATIC_HELP="Compile libraries statically"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -795,7 +796,8 @@ optimization_menu(){
         "risky"     "          +speed"         "$RISKY"     "$RISKY_HELP"     \
         "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
         "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
-        "strip"     " --size"           "$STRIP"     "$STRIP_HELP"'`
+        "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
+        "static"    " ++size  +speed"   "$STATIC"    "$STATIC_HELP"'`
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`

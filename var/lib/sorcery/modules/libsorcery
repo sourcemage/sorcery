@@ -910,7 +910,7 @@ function optimize()  {
   debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
 
   unset  CFLAGS CXXFLAGS LDFLAGS
-  unset  FAST SMALL SPEEDY TINY RISKY STRIP
+  unset  FAST SMALL SPEEDY TINY RISKY STRIP STATIC
 
   local SPECFILE
   SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
@@ -953,6 +953,11 @@ function optimize()  {
       combreloc)
         LDFLAGS="$LDFLAGS -z combreloc"
         COMBRELOC="on"
+        ;;
+
+      static)
+        LDFLAGS="$LDFLAGS -static"
+        STATIC="on"
         ;;
 
     esac
