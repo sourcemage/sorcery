@@ -161,32 +161,15 @@ function determine_xinetd_or_initd()  {
 
 			if  [  -d  $SCRIPT_DIRECTORY/init.d  ]
 			then
-			
-				INITDSCRIPTS=""
-				INITDSCRIPTS_DISABLED=""
-				. $SPELL_CONFIG
-
-				local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
-			
-				for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
-
-					if query  "Invoke $INITSCRIPT at boot via init?"  y
-					then
-						echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
-						grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
-
-						INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
-					fi
-
-					if [  -n  "$INITDSCRIPTS"  ]; then
-						# using initd.
-						use_initd
-					else
-						# disable for initd.
-						disable_initd 
-					fi
 				
-				done
+				if query  "Invoke $INITSCRIPT at boot via init?"  y
+				then
+					# using initd.
+					use_initd
+				else
+					# disable for initd.
+					disable_initd 
+				fi
 			fi
   	fi
 	fi
