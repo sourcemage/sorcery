@@ -151,7 +151,8 @@ mirror_menu()  {
          MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
       fi  &&
 
-      modify_config $CONFIG_CACHE/url "$MIRROR" "$MIRROR_URL" &&
+      remove_config $LOCAL_CONFIG "$MIRROR" "$MIRROR_URL" &&
+      modify_config $LOCAL_URL_CONFIG "$MIRROR" "$MIRROR_URL" &&
 
       eval $DIALOG  '--msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 0 0'
 
@@ -1384,12 +1385,12 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
 }
 
-
 option_menu()  {
 
   while
 
     B_HELP="Specify the sorcery branch you would like to track"
+    C_HELP="Specify the color scheme for messages"
     D_HELP="Enter the default delay time for prompts"
     E_HELP="Enter the email address for this box's sorcerer"
     F_HELP="Select many options on or off at once"
@@ -1414,6 +1415,7 @@ option_menu()  {
                       ""                                        \
                       0 0 0                                     \
                       "B"  "Sorcery Branch"           "$B_HELP" \
+                      "C"  "Color Scheme"             "$C_HELP" \
                       "D"  "Prompt Delay"             "$D_HELP" \
                       "R"  "Download Rate"            "$R_HELP" \
                       "N"  "Nice Level"               "$N_HELP" \
@@ -1434,6 +1436,7 @@ option_menu()  {
     case  $COMMAND in
 
       B)  set_branch             ;;
+      C)  color_schemes_menu     ;;
       D)  set_delay              ;;
       R)  set_download_rate      ;;
       N)  set_nice               ;;
