@@ -1320,9 +1320,11 @@ TMP_HELP="Attempt to compile entirely in RAM?"
  CS_HELP="Clean up source directories after failures?"
  CI_HELP="Non-native installation / cross compilation"
  ST_HELP="Set xterm title/screen window title on cast?"
+ UF_HELP="Ensure a sane environment before sorcery update"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
+     UPDATEFIX=${UPDATEFIX:=off}
      AUTOPRUNE=${AUTOPRUNE:=off}
          CABAL=${CABAL:=off}
         CCACHE=${CCACHE:=off}
@@ -1350,6 +1352,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                         0 0 0                   \
       "ARCHIVE"        "Toggle"  "$ARCHIVE"        "$I_HELP"   \
       "AUTOFIX"        "Toggle"  "$AUTOFIX"        "$F_HELP"   \
+      "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"   \
       "AUTOPRUNE"      "Toggle"  "$AUTOPRUNE"      "$U_HELP"   \
       "CABAL"          "Toggle"  "$CABAL"          "$B_HELP"   \
       "CCACHE"         "Toggle"  "$CCACHE"         "$G_HELP"   \
@@ -1379,6 +1382,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
              ARCHIVE)        ARCHIVE=on  ;;
              AUTOFIX)        AUTOFIX=on  ;;
+           UPDATEFIX)      UPDATEFIX=on  ;;
            AUTOPRUNE)      AUTOPRUNE=on  ;;
                CABAL)          CABAL=on  ;;
               CCACHE)         CCACHE=on  ;;
@@ -1400,7 +1404,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
