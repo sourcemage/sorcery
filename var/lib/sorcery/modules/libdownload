@@ -235,13 +235,19 @@ function connect()  {
 
   debug "libdownload" "connect()"
 
-  if  !  ifconfig  |  grep  -q  "^eth"   &&
-      !  ifconfig  |  grep  -q  "^wlan"  &&
-      !  ifconfig  |  grep  -q  "^bnep"  &&
-      !  ifconfig  |  grep  -q  "^tr"    &&
-      !  ifconfig  |  grep  -q  "^atml"    &&
-      !  ifconfig  |  grep  -q  "^ppp";  then
-    pon
+  if !  ifconfig  |  grep  -q  "^eth"   &&
+     !  ifconfig  |  grep  -q  "^wlan"  &&
+     !  ifconfig  |  grep  -q  "^bnep"  &&
+     !  ifconfig  |  grep  -q  "^tr"    &&
+     !  ifconfig  |  grep  -q  "^atml"  &&
+     !  ifconfig  |  grep  -q  "^ppp";  then
+    if which pon &> /dev/null ; then
+      pon
+    else
+      message "${PROBLEM_COLOR}Cannot find or initiate network connection"
+      message " (pon program is missing) ${DEFAULT_COLOR}"
+      exit 1
+    fi
 
     # Timeout in deciseconds to wait for Interface to come up.
     TIMEOUT=30
@@ -254,10 +260,9 @@ function connect()  {
       sleep  10
       (( TIMEOUT-- ))
     done
+
     disconnect
   fi
-
-
 }
 
 #-------------------------------------------------------------------------
