@@ -298,7 +298,7 @@ function cast_spell()  { (
 #---------------------------------------------------------------------
 ## @Globals SPELLS
 ## @Stdout User information ("Collating dependencies")
-## @Globals SPELL MAKEFILE DEPS_ONLY 
+## @Globals SPELL MAKEFILE DEPS_ONLY SPELLS_TO_CAST
 ##
 ## Basically only gathers all dependencies and creates the Makefile
 ## (According to pass_zero it ought to take SPELLS as parameter, but
@@ -310,14 +310,12 @@ function pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
 
-  local SPELLS_TO_CAST
-
   echo -n "Computing previously installed dependencies..."
   compute_installed_depends "already_cast"
   echo
   compute_uninstalled_depends "to_cast" "back_hash" "bad_spells" $SPELLS
 
-  local SPELLS_TO_CAST=$(hash_get_table_fields "to_cast")
+  SPELLS_TO_CAST=$(hash_get_table_fields "to_cast")
 
   # special case of no spell making it through dependency resolution
   # or if DEPS_ONLY is set, there arent any dependent spells to cast
@@ -373,7 +371,6 @@ function pass_one()  {
       exit 1
     fi
   fi
-
 
   message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
 
@@ -642,7 +639,7 @@ function pass_zero()  {
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
   debug "pass_zero" "   and with spells : '$SPELLS'"
   export  CAST_PASS="one";    pass_one $*  &&
-  export  CAST_PASS="two";    pass_two $SPELLS
+  export  CAST_PASS="two";    pass_two $SPELLS_TO_CAST
   #pass_three and _four are hidden inside the makefile
   debug "pass_zero" "Starting pass 5 with: '$@'"
   export  CAST_PASS="five";  pass_five "$@"
