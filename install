@@ -42,7 +42,7 @@ install__find_non_volatile etc usr/sbin var/lib | (
 )
 
 # Install the man pages
-install__find_non_volatile usr/man | (
+install__find_non_volatile usr/share/man | (
   while read DOC; do
     /usr/bin/install --owner=root --group=root --mode=644 -vpD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
     gzip  --best  -vf "${INSTALL_ROOT}/${DOC}"
@@ -51,6 +51,9 @@ install__find_non_volatile usr/man | (
 
 # Install the GNU General Public License
   /usr/bin/install --owner=root --group=root --mode=644 -vpD "COPYING"   "${INSTALL_ROOT}/usr/doc/sorcery/COPYING"
+
+# Install the ChangeLog
+  /usr/bin/install --owner=root --group=root --mode=644 -vpD "ChangeLog"   "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
 
 # Install the run_compiler script with the same names as gcc
 BUILD_DIR=${INSTALL_ROOT}/var/lib/sorcery/build
@@ -74,7 +77,10 @@ for FILE in                                         \
   ${INSTALL_ROOT}/etc/sorcery/local/compile_config  \
   ${INSTALL_ROOT}/var/state/sorcery/packages        \
   ${INSTALL_ROOT}/var/state/sorcery/depends         \
-  ; do
+  ${INSTALL_ROOT}/var/state/sorcery/depends.backup  \
+  ${INSTALL_ROOT}/var/log/sorcery/activity          
+
+  do
   if  ! [[  -x $FILE  ]]; then
     touch $FILE
     chmod -v +x $FILE
@@ -83,7 +89,7 @@ done
 
 # Convert an old-style grimoire into a scribe managed one.
 if ! [ -d ${INSTALL_ROOT}/var/lib/sorcery/codex ]; then
- . convert
+ source ./convert
 fi
 
 

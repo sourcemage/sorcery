@@ -207,16 +207,21 @@ download() {
 
   run_patch
 
-  dl_source  $SOURCE  ${SOURCE_URL[*]}  ${FALLBACK_URL}/$SOURCE
+  compgen -v | grep -q "^SOURCE$" && #some spells need nothing
+  echo "$SOURCE" | grep -q '[[:graph:]]' && #just in case a spell has SOURCE=""
+   dl_source  $SOURCE  ${SOURCE_URL[*]}
 
   i=2
   ii=SOURCE$i
-  while  [  -n "${!ii}"  ];  do
-    iii="${ii}_URL[*]"
+  while  compgen -v | grep -q "^${ii}$" ;  do
+    if echo "${!ii}" | grep -q '[[:graph:]]'
+    then #don't attempt do download blanks
+      iii="${ii}_URL[*]"
  
-    dl_source  ${!ii}  ${!iii}  ${FALLBACK_URL}/${!ii}
+      dl_source  ${!ii}  ${!iii}
+    fi
    
-    i=$(($i+1))
+    let i++
     ii=SOURCE$i
   done
   
@@ -227,10 +232,11 @@ summon_grimoire()  {
 
   for  SPELLNAME  in  `codex_get_all_spells`;  do
     local  SPELL=$( basename  $SPELLNAME )
-    (  lock_resources "summon" "$$"
-       run_details  &&
-       download
-       unlock_resources "summon" "$$"
+    (  if trylock_resources "summon" "${SPELL}"; then
+         run_details  &&
+         download
+         unlock_resources "summon" "${SPELL}"
+       fi
     )
   done
 
@@ -254,12 +260,8 @@ main()	{
     fi
 
     for  SPELL  in  $SPELLS;  do
-      (  
-         debug "summon" "Checking to see if $SPELL is locked"
-         is_locked $SPELL >>$DEBUG && return 1
-	 debug "summon" "Nope."
-	 lock_resources "summon" "$SPELL"
-      
+      (
+        if trylock_resources "summon" "${SPELL}"; then
          run_details  &&
 	 {
            if download  ; then 
@@ -271,6 +273,7 @@ main()	{
 	   fi
 	 }
 	 unlock_resources "summon" "$SPELL"
+        fi
       )
     done
   fi

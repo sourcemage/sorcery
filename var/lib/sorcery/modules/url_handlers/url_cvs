@@ -131,6 +131,10 @@ url_cvs_download() {
 	cvs $CVS_COMPRESSION -q -d$CVS_ROOT checkout -r $CVS_TAG -d $S_FILE $CVS_MODULE
   fi
 
+  if [[ $nocache == 1 ]] ; then
+    return $?
+  fi
+
   if [ $? == 0 ]; then
     message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
     tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/
@@ -153,6 +157,16 @@ url_cvs_verify() {
   true
 }
 
+
+#---------------------------------------------------------------------
+##=item url_cvs_set_options <option>
+##
+## Set options for url handling
+##
+#---------------------------------------------------------------------
+url_cvs_set_options() {
+  eval "$1=1"
+}
 
 #---------------------------------------------------------------------
 ##=back

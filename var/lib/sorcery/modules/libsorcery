@@ -1,35 +1,26 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 LIBSORCERY
-##
-##=head1 SYNOPSIS
-##
-## Set of functions used by the internal sorcery scripts
-##
-##=head1 DESCRIPTION
+## @Synopsis Set of functions used by the internal sorcery scripts
 ##
 ## In addition to being used in the core sorcery commands, many of
 ## these functions are useful in creating new spells.  These functions
 ## can be used in the PRE_BUILD, BUILD, and POST_BUILD sections of
 ## spells.
 ##
-##=head1 COPYRIGHT
+## @Copyright Original version Copyright 2001 by Kyle Sallee
+## @Copyright Additions/Corrections Copyright 2002 by the Source Mage Team
 ##
-## Original version Copyright 2001 by Kyle Sallee
-## Additions/Corrections Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-##=item update_sorcery_scripts <branch>
+## @param branch
 ##
 ## Updates the sorcery scripts to their latest version for specified
 ## branch.
 ##
 #---------------------------------------------------------------------
-update_sorcery_scripts() {
+function update_sorcery_scripts() {
 
   BRANCH=$1
 
@@ -84,7 +75,7 @@ update_sorcery_scripts() {
   cd /                                   &&
   #archive                                &&
   track                                  &&
-
+  unlock_resources "libgrimoire" "install" &&
   # post install
 #  rm  -f  /var/lock/casting.sorcery      &&
 
@@ -102,11 +93,13 @@ update_sorcery_scripts() {
     fi
   fi
 
-  message "${MESSAGE_COLOR}Current ${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR} version ${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Current ${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version ${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
+
+  sorcery_history
 }
 
 
-disconnect()  {
+function disconnect()  {
 
   debug "libsorcery" "disconnect()"
 
@@ -129,7 +122,7 @@ chmod  a+x  /tmp/disconnect
 }
 
 
-connect()  {
+function connect()  {
 
   debug "libsorcery" "connect()"
 
@@ -158,7 +151,7 @@ connect()  {
 }
 
 
-get() {
+function get() {
 
   debug "libsorcery" "get() $*"
 
@@ -176,7 +169,9 @@ get() {
 
 
 #---------------------------------------------------------------------
-##=item dl_source <filename> <url> [<url> ...]
+## @param filename
+## @param url
+## @param url ...
 ##
 ## Downloads <filename> from one of the listed <url>s.  The file
 ## is not downloaded if it is already in the source cache unless:
@@ -187,7 +182,7 @@ get() {
 ## (duff, 2002/10/13)
 ##
 #---------------------------------------------------------------------
-dl_source()  {
+function dl_source()  {
 
   debug "libsorcery" "dl_source() $*"
 
@@ -211,6 +206,14 @@ dl_source()  {
       if  get  "$LFURLFILE" $*;  then
         activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
       else
+        local i
+        local offset=$[${RANDOM} % $FURLNUM]
+        for (( i=0; $i < $FURLNUM; i++ ));  do
+          if  get  "${FALLBACK_URL_MIRROR[$[($i + $offset) % $FURLNUM]]}/$FILE";  then
+            activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
+            return
+          fi
+        done
         message  "${PROBLEM_COLOR}Download of"            \
                  "${FILE_COLOR}${FILE}${DEFAULT_COLOR}"   \
                  "${PROBLEM_COLOR}for spell"              \
@@ -225,13 +228,13 @@ dl_source()  {
 }
 
 
-file_exists_in_cache()  {
+function file_exists_in_cache()  {
 
   guess_filename  $SOURCE_CACHE/$1  >  /dev/null
 
 }
 
-remove_old_cache_src()  {
+function remove_old_cache_src()  {
 
     if    [  -n  "$LIFESPAN"  ]
     then  rm  -f  $( find $SOURCE_CACHE/$1 -mmin +$LIFESPAN 2>/dev/null )
@@ -242,13 +245,13 @@ remove_old_cache_src()  {
 
 
 #---------------------------------------------------------------------
-##=item report <filename>
+## @param filename
 ##
 ## Displays and/or mails the contents of the file given as the first
 ## argument.
 ##
 #---------------------------------------------------------------------
-report() {
+function report() {
 
   if  !  [  -f  $1  ];  then  return;  fi
 
@@ -265,7 +268,7 @@ report() {
     debug  "libsorcery" "Mailing report ($2) for $SPELL to $SORCERER"
     date  -u  |
     mail  -s  "Sorcery Report : $HOSTNAME : $2 for $SPELL-$VERSION"  \
-              $SORCERER  -a  $1  2>/dev/null
+              -a $1 $SORCERER 2>/dev/null
   fi
 
   true
@@ -274,13 +277,13 @@ report() {
 
 
 #---------------------------------------------------------------------
-##=item guess_filename <filename>
+## @param filename
 ##
 ## Given a filename, will return the actual filename if a similar
 ## filename with a different extension exists.
 ##
 #---------------------------------------------------------------------
-guess_filename()  {
+function guess_filename()  {
 
   FILENAME=$1
 
@@ -303,13 +306,13 @@ guess_filename()  {
 
 
 #---------------------------------------------------------------------
-##=item testpack <filename>
+## @param filename
 ##
 ## Given a file, testpack runs the decompression program for that file
 ## in test mode (-t option).  Returns the exit status.
 ##
 #---------------------------------------------------------------------
-testpack() {
+function testpack() {
 
   FILENAME=`guess_filename                $1`  ||
   FILENAME=`guess_filename  $SOURCE_CACHE/$1`
@@ -337,12 +340,12 @@ testpack() {
 
 
 #---------------------------------------------------------------------
-##=item boost_locked
 ##
 ## Returns true if a boost lock file exists for a live cast process.
+## @return 0 if boost lock file exists
 ##
 #---------------------------------------------------------------------
-boost_locked()  {
+function boost_locked()  {
 
   [  -f     $BOOST_LOCK  ]  &&
   ps  `cat  $BOOST_LOCK`    |
@@ -352,14 +355,13 @@ boost_locked()  {
 
 
 #---------------------------------------------------------------------
-##=item save_libraries
 ##
 ## Saves the current libraries associated with the spell, from /lib
 ## and /usr/lib into $SOURCE_DIRECTORY/old.libraries/
 ## Also runs ldconfig with the saved libraries.
 ##
 #---------------------------------------------------------------------
-save_libraries()  {
+function save_libraries()  {
 
   if    [  -z  "$SOURCE_DIRECTORY"  ]
   then  return
@@ -409,31 +411,31 @@ save_libraries()  {
   fi
 
   if  [  "$SPELL"  ==  "glibc"         ]   ||
-      [  "$SPELL"  ==  "glibc-custom"  ];  then
-    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  /lib/ld-linux.so.2
+      [  "$SPELL"  ==  "glibc-custom"  ] ;  then
+    if [ -e $OLD_LIBS/ld-$OLD_VERSION.so ] ; then 
+    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  ${INSTALL_ROOT}/lib/ld-linux.so.2
+    fi
   fi
 
 }
 
 
 #---------------------------------------------------------------------
-##=item release_saved_libraries
 ##
 ## Runs default ldconfig to stop using the saved libraries
 ##
 #---------------------------------------------------------------------
-release_saved_libraries()  {
+function release_saved_libraries()  {
   ldconfig
 }
 
 
 #---------------------------------------------------------------------
-##=item spell_recover
 ##
 ## Recovers from a CTRL-C while casting a spell
 ##
 #---------------------------------------------------------------------
-spell_recover()  {
+function spell_recover()  {
 
   debug  "libsorcery" "Running spell_recover()"
 
@@ -457,12 +459,12 @@ spell_recover()  {
 
 
 #---------------------------------------------------------------------
-##=item find_section <spell name>
-##
+## @param spell name
+## @Stdout section
 ## Returns the section a spell is in.
 ##
 #---------------------------------------------------------------------
-find_section()  {
+function find_section()  {
 
   debug  "libsorcery" "Running find_section() on $1"
 
@@ -472,12 +474,12 @@ find_section()  {
 
 
 #---------------------------------------------------------------------
-##=item get_status <spell name>
-##
+## @param spell name
+## @Stdout status
 ## Returns the given spell's status (installed, held, exiled, etc.)
 ##
 #---------------------------------------------------------------------
-get_status()  {
+function get_status()  {
 
   if    query_spell_status $1    >/dev/null
   then  query_spell_status $1    |  cut  -d : -f3
@@ -488,46 +490,46 @@ get_status()  {
 
 
 #---------------------------------------------------------------------
-##=item spell_installed <spell name>
+## @Type API
+## @param spell name
 ##
-## Returns true if the given spell's status is "installed"
-##
+## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
-spell_installed() {
+function real_spell_installed() {
   [  "$(  get_status  $1  )"  ==  "installed"  ];
 }
 
 
 #---------------------------------------------------------------------
-##=item spell_held <spell name>
+## @param spell name
 ##
-## Returns true if the given spell's status is "held"
+## @return 0 if the given spell's status is "held"
 ##
 #---------------------------------------------------------------------
-spell_held()      {
+function spell_held()      {
   [  "$(  get_status  $1  )"  ==  "held"       ];
 }
 
 
 #---------------------------------------------------------------------
-##=item spell_exiled <spell name>
+## @param spell name
 ##
-## Returns true if the given spell's status is "exiled"
+##  @return 0 if the given spell's status is "exiled"
 ##
 #---------------------------------------------------------------------
-spell_exiled()    {
+function spell_exiled()    {
   [  "$(  get_status  $1  )"  ==  "exiled"     ];
 }
 
 
 #---------------------------------------------------------------------
-##=item remove_spell <spell name>
+## @param spell name
 ##
 ## Removes the given spell from the /var/state/sorcery/packages file.
 ## if C<EXILE> is set, the spell is changed to "exiled" in the file.
 ##
 #---------------------------------------------------------------------
-remove_spell()  {
+function remove_spell()  {
 
   debug  "libsorcery" "Running remove_spell() on $1"
 
@@ -542,13 +544,13 @@ remove_spell()  {
 
 
 #---------------------------------------------------------------------
-##=item add_spell <spell name>
+## @param spell name
 ##
 ## Given a spell, status (installed, held, etc), and version, add_spell
 ## adds the spell to the /var/state/sorcery/packages file
 ##
 #---------------------------------------------------------------------
-add_spell()  {
+function add_spell()  {
 
   remove_spell  $1
   add_spell_status $1 $2 $3
@@ -559,11 +561,13 @@ add_spell()  {
 #---------------------------------------------------------------------
 ##=item directories
 ##
+## @Stdin list of files/dirs/..
+## @Stdout list of dirs
+##
 ## Reads a list from standard input, and prints out each entry that is
 ## a directory (and not a symbolic link to a directory).
-##
 #---------------------------------------------------------------------
-directories() {
+function directories() {
 
   while  read       ITEM;  do
     if  [     -d  "$ITEM"  ]   &&
@@ -576,18 +580,19 @@ directories() {
 
 
 #---------------------------------------------------------------------
-##=item files
-##
+## @Stdin list of files/dirs/..
+## @Stdout list of files
 ## Reads a list from standard input, and prints out each entry that is
 ## a file (and not a symbolic link to a file).
 ##
 #---------------------------------------------------------------------
-files()  {
+function files()  {
 
   while  read       ITEM;   do
+ 	
     if  [     -f  "$ITEM"  ]   &&
         !  [  -h  "$ITEM"  ];  then
-      echo        "$ITEM"
+      echo "$ITEM"
     fi
   done
 
@@ -595,13 +600,13 @@ files()  {
 
 
 #---------------------------------------------------------------------
-##=item symlinks
-##
+## @Stdin list of files/dirs/..
+## @Stdout list of symlinks
 ## Reads a list from standard input, and prints out each entry that is
 ## a symbolic linke
 ##
 #---------------------------------------------------------------------
-symlinks()  {
+function symlinks()  {
 
   while  read    ITEM;   do
     if  [  -h  "$ITEM"  ];  then
@@ -613,15 +618,16 @@ symlinks()  {
 
 
 #---------------------------------------------------------------------
-##=item filter
-##
+## @param filename
+## @Stdin list of files/dirs/..
+## @Stdout filtered list
 ## First argument is a file that contains filenames.  C<filter> will
 ## filter standard input to remove any filenames that match an entry
 ## in that file.  Used to filter out excluded or protected files from
 ## a list of files.
 ##
 #---------------------------------------------------------------------
-filter() {
+function filter() {
 
   if  [  -f  $1  ];  then
 
@@ -644,13 +650,13 @@ filter() {
 
 
 #---------------------------------------------------------------------
-##=item reap_modified_file
+## @param file
 ##
 ## If C<PRESERVE> is off, will move the file to filename.YYYYMMDD.  If
 ## C<PRESERVE> is on, the file will not be moved.
 ##
 #---------------------------------------------------------------------
-reap_modified_file()  {
+function reap_modified_file()  {
 
   message  "${FILE_COLOR}${1}${DEFAULT_COLOR}"
   message  "${MESSAGE_COLOR}was previously modified by SA?"
@@ -667,40 +673,42 @@ reap_modified_file()  {
 
 
 #---------------------------------------------------------------------
-##=item dirnames
+## @Stdin list of files
+## @Stdout list of directories
 ##
 ## Given a list of files from standard input, returns the directory
 ## of each file.
 ##
+## Note: Is a duplicate of get_dirnames. 2003-09-28 Martin
 #---------------------------------------------------------------------
-dirnames()  {
+function dirnames()  {
   while  read  FILE;  do  dirname  "$FILE";  done;
 }
 
 
 #---------------------------------------------------------------------
-##=item reap_regular_files
+## @Stdin list of files
 ##
 ## Given a list of files from standard input, deletes each file.
 ## Performs a "rm -f" on each file given in standard input, so be
 ## careful using this function!
 ##
 #---------------------------------------------------------------------
-reap_regular_files()  {
+function reap_regular_files()  {
   debug "libsorcery" "reap_regular_files()"
   while  read  FILE;  do  rm  -f   "$FILE";  done;
 }
 
 
 #---------------------------------------------------------------------
-##=item reap_config_files
+## @Stdin list of files
 ##
 ## Reads a list of files from standard input.  If the file has been
 ## modified (md5sum doesn't match the stored md5sum), then function
 ## C<reap_modified_file> is called.  Otherwise, the file is deleted.
 ##
 #---------------------------------------------------------------------
-reap_config_files()  {
+function reap_config_files()  {
 
   debug "libsorcery" "reap_config_files()"
   while  read  FILE;  do
@@ -717,6 +725,8 @@ reap_config_files()  {
 
 #---------------------------------------------------------------------
 ##=item reaper
+## @param file
+## @param file
 ##
 ## First argument is a file containing a list of files to reap.
 ## Second argument is a file containing md5 sums of those files, used
@@ -724,7 +734,7 @@ reap_config_files()  {
 ## files in /etc or any of its sub-directories.
 ##
 #---------------------------------------------------------------------
-reaper()  { (
+function reaper()  { (
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
   debug  "libsorcery" "Running reaper() on $1"
@@ -770,7 +780,8 @@ reaper()  { (
 
 
 #---------------------------------------------------------------------
-##=item pop_queue <queue filename> [<items to remove>]
+## @param queue filename
+## @param items to remove ...
 ##
 ## The first argument is the name of the file containing the queue.
 ## If a second argument is given, any items in the queue that match
@@ -778,7 +789,7 @@ reaper()  { (
 ## line of the queue is removed, and returned.
 ##
 #---------------------------------------------------------------------
-pop_queue() {  (
+function pop_queue() {  (
 
   local ITEM=`esc_str $2`
 
@@ -804,15 +815,30 @@ pop_queue() {  (
 
 
 #---------------------------------------------------------------------
-##=item push_queue <queue filename> <item to add>
+## @param filename
 ##
+## The first argument is the name of the file that installed correctly
+## and will be removed from the install file (this makes a failure of 
+## the casting of the queue not have to recast completed spells).
+##
+#---------------------------------------------------------------------
+function pop_install_queue() {  
+
+  pop_queue  $INSTALL_QUEUE  "$1"
+
+}
+
+
+#---------------------------------------------------------------------
+## @param queue filename
+## @param item to add
 ## The first argument is the name of the file containing the queue.
 ## The second argument is an item to add to the end of the queue.  If
 ## the item exists anywhere in the queue, the item is removed from the
 ## queue before being added at the end.
 ##
 #---------------------------------------------------------------------
-push_queue()  {
+function push_queue()  {
   lock_file $1
   pop_queue  "$1"  "$2";  echo  "$2" >>  $1;
   unlock_file $1
@@ -820,13 +846,13 @@ push_queue()  {
 
 
 #---------------------------------------------------------------------
-##=item push_install_queue <spell>
+## @param spell
 ##
 ## Adds the given spell to the install queue and removes it from the
 ## remove queue.
 ##
 #---------------------------------------------------------------------
-push_install_queue() {
+function push_install_queue() {
 
   pop_queue   $REMOVE_QUEUE    "$1"
   pop_queue   $INSTALL_QUEUE   "$1"
@@ -837,13 +863,13 @@ push_install_queue() {
 
 
 #---------------------------------------------------------------------
-##=item push_remove_queue <spell>
+## @param spell
 ##
 ## Adds the given spell to the remove queue and removes it from the
 ## install queue.
 ##
 #---------------------------------------------------------------------
-push_remove_queue() {
+function push_remove_queue() {
 
   pop_queue   $INSTALL_QUEUE  "$1"
   pop_queue   $REMOVE_QUEUE   "$1"
@@ -854,14 +880,13 @@ push_remove_queue() {
 
 
 #---------------------------------------------------------------------
-##=item apprentice_off
 ##
 ## Removes files installed by apprentice.
 ##
 ## (2002/0929) Is there any more apprentice?
 ##
 #---------------------------------------------------------------------
-apprentice_off()  { (
+function apprentice_off()  { (
 
   rm  -f  $(  find  /usr/bin /usr/games /usr/sbin  -group  apprentice  2>/dev/null )
 
@@ -869,7 +894,6 @@ apprentice_off()  { (
 
 
 #---------------------------------------------------------------------
-##=item optimize
 ##
 ## Sets some environment variables (such as C<CFLAGS>) based on the
 ## option passed.  Options may be on or more of:  i386, i486, i586,
@@ -879,14 +903,14 @@ apprentice_off()  { (
 ## combreloc
 ##
 #---------------------------------------------------------------------
-optimize()  {
+function optimize()  {
 
   debug "libsorcery" "In optimize(), ARCHITECTURE='${ARCHITECTURE}'"
   debug "libsorcery" "TARGET='${TARGET}'"
   debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
 
   unset  CFLAGS CXXFLAGS LDFLAGS
-  unset  FAST SMALL SPEEDY TINY RISKY STRIP
+  unset  FAST SMALL SPEEDY TINY RISKY STRIP STATIC
 
   local SPECFILE
   SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
@@ -903,6 +927,7 @@ optimize()  {
   fi
   debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
 
+  CFLAGS="$CFLAGS -pipe"
   for  PARAM  in  $OPTIMIZATIONS;  do
     case  $PARAM  in
       speedy)
@@ -930,6 +955,11 @@ optimize()  {
         COMBRELOC="on"
         ;;
 
+      static)
+        LDFLAGS="$LDFLAGS -static"
+        STATIC="on"
+        ;;
+
     esac
   done
 
@@ -941,12 +971,12 @@ optimize()  {
 
 
 #---------------------------------------------------------------------
-##=item list_install_queue
+## @Stdout install queue
 ##
 ## List files in install queue, give user chance to modify it.
 ##
 #---------------------------------------------------------------------
-list_install_queue() {
+function list_install_queue() {
   if  [  -f  $INSTALL_QUEUE  ];  then
     lock_file $INSTALL_QUEUE
 
@@ -971,13 +1001,12 @@ list_install_queue() {
 
 
 #---------------------------------------------------------------------
-##=item update_install_queue
 ##
 ## Checks all installed spells for newer versions, and creates an
 ## install queue.
 ##
 #---------------------------------------------------------------------
-update_install_queue()  { (
+function update_install_queue()  { (
 
   message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
   wait_flag_up
@@ -995,14 +1024,16 @@ update_install_queue()  { (
           [[     -z ${INFO[1]}      ]]	||
 	  	  (( UPDATED  >  ${INFO[1]} ))
 	  then
-
-          push_queue  $INSTALL_QUEUE  $SPELL
-
+            QUEUE="$QUEUE\n$SPELL"
       fi
 
     fi
 
   done
+
+  lock_file $INSTALL_QUEUE
+  echo -e "$QUEUE" | sort | uniq > $INSTALL_QUEUE
+  unlock_file $INSTALL_QUEUE
 
   wait_flag_down
 
@@ -1010,12 +1041,11 @@ update_install_queue()  { (
 
 
 #---------------------------------------------------------------------
-##=item build_install_queue
 ##
 ## Builds all spells in the install queue.
 ##
 #---------------------------------------------------------------------
-build_install_queue()  {
+function build_install_queue()  {
 
   if  [  -f  $INSTALL_QUEUE  ];  then
     lock_file $INSTALL_QUEUE
@@ -1041,12 +1071,93 @@ build_install_queue()  {
 
 
 #---------------------------------------------------------------------
-##=item fix_installed_spells
+## @Stdout history
+##
+## Display the history of the install queue for review
+##
+#---------------------------------------------------------------------
+function install_queue_history() {
+  local PAGER2
+  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  local spell=
+  for spell in `cat $INSTALL_QUEUE`; do
+    local date="`grep "^${spell}:" /var/state/sorcery/packages | cut -d':' -f2`"
+    local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
+    (
+      echo -e "Viewing history since last update ($datedash) for spell --  ${spell}  -- :" && 
+      echo                 &&
+      gaze history $spell
+    ) |
+      awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
+      $PAGER2
+    query "Would you like to ${RED} remove ${QUERY_COLOR} spell ${SPELL_COLOR} $spell ${QUERY_COLOR} from the install queue?" n &&
+      sedit "s/^$spell$//" $INSTALL_QUEUE &&
+      echo -e "${QUERY_COLOR} The spell ${SPELL_COLOR} $spell ${QUERY_COLOR} removed from $INSTALL_QUEUE.${DEFAULT_COLOR}"
+  done
+}
+
+#---------------------------------------------------------------------
+## @param grimoire-path
+## @Stdout history
+## Display the history of the grimoire given for review
+#---------------------------------------------------------------------
+function grimoire_history() {
+
+  if [ -e $grimoire/ChangeLog ] ; then 
+    local PAGER2
+    if [ "$PAGER" == "less" ] ; then 
+      PAGER2="more" 
+    else 
+      PAGER2="$PAGER" 
+    fi
+    local grimoire="$1"
+    local grimoirename="${grimoire##*/}"
+    local date="`cat "$STATE_DIRECTORY/$grimoirename.lastupdate" 2> /dev/null`"
+    [ -z "$date" ] && date="20030818"
+    local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
+    (
+      echo -e "Viewing history since last update ($datedash) for grimoire --  ${grimoirename}  -- :" && 
+      echo                 &&
+      cat "$grimoire/ChangeLog" 2> /dev/null
+    ) |
+    awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
+    $PAGER2
+  else
+    echo  "No ChangeLog in the $grimoire Grimoire, skipping viewing..."
+    echo  ""
+  fi
+  echo "`date +%Y%m%d`" > "$STATE_DIRECTORY/$grimoirename.lastupdate"
+}
+
+
+#---------------------------------------------------------------------
+## @Stdout history
+## Display the history of sorcery for review
+##
+#---------------------------------------------------------------------
+function sorcery_history() {
+  local PAGER2
+  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  local date="`cat "$STATE_DIRECTORY/sorcery.lastupdate" 2> /dev/null`"
+  [ -z "$date" ] && date="20030818"
+  local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
+  (
+    echo -e "Viewing history since last update ($datedash) for sorcery :" && 
+    echo                 &&
+    cat "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
+  ) |
+    awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
+    $PAGER2
+  echo "`date +%Y%m%d`" > "$STATE_DIRECTORY/sorcery.lastupdate"
+}
+
+
+#---------------------------------------------------------------------
 ##
 ## Attempt to fix any spells that may be broken.
 ##
 #---------------------------------------------------------------------
-fix_installed_spells()  {
+function fix_installed_spells()  {
 
   local ANSWER=
 
@@ -1060,14 +1171,13 @@ fix_installed_spells()  {
 
 
 #---------------------------------------------------------------------
-##=item upgrade_install_queue
 ##
 ## Casts all spells in the install queue.
 ##
 ## DEPRICATED: tagged for removal - nkj
 ##
 #---------------------------------------------------------------------
-upgrade_install_queue()  {
+function upgrade_install_queue()  {
 
   if  [  -f  $INSTALL_QUEUE  ];  then
     lock_file $INSTALL_QUEUE
@@ -1102,12 +1212,11 @@ upgrade_install_queue()  {
 
 
 #---------------------------------------------------------------------
-##=item log_list
-##
+## @Stdout log files list
 ## Returns a list of the log files for each spell.
 ##
 #---------------------------------------------------------------------
-log_list()  {
+function log_list()  {
 
   for  LINE  in  `all_spell_status`;  do
     SPELL=`echo  $LINE  |  cut  -d  :  -f1`
@@ -1120,12 +1229,11 @@ log_list()  {
 
 
 #---------------------------------------------------------------------
-##=item clean_logs
 ##
 ## Removes stale logs.
 ##
 #---------------------------------------------------------------------
-clean_logs()  {
+function clean_logs()  {
 
   wait_flag_down
   message "${CHECK_COLOR}Cleaning log files... ${DEFAULT_COLOR} "
@@ -1166,12 +1274,11 @@ clean_logs()  {
 
 
 #---------------------------------------------------------------------
-##=item activity_log
 ##
 ## Updates the activity log.
 ##
 #---------------------------------------------------------------------
-activity_log()  { (
+function activity_log()  { (
 
   lock_file $ACTIVITY_LOG
 
@@ -1188,12 +1295,11 @@ activity_log()  { (
 
 
 #---------------------------------------------------------------------
-##=item run_details
 ##
 ## Executes the spell's DETAILS file.
 ##
 #---------------------------------------------------------------------
-run_details() {
+function run_details() {
 
   if  !  codex_set_current_spell_by_name  $SPELL;  then
     local  GRIMOIRES=`codex_get_all_grimoires`
@@ -1204,8 +1310,13 @@ run_details() {
   fi
 }
 
-
-unset_details()  {
+#---------------------------------------------------------------------
+##
+## unsets variables set by DETAILS. <br>
+## vars: SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT SOURCE* 
+##
+#---------------------------------------------------------------------
+function unset_details()  {
 
   local VARS="SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT"
   local TEMP=""
@@ -1225,12 +1336,12 @@ unset_details()  {
 
 
 #---------------------------------------------------------------------
-##=item color
+## @param on/off
 ##
 ## First argument is "off" or "on" to turn console colors off or on
 ##
 #---------------------------------------------------------------------
-color()  {
+function color()  {
 
   case  $1  in
     off)  unset  SPELL_COLOR
@@ -1254,12 +1365,11 @@ color()  {
 
 
 #---------------------------------------------------------------------
-##=item invoke_installwatch
 ##
 ## Sets up installwatch.
 ##
 #---------------------------------------------------------------------
-invoke_installwatch()  {
+function invoke_installwatch()  {
 
   if  [  -e  /usr/lib/installwatch.so  ];  then
     rm  -rf  /tmp/$SPELL.iw
@@ -1271,12 +1381,11 @@ invoke_installwatch()  {
 
 
 #---------------------------------------------------------------------
-##=item devoke_installwatch
 ##
 ## Stops using installwatch
 ##
 #---------------------------------------------------------------------
-devoke_installwatch()  {
+function devoke_installwatch()  {
 
   unset  LD_PRELOAD
   unset  INSTALLWATCHFILE
@@ -1285,13 +1394,13 @@ devoke_installwatch()  {
 
 
 #---------------------------------------------------------------------
-##=item syms_not_owned <filename>
+## @param filename
 ##
 ## First argument is a file containing a list of files.  Checks for
 ## broken symbolic links.
 ##
 #---------------------------------------------------------------------
-syms_not_owned()  {
+function syms_not_owned()  {
 
   cat  $1  |
   while  read  ITEM;  do
@@ -1318,12 +1427,11 @@ syms_not_owned()  {
 
 
 #---------------------------------------------------------------------
-##=item parse_iw
 ##
 ## Parses the installwatch log for files installed by a spell.
 ##
 #---------------------------------------------------------------------
-parse_iw()  {
+function parse_iw()  {
 
   OMIT="^/dev\|^/tmp\|^/usr/src"
   OMIT_IN="	rename\|	symlink\|	unlink"
@@ -1335,12 +1443,11 @@ parse_iw()  {
 
 
 #---------------------------------------------------------------------
-##=item track
 ##
 ## Creates the install log containing all files installed by the spell.
 ##
 #---------------------------------------------------------------------
-track()  {
+function track()  {
 
   debug  "libsorcery" "Running track() on $SPELL"
 
@@ -1371,35 +1478,22 @@ track()  {
 
 
 #---------------------------------------------------------------------
-##=item archive
 ##
 ## Creates a bzip'ed tar file containing an archived backup of every
 ## file installed by a spell.
 ##
 #---------------------------------------------------------------------
-archive()  {
+function archive()  {
 
   debug  "libsorcery" "Running archive() on $SPELL"
 
-  LINES=`wc  -l  <  $INST_LOG`
-  ((  CHUNKS     =  LINES  /  1024  ))
-  ((  REMAINDER  =  LINES  %  1024  ))
-  if  ((  REMAINDER  !=  0  ));  then
-    ((  CHUNKS++  ))
-  fi
-
-  ((  START  =  1     ))
-  ((  STOP   =  1024  ))
-
-  for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
-
-    md5sum  $(  sed  -n  ${START},${STOP}p  $INST_LOG  |
-                files  )  >> $MD5_LOG
-
-    ((  START   =  STOP  +  1  ))
-    ((  STOP   +=  1024        ))
-
-  done
+  while read LINE ; do
+		debug "archive()" "Checking file $LINE"
+    if  [ !  -p  "$LINE"  ] ; then
+			debug "archive()" "Running md5 on $LINE"
+      md5sum "$LINE"
+    fi
+  done < $INST_LOG 2>/dev/null >> $MD5_LOG 
 
   if    [  "$ARCHIVE"  ==  "off"  ]; then
     debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
@@ -1408,29 +1502,13 @@ archive()  {
 
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-  ((  START  =  1     ))
-  ((  STOP   =  1024  ))
-
-  for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
-
-    tar  --no-recursion  \
-         -rPf  $CACHE    \
-         $(  sed  -n ${START},${STOP}p  ${INST_LOG}  )
-
-    ((  START   =  STOP  +  1  ))
-    ((  STOP   +=  1024        ))
-
-  done
-
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
-  bzip2  -9f  <  $CACHE  >  $CACHE_BZ
-  rm     -f      $CACHE
+  tar --no-recursion --bzip -cPf "$CACHE_BZ" -T $INST_LOG
 
 }
 
 
 #---------------------------------------------------------------------
-##=item boost
 ##
 ## Runs C<track> and C<archive> on the current spell.
 ##
@@ -1438,7 +1516,7 @@ archive()  {
 ## to liblock being introduced
 ##
 #---------------------------------------------------------------------
-boost()	{ (
+function boost()	{ (
 
   debug  "libsorcery" "Running boost() on $SPELL"
 
@@ -1459,21 +1537,19 @@ boost()	{ (
 
   track    &&
   archive  &&
-  add_spell  $SPELL installed $VERSION  &&
-  unlock_resources "libgrimoire" "install"  #This was set in prepare_install
+  add_spell  $SPELL installed $VERSION 
 
 ) }
 
 
 #---------------------------------------------------------------------
-##=item find_pam_aware
-##
+## @Stdout spelllist
 ## Returns a list of all installed spells that use Linux-PAM
 ##
 ## NOTE: this will become useless when triggers are introduced.
 ##
 #---------------------------------------------------------------------
-find_pam_aware()  { (
+function find_pam_aware()  { (
 
   cat  $SPELL_STATUS    |
   while  read  LINE;  do
@@ -1498,41 +1574,38 @@ find_pam_aware()  { (
 
 
 #---------------------------------------------------------------------
-##=item verify_source
 ##
 ## Given a list of source files, returns true if each file exists.
 ##
 #---------------------------------------------------------------------
-verify_source()  { (
+function verify_source()  { (
 
-  VERIFIED="true"
 
   for  SOURCE_FILE  in  $@;  do
-    if  !  guess_filename  $SOURCE_CACHE/$1  >/dev/null
+    if  !  guess_filename  $SOURCE_CACHE/$SOURCE_FILE  >/dev/null
     then
       message  "${PROBLEM_COLOR}Missing ${FILE_COLOR}${1}${DEFAULT_COLOR}"
       message  "${PROBLEM_COLOR}Cast aborting.${DEFAULT_COLOR}"
       activity_log  "cast"  "$SPELL"  "$VERSION"  "failed"  \
                     "because it was missing source:  $1"
-      VERIFIED=false
-      break
+      return 1 
     fi
   done
 
-  $VERIFIED
+  return 0
 
 ) }
 
 
 #---------------------------------------------------------------------
-##=item sources <spell>
-##
+## @param spell
+## @Stdout filelist
 ## Returns a list of each source file used by a spell.  Most have only
 ## one, but xfree86 for example splits the sources into three separate
 ## source files.
 ##
 #---------------------------------------------------------------------
-sources()  { (
+function sources()  { (
 
   local i srcVar
 
@@ -1554,12 +1627,11 @@ sources()  { (
 
 
 #---------------------------------------------------------------------
-##=item generate_keep_list
-##
+## @Stdout filelist
 ## Returns a list of files that should not be pruned.
 ##
 #---------------------------------------------------------------------
-generate_keep_list()  { (
+function generate_keep_list()  { (
 
   for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
   (
@@ -1576,15 +1648,19 @@ generate_keep_list()  { (
 
 
 #---------------------------------------------------------------------
-##=item prune
 ##
 ## Removes unnecessary files from the source cache and install cache.
 ##
 #---------------------------------------------------------------------
-prune()  { (
+function prune()  { (
 
   debug  "libsorcery" "Running prune()"
 
+  if  [  "$UID"  !=  0  ];  then
+    echo  "Enter the root password, please."
+    su  - -c "DISPLAY=$DISPLAY PATH=$PATH"
+  fi
+                                                            
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
   KEEP="/tmp/prune.keep"
   generate_keep_list  >  $KEEP
@@ -1614,13 +1690,11 @@ prune()  { (
 
 
 #---------------------------------------------------------------------
-##=item invoke_build_dir
 ##
 ## Adds /var/lib/sorcery/build to the C<PATH>
 ##
 #---------------------------------------------------------------------
-
-invoke_build_dir() { 
+function invoke_build_dir() { 
   { 
     { [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache ; }  || 
     { [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc ; } 
@@ -1629,14 +1703,15 @@ invoke_build_dir() {
 
 
 #---------------------------------------------------------------------
-##=item find_providers
+## @param category/service
+## @Stdout spelllist
 ##
 ## First argument is a category of spell.  Returns a list of spells
 ## that match that category.  For example,
 ## C<find_providers email-client> returns evolution,althea,mutt,etc.
 ##
 #---------------------------------------------------------------------
-find_providers()  {
+function find_providers()  {
   feature="$1"
 
   (for  GRIMOIRE  in  $(codex_get_all_grimoires);  do
@@ -1648,27 +1723,27 @@ find_providers()  {
 
 
 #---------------------------------------------------------------------
-##=item verify_sources
-##
+## @Stdout filelist
 ## Returns false if one or more source files for the current spell
 ## are missing.
 ##
 #---------------------------------------------------------------------
-verify_sources()  {
+function verify_sources()  {
   verify_source  "`sources  $SPELL`";
 }
 
 
 
 #---------------------------------------------------------------------
-##=item filename_indicates_compression <filename>
-##
+## @param filename
+## @return 0 if filename seems to be compressed
+## @return 1 otherwise
 ## Returns true if the name of the file indicates that it should be
 ## a compressed file.  In other words, this function returns true if
 ## the filename ends in .gz, .tgz, .bz2, .zip, .rpm, or .Z.
 ##
 #---------------------------------------------------------------------
-filename_indicates_compression()  {
+function filename_indicates_compression()  {
   local FILENAME=`echo "file$1" | sed 's/^.*\.gz$//'  \
                                 | sed 's/^.*\.tgz$//' \
                                 | sed 's/^.*\.bz2$//' \
@@ -1681,9 +1756,6 @@ filename_indicates_compression()  {
 
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by

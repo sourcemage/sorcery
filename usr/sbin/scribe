@@ -25,6 +25,8 @@ Scribe is a utility for controlling the grimoires in your codex,
 and the spells in your grimoires.
 
 Usage:    scribe a[dd]|r[emove]|u[pdate]|f[ix] subject [[from] source locations]
+          scribe [re]index
+          scribe swap <grimoire1> <grimoire2>
 
 Optional Parameters:
 
@@ -199,14 +201,25 @@ for  ((x=0; x <= $i_count-1; x++))
 
  #download the grimoire using subroutines
  NO_FUZZ=on
+ url_set_options nocache
  url_download $FROM_LOC
 
  #check the success of the download
+ if [ $? != 0 ]; then
+
+   #grimoire was not downloaded. Error message.
+   echo "GRIMOIRE NOT FOUND"
+
+ else
+
+   #if the grimoire is an archive, untar it
  if [ -e ${ITEMS[$x]}.tar.bz2 ]; then
  
   #if successfuly downloaded, untar it and remove the zip
   bzcat ${ITEMS[$x]}.tar.bz2 | tar -x  1>/dev/null 2>&1 
   rm ${ITEMS[$x]}.tar.bz2
+
+   fi
 
    #make sure that it untarred to the proper dir.
    if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
@@ -248,13 +261,8 @@ for  ((x=0; x <= $i_count-1; x++))
       echo "ERROR: Grimoire tarball for ${ITEMS[$x]} not formated correctly!"
 
    fi 
-  else
-   
-   #grimoire was not downloaded. Error message.
-   echo "GRIMOIRE NOT FOUND"
 
   fi
-
 #done. go back to directory being run from  
 popd >/dev/null
 
@@ -382,9 +390,18 @@ do_update() {
  
           #download updated grimoire without fuzzy
           NO_FUZZ=on
+          url_set_options nocache
           url_download $2
 
-          #if the download was successful continue
+          #check the success of the download
+          if [ $? != 0 ]; then
+
+            #grimiore download failed
+            echo "GRIMOIRE NOT FOUND AT SOURCE"
+
+          else
+
+            #if the grimoire is an archive, untar it
           if [ -e $1.tar.bz2 ]; then
 
               #backup old version until successful untar
@@ -393,6 +410,8 @@ do_update() {
               #untar the new grimoire update and remove zip
               bzcat $1.tar.bz2 | tar -x  1>/dev/null 2>&1 
               rm $1.tar.bz2
+
+            fi
 
               #check for a successful unzip
               if [ -d $CODEX_ROOT/$1 ]; then
@@ -410,10 +429,13 @@ do_update() {
                   fi
 
                   #and remove backup version
+              if [ -e temp_$1.old ]; then
                   rm -rf temp_$1.old
+              fi
                   
                   #Confirm Success!
                   echo "$1 Updated!"
+                  grimoire_history $CODEX_ROOT/$1
 
               else
 
@@ -424,11 +446,6 @@ do_update() {
                   mv -f temp_$1.old $1
               
               fi 
-          
-          else
-
-              #grimiore download failed
-              echo "GRIMOIRE NOT FOUND AT SOURCE"
           
           fi
           

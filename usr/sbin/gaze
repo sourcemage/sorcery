@@ -73,6 +73,7 @@ section		[section]	List grimoire sections.
 maintainer	[section]	See who is the maintainer for a section
 grimoire	[grimoire]	View a text listing of all grimoires.
                         Or of the specified grimoire.
+grimoires				View list of installed grimoires (Grimoire names only).
 html	[-s]	[grimoire]	View a html listing of all grimoires.
                         Or of the specified grimoire.
                         Additionally displays links to the source files 
@@ -95,10 +96,20 @@ pam		<empty>		Display installed or held spells that are
 orphans		<empty>		Display installed spells that have no
 				  explicit dependencies on them.
 
-depends		spell		Displays the spells that explicitly
-				  or recursively depend on this spell.
+depends        spell [level]       Displays the spells that explicitly or
+                   recursively depend on this spell, up to $level levels.
+                    $level is kinda infinity if omitted.
+
+dependencies    spell [level]     Displays the spells $spell explicitly or 
+                        recursively depends on, up to $level levels.
+                        $level is kinda infinity if omitted.
 
 \$SPELL_SCRIPT	spell	will print the spell script for that spell.
+
+install-queue	<empty>		View the install queue
+
+remove-queue	<empty>		View the remove queue
+
 EOF
 }
 #' Just ignore this... it's so my poor syntax hilighting works.'
@@ -181,7 +192,7 @@ alien()  {
   find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >/tmp/gaze.found
  
   message  "Discovering installed files..."
-  cat  $INSTALL_LOGS/*  |  files  |  sort  >  /tmp/gaze.known
+  cat  $INSTALL_LOGS/*  /etc/sorcery/update/sorcery-${SORCERY_BRANCH}.log  |  files  |  sort  >  /tmp/gaze.known
 
   diff  -B  -a  -d  /tmp/gaze.found  /tmp/gaze.known  |
   grep  -v  "^> "                                     |
@@ -223,8 +234,7 @@ gaze_catalog()  {
     echo  "SECTION:  $(  basename  $SECTION  )"  
     echo  "-------------------------------------------------"
     for  spell  in  `codex_get_spells $SECTION`;  do
-      codex_set_current_spell  $spell
-      echo  $SPELL
+       echo `basename $spell`
       ((  COUNT++  ))
     done
   done
@@ -329,7 +339,15 @@ gaze_catalog_html()  {
         if [[ $COLS -eq 5 ]]; then
             echo "<td>"
             echo "<a href=\"$SOURCE_URL\">$(echo $SOURCE | cut -c-25)</a>"
-            echo "</td>"
+           i=2
+           ii=SOURCE${i}
+           while  [  -n "${!ii}"  ];  do
+               iii="${ii}_URL"
+               echo "<br><a href=\"${!iii}\">$(echo ${!ii} | cut -c-25)</a>"
+               i=$(($i+1))
+               ii=SOURCE${i}
+           done
+           echo "</td>"
         fi
         echo  "</tr>"
       )
@@ -338,7 +356,7 @@ gaze_catalog_html()  {
   done
 
 
-  echo  "<tr><th colspan=4>Total spells:  $COUNT</th></tr>"
+  echo  "<tr><th colspan=${COLS}>Total spells:  $COUNT</th></tr>"
   echo  "</table></body></html>"
 }
 
@@ -409,7 +427,7 @@ show_spell_component()  {
   local        COMPONENT=$1
   local       SPELL_NAME=$2
   local  SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL_NAME`
-  if  [  -x  $SPELL_DIRECTORY/$COMPONENT  ];  then
+  if  [  -e  $SPELL_DIRECTORY/$COMPONENT  ];  then
     cat      $SPELL_DIRECTORY/$COMPONENT
   fi
 
@@ -630,32 +648,27 @@ local spell
 }
 
 
-find_casting()  {
-
-  for  FILE in `cat /tmp/locklist | grep :cast: 2>/dev/null`;  do
-    if  ps  `echo $FILE | cut -d':' -f3`  |  grep  -q  cast;  then
-      echo  $FILE  |  cut -d':' -f1
-      return  0
-    fi
-  done
-  false
-
+specific_voyeur()
+{
+  if ! [ -d "${LOCK_DIR}/cast.$1" ]
+  then
+    return 1
+  fi
+  nice -n +20			\
+   tail /tmp/$1.compile.log	\
+    --follow=name --pid=`ls "${LOCK_DIR}/cast.$1"` 2>/dev/null
 }
 
 
-peek_casting()  {
-
-  if  [  -f   /tmp/locklist ]                                                &&
-      ps  `cat  /tmp/locklist | grep "$1"':cast' | cut -d':' -f3 2>/dev/null`  |
-      grep  -q  cast                                                         &&
-      [  -f  /tmp/$1.compile.log  ]
-  then
-    nice  -n  +20                  \
-    tail  -f  /tmp/$1.compile.log  \
-          --follow=name            \
-          --pid=`cat  /tmp/locklist | grep "$1"':cast' | cut -d':' -f3 2>/dev/null`  2>/dev/null
-  fi
-
+any_voyeur()
+{
+  local FILE=`find $LOCK_DIR -maxdepth 1 -mindepth 1 -name "cast.*" |
+         sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
+  [ $FILE ] || return 1
+  debug "voyeur" "Looking at spell \"$FILE\""
+    nice -n +20				\
+       tail /tmp/$FILE.compile.log	\
+           --follow=name --pid=`ls "${LOCK_DIR}/cast.$FILE"` 2>/dev/null
 }
 
 
@@ -668,33 +681,23 @@ activate_voyeur()  {
   fi
 
   for  SPELL  in  $@;  do
-    peek_casting  $SPELL
+    specific_voyeur $SPELL
   done
 
   DEFAULT_DELAY=${DEFAULT_DELAY:=60}
-
-  while  true;  do
-
-    if    !  ACTIVE_SPELL=`find_casting`;  then
-      message  "${MESSAGE_COLOR}Waiting"       \
-               "${DEFAULT_DELAY}"              \
-               "seconds for a cast to begin."  \
-               "${DEFAULT_COLOR}"
-
-      for  ((  DELAY=DEFAULT_DELAY  ;  DELAY > 0  ;  DELAY--  )); do
-        if  ACTIVE_SPELL=`find_casting`;  then
-          break
-        else
-          sleep 1
-        fi
-      done
+  DELAY=$DEFAULT_DELAY
+  message  "${MESSAGE_COLOR}Waiting ${DEFAULT_DELAY} seconds for a cast to begin.${DEFAULT_COLOR}"
+  while ((DELAY>0));
+  do
+    if any_voyeur
+    then
+      DELAY=$DEFAULT_DELAY
+      message "${MESSAGE_COLOR}Waiting ${DEFAULT_DELAY} seconds for another cast to begin.${DEFAULT_COLOR}"
+      global_clean_resources # normally an internal liblock function, inserted to clean out dead casts
+    else
+      sleep 1
+      let DELAY--
     fi
-
-    if    [  -z  "$ACTIVE_SPELL"  ];  
-    then  break
-    else  peek_casting  $ACTIVE_SPELL
-    fi
-
   done
 
 }
@@ -838,14 +841,14 @@ gaze_show_section_version_table()  {
 
    (
 
-     echo  "Section|Spell|Grimoire Version|Installed Version"
-     echo  "-------|-----|----------------|-----------------"
+     echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+     echo  "--------|-------|-----|----------------|-----------------"
 
      for  spell  in  $SPELLS;  do 
 
        codex_set_current_spell  $spell                            &&
        local  INSTALLED=`installed_version  $SPELL`               && 
-       echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+       echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
      done 
 
@@ -864,14 +867,14 @@ gaze_show_section_version_table()  {
 gaze_show_spell_version_table()  {
 
   (
-    echo  "Section|Spell|Grimoire Version|Installed Version"
-    echo  "-------|-----|----------------|-----------------"
+	echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+    echo  "--------|-------|-----|----------------|-----------------"
  
    for  SPELL  in  $@; do 
 
       codex_set_current_spell  $SPELL                        &&
       local  INSTALLED=`installed_version  $SPELL`           &&
-      echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+	  echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
     done 
 
@@ -921,6 +924,59 @@ gaze_show_version()  {
   message "$UNKNOWN"
 
 }
+
+#---------------------------------------------------------------------
+##=item gaze_show_versions <spell>
+##
+## Shows the all versions of spell, all versions in all grimoires and 
+## the version installed on the system.
+##
+#---------------------------------------------------------------------
+gaze_show_versions()  {
+
+  local SPELL=$1
+  local SPELL_DIRECTORY=
+  local GRIMOIRE=
+  local GRIMOIRES=
+  local ECHO_INSTALLED=1
+
+  if ! codex_does_spell_exist $SPELL
+  then return 1
+  fi
+
+  local INSTALLED=`installed_version $SPELL`
+
+  GRIMOIRES=$(codex_get_all_grimoires)
+
+  (
+
+  echo "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+  echo "--------|-------|-----|----------------|-----------------"
+
+  for GRIMOIRE in $GRIMOIRES
+  do
+    if SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $GRIMOIRE)
+    then
+      codex_set_current_spell $SPELL_DIRECTORY
+
+	  if [ $ECHO_INSTALLED -eq 1 ]
+	  then
+        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}"
+        ECHO_INSTALLED=0
+      else
+        echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|-"
+      fi
+
+    else
+      echo "$(echo $GRIMOIRE | get_basenames)|-|-|-|-"
+    fi
+  done
+
+  ) | column -t -s "|"
+
+  echo
+}
+
 
 
 #---------------------------------------------------------------------
@@ -998,6 +1054,23 @@ gaze_show_license_table()  {
 
 }
 
+
+#---------------------------------------------------------------------
+##=item gaze_show_grimories 
+##
+## Shows lising of installed grmoires by grimoire name only.
+##
+#---------------------------------------------------------------------
+gaze_show_grimoires()  {
+
+	echo  ""
+	echo  ""
+	echo  "Installed Grimoires: " $(codex_get_all_grimoires | get_basenames)
+	echo  ""
+	echo  ""
+	exit
+	
+}
 
 
 #---------------------------------------------------------------------
@@ -1109,10 +1182,74 @@ gaze_show_where() {
 }
 
 gaze_show_depends() {
-    local spell="$@"
+    local spell="$1"
+    local MAX_DEPTH=$2 #as a global for show_depends.
 
-    codex_does_spell_exist "$@" && show_depends "$spell" | sort | uniq
+    codex_does_spell_exist "$spell" && show_depends "$spell" | sort | uniq
 }
+
+
+gaze_show_dependencies() {
+    local SPELL=$1
+    [[ $# == 2 ]] && MAX_DEPTH=$2
+
+    (
+        query() {
+            return 0
+        }
+        depends() {
+                recurse $1 $DEPTH "depends"
+                return 0
+        }
+        optional_depends() {
+                recurse $1 $DEPTH "optional"
+                return 0
+        }
+        requires() {
+                recurse $1 $DEPTH "requires"
+                return 0
+        }
+        repeat () {
+            local CHAR="$1" COUNT="$2"
+    
+            while (( COUNT-- )); do echo -en "$CHAR"; done
+        }
+    
+        recurse () {
+            local name=$1 DEPTH=$2 WHAT=$3
+    
+            [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
+    
+            repeat "\t" $DEPTH
+            echo "$name ($WHAT)"
+            grep () {
+               local foo=$( which grep )
+               $foo "$@"
+            }
+    
+            local SPELL=$(codex_find_spell_by_name $name)
+            [[ -e "$SPELL/DEPENDS" ]] &&
+            (
+                    (( DEPTH++ ))
+                    grep () { return 0; }
+                    source "$SPELL/DEPENDS" 2>/dev/null
+            )
+        }
+        recurse $SPELL
+    )
+}
+
+gaze_show_size () {
+    local spell
+    for spell in "$@"; do
+        local version=$(installed_version $spell)
+        local file="$INSTALL_LOGS/$spell-$version"
+        cat $file | xargs ls -lgd 2> /dev/null |grep '^[^dl]' | \
+            awk '{ x += $5 } 
+                END { print "'$spell' -> " x " bytes in " NR " files." }'
+    done
+}
+
 
 parse()  {
 
@@ -1151,6 +1288,7 @@ parse()  {
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
+		 versions)  shift; gaze_show_versions $@         ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
             from)  show_from         $2                  ;;
@@ -1159,10 +1297,12 @@ parse()  {
            prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
         grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
+       grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
-         depends)  gaze_show_depends  "$2"               ;;
+         depends)  shift; gaze_show_depends  "$@"        ;;
+    dependencies)  shift; gaze_show_dependencies  "$@"   ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
          history)  show_history  "$2"                    ;;
      website|url)  shift; gaze_show_website           $@ ;;
@@ -1171,6 +1311,7 @@ parse()  {
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
+            size)  shift; gaze_show_size              $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
@@ -1199,7 +1340,11 @@ parse()  {
 
       pam)  find_pam_aware  ;;
 
-        *)  help  ;;
+ install-queue)  display  $INSTALL_QUEUE  "Install queue does not exist"  ;;
+
+  remove-queue)  display  $REMOVE_QUEUE   "Remove queue does not exist"   ;;
+
+             *)  help  ;;
 
   esac
 
