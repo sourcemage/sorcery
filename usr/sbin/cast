@@ -10,18 +10,18 @@
 #-----
 ## Help... hmm... I wonder what it does...
 #-----
-function help()	{
+function help() {
 
   cat  <<  EOF
 
 Cast installs single or multiple spells
 
-Example:	cast  nano hdparm sudo
-Usage:		cast  [parameters]  [spell]
+Example:          cast  nano hdparm sudo
+Usage:            cast  [parameters]  [spell]
 
 Optional Parameters:
 
--q  |  --quiet			Do not be verbose, show less info
+-q  |  --quiet                  Do not be verbose, show less info
 
        --cflags                 Custom CFLAGS
        --cxxflags               Custom CXXFLAGS
@@ -31,32 +31,32 @@ Optional Parameters:
                                 --ldflags
 
 -t  |  --dot                    Display progress as dots, not percent
--V [on|off]			Override \$VOYEUR setting
+-V [on|off]                     Override \$VOYEUR setting
 
--f  |  --fix			Discover and fix broken spells
--n  |  --nofix			Discover, but do not fix broken spells
-				(Both deprecated, use cleanse instead)
+-f  |  --fix                    Discover and fix broken spells
+-n  |  --nofix                  Discover, but do not fix broken spells
+                                (Both deprecated, use cleanse instead)
 
--d  |  --download		Force download of sources (overwrite existing
+-d  |  --download               Force download of sources (overwrite existing
                                 files)
 
--s				Download all given spells before compiling
-       --deps			Configure spells and determine dependencies,
-				but do not cast.
+-s                              Download all given spells before compiling
+       --deps                   Configure spells and determine dependencies,
+                                but do not cast.
 
--c  |  --compile		Ignore $INSTALL_CACHE and compiles
--r  |  --reconfigure		Select new dependencies for spells
+-c  |  --compile                Ignore $INSTALL_CACHE and compiles
+-r  |  --reconfigure            Select new dependencies for spells
 
--R  |  --recast-down		Recast depended-upon spells, even if they are
+-R  |  --recast-down            Recast depended-upon spells, even if they are
                                 already installed...
--B  |  --recast-up		Recast dependent spells, even if they are
+-B  |  --recast-up              Recast dependent spells, even if they are
                                 already installed...
-				
-       --from	directory	Specify an alternate for $SOURCE_CACHE
-       --url	URL		Specify an alternate download URL
 
-       --pam			Re-casts all installed spells that
-				can use Linux-PAM
+       --from   directory       Specify an alternate for $SOURCE_CACHE
+       --url    URL             Specify an alternate download URL
+
+       --pam                    Re-casts all installed spells that
+                                can use Linux-PAM
 
        --queue                  Casts all spells listed in $INSTALL_QUEUE
 
@@ -67,7 +67,7 @@ EOF
 }
 
 #-----
-## Finds all dirs that have shard objects in
+## Finds all dirs that have shared objects in
 ## @Args directories to check for shared objects
 ## @Stdout dirs with shared objects in
 #-----
@@ -77,7 +77,7 @@ function lib_dirs()  {
     for FILE in $DIRECTORY/*.so* ; do
       if file -b "$FILE" | grep  -q  "shared object" ; then
         echo -n "$DIRECTORY:"
-	break
+        break
       fi
     done
   done
@@ -109,7 +109,7 @@ function ldd_check()  {  (
     return
   fi
 
-     SPELL=$1
+       SPELL=$1
      VERSION=`installed_version  "$SPELL"`
        I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   LDD_STATUS=0
@@ -138,7 +138,7 @@ function ldd_check()  {  (
           grep  -q  "not found"
       then
         (
-	   clear_line
+           clear_line
            message  "${FILE_COLOR}${FILE}"       \
                     "${DEFAULT_COLOR}of"         \
                     "${SPELL_COLOR}${SPELL}"     \
@@ -149,7 +149,7 @@ function ldd_check()  {  (
         LDD_STATUS=1
       fi
     done
-	clear_line
+    clear_line
   fi
   return  $LDD_STATUS
 
@@ -163,7 +163,7 @@ function find_check()  { (
 
   if  [  "$FIND_CHECK"  ==  "off"             ]   ||
       [  "$1"           ==  "xfree86"         ]   ||
-      [  "$1"           ==  "xfree86-devel"         ]   ||
+      [  "$1"           ==  "xfree86-devel"   ]   ||
       [  "$1"           ==  "xfree86-custom"  ];  then
     return
   fi
@@ -188,9 +188,7 @@ function find_check()  { (
         progress_bar $DOT_PROGRESS $count $size 50
       fi
       let count++
-      
-      
-		if  [ -z "$ITEM" ] || [ -e  "$ITEM"  ];  then
+      if  [ -z "$ITEM" ] || [ -e  "$ITEM"  ];  then
         true
       else
         (
@@ -260,7 +258,7 @@ function sym_check()  { (
     return
   fi
 
-      SPELL=$1
+        SPELL=$1
       VERSION=`installed_version  $SPELL`
         I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
 
@@ -548,9 +546,9 @@ function process_parameters()  {
             --cflags)  export OVERRIDE_CFLAGS="$2";      shift 2  ;;
           --cxxflags)  export OVERRIDE_CXXFLAGS="$2";    shift 2  ;;
            --ldflags)  export OVERRIDE_LDFLAGS="$2";     shift 2  ;;
-           --no-opts)  export NO_OPTIMIZATION_FLAGS=1;  shift 1  ;;
-	    -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
-	          -V)  export VOYEUR_OVERRIDE="$2";	 shift 2  ;;
+           --no-opts)  export NO_OPTIMIZATION_FLAGS=1;   shift 1  ;;
+            -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
+                  -V)  export VOYEUR_OVERRIDE="$2";      shift 2  ;;
               --deps)  export  DEPS_ONLY="$1";           shift 1  ;;
     -r|--reconfigure)  RECONFIGURE="$1";                 shift 1  ;;
     -R|--recast-down)  RECAST_DOWN="$1";                 shift 1  ;;
@@ -585,7 +583,7 @@ function process_parameters()  {
 
                          # cast the queue.
                          cast -c `cat $INSTALL_QUEUE 2>/dev/null`
-												 
+            
                          # report spells still in queue.
                          if  [  -s  $INSTALL_QUEUE  ] ; then
                            message "${MESSAGE_COLOR}The install queue is not empty, "
@@ -628,8 +626,8 @@ function strip_parameters()  {
               --cxxflags)  shift 2  ;;
                --ldflags)  shift 2  ;;
                --no-opts)  shift 1  ;;
-	        -d|--dot)  shift 1  ;;
-		      -V)  shift 2  ;;
+                -d|--dot)  shift 1  ;;
+                      -V)  shift 2  ;;
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
@@ -639,7 +637,7 @@ function strip_parameters()  {
                       -s)  shift 1  ;;
                    --url)  shift 2  ;;
                    --pam)  shift 1  ;;
-		 --queue)  shift 1  ;;
+                 --queue)  shift 1  ;;
                        *)  shift 1  ;;
 
       esac
@@ -788,11 +786,11 @@ function pass_one()  {
   depends_to_Makefile to_cast already_cast > $MAKEFILE
 
   if  [  -n  "$DEPS_ONLY"  ] ;  then  
-   	for i in $SPELLS ; do
-	  #BUG: $i=="foo" and "foobar" is also to be built it will remove foobar too"
-	  sed -e 's/cast .* $i.*/true/' $MAKEFILE > $MAKEFILE.2
-	  mv $MAKEFILE.2 $MAKEFILE
-   	done  
+    for i in $SPELLS ; do
+    #BUG: $i=="foo" and "foobar" is also to be built it will remove foobar too"
+      sed -e 's/cast .* $i.*/true/' $MAKEFILE > $MAKEFILE.2
+      mv $MAKEFILE.2 $MAKEFILE
+    done  
   fi
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
@@ -806,47 +804,45 @@ function pass_one()  {
 #-----
 function depends_to_Makefile()
 {
-	debug "cast" "depends_to_Makefile - $*"
-	
-        # This is needed because compute_installed_depends may have
-        # stale dependency information compared with the information
-        # from compute_uninstalled_depends. So we strip off any depends
-        # info from the installed depends hash.
-	for i in $( { hash_get_table_fields $1 ; hash_get_table_fields $2; } | sort | uniq -d ); do
-		hash_unset "$2" "$i"
-	done
-	
-	[[ $COMPILE ]] && args="-c "
-	
-	# Spells that are actualy going to be cast
-	for i in $( hash_get_table_fields $1 ) ; do
-		echo "$i : $(hash_get "$1" "$i")"
-		echo -e "\t@bash $0 $args $i"
-		echo
-	done
-	
-	#Spells that are already cast
-	#NOTE: For recursive recompile cast, make this loop like loop above
-	for i in $( hash_get_table_fields $2 ) ; do
-		echo "$i : $(hash_get "$2" "$i")"
-		echo
-	done
-	local all_spells=$({ hash_get_table_fields $1 ; hash_get_table_fields $2; } | tr '[:cntrl:]' ' ')
-        # make will run the all target, which would be the spells we care about
-	echo "all : $all_spells"
-        echo
-        # if dependency rules fail us, match here after everything else
-	# has had the chance, and do nothing, instead of exit early...
-        echo %:
-	echo -e "\t@echo -n"
-	echo
-        # this caused a rather nasty bug where a file in the current directory
-	# had the same name as a spell, and make thought it had already "made"
-	# that spell
-	echo ".PHONY : all $all_spells"
+  debug "cast" "depends_to_Makefile - $*"
 
-#	export SPELLS="$all_spells"
-	
+  # This is needed because compute_installed_depends may have
+  # stale dependency information compared with the information
+  # from compute_uninstalled_depends. So we strip off any depends
+  # info from the installed depends hash.
+  for i in $( { hash_get_table_fields $1 ; hash_get_table_fields $2; } | sort | uniq -d ); do
+    hash_unset "$2" "$i"
+  done
+  
+  [[ $COMPILE ]] && args="-c "
+  
+  # Spells that are actualy going to be cast
+  for i in $( hash_get_table_fields $1 ) ; do
+    echo "$i : $(hash_get "$1" "$i")"
+    echo -e "\t@bash $0 $args $i"
+    echo
+  done
+  
+  #Spells that are already cast
+  #NOTE: For recursive recompile cast, make this loop like loop above
+  for i in $( hash_get_table_fields $2 ) ; do
+    echo "$i : $(hash_get "$2" "$i")"
+    echo
+  done
+  local all_spells=$({ hash_get_table_fields $1 ; hash_get_table_fields $2; } | tr '[:cntrl:]' ' ')
+  # make will run the all target, which would be the spells we care about
+  echo "all : $all_spells"
+  echo
+  # if dependency rules fail us, match here after everything else
+  # has had the chance, and do nothing, instead of exit early...
+  echo %:
+  echo -e "\t@echo -n"
+  echo
+
+  # this caused a rather nasty bug where a file in the current directory
+  # had the same name as a spell, and make thought it had already "made"
+  # that spell
+  echo ".PHONY : all $all_spells"
 }
 
 
@@ -872,8 +868,8 @@ function pass_two()  {
   message "${DEFAULT_COLOR}"
   
   if ! query "Do you want to cast these spells?" "y" ; then
-  	message "Ok, quitting cast. Figure out what you want."
-	return 1
+    message "Ok, quitting cast. Figure out what you want."
+  return 1
   fi
   
   #make: -k keep going even if there's an error, -s silent, -f <file>
@@ -956,14 +952,14 @@ function pass_five()  {
 
   if [ -s $SUCCESS_LIST ] ; then
 
-	  message "${MESSAGE_COLOR}Finished processing install requests."
-	  message ""
-	  message "Spells installed successfully:"
-	  message "------------------------------${SPELL_COLOR}"
+    message "${MESSAGE_COLOR}Finished processing install requests."
+    message ""
+    message "Spells installed successfully:"
+    message "------------------------------${SPELL_COLOR}"
 
-	  for item in `cat $SUCCESS_LIST 2>/dev/null`; do
-    	message "$item"
-	  done | column
+    for item in `cat $SUCCESS_LIST 2>/dev/null`; do
+      message "$item"
+    done | column
    
     set_term_title "Casting successfull."
     message "${DEFAULT_COLOR}"
@@ -983,7 +979,7 @@ function pass_five()  {
     # for item in $* ; do
     #  if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
     #    message "$item"
-	  #  fi
+    #  fi
 
     for item in `cat $FAILED_LIST 2>/dev/null`; do
       message "$item"
@@ -1028,10 +1024,10 @@ function pass_zero()  {
 #---------------------------------------------------------------------
 function int_trap()
 {
-	message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
-	message "Cleaning up as well as I can..."
-	cleanup
-	exit 1
+  message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
+  message "Cleaning up as well as I can..."
+  cleanup
+  exit 1
 }
 
 #---------------------------------------------------------------------
@@ -1055,7 +1051,7 @@ function cleanup() {
 ## which are then being reported. Then the passes are being started
 ## according to CAST_PASS
 #---------------------------------------------------------------------
-function main()	{
+function main()  {
 
   debug "cast" "main() - $*"
   local T_SPELLS=""
@@ -1068,23 +1064,23 @@ function main()	{
 
   else
 
-	  for spell in $SPELLS ; do
-		  codex_does_spell_exist $spell
-		  if [ $? -eq 0 ] ; then
-			  T_SPELLS="$T_SPELLS $spell"
-		  fi
-	  done
-	  SPELLS=$T_SPELLS
-	
-	  if ! [[ $SPELLS ]]; then
-		  return 1
-	  fi
-	
-	  MAKEFILE="$TMP_DIR/Makefile"
-	  export ENV_CACHE=${ENV_CACHE:-$TMP_DIR/envCache}
-	  echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
-	  export RM_AT_END="$RM_AT_END"
-	  BASE_SPELLS=" $SPELLS "
+    for spell in $SPELLS ; do
+      codex_does_spell_exist $spell
+      if [ $? -eq 0 ] ; then
+        T_SPELLS="$T_SPELLS $spell"
+      fi
+    done
+    SPELLS=$T_SPELLS
+  
+    if ! [[ $SPELLS ]]; then
+      return 1
+    fi
+  
+    MAKEFILE="$TMP_DIR/Makefile"
+    export ENV_CACHE=${ENV_CACHE:-$TMP_DIR/envCache}
+    echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
+    export RM_AT_END="$RM_AT_END"
+    BASE_SPELLS=" $SPELLS "
 
     case  $CAST_PASS  in
        one)  pass_one    $SPELLS  ;; #Never matches
