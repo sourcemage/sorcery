@@ -750,6 +750,98 @@ function track_manual()  {
 }
 
 
+
+#---------------------------------------------------------------------
+##=item warn_rejected
+##
+## Provides a neatly formatted rejection dialog for the
+## various rejected spells that might require user warnings.
+##
+#---------------------------------------------------------------------
+function warn_rejected()
+{
+  message $(cat <<EOT
+${MESSAGE_COLOR}This spell is considered ${PROBLEM_COLOR}rejected${DEFAULT_COLOR}${MESSAGE_COLOR} because of the following reason:
+EOT
+  )
+  message ""
+  message $(cat <<EOT
+${PROBLEM_COLOR}$REJECT${DEFAULT_COLOR}${MESSAGE_COLOR}.
+EOT
+  )
+  message ""
+  message $(cat <<EOT
+Please view the software website for more information:
+EOT
+  )
+  message ""
+  message $(cat <<EOT
+${DEFAULT_COLOR}$WEB_SITE${MESSAGE_COLOR}.
+EOT
+  )
+  message ""
+  message $(cat <<EOT
+You may continue casting the spell and it will still be tracked by Sorcery.
+EOT
+  )
+  message $(cat <<EOT
+However, the software installation process may have questions that need to be
+EOT
+  )
+  message $(cat <<EOT
+answered and/or licensing agreements that must be agreed to.${DEFAULT_COLOR}
+EOT
+  )
+  message ""
+}
+
+# Ask if user wants to continue anyway. (defaults to NO), unless running in UNATTEND_SAFE mode.
+function ask_continue_with_rejected()
+{
+  if spell_installed "$SPELL" && [ -e $SCRIPT_DIRECTORY/UNATTEND_SAFE ]; then
+    message $(cat <<EOT
+${MESSAGE_COLOR}$SPELL ${FILE_COLOR}is${MESSAGE_COLOR} installed, and has been
+determined to be ${FILE_COLOR}safe 
+EOT
+  )
+    message $(cat <<EOT
+for unattended update ${DEFAULT_COLOR} ${MESSAGE_COLOR}, so the prompt will be skipped.${DEFAULT_COLOR}
+EOT
+    )
+    message ""
+    return
+  fi
+
+  message ""
+  message $(cat <<EOT
+${MESSAGE_COLOR}Allowing the next question to timeout will choose not to install this spell.
+EOT
+    )
+  message $(cat <<EOT
+This means that rejected spells ${PROBLEM_COLOR}will not be installed or updated automatically.
+EOT
+    )
+  message ""
+  message $(cat <<EOT
+${DEFAULT_COLOR}${MESSAGE_COLOR}If you want a rejected spell to be installed or updated you must
+EOT
+    )
+  message $(cat <<EOT
+confirm your decision now or cast the spell later.${DEFAULT_COLOR}
+EOT
+  )
+  message ""
+  if ! query  "CONTINUE casting?" n; then
+    message ""
+    message "${MESSAGE_COLOR}You chose to stop the installation, or you let the prompt timeout."
+	message "Maybe you'll be braver next time?${DEFAULT_COLOR}"
+    exit 1
+  fi
+
+  message ""
+  message "${MESSAGE_COLOR}OK, here we go... you are on your own!${DEFAULT_COLOR}"
+}
+
 #---------------------------------------------------------------------
 ##=back
 ##
