@@ -715,14 +715,14 @@ grep_install_logs() {
 
 
 optimize_architecture()  {
-
   architecture_menu  ARCHITECTURE  "Build system selection"
   if [[ $CROSS_INSTALL == on ]]; then
     architecture_menu  TARGET      "Target system selection"
   fi
   optimization_menu
   custom_optimization_menu
-
+  . $LOCAL_CONFIG
+  optimize
 }
 
 architecture_menu() {
@@ -768,7 +768,6 @@ architecture_menu() {
     debug "sorcery" "architecture_menu() - NEW_ARCH='$NEW_ARCH'"
 
     modify_local_config "$1" "${NEW_ARCH}"
-
   fi
 
 
