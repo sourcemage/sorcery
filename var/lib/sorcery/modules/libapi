@@ -16,15 +16,18 @@
 #    config_query_option    (libmisc)
 #    config_query_string    (libmisc)
 #    conflicts              (libgrimoire)  
-#    default_build          (libgrimoire)   
-#    default_install        (libgrimoire)   (BUILD_API==2 only)
-#    default_post_build     (libgrimoire)   (BUILD_API==1 only)
-#    default_post_install   (libgrimoire)   (BUILD_API==2 only)
-#    default_pre_build      (libgrimoire)   
-#    default_pre_install    (libgrimoire)   (BUILD_API==2 only)
+#    default_build          (build_api/...)   
+#    default_install        (build_api/api2)   (BUILD_API==2 only)
+#    default_post_build     (build_api/api1)   (BUILD_API==1 only)
+#    default_post_install   (build_api/api2)   (BUILD_API==2 only)
+#    default_pre_build      (build_api/common)   
+#    default_pre_install    (build_api/api2)   (BUILD_API==2 only)
 #    depends                (libdepends)
+#    devoke_installwatch    (libtrack)
+#    gather_docs            (build_api/common)
 #    get_spell_provider     (libstate)
 #    installed_version      (libgrimoire)   
+#    invoke_installwatch    (libtrack
 #    list_add               (libmisc)
 #    list_find              (libmisc)
 #    list_remove            (libmisc)
@@ -45,14 +48,42 @@
 #    query                  (libmisc)       
 #    query_string           (libmisc)
 #    requires               (libdepends)
+#    rm_source_dir          (libgrimoire)
 #    sedit                  (libmisc)       
 #    spell_exiled           (libstate)
 #    spell_held             (libstate)
 #    spell_installed        (libstate)
 #    spell_ok               (libstate)
+#    track_manual           (libtrack)
 #    unpack                 (libgrimoire)   
 #
-# troublemakers SOURCE_CACHE, OPTS, CFLAGS, CXXFLAGS, CPPFLAGS, CC and LDFLAGS
+# Read-only variable that might be of use to a spell:
+# SOURCE_CACHE, OPTS, BUILD HOST, INSTALL_ROOT
+#
+# The following can be modifies in BUILD, but nowhere else:
+# CFLAGS, CXXFLAGS, CPPFLAGS, CC and LDFLAGS
+#
+# The following are set when a spell is loaded, you may use them, but
+# not change them:
+# SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION 
+#
+# global sorcery variables you should never use in a spell:
+#
+# (do not modify or read any of these for any reason, if you feel you
+#  must look at one of them, talk to your local sorcery lead about getting
+#  some sort of accessor functionality)
+#
+# TOP_LEVEL DISPLAY PATH RM_AT_END TMP_DIR SAFE_CAST 
+# FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY 
+# CAST_PASS download_log IW_LOG SOLO QUIET INSTALL_QUEUE 
+# OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS 
+# DOT_PROGRESS VOYEUR_OVERRIDE RECONFIGURE RECAST_DOWN COMPILE RECAST_UP 
+# FORCE_DOWNLOAD SILENT FIX DEBUG SEPARATE BASE_URL 
+# CAST_HASH BACK_CAST_HASH CANNOT_CAST_HASH uncommitted_hash NEW_DEPENDS 
+# spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR 
+# BUILD_API VOYEUR_STDOUT VOYEUR_STDERR C_LOG C_FIFO INST_LOG MD5_LOG
+# INSTALLWATCHFILE CAST_EXIT_STATUS
+#
 #---------------------------------------------------------------------
 
 
@@ -187,21 +218,6 @@ function conflicts () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param spell/service
-## @param enabled options (optional)
-## @param description (optional)
-## @param grimoires (optional)
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
-## Denotes that a spell requires another spell to work.
-#---------------------------------------------------------------------
-function depends () {
-    debug "libapi" "depends - $*"
-    real_depends "$@"
-}
-
-
-#---------------------------------------------------------------------
-## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_build> for more details.
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
@@ -301,6 +317,41 @@ function default_post_install () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
+## Denotes that a spell requires another spell to work.
+#---------------------------------------------------------------------
+function depends () {
+    debug "libapi" "depends - $*"
+    real_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtrack.html,real_devoke_installwatch> for more details.
+## Stops using installwatch
+#---------------------------------------------------------------------
+function devoke_installwatch () {
+    debug "libapi" "devoke_installwatch - $*"
+    real_devoke_installwatch "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.build_api.common.html,real_gather_docs> for more details.
+## Gathers all documentation files from source archive and installs
+## them as part of the spell
+#---------------------------------------------------------------------
+function gather_docs() {
+    debug "libapi" "gather_docs - $*"
+    real_gather_docs "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @param Spell name
 ## @param Provider name
 ## @param If empty get the uncommited spell info, if anything else get
@@ -327,6 +378,16 @@ function get_spell_provider() {
 function installed_version () {
     debug "libapi" "installed_version - $*"
     real_installed_version "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtrack.html,real_invoke_installwatch> for more details.
+## Starts using installwatch
+#---------------------------------------------------------------------
+function invoke_installwatch () {
+    debug "libapi" "invoke_installwatch - $*"
+    real_invoke_installwatch "$@"
 }
 
 #---------------------------------------------------------------------
@@ -369,19 +430,6 @@ function list_add () {
 }
 
 #---------------------------------------------------------------------
-## @Type API
-## @param message to echo
-## @Stdout message
-## @See <@function var.lib.sorcery.modules.libmisc.html,real_message> for more details.
-## echo's the given arguments if SILENT is not set.
-##
-#---------------------------------------------------------------------
-function message () {
-    debug "libapi" "message - $*"
-    real_message "$@"
-}
-
-#---------------------------------------------------------------------
 ## @param string
 ## @param elements, ...
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_find> for more details.
@@ -403,6 +451,19 @@ function message () {
 function list_find () {
     debug "libapi" "list_find - $*"
     real_list_find "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param message to echo
+## @Stdout message
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_message> for more details.
+## echo's the given arguments if SILENT is not set.
+##
+#---------------------------------------------------------------------
+function message () {
+    debug "libapi" "message - $*"
+    real_message "$@"
 }
 
 #---------------------------------------------------------------------
@@ -607,6 +668,20 @@ function provider_ok() {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param  [directory to remove]
+## @Globals SOURCE_DIRECTORY
+## Removes the given directory or SOURCE_DIRECTORY if no argument is
+## given. 
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_rm_source_dir> for more details.
+##
+#---------------------------------------------------------------------
+function rm_source_dir() {
+    debug "libapi" "rm_source_dir - $*"
+    real_rm_source_dir "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_query> for more details.
 ## @param question 
 ## @param default answer
@@ -724,7 +799,6 @@ function spell_exiled() {
     real_spell_exiled "$@"
 }
 
-
 #---------------------------------------------------------------------
 ## @Type API
 ## @param file to unpack 
@@ -740,6 +814,20 @@ function spell_exiled() {
 function unpack () {
     debug "libapi" "unpack - $*"
     real_unpack "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @params list of files to track manually
+## @See <@function var.lib.sorcery.modules.libtrack.html,real_track_manual> for more details.
+##
+## Given a list of files it will notify installwatch of them.
+## Useful for spells whose components are not dynamicly linked
+## to glibc. Installwatch must be running for this to work.
+#---------------------------------------------------------------------
+function track_manual() {
+    debug "libapi" "track_manual - $*"
+    real_track_manual "$@"
 }
 
 #---------------------------------------------------------------------
