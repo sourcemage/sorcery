@@ -71,8 +71,10 @@ import		snapshot	Restore snapshot.
 
 section		[section]	List grimoire sections.
 maintainer	[section]	See who is the maintainer for a section
-grimoire			View a text listing of the grimoire.
-html				View a html listing of the grimoire.
+grimoire	[grimoire]	View a text listing of all grimoires.
+                        Or of the specified grimoire.
+html		[grimoire]	View a html listing of all grimoires.
+                        Or of the specified grimoire.
 
 newer		20020521	Show available spells newer than May 21, 2002.
 older		20010521	Show spells installed before May 21, 2001.
@@ -202,8 +204,14 @@ gaze_catalog()  {
             exit 1;
         fi  
   fi
-  echo "grimoire: $grimoire"
+
   echo  "Sorcery Grimoire for `date  -u`"
+
+  if [ $grimoire ]; then
+        echo "Grimoire: " $(basename $grimoire)
+  else
+        echo "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+  fi
 
   ((  COUNT=0  ))
 
@@ -245,7 +253,15 @@ gaze_catalog_html()  {
   echo  "        border=5>"
 
   echo  "<tr><th colspan=4><font color=green  size=+1>"
-  echo  "Sorcery Grimoires<br>`date  -u`"
+  echo  "Sorcery Grimoires<br>"
+  echo  $(date -u) "<br>"
+
+  if [ $grimoire ]; then
+        echo  "Grimoire: " $(basename $grimoire)
+  else
+        echo  "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+  fi
+
   echo  "</font></th></tr>"
 
   echo  "<tr>"
