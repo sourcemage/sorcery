@@ -170,6 +170,13 @@ function run_triggers() {
 function run_spell_success() {
     debug "build_api/common" "cast of $SPELL-$VERSION was successful"
 
+    local INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+    local MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+    local TMP_INST_LOG="$TMP_DIR/$SPELL-$VERSION.install"
+    local TMP_MD5_LOG="$TMP_DIR/$SPELL-$VERSION.md5"
+    local CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+    local C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+
     sound  SUCCESS
 
     create_compile_log
@@ -195,9 +202,22 @@ function run_spell_success() {
     [ -e "$ABANDONED_DEPENDS/$SPELL" ] &&
     rm -f $ABANDONED_DEPENDS/$SPELL &>/dev/null
 
-    track
-    md5list $INST_LOG $MD5_LOG
-    archive
+    # this will make the raw log that needs post processing to strip
+    # INSTALL_ROOT and insert TRACK_ROOT in its place
+    
+    message  "${MESSAGE_COLOR}Creating install log" \
+             "${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
+    track $TMP_INST_LOG
+    install_log_filter $INSTALL_ROOT $TRACK_ROOT < $TMP_INST_LOG > $INST_LOG
+
+    message  "${MESSAGE_COLOR}Creating MD5 log"        \
+             "${FILE_COLOR}${MD5_LOG}${DEFAULT_COLOR}"
+    md5list $TMP_INST_LOG $TMP_MD5_LOG
+    md5_log_filter $INSTALL_ROOT $TRACK_ROOT < $TMP_MD5_LOG > $MD5_LOG
+
+    # archives are relative to / in their own environment, and thus
+    # INSTALL_ROOT is stripped
+    sed "s:^$INSTALL_ROOT/::" $TMP_INST_LOG | archive $INSTALL_ROOT 
 
     report_install
 

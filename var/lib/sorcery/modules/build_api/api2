@@ -71,6 +71,8 @@ function run_pre_build() {
            "${SPELL_COLOR}${SPELL}"    \
            "${DEFAULT_COLOR}"
 
+  rm_source_dir
+  mkdir -p $BUILD_DIRECTORY
   cd  $BUILD_DIRECTORY
 
   verify_sources &&
@@ -104,7 +106,6 @@ function run_build()  {
   invoke_build_dir
   invoke_gcc2
   optimize
-  invoke_installwatch
 
   message -n "Installing in dir: "
   pwd
@@ -152,6 +153,8 @@ function run_pre_install() {
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
+
+  invoke_installwatch
 
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
@@ -260,7 +263,9 @@ function real_default_build() {
 #---------------------------------------------------------------------
 function real_default_pre_install() {
   debug "build_api/api2" "Starting real_default_pre_install"
+  devoke_installwatch
   prepare_install
+  invoke_installwatch
 }
 
 #---------------------------------------------------------------------

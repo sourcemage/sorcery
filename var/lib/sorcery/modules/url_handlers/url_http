@@ -107,6 +107,12 @@ function url_http_call_wget()  {
   url_http_erase  $STRIPPED_FILENAME   &&  
   wget $WGET_OPTIONS "$URL"            &&
   FILE="$FILENAME"
+  if [ ! -e "$FILE" ]; then
+    # stupid http site trying to be nice and re-direct us, this is a failure
+    # even though wget doesnt notice it...
+    rm $FILENAME*
+    return 1
+  fi
 }
 
 
@@ -272,13 +278,13 @@ function url_ftp_hostname() {
 ##
 #---------------------------------------------------------------------
 function url_http_netselect() {
-  netselect -s 1000 $1 2>/dev/null
+  netselect -s 1000 $@ 2>/dev/null
 }
 function url_https_netselect() {
-  netselect -s 1000 $1 2>/dev/null
+  netselect -s 1000 $@ 2>/dev/null
 }
 function url_ftp_netselect() {
-  netselect -s 1000 $1 2>/dev/null
+  netselect -s 1000 $@ 2>/dev/null
 }
 
 

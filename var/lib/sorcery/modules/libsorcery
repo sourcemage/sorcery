@@ -24,63 +24,58 @@ function update_sorcery_scripts() {
 
   debug "libsorcery" "update_sorcery_scripts() (sorcery-$BRANCH)"
 
-  . /etc/sorcery/update/DETAILS          &&
   {
     #This section is to make sure that all sorcery dependencies are cast
-    #Keep this outer if until basesystem is in the grimoires properly. (2002/10/13)
+    #Keep this outer if until basesystem is in the grimoires properly.
+    #(2002/10/13)
     if [[ `codex_find_spell_by_name basesystem` ]] ; then
-      if ! ( spell_installed basesystem ||
-             spell_held basesystem  )
-      then
+      if ! ( spell_installed basesystem || spell_held basesystem  ) ; then
         cast basesystem
       fi
       cast --fix basesystem
     fi
   }
 
-  INST_LOG="/etc/sorcery/update/sorcery-$BRANCH.log"
-  CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
   FORCE_DOWNLOAD=1
   C_LOG=/tmp/$SPELL.compile.log
   TMP_LOG="/tmp/$SPELL-$BRANCH"
   IW_LOG="/tmp/$SPELL.iw"
 
-  if [ -f $INST_LOG ]; then
-    mv $INST_LOG $INST_LOG.prev
-  fi
+  # sorcery is not a spell
+  # there is no spoon
+  SOURCE=sorcery-$SORCERY_BRANCH.tar.bz2
+  SOURCE_DIRECTORY=$BUILD_DIRECTORY/sorcery
+  SOURCE_URL[0]=$SORCERY_URL/$SOURCE
+  FUZZ="off"
 
-  echo "$SOURCE  ${SOURCE_URL[*]}"|download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither"
+  echo "$SOURCE  ${SOURCE_URL[*]}" |
+  download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither"
 
   FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
 
-  # pre build
   mk_source_dir  $SOURCE_DIRECTORY              &&
-  cd $INSTALL_ROOT/usr/src                      &&
-  bzip2  -cdf   $FILENAME |
+  cd /usr/src                                   &&
+  bzip2  -cdf   $FILENAME                       |
   tar --owner=root --group=root -xf /dev/stdin  &&
   cd      $SOURCE_DIRECTORY                     &&
-  invoke_installwatch                           &&
 
-  # build
-  (
-  echo `pwd` &&
-  prepare_install  &&
-  ./install
-  ) > $C_LOG 2>&1                       &&
+  echo `pwd`                                    || return 1
 
-  # post build
-  devoke_installwatch                    &&
-  cd /                                   &&
-  #archive                                &&
-  track                                  &&
-  unlock_resources "libgrimoire" "install" &&
-  # post install
-#  rm  -f  /var/lock/casting.sorcery      &&
+  # rough equivalent to prepare_install...
+  rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
+  rm $INSTALL_ROOT/etc/sorcery/licenses/*   2>/dev/null
+  rm $INSTALL_ROOT/etc/sorcery/mirrors/* 2>/dev/null
+  rm $INSTALL_ROOT/var/lib/sorcery/* 2>/dev/null
+  rm -r $INSTALL_ROOT/var/lib/sorcery/archspecs/* 2>/dev/null
+  rm -r $INSTALL_ROOT/var/lib/sorcery/build/* 2>/dev/null
 
-  report  $INST_LOG  "Install log"       &&
-  sound SUCCESS                          &&
+  ./install                                     &&
+
+  cd /                                          &&
+  unlock_resources "libgrimoire" "install"      &&
 
   SORCERY_VERSION=`cat /etc/sorcery/version`
+
   if [ $? -eq 0 ] ; then
     activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "success"
     rm_source_dir
@@ -90,28 +85,10 @@ function update_sorcery_scripts() {
       rm_source_dir
     fi
   fi
-
-  message "${MESSAGE_COLOR}Current ${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version ${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
-
+  message "${MESSAGE_COLOR}Current${SPELL_COLOR}" \
+          "sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version" \
+          "${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
   sorcery_history
-}
-
-
-## This routine is depreciated in favor of download_files
-function get() {
-
-  debug "libsorcery" "get() $*"
-
-  if  [  -n  "$*"  ] ;  then
-
-    connect                                       &&
-    url_download  $*                              &&
-    testpack      $FILE                           &&
-    mv            $FILE  $SOURCE_CACHE            &&
-    touch         $SOURCE_CACHE/$FILE
-
-  fi
-
 }
 
 #---------------------------------------------------------------------
@@ -133,65 +110,6 @@ function set_nice()  {
   fi
 
 }
-
-#---------------------------------------------------------------------
-## @param filename
-## @param url
-## @param url ...
-##
-## Downloads <filename> from one of the listed <url>s.  The file
-## is not downloaded if it is already in the source cache unless:
-## - it's lifespan has expired
-## - the user has requested a forced download
-##
-## This routine is depreciated in favor of download_files
-##
-#---------------------------------------------------------------------
-function dl_source()  {
-
-  debug "libsorcery" "dl_source() $*"
-
-  if  [  -n  "$1"  ];  then
-
-    FILE="$1"
-    shift  1
-
-    remove_old_cache_src $FILE   #Removes if it's lifespan is over
-
-    if  ! file_exists_in_cache $FILE  ||  [  -n  "$FORCE_DOWNLOAD"  ]
-    then
-      message  "${MESSAGE_COLOR}Downloading source file"  \
-               "${FILE_COLOR}${FILE}${DEFAULT_COLOR}"     \
-               "for spell"                                \
-               "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
-
-      if [ -n "$LEAPFORWARD_URL" ] ; then
-        LFURLFILE="$LEAPFORWARD_URL/$FILE"
-      fi
-      if  get  "$LFURLFILE" $*;  then
-        activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
-      else
-        local i
-        local offset=$[${RANDOM} % $FURLNUM]
-        for (( i=0; $i < $FURLNUM; i++ ));  do
-          if  get  "${FALLBACK_URL_MIRROR[$[($i + $offset) % $FURLNUM]]}/$FILE";  then
-            activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
-            return
-          fi
-        done
-        message  "${PROBLEM_COLOR}Download of"            \
-                 "${FILE_COLOR}${FILE}${DEFAULT_COLOR}"   \
-                 "${PROBLEM_COLOR}for spell"              \
-                 "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-                 "${PROBLEM_COLOR}failed${DEFAULT_COLOR}"
-      fi
-
-    fi
-
-  fi
-
-}
-
 
 
 #---------------------------------------------------------------------
@@ -250,40 +168,6 @@ function guess_filename()  {
   elif  [  -f  $BASENAME.tar.bz2  ];  then  echo  $BASENAME.tar.bz2
   elif  [  -f  $BASENAME.tgz      ];  then  echo  $BASENAME.tgz
   else  false
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-## @param filename
-##
-## Given a file, testpack runs the decompression program for that file
-## in test mode (-t option).  Returns the exit status.
-##
-#---------------------------------------------------------------------
-function testpack() {
-
-  FILENAME=`guess_filename                $1`  ||
-  FILENAME=`guess_filename  $SOURCE_CACHE/$1`
-
-  if [  -f  $FILENAME  ]; then
-
-    debug  "libsorcery" "Running testpack() on $FILENAME"
-
-    COMPRESSOR=`$FILEPROG  -b  $FILENAME  |  cut  -d ' '  -f1`    &&
-
-    debug  "libsorcery" "Compressor guessed to be $COMPRESSOR"    &&
-
-    case  $COMPRESSOR  in
-          bzip2)  bzip2  -tf   $FILENAME   1>/dev/null 2>&1  ;;
-           gzip)  gzip   -tf   $FILENAME   1>/dev/null 2>&1  ;;
-      compress*)  gzip   -tf   $FILENAME   1>/dev/null 2>&1  ;;
-            Zip)  unzip  -tq   $FILENAME   1>/dev/null 2>&1  ;;
-            RPM)  rpmunpack  < $FILENAME   |                 \
-                  gzip   -t                1>/dev/null 2>&1  ;;
-              *)  ! filename_indicates_compression $FILENAME ;;
-    esac
   fi
 
 }
@@ -516,29 +400,6 @@ function filter() {
 
 
 #---------------------------------------------------------------------
-## @param file
-##
-## If C<PRESERVE> is off, will move the file to filename.YYYYMMDD.  If
-## C<PRESERVE> is on, the file will not be moved.
-##
-#---------------------------------------------------------------------
-function reap_modified_file()  {
-
-  message  "${FILE_COLOR}${1}${DEFAULT_COLOR}"
-  message  "${MESSAGE_COLOR}was previously modified by SA?"
-  case  $PRESERVE  in
-     on)  message  "Therefore, it was not reaped."  ;;
-    off)  SAVE="$1.`date  -u  +%Y%m%d`"
-          mv  $1  $SAVE
-          message  "Therefore, it was moved to"
-          message  "${FILE_COLOR}${SAVE}"  ;;
-  esac
-  message  "${DEFAULT_COLOR}"
-
-}
-
-
-#---------------------------------------------------------------------
 ## @Stdin list of files
 ## @Stdout list of directories
 ##
@@ -550,100 +411,6 @@ function reap_modified_file()  {
 function dirnames()  {
   while  read  FILE;  do  dirname  "$FILE";  done;
 }
-
-
-#---------------------------------------------------------------------
-## @Stdin list of files
-##
-## Given a list of files from standard input, deletes each file.
-## Performs a "rm -f" on each file given in standard input, so be
-## careful using this function!
-##
-#---------------------------------------------------------------------
-function reap_regular_files()  {
-  debug "libsorcery" "reap_regular_files()"
-  while  read  FILE;  do  rm  -f   "$FILE";  done;
-}
-
-
-#---------------------------------------------------------------------
-## @Stdin list of files
-##
-## Reads a list of files from standard input.  If the file has been
-## modified (md5sum doesn't match the stored md5sum), then function
-## C<reap_modified_file> is called.  Otherwise, the file is deleted.
-##
-#---------------------------------------------------------------------
-function reap_config_files()  {
-
-  debug "libsorcery" "reap_config_files()"
-  while  read  FILE;  do
-
-    if    grep  -q  "$(  md5sum  "$FILE" )"  "$MD5S"
-    then  rm    -f               "$FILE"
-    else  reap_modified_file     "$FILE"
-    fi
-
-  done
-
-}
-
-
-#---------------------------------------------------------------------
-##=item reaper
-## @param file
-## @param file
-##
-## First argument is a file containing a list of files to reap.
-## Second argument is a file containing md5 sums of those files, used
-## to detect if a config file has been modified.  Config files are any
-## files in /etc or any of its sub-directories.
-##
-#---------------------------------------------------------------------
-function reaper()  { (
-#  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
-
-  debug  "libsorcery" "Running reaper() on $1"
-
-  if  !  [  "$REAP"  ==  "on"  ]   ||
-      !  [  -f  $1             ];  then  return
-  fi
-
-  MD5S=$2
-  MD5S=${MD5S:=/dev/null}
-
-        UNIQUE="$$.$RANDOM"
-  REAPER_FILES="/tmp/reaper.$UNIQUE.files"
-   REAPER_DIRS="/tmp/reaper.$UNIQUE.dirs"
-   REAPER_SYMS="/tmp/reaper.$UNIQUE.syms"
-
-  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
-
-  filter  $PROTECTED  <  $1  |
-  filter  $EXCLUDED          |
-  while   read  ITEM;  do
-    if    [  -h  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_SYMS
-    elif  [  -f  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_FILES
-    elif  [  -d  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_DIRS
-    fi
-  done
-
-  [     -f           $REAPER_FILES  ]  &&
-  grep      "^/etc"  $REAPER_FILES     |
-  reap_config_files
-
-  [     -f           $REAPER_FILES  ]  &&
-  grep  -v  "^/etc"  $REAPER_FILES     |
-  reap_regular_files
-
-  [  -f  $REAPER_SYMS   ]  &&  rm     -f  `cat          $REAPER_SYMS`                         2>/dev/null
-  [  -f  $REAPER_DIRS   ]  &&  rmdir      `sort  -r     $REAPER_DIRS`                         2>/dev/null
-  [  -f  $REAPER_FILES  ]  &&  rmdir      `dirnames  <  $REAPER_FILES  |  uniq  |  sort  -r`  2>/dev/null
-
-  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
-
-) }
-
 
 #---------------------------------------------------------------------
 ## @param queue filename
@@ -758,7 +525,6 @@ function push_remove_queue() {
 ##
 #---------------------------------------------------------------------
 function optimize()  {
-
   debug "libsorcery" "In optimize(), ARCHITECTURE='${ARCHITECTURE}'"
   debug "libsorcery" "TARGET='${TARGET}'"
   debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
@@ -777,7 +543,6 @@ function optimize()  {
       SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"`;
       [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
     fi
-    invoke_cross_environment
   fi
   debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
 
@@ -941,7 +706,7 @@ function install_queue_history() {
   if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
   local spell=
   for spell in `cat $INSTALL_QUEUE`; do
-    local date="`grep "^${spell}:" /var/state/sorcery/packages | cut -d':' -f2`"
+    local date="`grep "^${spell}:" $SPELL_STATUS | cut -d':' -f2`"
     local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
     (
       echo -e "Viewing history since last update ($datedash) for spell --  ${spell}  -- :" && 
@@ -1004,7 +769,7 @@ function sorcery_history() {
   (
     echo -e "Viewing history since last update ($datedash) for sorcery :" && 
     echo                 &&
-    cat "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
+    cat "/usr/doc/sorcery/ChangeLog"
   ) |
     awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
     $PAGER2
@@ -1235,31 +1000,12 @@ function color()  {
 ## THIS FUNCTION IS DEPRECIATED AND SHOULD NOT BE CALLED FOR ANY REASON
 ##
 #---------------------------------------------------------------------
-function boost()	{ (
+function boost() {
 
   debug  "libsorcery" "Running boost() on $SPELL THIS IS DEPRECIATED"
-#
-#     CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
-#CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
-#C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
-#   TMP_LOG="/tmp/$SPELL-$VERSION"
-#  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
-#   MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
-#    IW_LOG="/tmp/$SPELL.iw"
-#
-#  rm  -rf  $CACHE
-#  rm  -rf  $INST_LOG
-#  touch    $INST_LOG
-#  rm  -rf  $TMP_LOG
-#  rm  -rf  $MD5_LOG
-#  touch    $MD5_LOG
-#
-#  track    &&
-#  md5list < $INST_LOG > $MD5_LOG &&
-#  archive
-#
-true
-) }
+  echo "Running boost() on $SPELL THIS IS DEPRECIATED, please contact the spell's maintainer and ask them to remove this call"
+  true
+}
 
 
 #---------------------------------------------------------------------

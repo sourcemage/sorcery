@@ -204,7 +204,7 @@ function url_rank() {
 
   local urlList sortedList urlCounter
   local finalList url_speed
-  local tmp_url tmp_prefix tmp_hostname
+  local tmp_url tmp_prefix tmp_hostname tmp_list
 
   debug "liburl" "unsorted list: $*"
 
@@ -215,25 +215,32 @@ function url_rank() {
 
   # The take home message is that a url can be /any/ random string of text,
   # and a url is officially defined by its handler. 
+
   # So we are having the handler give us the netselected output
   # from there we are sticking things into an array and letting
   # bash handle the sorting for us...
-  function url_rank_iterator1() {
-    debug liburl "url is $1"
+  function url_rank_divide_by_prefix() {
+    local tmp_url=$1 tmp_prefix
+    tmp_prefix=$(url_get_prefix $tmp_url)                 &&
+    url_is_function url_${tmp_prefix}_hostname            &&
+    hash_append url_div_hash $tmp_prefix $tmp_url
+  }
+
+  for tmp_prefix in $(hash_get_table_fields url_div_hash) ; do
+    tmp_list=$(hash_get url_div_hash $tmp_prefix)
+    debug liburl "urls are $tmp_list"
     # the awk command turns netselect output like this:
     # 69 url1
     # 234 url2
     # into the following bash code, which is then executed
     # url_speed[69]="${url_speed[69]} url1"
     # url_speed[234]="${url_speed[234]} url2"
-    eval $(url_get_netselect $1|
+    eval $(url_${tmp_prefix}_netselect $tmp_list|
       awk '{printf "url_speed[%s]=\"${url_speed[%s]} %s\";",$1,$1,$2}')
-  }
-  iterate url_rank_iterator1 " $IFS" $urlList
+  done
   
   # since we put things in url_speed indexed by speed, the * should
-  #expand back in sorted order from lowest speed to highest speed if
-  #thats not working we'll have to work harder...
+  #expand back in sorted order
 
   sortedList=$(echo ${url_speed[*]})
   debug "liburl" "Ordered list pre-sanity check is $sortedList"

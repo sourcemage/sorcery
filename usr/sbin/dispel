@@ -44,259 +44,126 @@ EOF
 
 }
 
-
-set_script_directory()  {
-
-           SECTION="`codex_get_spell_section_name  $SPELL`"
-  SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
-
-}
-
-
-pre_remove() {
-
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_REMOVE  ];  then  unset  LD_PRELOAD
-           . $SCRIPT_DIRECTORY/PRE_REMOVE
-  fi
-
-}
-
-
-post_remove() {
-
-  LD_PRELOAD_OLD="$LD_PRELOAD"
-  unset LD_PRELOAD
-
-	if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&  ps  -C  xinetd  >  /dev/null
-	then
-		if  [  -x /etc/init.d/runlevels/%3/xinetd  ] ; then
-			/sbin/telinit  run  xinetd  restart
-		else
-			message  "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}"
-		fi
-  fi
- 
-  export  LD_PRELOAD="$LD_PRELOAD_OLD"
-
-  if  [  -x  $SCRIPT_DIRECTORY/POST_REMOVE  ]
-  then     . $SCRIPT_DIRECTORY/POST_REMOVE
-  fi
-
-}
-
-
-downgrade()  {
+function downgrade()  {
 
   SPELL=$1
   REQUESTED_VERSION=$2
   CACHE_COMP="$INSTALL_CACHE/$SPELL-$REQUESTED_VERSION-$BUILD.tar$EXTENSION"
-  CONTINUE=false 
 
   if    [  !  -f  $CACHE_COMP   ];  then
-    false
-  elif  [  -z  "$EXTENSION"  ];  then
-    if  $COMPRESSBIN  -tf  $CACHE_COMP  1>/dev/null
-    then
-      CONTINUE=true;
-    fi
-  elif  $COMPRESSBIN  -tf  $CACHE_COMP
-  then
-    CONTINUE=true;
-  fi
-
-  if  $CONTINUE  
-  then  
-
-		if  spell_installed  $SPELL;  then
-      dispel  $SPELL
-    fi
-
-    if  [  -n  "$EXTENSION"  ];  then
-      $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Pkx  2>/dev/null
-    else
-      tar  -Pkxf  $CACHE_COMP  2>/dev/null
-    fi
-
-    codex_set_current_spell_by_name  $SPELL
-
-    if  [  "$VERSION"  ==  "$REQUESTED_VERSION"  ];  then
-      add_spell  $SPELL installed $VERSION
-      message  "${RESURRECT_COLOR}Installed:"  \
-               "${SPELL_COLOR}${SPELL}"        \
-               "${DEFAULT_COLOR}"              \
-               "version"                       \
-               "${VERSION_COLOR}${VERSION}"    \
-               "${DEFAULT_COLOR}"
-    else
-      add_spell  $SPELL held $REQUESTED_VERSION
-      message  "${RESURRECT_COLOR}Downgraded:"         \
-               "${SPELL_COLOR}${SPELL}"                \
-               "${DEFAULT_COLOR}"                      \
-               "to version"                            \
-               "${VERSION_COLOR}${REQUESTED_VERSION}"  \
-               "${DEFAULT_COLOR}"
-    fi
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-
-  else
-
     message  "${FILE_COLOR}$CACHE_COMP"        \
              "${PROBLEM_COLOR}was not found."  \
              "${DEFAULT_COLOR}"
+    return 1
+  fi
 
+  if  spell_installed  $SPELL;  then
+    previously_installed=yes
+    dispel_spell  $SPELL
+    if [ $? != 0 ] ; then
+      message  "${PROBLEM_COLOR}Unable to downgrade"   \
+               "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+               "dispel failed"
+      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-1}
+      return 1
+    fi
+  fi
+
+  if  spell_held  $SPELL;  then
     message  "${PROBLEM_COLOR}Unable to downgrade"   \
+             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+             "because it is held, please unhold it first."
+    DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-1}
+    return 1
+  fi
+
+  if  spell_exiled  $SPELL;  then
+    message  "${PROBLEM_COLOR}Unable to downgrade"   \
+             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+             "because it is exiled, please unexile it first."
+    return 1
+  fi
+
+  pushd $INSTALL_ROOT/ &>/dev/null
+  if  [  -n  "$EXTENSION"  ];  then
+    $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Px
+  else
+    tar  -Pxf  $CACHE_COMP
+  fi
+  popd &>/dev/null
+
+  codex_set_current_spell_by_name  $SPELL
+
+  add_spell  $SPELL installed $VERSION
+  if [[ $previously_installed ]] ; then
+    message  "${RESURRECT_COLOR}Downgraded:"         \
              "${SPELL_COLOR}${SPELL}"                \
              "${DEFAULT_COLOR}"                      \
              "to version"                            \
              "${VERSION_COLOR}${REQUESTED_VERSION}"  \
              "${DEFAULT_COLOR}"
-
+  else 
+    message  "${RESURRECT_COLOR}Installed:"         \
+             "${SPELL_COLOR}${SPELL}"                \
+             "${DEFAULT_COLOR}"                      \
+             "to version"                            \
+             "${VERSION_COLOR}${REQUESTED_VERSION}"  \
+             "${DEFAULT_COLOR}"
   fi
-
+  activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+  return 0
 }
 
 
-process_parameters()  {
-
+function process_parameters()  {
   while  [  -n  "$1"  ];  do
-
     if  echo  ""  $1  |  grep  -q  "^ -";  then
-
       case  $1  in
-
          -e|--exile)  EXILE="yes";        shift  1  ;;
-     -d|--downgrade)  downgrade  $2  $3;  shift  3  ;;
+     -d|--downgrade)  downgrade  $2  $3
+                      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
+                      shift  3  
+                      ;;
            --noreap)  REAP="off";         shift  1  ;;
         --nosustain)  SUSTAIN="off";      shift  1  ;;
-	   --notriggers)  TRIGGER="off";      shift  1  ;;
+       --notriggers)  TRIGGER="off";      shift  1  ;;
                   *)  help                          ;;
-
       esac
-
     else
-
       shift
- 
    fi
-
   done
-
 }
 
 
-strip_parameters()  {
-
+function strip_parameters()  {
   while  [  -n  "$1"  ];  do
-
     if  echo  "" $1  |  grep  -q  "^ -";  then
-
       case  $1  in
-
             -e|--exile)  shift  1  ;;
         -d|--downgrade)  shift  3  ;;
               --noreap)  shift  1  ;;
            --nosustain)  shift  1  ;;
-		  --notriggers)  shift  1  ;;
+          --notriggers)  shift  1  ;;
                      *)  shift  1  ;;
-
       esac
-
     else
-
       echo  $1
       shift
- 
    fi
-
   done
-
 }
 
-
-not_possible()  {
-
-  if  !  grep  -q  "^`esc_str $SPELL`:"  $SPELL_STATUS  &&
-      !     [  -n  "$EXILE"  ]
-  then
-    message  "${SPELL_COLOR}${SPELL}"             \
-             "${PROBLEM_COLOR}is not installed."  \
-             "${DEFAULT_COLOR}"
-  else
-    false
-  fi
-
-}
-
-
-sustained()  {
-
-  if  [  "$SUSTAIN"  ==  "on"  ]  &&
-      grep  -q  "^`esc_str $SPELL`$"  $SUSTAINED
-  then
-    message  "${SPELL_COLOR}${SPELL}"         \
-             "${PROBLEM_COLOR}is sustained."  \
-             "${DEFAULT_COLOR}"
-  else
-    false
-  fi
-
-}
-
-
-reap_depends()  {
-
-  if    [  "$SUSTAIN"  !=  "off"  ]
-  then  remove_depends_status  $DEPENDS_STATUS $SPELL
-  fi
-
-}
-
-
-main()	{
+function main() {
 
   process_parameters        $*
   SPELLS=`strip_parameters  $*`
 
-  DISPEL_EXIT_STATUS=0
-
   for  SPELL  in  $SPELLS;  do
-
-    # if  [  "$SPELL"  ==  "glibc"  ];  then
-    #   message  "${PROBLEM_COLOR}Cowardly refusing to dispel glibc.${DEFAULT_COLOR}"
-    #   exit  1
-    # fi
-
-    if  sustained  ||
-        not_possible
-    then
-      DISPEL_EXIT_STATUS=1
-      continue
-    fi
-    
-    [[ $TRIGGER == off ]] || trigger "pre_dispel"
-    
-     VERSION=`installed_version  $SPELL`
-    INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
-     MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
-
-    set_script_directory
-    pre_remove
-    reaper  $INST_LOG  $MD5_LOG
-    reap_depends
-    post_remove
-    remove_spell  $SPELL
-    [[ $TRIGGER == off ]] || trigger "dispel"
-    remove_triggers $SPELL
-    message  "${DISPEL_COLOR}Dispelled spell:"  \
-             "${SPELL_COLOR}${SPELL}"           \
-             "${DEFAULT_COLOR}"
-    activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
-    
-
+    dispel_spell $SPELL ||
+    DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
   done
-
-  return  $DISPEL_EXIT_STATUS
-
+  return  ${DISPEL_EXIT_STATUS:-0}
 }
 
 . /etc/sorcery/config

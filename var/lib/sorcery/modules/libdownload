@@ -31,32 +31,12 @@
 function get_spell_files_and_urls() {
 
   debug "libdownload" "get_file_and_urls - SPELL=$SPELL"
-  local index source_index current_urls
-
-  #run_patch
-#  [[ ${!SOURCE*} ]] && #some spells need nothing
-#  [[ ${SOURCE%%[^[:graph:]]*} ]] && #just in case a spell has SOURCE=" "
-#  echo  $SOURCE  ${SOURCE_URL[*]}
-
+  local url src
   for src in $( compgen -v SOURCE | grep '^SOURCE[[:digit:]]*$' ) ; do
     url="$src"'_URL[*]'
 	src=${!src}
 	[[ ${src%%[^[:graph:]]*} ]] && echo ${src} ${!url}
   done
-#  index=2
-#  source_index=SOURCE${index}
-#  while  compgen -v | grep -q "^${source_index}$" ;  do
-#    if echo "${!source_index}" | grep -q '[[:graph:]]'
-#    then #do not attempt do download blanks
-#      current_urls="${source_index}_URL[*]"
-# 
-#      echo  ${!source_index}  ${!current_urls}
-#    fi
-#   
-#    let index++
-#    source_index=SOURCE${index}
-#  done
-  
 }
 
 #-------------------------------------------------------------------------
@@ -96,6 +76,7 @@ function download_files() {
   FINAL_DIR=${FINAL_DIR:-"$SOURCE_CACHE"}
   USE_LF_FB=${USE_LF_FB:-"both"}
 
+  pushd /tmp &>/dev/null
   while read -a dl_array; do 
 
     # the input is defined as "file url1 url2 ..."
@@ -145,8 +126,8 @@ function download_files() {
       # maybe do some more stuff here...
     }
     popd &>/dev/null
-    done
-    return $rc
+  done
+  return $rc
 }
 
 
@@ -205,7 +186,15 @@ function download_from_internet()  {
   fi
 
   # failing that try the real urls
-  url_download "$URLS" && return 0
+  NEW_URLS=$(expand_mirrors $URLS)
+
+  # paranoia
+  if [ -z "$NEW_URLS" ]; then
+    # and explode them too
+    url_download "$URLS" && return 0
+  else
+    url_download "$NEW_URLS" && return 0
+  fi
 
   # failing that try a fallback
   if [ "$USE_LF_FB" == "fb" ] || [ "$USE_LF_FB" == "both" ]; then
@@ -312,4 +301,29 @@ function remove_old_file()  {
     # deals with files in SOURCE_CACHE
     [  -n  "$LIFESPAN"  ] && [ -n "$1" ] && echo $1|grep -q $SOURCE_CACHE &&
     rm  -f  $( find $1 -mmin +$LIFESPAN 2>/dev/null|grep $SOURCE_CACHE )
+}
+
+#-------------------------------------------------------------------------
+## expand a url to ALL of the mirrors we think may be related
+## Take the url, find its hostname, if a file in $MIRRORS matches
+## generate new urls from all the mirrors in the file, the original url
+## is kept at the top of the list and not duplicated
+##
+## @param a list of urls
+## @stdout the expanded form of those urls
+#-------------------------------------------------------------------------
+function expand_mirrors() {
+  local A=$'\a'
+  local URL rep tgt my_hostname each
+  # put the requested url first
+  echo $@
+  for URL in $@ ; do 
+    my_hostname=$(url_get_hostname ${URL})
+    for each in $(grep -l $my_hostname $MIRRORS/*); do
+      rep=$(grep "://$my_hostname/" $each|awk '{print $NF}'|head -1)
+      for tgt in $(awk '{print $NF}' $each); do
+         echo ${URL}|sed "s$A${rep}$A${tgt}$A"
+      done
+    done |grep -v $my_hostname
+  done
 }

@@ -1261,7 +1261,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
   U_HELP="Automatically remove old sources and install caches upon sorcery update?"
   V_HELP="View compilation as it happens?"
-  X_HELP="Download and apply xdelta patches when available?"
  NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
  CS_HELP="Clean up source directories after failures?"
  CI_HELP="Non-native installation / cross compilation"
@@ -1278,7 +1277,6 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   MAIL_REPORTS=${MAIL_REPORTS:=off}
          TMPFS=${TMPFS:=on}
   VIEW_REPORTS=${VIEW_REPORTS:=off}
-         PATCH=${PATCH:=on}
       PRESERVE=${PRESERVE:=on}
        SUSTAIN=${SUSTAIN:on}
         VOYEUR=${VOYEUR:=on}
@@ -1304,7 +1302,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CONFIG_LOC"     "Toggle"  "$CONFIG_LOC"     "$L_HELP"   \
       "GATHER_DOCS"    "Toggle"  "$GATHER_DOCS"    "$D_HELP"   \
       "MAIL_REPORTS"   "Toggle"  "$MAIL_REPORTS"   "$M_HELP"   \
-      "PATCH"          "Toggle"  "$PATCH"          "$X_HELP"   \
       "PRESERVE"       "Toggle"  "$PRESERVE"       "$P_HELP"   \
       "SUSTAIN"        "Toggle"  "$SUSTAIN"        "$T_HELP"   \
       "TMPFS"          "Toggle"  "$TMPFS"          "$TMP_HELP" \
@@ -1316,7 +1313,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1334,7 +1331,6 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
           CONFIG_LOC)     CONFIG_LOC=on  ;;
          GATHER_DOCS)    GATHER_DOCS=on  ;;
         MAIL_REPORTS)   MAIL_REPORTS=on  ;;
-               PATCH)          PATCH=on  ;;
             PRESERVE)       PRESERVE=on  ;;
              SUSTAIN)        SUSTAIN=on  ;;
                TMPFS)          TMPFS=on  ;;
@@ -1349,7 +1345,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1485,22 +1481,19 @@ foreground_execute() {
 
 main_menu()  {
 
+  S_HELP="Easy spell management."
+  O_HELP="Change sorcery options and features."
+  L_HELP="View and edit sorcery generated log files."
+  Q_HELP="View and edit sorcery queues."
+  F_HELP="Process queues while you watch and wait."
+  B_HELP="Process queues in the background."
+  E_HELP="Exit without processing queues."
+  I_HELP="Setting your install/state/track root locations"
+  C_HELP="Administrate groups of Unix/Linux boxes."
+      OK="Select"
+  CANCEL="Exit"
   while
-
-    S_HELP="Easy spell management."
-    O_HELP="Change sorcery options and features."
-    L_HELP="View and edit sorcery generated log files."
-    Q_HELP="View and edit sorcery queues."
-    F_HELP="Process queues while you watch and wait."
-    B_HELP="Process queues in the background."
-    E_HELP="Exit without processing queues."
-    I_HELP="Setting your install root location for cross compile environment."
-    C_HELP="Administrate groups of Unix/Linux boxes."
-        OK="Select"
-    CANCEL="Exit"
-
-    if  [  "$CABAL"  ==  "on"  ]  &&  [  "$CROSS_INSTALL"  ==  "on"  ];  then 
-
+    if  [  "$CABAL"  ==  "on"  ] ;  then 
         COMMAND=`eval $DIALOG ' --title "Main Menu"             \
                        --item-help                              \
                        --ok-label      "$OK"                    \
@@ -1508,51 +1501,16 @@ main_menu()  {
                        --menu                                   \
                        "Sorcery Version  $SORCERY_VERSION"      \
                        0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
+                       "S"  "Spell        Menu"     "$S_HELP"     \
+                       "O"  "Option       Menu"     "$O_HELP"     \
+                       "L"  "Log          Menu"     "$L_HELP"     \
+                       "Q"  "Queue        Menu"     "$Q_HELP"     \
+                       "F"  "Foreground   Execute"  "$F_HELP"     \
+                       "B"  "Background   Execute"  "$B_HELP"     \
                        "I"  "Install Root Menu"   "$I_HELP"     \
-                       "C"  "Cabal      Menu"     "$C_HELP"'`
-
-    elif  [  "$CABAL"  ==  "on"  ]; then
-
-        COMMAND=`eval $DIALOG ' --title "Main Menu"             \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
-                       "C"  "Cabal      Menu"     "$C_HELP"'`
-
-		elif [  "$CROSS_INSTALL"  ==  "on"  ];  then
-
-      COMMAND=`eval $DIALOG ' --title "Main Menu"               \
-                       --item-help                              \
-                       --ok-label      "$OK"                    \
-                       --cancel-label  "$CANCEL"                \
-                       --menu                                   \
-                       "Sorcery Version  $SORCERY_VERSION"      \
-                       0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"     \
-                       "I"  "Install Root Menu"   "$I_HELP"'`
+                       "C"  "Cabal        Menu"     "$C_HELP"'`
 
     else
-
       COMMAND=`eval $DIALOG ' --title "Main Menu"               \
                        --item-help                              \
                        --ok-label      "$OK"                    \
@@ -1560,14 +1518,14 @@ main_menu()  {
                        --menu                                   \
                        "Sorcery Version  $SORCERY_VERSION"      \
                        0 0 0                                    \
-                       "S"  "Spell      Menu"     "$S_HELP"     \
-                       "O"  "Option     Menu"     "$O_HELP"     \
-                       "L"  "Log        Menu"     "$L_HELP"     \
-                       "Q"  "Queue      Menu"     "$Q_HELP"     \
-                       "F"  "Foreground Execute"  "$F_HELP"     \
-                       "B"  "Background Execute"  "$B_HELP"'`
+                       "S"  "Spell        Menu"     "$S_HELP"     \
+                       "O"  "Option       Menu"     "$O_HELP"     \
+                       "L"  "Log          Menu"     "$L_HELP"     \
+                       "Q"  "Queue        Menu"     "$Q_HELP"     \
+                       "F"  "Foreground   Execute"  "$F_HELP"     \
+                       "B"  "Background   Execute"  "$B_HELP"     \
+                       "I"  "Install Root Menu"   "$I_HELP"'`
     fi
-
   do
 
     case  $COMMAND in
@@ -1578,7 +1536,7 @@ main_menu()  {
       F)  foreground_execute  ;;
       B)  background_execute  ;;
       C)  cabal_menu          ;;
-      I)  cross_install_menu  ;;
+      I)  install_root_menu   ;;
     esac
 
   done

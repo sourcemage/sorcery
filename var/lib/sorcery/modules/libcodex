@@ -74,8 +74,8 @@ function codex_remove_duplicates() {
   local  ALREADY_SEEN=""
 
  
-  touch  $INSTALL_ROOT$GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
 #  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
 
@@ -92,10 +92,10 @@ function codex_remove_duplicates() {
 
   done
 
-  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
+  lock_commit_transaction $GRIMOIRE_LIST
 
   unset GRIMOIRE_DIR
-  .  $INSTALL_ROOT$GRIMOIRE_LIST 
+  .  $GRIMOIRE_LIST 
 
 }
 
@@ -120,8 +120,8 @@ function codex_add_grimoire() {
   local  OVERWRITE=$3
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  touch  $INSTALL_ROOT$GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
 #  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
   
@@ -171,9 +171,9 @@ function codex_add_grimoire() {
 
   fi
 
-  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
+  lock_commit_transaction $GRIMOIRE_LIST
   unset GRIMOIRE_DIR
-  .  $INSTALL_ROOT$GRIMOIRE_LIST 
+  .  $GRIMOIRE_LIST 
 
   if [ "$OVERWRITE" == "overwrite"  ]; then
     codex_remove_duplicates
@@ -192,9 +192,9 @@ function codex_remove_grimoire() {
   local  GRIMOIRE_TO_DELETE="$1"
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  tGRIMOIRE_LIST=`lock_start_transaction $INSTALL_ROOT$GRIMOIRE_LIST`
-  touch  $INSTALL_ROOT$GRIMOIRE_LIST
-  cp     $INSTALL_ROOT$GRIMOIRE_LIST  $INSTALL_ROOT$GRIMOIRE_LIST_BACKUP
+  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  touch  $GRIMOIRE_LIST
+  cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST   
 
   local  CURRENT_GRIMOIRE
@@ -206,9 +206,9 @@ function codex_remove_grimoire() {
     (( GRIMOIRE_COUNT++ ))
   done
 
-  lock_commit_transaction $INSTALL_ROOT$GRIMOIRE_LIST
+  lock_commit_transaction $GRIMOIRE_LIST
   unset GRIMOIRE_DIR
-  .  $INSTALL_ROOT$GRIMOIRE_LIST 
+  .  $GRIMOIRE_LIST 
 }
 
 
@@ -236,7 +236,7 @@ function codex_set_grimoires() {
       GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$NEW_GRIMOIRE
     else
       
-      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$INSTALL_ROOT$CODEX_ROOT/$NEW_GRIMOIRE
+      GRIMOIRE_DIR[${#GRIMOIRE_DIR}]=$CODEX_ROOT/$NEW_GRIMOIRE
     fi 
 
   done

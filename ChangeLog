@@ -1,11 +1,53 @@
+2004-08-06 Andrew Stitt <astitt@sourcemage.org>
+	* dispel, libdispel: Move numerous dispel functions into a library
+	* dispel: Fix numerous obvious flaws in the downgrade function
+	* dispel: Non-zero exit status on failure.
+	* build_api/api2: turn on installwatch at INSTALL, not BUILD
+	* cast, build_api/common, libgrimoire, libinitd, libmisc, libcodex,
+	  libtrack, scribe, dispel, libdispel, alter: adjust INSTALL_ROOT code
+	  to new model.
+	* /etc/sorcery/config, state, media, url, roots: split configuration
+	  into more files to be more confusing.
+	* libgraph: delete
+	* cast: remove unused current_sources function (was used before
+	  libdownload re-write)
+	* summon, sorcery, config: remove xdelta code
+	* libsorcery: remove dl_source, get as they've been depreciated also
+	  remove testpack which is only called by get and no one missed it.
+	* scribe: update to use download_files instead of url_download, since
+	  download_files is the prefered frontend for all downloading.
+	* libdepends: fiddle with private_run_depends error handling
+	* libgrimoire: format warn_rejected and ask_continue_with_rejected
+	  and remove useless cats and message calls in favor of a few,
+	  properly quoted message calls.
+	* libgrimoire: ask_continue_with_rejected remove poor attempt at
+	  dealing with the choice to not continue. Instead return 1 like
+	  a well behaved function and dont mess with libdepends.
+	* libdownload: beta mirror expanding code, as requested by ruskie
+	* liburl, url_handlers/*: take advantage of parallelism when
+	  netselecting if possible. This is a necessary compliment to the
+	  url expanding code in libdownload, which may generate over 200 urls.
+	* /etc/sorcery/mirrors/*: remove trailing / from some mirror names
+	* install: now takes an optional parameter as to where it should
+	  install to.
+	* /etc/sorcery/update/...: remove, sorcery is not a spell
+	* libmisc: fix progress spinner for bash 3.0
+	* libstate: fix obviously broken remove_spell function
+	* sorcery, libcrossinstall: Add a new and simple menu for
+	  selecting of install/track/state root.
+	* libcrossinstall: Remove invoke_cross_environment since we no longer
+	  copy everything all over the place for no apparent reason. Rename
+	  and modify the routine to install sorcery somewhere else, instead
+	  use the install script included with the sorcery distribution.
+
 2004-08-06 Neuron <vlmarek@volny.cz>
 	* libdownload: fixed in order to make it work again (bug 7214), some 
 	  small indenting too
 
 2004-08-05 Paul Mahon <pmahon@sourcemage.org>
-	* Fix for displaying some sorcery text files
-	* Have liblock notice when disks get full and commits fail
-	* Make cleanse know about provider switching
+	* gaze: Fix for displaying some sorcery text files
+	* liblock: Have liblock notice when disks get full and commits fail
+	* cleanse: Make cleanse know about provider switching
 
 2004-08-04 Andrew Stitt <astitt@sourcemage.org>
 	* cast: add redirection of stderr back to pass_three's summon
@@ -121,7 +163,7 @@
 	  Add an experimental optional rule to the makefile in order to
 	  get rid of the make dependency dropping and bailing out issue
 	* libcast, cast: individual spell download logs (rather than
-          dumping the entire log over and over again)
+	  dumping the entire log over and over again)
 	* build_api/common, cast: move some code in cast_spell to the build_api
 	* libdepends: add a big demystifying comment and re-arrange some
 	  functions to hopefully be in a more logical arrangement (to
@@ -154,7 +196,7 @@
 	  --help as well as --about
 	  changed around the interface a bit and added strip and strip-all.
 	  more FAQ entries.  Close to feature complete?
-        
+
 2004-06-19 Jason Flatt <jflatt@sourcemage.org>
 	* scribe: Modified usage text for remove and reindex to reflect actual
 	  operation of script.

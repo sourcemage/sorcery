@@ -165,6 +165,7 @@ function run_depends()
 function compute_installed_depends() {
   #$1==hash table to fill
   local hash=$1
+  touch $DEPENDS_STATUS $SPELL_STATUS
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
@@ -174,6 +175,34 @@ function compute_installed_depends() {
       if( $3=="on") {
         sub(/\(.*\)/, "", $2);
         depmap[$1]=depmap[$1]" "$2" "
+      }
+    }
+    while (getline < ARGV[2] ) {
+      if( $3=="installed" || $3=="held") {
+        printf("hash_put $hash %s \"%s\";\n",$1,depmap[$1]);
+      }
+    }
+  }' $DEPENDS_STATUS $SPELL_STATUS )
+}
+
+#-----------------------------------------------------------------------
+# Create a map of spells to their dependent spells.
+# Then for all installed or held spells, output a libhash command to
+# join the spell name and dependency info.
+# Then evaluate the output, thus filling a libhash with dependency info.
+#-----------------------------------------------------------------------
+function compute_reverse_installed_depends() {
+  #$1==hash table to fill
+  local hash=$1
+
+  # From here forward $1 and $2 are only used to refer to awk variables
+
+  # sub(/(.*)/, "", $2) removes a provider name
+  eval $(awk -F : 'BEGIN {
+    while (getline < ARGV[1] ) {
+      if( $3=="on") {
+        sub(/\(.*\)/, "", $2);
+        depmap[$2]=depmap[$2]" "$1" "
       }
     }
     while (getline < ARGV[2] ) {
@@ -210,15 +239,15 @@ function compute_uninstalled_depends()
   local BACK_CAST_HASH="$2"
   local CANNOT_CAST_HASH="$3"
   shift 3
-  BASE_SPELLS=( $@ )
+  local spell spells
   spells=( $@ )
-  
+
+  PRETEND_NOT_INSTALLED=" $@ "
+
   local i
   
   # All specified spells are assumed to be not installed, or else -c and -r 
   # would have to be specified all the time.
-  PRETEND_NOT_INSTALLED=" ${BASE_SPELLS[@]} "
-  
   
   for (( i=0 ; i<${#spells[*]} ; i++ )) ; do
     if [[ ! `hash_get depends_looked_at ${spells[$i]}` ]]; then
@@ -228,7 +257,7 @@ function compute_uninstalled_depends()
       fi
     else
       debug "libdepends" "already looked at ${spells[$i]}, skipping"
-    fi
+   fi
   done
   # we no longer need this, no sense in keeping it around
   hash_unset depends_looked_at
@@ -236,7 +265,6 @@ function compute_uninstalled_depends()
   # we need this so processes on the other side of make know whats
   # going on
   hash_export uncommitted_hash
-
 }
 
 function private_run_depends()
@@ -258,10 +286,10 @@ function private_run_depends()
     fi
     prepare_spell_config
     SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
-    run_prepare $SPELL          &&
-    run_details                 &&
-    run_configure $SPELL &&
-    run_other $SPELL &&
+    run_prepare $SPELL            &&
+    run_details                   &&
+    run_configure $SPELL          &&
+    run_other $SPELL              &&
     run_depends $SPELL            && 
     # possibly recast things that depend on us if option is set (-B)
     private_upward_depends $SPELL &&
@@ -316,11 +344,16 @@ function private_should_cast()
 # Find all the spells that depend on the spell given as $1
 #---------------------------------------------------------------------
 function private_upward_depends() {
-  local tmp
   if [[ "$RECAST_UP" ]] ; then
+    local tmp
     tmp=$(search_depends_status $DEPENDS_STATUS '.*' "$1"|cut -f1 -d:|tr "\n" " ")
-    UP_DEPENDS="$UP_DEPENDS $tmp"
-    spells=($spells[*] $UP_DEPENDS)
+    local j each
+    let j=0
+    for each in $tmp; do
+      UP_DEPENDS[$j]=$each
+      let j++
+    done
+    spells=( $spells[*] $UP_DEPENDS[*] )
   fi
 }
 
@@ -636,9 +669,9 @@ function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   hash_put "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
-  #for child in ${NEW_DEPENDS[*]}; do
-  #  hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
-  #done
+  for child in ${NEW_DEPENDS[*]}; do
+    hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
+  done
   
   spells=( ${spells[*]} ${NEW_DEPENDS[*]} )
 
@@ -649,33 +682,17 @@ function private_add_depends()
 
 #########################BEGIN OTHER STUFF############################
 
-function private_list_dependees()
-{
-
-  local i
-  for (( i=0 ; "${spells[$i]}"!="$SPELL" ; i++ )) ; do
-    is_member "$1" $(hash_get "$CAST_HASH" "${spells[$i]}") && echo $i
-  done
-}
-
 function private_remove_dependees()
 {
 
-	local spell i
+	local SPELL=$1
+        local i
 	echo "Removing dependees of $1"
 
 	# spell is being removed from cast list, add to FAILED_LIST
-	echo "$1" >> $FAILED_LIST
-
-	for spell in $(private_list_dependees $1) ; do
-		hash_unset "$CAST_HASH" "${spells[spell]}"
-		spells[spell]=""
-		for ((i=0;i<${#BASE_SPELLS[*]}; i++)) ; do
-			[[ $spell == ${BASE_SPELLS[i]} ]] && BASE_SPELLS[i]=""
-		done
-	done
-	spells=( ${spells[*]} )
-	BASE_SPELLS=( ${BASE_SPELLS[*]} )
+	echo "$SPELL" >> $FAILED_LIST
+        hash_put depends_looked_at $SPELL failed
+        hash_unset "$CAST_HASH" "$SPELL"
 }
 
 
@@ -690,23 +707,6 @@ function run_spell_config()
     debug "libdepends" "run_spell_config() - found $SPELL_CONFIG"
 	.  $SPELL_CONFIG
   fi
-}
-
-# 
-# WHERE IS THIS CALLED?
-#
-function private_remove_installed_spells()
-{
-
-  for ((i=0 ; i< ${#SPELLS[*]} ; i++)) ; do
-    spell="${SPELLS[$i]}"
-    if private_should_cast $spell ; then
-      message "${SPELL_COLOR}$spell${DEFAULT_COLOR} is already installed. Skipping."
-	  SPELLS[$i]=" "
-    fi
-  done
-  
-  SPELLS=( ${SPELLS[*]} ) #Compact the array
 }
 
 # i dont know if this should be here

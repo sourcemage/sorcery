@@ -185,13 +185,16 @@ function url_cvs_hostname() {
 ##
 #---------------------------------------------------------------------
 function url_cvs_netselect() {
-  local tmp_hostname url_speed
-  tmp_hostname=$(url_cvs_hostname $1)
-  # since we had to pull the url appart to give netselect
-  # something it can understand we'll just pretend like
-  # multiple A records wont exist for this host...
-  url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
-  [[ -n $url_speed ]] && echo "$url_speed $1"
+  local tmp_hostname url_speed each
+
+  for each in $@ ; do
+    tmp_hostname=$(url_cvs_hostname $each)
+    # since we had to pull the url appart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
 }
 
 #---------------------------------------------------------------------
