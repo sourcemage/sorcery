@@ -237,6 +237,63 @@ function all_spell_status()
 
 
 #---------------------------------------------------------------------
+#-item set_held <spells>
+##
+## sets <spells>'s status to held
+##
+#---------------------------------------------------------------------
+set_held () {
+    local t_status=$(lock_start_transaction $SPELL_STATUS)
+    cp $SPELL_STATUS $t_status
+    for to_hold in $@; do
+        sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)installed/\1held/' $t_status
+    done
+    lock_commit_transaction $SPELL_STATUS
+}
+
+
+#---------------------------------------------------------------------
+#-item set_unheld <spells>
+##
+## sets <spells>'s status to installed
+##
+#---------------------------------------------------------------------
+set_unheld () {
+    local t_status=$(lock_start_transaction $SPELL_STATUS)
+    cp $SPELL_STATUS $t_status
+    for to_hold in $@; do
+        sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)held/\1installed/' $t_status
+    done
+    lock_commit_transaction $SPELL_STATUS
+}
+
+
+#---------------------------------------------------------------------
+#-item get_all_spells_with_status "status" 
+##
+## returns all spells that are in that status
+##
+#---------------------------------------------------------------------
+get_all_spells_with_status () {
+    lock_file $SPELL_STATUS
+    gawk -F: 'BEGIN { status="'$1'" }
+              ($3 == status) { print $1 }' $SPELL_STATUS
+    unlock_file $SPELL_STATUS
+}
+
+
+#---------------------------------------------------------------------
+#-item get_held  
+##
+## returns all held spells
+##
+#---------------------------------------------------------------------
+get_held () {
+    get_all_spells_with_status "held"
+}
+
+
+#---------------------------------------------------------------------
 #=item modify_local_config variable value [command]
 ##
 ## Modifies (or adds) an entry in the local/config.

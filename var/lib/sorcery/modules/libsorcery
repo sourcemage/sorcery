@@ -102,7 +102,9 @@ update_sorcery_scripts() {
     fi
   fi
 
-  message "${MESSAGE_COLOR}Current ${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR} version ${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Current ${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version ${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
+
+  sorcery_history
 }
 
 
@@ -995,14 +997,16 @@ update_install_queue()  { (
           [[     -z ${INFO[1]}      ]]	||
 	  	  (( UPDATED  >  ${INFO[1]} ))
 	  then
-
-          push_queue  $INSTALL_QUEUE  $SPELL
-
+            QUEUE="$QUEUE\n$SPELL"
       fi
 
     fi
 
   done
+
+  lock_file $INSTALL_QUEUE
+  echo -e "$QUEUE" | sort | uniq > $INSTALL_QUEUE
+  unlock_file $INSTALL_QUEUE
 
   wait_flag_down
 
@@ -1037,6 +1041,80 @@ build_install_queue()  {
   else
     message  "No spells will be updated."
   fi
+}
+
+
+#---------------------------------------------------------------------
+##=item install_queue_history
+##
+## Display the history of the install queue for review
+##
+#---------------------------------------------------------------------
+install_queue_history() {
+  local PAGER2
+  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  local spell=
+  for spell in `cat $INSTALL_QUEUE`; do
+    local date="`grep "^${spell}:" /var/state/sorcery/packages | cut -d':' -f2`"
+    local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
+    (
+      echo -e "Viewing history since last update ($datedash) for spell --  ${spell}  -- :" && 
+      echo                 &&
+      gaze history $spell
+    ) |
+      awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
+      $PAGER2
+    query "Would you like to ${RED} remove ${QUERY_COLOR} spell ${SPELL_COLOR} $spell ${QUERY_COLOR} from the install queue?" n &&
+      sedit "s/^$spell$//" $INSTALL_QUEUE &&
+      echo -e "${QUERY_COLOR} The spell ${SPELL_COLOR} $spell ${QUERY_COLOR} removed from $INSTALL_QUEUE.${DEFAULT_COLOR}"
+  done
+}
+
+#---------------------------------------------------------------------
+##=item grimoire_history
+##
+## Display the history of the grimoire given for review
+## arg: grimoire (full path)
+#---------------------------------------------------------------------
+grimoire_history() {
+  local PAGER2
+  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  local grimoire="$1"
+  local grimoirename="${grimoire##*/}"
+  local date="`cat "$STATE_DIRECTORY/$grimoirename.lastupdate" 2> /dev/null`"
+  [ -z "$date" ] && date="20030818"
+  local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
+  (
+    echo -e "Viewing history since last update ($datedash) for grimoire --  ${grimoirename}  -- :" && 
+    echo                 &&
+    cat "$grimoire/ChangeLog" 2> /dev/null
+  ) |
+    awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
+    $PAGER2
+  echo "`date +%Y%m%d`" > "$STATE_DIRECTORY/$grimoirename.lastupdate"
+}
+
+
+#---------------------------------------------------------------------
+##=item sorcery_history
+##
+## Display the history of sorcery for review
+##
+#---------------------------------------------------------------------
+sorcery_history() {
+  local PAGER2
+  if [ "$PAGER" == "less" ] ; then PAGER2="more"; else PAGER2="$PAGER"; fi
+  local date="`cat "$STATE_DIRECTORY/sorcery.lastupdate" 2> /dev/null`"
+  [ -z "$date" ] && date="20030818"
+  local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
+  (
+    echo -e "Viewing history since last update ($datedash) for sorcery :" && 
+    echo                 &&
+    cat "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
+  ) |
+    awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
+    $PAGER2
+  echo "`date +%Y%m%d`" > "$STATE_DIRECTORY/sorcery.lastupdate"
 }
 
 
@@ -1505,21 +1583,19 @@ find_pam_aware()  { (
 #---------------------------------------------------------------------
 verify_source()  { (
 
-  VERIFIED="true"
 
   for  SOURCE_FILE  in  $@;  do
-    if  !  guess_filename  $SOURCE_CACHE/$1  >/dev/null
+    if  !  guess_filename  $SOURCE_CACHE/$SOURCE_FILE  >/dev/null
     then
       message  "${PROBLEM_COLOR}Missing ${FILE_COLOR}${1}${DEFAULT_COLOR}"
       message  "${PROBLEM_COLOR}Cast aborting.${DEFAULT_COLOR}"
       activity_log  "cast"  "$SPELL"  "$VERSION"  "failed"  \
                     "because it was missing source:  $1"
-      VERIFIED=false
-      break
+      return 1 
     fi
   done
 
-  $VERIFIED
+  return 0
 
 ) }
 

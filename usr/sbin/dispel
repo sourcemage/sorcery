@@ -33,7 +33,8 @@ Optional Parameters:
 -e | --exile  spells			Removes spells and blocks 
 					them from being automatically
 					reintalled.
--d | --downgrade  spell  version
+-d | --downgrade	spell  version
+--notriggers		Disables triggers for this dispel
 
 Downgrade is an option for removing the selected spell 
 and restoring a previously installed version.
@@ -67,7 +68,7 @@ post_remove() {
   unset  LD_PRELOAD
   if  [   -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
       ps  -C  xinetd  >  /dev/null;          then
-    /etc/init.d/xinetd.sh  restart
+    /sbin/telinit run xinetd restart
   fi
   export  LD_PRELOAD="$LD_PRELOAD_OLD"
 
@@ -144,6 +145,7 @@ process_parameters()  {
      -d|--downgrade)  downgrade  $2  $3;  shift  3  ;;
            --noreap)  REAP="off";         shift  1  ;;
         --nosustain)  SUSTAIN="off";      shift  1  ;;
+	   --notriggers)  TRIGGER="off";      shift  1  ;;
                   *)  help                          ;;
 
       esac
@@ -171,6 +173,7 @@ strip_parameters()  {
         -d|--downgrade)  shift  3  ;;
               --noreap)  shift  1  ;;
            --nosustain)  shift  1  ;;
+		  --notriggers)  shift  1  ;;
                      *)  shift  1  ;;
 
       esac
@@ -247,7 +250,7 @@ main()	{
       continue
     fi
     
-    trigger "pre_dispel"
+    [[ $TRIGGER == off ]] || trigger "pre_dispel"
     
      VERSION=`installed_version  $SPELL`
     INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
@@ -259,7 +262,7 @@ main()	{
     reap_depends
     post_remove
     remove_spell  $SPELL
-    trigger "dispel"
+    [[ $TRIGGER == off ]] || trigger "dispel"
     remove_triggers $SPELL
     message  "${DISPEL_COLOR}Dispelled spell:"  \
              "${SPELL_COLOR}${SPELL}"           \
