@@ -1,27 +1,19 @@
 #!/bin/bash
 #---------------------------------------------------------------------
+## @Synopsis A set of functions for the Cabal distributed administration system.
+## @Copyright Copyright 2002 by the Source Mage Team. Some parts Copyright 2001 by Kyle Sallee
+## Control a set of SourceMage boxes on a network. This documentation was
+## written by someone who never used cabal or looked at this code before.
 ##
-##=head1 SYNOPSIS
-##
-##  A set of functions for the Cabal distributed administration
-##  system.
-##
-##=head1 DESCRIPTION
-##
-## 
-##
-##=head1 COPYRIGHT
-##
-## Copyright 2002 by the Source Mage Team
-## Some parts Copyright 2001 by Kyle Sallee
-##
-##=head1 FUNCTIONS
-##
-##=over 4
-##
+## @Globals CABAL_DIRECTORY CABAL_NAMES MAX_CABALS
+
 #---------------------------------------------------------------------
 
-
+#------------------
+## Get the names of the machines in the cabal and store in CABAL
+## @Stdout The names of the machines in the cabal
+## @Globals CABAL_NAMES CABAL
+#------------------
 read_cabal_names()  {
 
   mkdir  -p  $CABAL_DIRECTORY
@@ -32,7 +24,11 @@ read_cabal_names()  {
 
 }
 
-
+#--------------------
+## Overwrite the cabal name file with new member names
+## @Note The loop can probably be done more intelegently, so a MAX_CABALS is not necessary.
+## @Globals CABAL_NAMES MAX_CABALS
+#--------------------
 write_cabal_names()  {
 
   rm  -f  $CABAL_NAMES
@@ -42,7 +38,12 @@ write_cabal_names()  {
 
 }
 
-
+#---------------------
+## Print out the member of the cabal (assuming the names have been read)
+## @Globals MAX_CABALS
+## @Stdout Names of each cabal member
+## @NOTE MAX_CABAL can be eliminated
+#---------------------
 print_cabal_names()  {
 
   for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
@@ -51,7 +52,11 @@ print_cabal_names()  {
 
 }
 
-
+#---------------------
+## Outputs the number and name of each cabal member
+## @Stdout <number>\n<cabal name or "Undefined"> for all cabal members
+## @NOTE Dito about MAX_CABALS
+#---------------------
 print_cabal_numbers_names()  {
 
   for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
@@ -64,7 +69,11 @@ print_cabal_numbers_names()  {
 
 }
 
-
+#-----------------------
+## Pops up a dialog box for selecting a specific cabal member
+## @Stdout dialog output
+## @Stderr Cabal member selection
+#-----------------------
 select_cabal()  {
 
   eval $DIALOG  '--title         "Cabal Selection Menu"  \
@@ -77,7 +86,9 @@ select_cabal()  {
 
 }
 
-
+#----------------------
+## Edit the file about selected members
+#----------------------
 edit_cabals()  {
 
   while  SELECTED=`select_cabal`
@@ -86,7 +97,9 @@ edit_cabals()  {
 
 }
 
-
+#---------------------
+## Show contents of a member's info file
+#---------------------
 show_cabals()  {
 
   while  SELECTED=`select_cabal`
@@ -95,7 +108,9 @@ show_cabals()  {
 
 }
 
-
+#--------------------
+## Generate SSH key for a cabal member
+#--------------------
 generate_cabal_key()  {
 
   while  SELECTED=`select_cabal`

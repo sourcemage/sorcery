@@ -1,27 +1,12 @@
 #!/bin/bash
 #---------------------------------------------------------------------
-##
-##=head1 SYNOPSIS
-##
-## Functions for dealing with dependencies as a non-cyclic directed
-## graph. Since that's such a mouthful, it will simply be referred to
-## as a tree, even though it's not.
-##
-##=head1 DESCRIPTION
-##
+## @Synopsis Functions for dealing with dependencies as a non-cyclic directed graph. Since that's such a mouthful, it will simply be referred to as a tree, even though it's not.
+## @Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
 ## A spell is represented as a node containing some pieces of data
 ## seperated by colons.
 ## spell:dependent spell:on/off:type:casting_flag:is_a_target_flag
-##
-##=head1 COPYRIGHT
-##
-## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
-##
-##=head1 CONTRIBUTORS
-## Chris Brien <christopher_brien@hotmail.com>
-## Paul Mahon <pmahon@sourcemage.org)
-##
-##=head1 FUNCTIONS
+## @Contributers Chris Brien (christopher_brien@hotmail.com)
+## @Contributers Paul Mahon (pmahon@sourcemage.org)
 #---------------------------------------------------------------------
 
 #
@@ -85,6 +70,12 @@
 
 
 ######################BEGIN CALLS TO OUTSIDE WORLD########################
+
+#-----
+## Run the spell's PREPARE script if it exists
+## @param Spell to prepare
+## @Globals SCRIPT_DIRECTORY
+#-----
 function run_prepare() 
 {
   local SPELL=$1
@@ -104,8 +95,11 @@ function run_prepare()
   
 }
 
-# this will be home to all "other" questions we are supposed to ask about
-# during this phase of things, right now its a placeholder
+#---------
+## This will be home to all "other" questions we are supposed to ask about
+## during this phase of things, right now its a placeholder
+## @param Spell
+#---------
 function run_other() {
   local SPELL=$1
   # ask the questions about xinetd/initd script installation
@@ -118,6 +112,10 @@ function run_other() {
 
 }
 
+#----
+## Run the spell's CONFIGURE script if it exists
+## @param Spell to configure
+#----
 function run_configure() 
 {
 
@@ -136,6 +134,10 @@ function run_configure()
   fi
 }
 
+#----
+## Run a spell's DEPENDS if it exists
+## @param Spell
+#----
 function run_depends() 
 { 
   local SPELL=$1
@@ -157,10 +159,11 @@ function run_depends()
 
 
 #-----------------------------------------------------------------------
-# Create a map of spells to their dependent spells.
-# Then for all installed or held spells, output a libhash command to
-# join the spell name and dependency info.
-# Then evaluate the output, thus filling a libhash with dependency info.
+## Create a map of spells to their dependent spells.
+## Then for all installed or held spells, output a libhash command to
+## join the spell name and dependency info.
+## Then evaluate the output, thus filling a libhash with dependency info.
+## @param Name of hash table to put dependencies
 #-----------------------------------------------------------------------
 function compute_installed_depends() {
   #$1==hash table to fill
@@ -186,10 +189,11 @@ function compute_installed_depends() {
 }
 
 #-----------------------------------------------------------------------
-# Create a map of spells to their dependent spells.
-# Then for all installed or held spells, output a libhash command to
-# join the spell name and dependency info.
-# Then evaluate the output, thus filling a libhash with dependency info.
+## Create a map of spells to their dependent spells.
+## Then for all installed or held spells, output a libhash command to
+## join the spell name and dependency info.
+## Then evaluate the output, thus filling a libhash with dependency info.
+## @param Name of hash table to fill with dependencies
 #-----------------------------------------------------------------------
 function compute_reverse_installed_depends() {
   #$1==hash table to fill
@@ -214,19 +218,25 @@ function compute_reverse_installed_depends() {
 }
 
 #-----------------------------------------------------------------------
-# calling this will accomplish several things:
-# 1) most importantly it finds the closure of all spells that need to
-#    be cast
-# 2) it builds a hash table mapping spells to their depends, possibly by
-#    asking the user for input
-# 3) it updates DEPENDS_STATUS, arguably it shouldn't be doing this.
-#
-# What happens: take all the spells we've been asked to resolve
-# for each one of them run its details file
-# the details file will call back to depends/optional_depends
-# at this point we determine/find/query for depends info
-# update the hash table, update DEPENDS_STATUS, and append to the
-# list of spells to resolve
+## calling this will accomplish several things:
+## <ol>
+## <li> most importantly it finds the closure of all spells that need to
+##    be cast
+## <li> it builds a hash table mapping spells to their depends, possibly by
+##    asking the user for input
+## <li> it updates DEPENDS_STATUS, arguably it shouldn't be doing this.
+## </ol>
+##
+## What happens: take all the spells we've been asked to resolve
+## for each one of them run its details file
+## the details file will call back to depends/optional_depends
+## at this point we determine/find/query for depends info
+## update the hash table, update DEPENDS_STATUS, and append to the
+## list of spells to resolve
+##
+## @param Hashtable name for dependencies
+## @param Hashtable name for spells with problem in resolution (or something)
+## @param Hashtable name for spells which cannot cast
 #-----------------------------------------------------------------------
 function compute_uninstalled_depends() 
 { 
@@ -267,6 +277,11 @@ function compute_uninstalled_depends()
   hash_export uncommitted_hash
 }
 
+#--------
+## A private function for running a spell's DEPENDS script.
+## No functions except libdepends functions should use this.
+## @param Spell
+#--------
 function private_run_depends()
 {
   debug "libdepends" "$FUNCNAME - $*"
@@ -315,8 +330,13 @@ function private_run_depends()
   return 0
 }
 
-# Perhaps this function is overly splayed out in elif's but its
-# easier to add to later than what we had before...
+#-----
+## Decides if a spell should be case. Check if the spell is installed
+## if it matters, etc...
+## Perhaps this function is overly splayed out in elif's but its
+## easier to add to later than what we had before...
+## @param Spell
+#-----
 function private_should_cast()
 {
   local decision
@@ -346,8 +366,8 @@ function private_should_cast()
 }
 
 #---------------------------------------------------------------------
-# @param Spell name
-# Find all the spells that depend on the spell given as $1
+## @param Spell name
+## Find all the spells that depend on the spell given as $1
 #---------------------------------------------------------------------
 function private_upward_depends() {
   if [[ "$RECAST_UP" ]] ; then
@@ -399,8 +419,11 @@ function real_optional_depends()
 
 }
 
-
-
+#-----
+## Asks the user what provider for a depends is desired if a choice
+## has not ben made before.
+## @param Service
+#-----
 function work_depends_provider()
 {
 
@@ -442,6 +465,11 @@ function work_depends_provider()
 
 }
 
+#-----
+## One of the worker functions. Checks for exiled spell and passes
+## on to the common dependency function, <@function private_common_depends>
+## @param Spell
+#-----
 function work_depends_spell()
 {
 
@@ -652,10 +680,12 @@ function select_provider()
 
 }
 
-#
-# all the depends callbacks eventually bottom out here
-# if a spell depends or doesnt depend on some other spell
-#
+#----
+## all the depends callbacks eventually bottom out here
+## if a spell depends or doesnt depend on some other spell
+## @param Spell
+## @param on/off 
+#----
 function private_common_depends()
 {
   debug "libdepends" "$FUNCNAME - $@"
@@ -670,7 +700,9 @@ function private_common_depends()
   return 0
 }
 
-
+#-----
+## Adds the dependency to the hastable 
+#-----
 function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
@@ -688,6 +720,9 @@ function private_add_depends()
 
 #########################BEGIN OTHER STUFF############################
 
+#-----
+## Removes a dependency from the list.
+#-----
 function private_remove_dependees()
 {
 	local SPELL=$1
@@ -701,8 +736,10 @@ function private_remove_dependees()
         hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
 }
 
-
-
+#-----
+## Sets a spell's aux. config info.
+## @Globals SPELL 
+#-----
 function run_spell_config() 
 {
 
@@ -715,7 +752,9 @@ function run_spell_config()
   fi
 }
 
+#----
 # i dont know if this should be here
+#----
 function show_depends()  
 {
   debug "libdepends" "show_depends() - $@"
@@ -744,7 +783,9 @@ function show_depends()
   fi
 }
 
+#----
 # this needs to go away :-/
+#----
 function satisfy_depends()
 {
 
