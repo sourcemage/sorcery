@@ -1650,6 +1650,12 @@ function generate_keep_list()  { (
 #---------------------------------------------------------------------
 ##
 ## Removes unnecessary files from the source cache and install cache.
+## 
+## This function includes a stale depends question for the user, if yes
+## then the depends file is checked for old dependencies that can be
+## removed. These lines are added to a file 'depends.stale' and a cleaned
+## up depends file is installed. The depends.stale will be left for the
+## user to manage.
 ##
 #---------------------------------------------------------------------
 function prune()  { (
@@ -1660,6 +1666,34 @@ function prune()  { (
     echo  "Enter the root password, please."
     su  - -c "DISPLAY=$DISPLAY PATH=$PATH"
   fi
+
+  if query "Would you like to check for stale depends?" y
+  then 
+    message "${MESSAGE_COLOR}Checking for stale depends, there will be a slight delay...${DEFAULT_COLOR}"
+    tDEPENDS=`lock_start_transaction /var/state/sorcery/depends`
+		
+    if [ -e /var/state/sorcery/depends.stale ] ; then
+			message "${MESSAGE_COLOR}Detected depends.stale file, will add my finding to the end of this file..."
+      message "Starting search for stale depends...${DEFAULT_COLOR}"
+    else
+      message "${MESSAGE_COLOR}A new depends.stale file will be added to store my findings at:"
+      message "   /var/state/sorcery/depends.stale  "
+      message "Starting search for stale depends...${DEFAULT_COLOR}"
+		fi
+
+    while read LINE;  do
+      SPELL=${LINE%%:*}
+			if spell_installed $SPELL | grep -q "not installed" 
+			then
+				echo $LINE 
+			fi
+    done < /var/state/sorcery/depends >> /var/state/sorcery/depends.stale
+
+		lock_commit_transaction /var/state/sorcery/depends
+    
+		message "${MESSAGE_COLOR}The stale depends we found are available in :"
+		message "   ${STATE_DIRECTORY}/depends.stale${DEFAULT_COLOR}"
+	fi
                                                             
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
   KEEP="/tmp/prune.keep"
