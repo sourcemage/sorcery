@@ -18,6 +18,8 @@ Usage:		cast  [parameters]  [spell]
 
 Optional Parameters:
 
+-q  |  --quiet			Don't be verbose, show less info
+
 -f  |  --fix			Discover and fix broken spells
 -n  |  --nofix			Discover, but do not fix broken spells
 
@@ -281,6 +283,10 @@ export_ld()  {
 
 ldd_check()  {  (
 
+  if  [  -z  "$QUIET"  ];  then
+    message  -n  "."
+  fi
+
   if  [  "$LDD_CHECK"  ==  "off"    ] ;  then
     return
   fi
@@ -301,6 +307,10 @@ ldd_check()  {  (
          grep  -v  "/doc/\|/fonts/\|/include/\|/locale/\|/man/\|/modules/\|/var/"`
 
     for  FILE  in  $LOG;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        message  -n  "."
+      fi
 
       if     [  -f  "$FILE"  ]     &&
           !  [  -h  "$FILE"  ]     &&
@@ -327,6 +337,10 @@ ldd_check()  {  (
 
 
 find_check()  { (
+
+  if  [  -z  "$QUIET"  ];  then
+    message  -n  "."
+  fi
 
   if  [  "$FIND_CHECK"  ==  "off"             ]   ||
       [  "$1"           ==  "xfree86"         ]   ||
@@ -411,6 +425,10 @@ remove_line()  {
 
 sym_check()  { (
 
+  if  [  -z  "$QUIET"  ];  then
+    message  -n  "."
+  fi
+
   if  [  "$SYM_CHECK"  ==  "off"  ];  then
     return
   fi
@@ -451,6 +469,10 @@ sym_check()  { (
 
 
 md5sum_check()  { (
+
+  if  [  -z  "$QUIET"  ];  then
+    message  -n  "."
+  fi
 
   if  [  "$MD5SUM_CHECK"  ==  "off"  ];  then
     return
@@ -529,6 +551,14 @@ run_fix()  { (
 
   SPELLS=$*
 
+  if  [  -z  "$QUIET"  ];  then
+    if  [  -z  "$PASS_ZERO"  ]  &&  [  -z  "$CAST_PASS"  ];  then
+      message  -n  "${CHECK_COLOR}Initiating integrity check, please wait..."  \
+                   "${DEFAULT_COLOR}"
+    fi
+    message  -n  "."
+  fi
+
   if  [  -z  "$SPELLS"  ];  then
 
     if    spell_installed  xfree86
@@ -541,11 +571,23 @@ run_fix()  { (
                         grep  -v  "glibc\|xfree86\|sorcery\|j2sdk"   )"
   fi
 
+  if  [  -z  "$QUIET"  ];  then
+    message  -n  "."
+  fi
+
   PASSED=":"
 
   if    [  "$LDD_CHECK"  ==  "on"    ]
   then  LD_LIBRARY_PATH_OLD="$LD_LIBRARY_PATH"
+        if  [  -z  "$QUIET"  ];  then
+          message  -n  "."
+          wait_flag_up
+          wait_flag  $$  &
+        fi
         export_ld  $(  find  /usr/lib  -type  d  ! -empty  )
+        if  [  -z  "$QUIET"  ];  then
+          wait_flag_down
+        fi
   fi
 
   until  [  "$FIXED"     ==  "yes"  ]   ||
@@ -554,15 +596,30 @@ run_fix()  { (
        FIXED="yes"
     HOPELESS="no"
 
+    if  [  -z  "$QUIET"  ];  then
+      message  -n  "."
+    fi
+
     for  SPELL  in  $SPELLS;  do
+
+      if  [  -z  "$QUIET"  ];  then
+        message  -n  "."
+      fi
 
       if  status_okay  $SPELL  &&
           !  echo  $PASSED     |
              grep  -q  ":$SPELL:";  then
 
-        message  "${CHECK_COLOR}Checking integrity of"  \
-                 "${SPELL_COLOR}${SPELL}"               \
-                 "${DEFAULT_COLOR}"
+        if  [  -z  "$QUIET"  ];  then
+          message  "."
+          message  -n  "${CHECK_COLOR}Checking integrity of"  \
+                       "${SPELL_COLOR}${SPELL}"               \
+                       "${DEFAULT_COLOR}"
+        else
+          message  "${CHECK_COLOR}Checking integrity of"  \
+                   "${SPELL_COLOR}${SPELL}"               \
+                   "${DEFAULT_COLOR}"
+        fi
 
         if    run_checks     $SPELL  ||
               [  -n  "$NOFIX"  ]
@@ -605,6 +662,10 @@ run_fix()  { (
   done
   rm  -f  /tmp/LD_LIBRARY_PATH_FILE
 
+  if  [  -z  "$QUIET"  ];  then
+    message  "."
+  fi
+
 ) }
 
 
@@ -616,6 +677,7 @@ process_parameters()  {
 
       case  $1  in
 
+              -q|--quiet)  QUIET="yes"                  shift 1  ;;
                   --deps)  export  DEPS_ONLY="$1";      shift 1  ;;
         -r|--reconfigure)  RECONFIGURE="$1";            shift 1  ;;
             -c|--compile)  COMPILE="$1";                shift 1  ;;

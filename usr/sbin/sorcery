@@ -43,34 +43,40 @@ mirror_menu()  {
 
   while
 
-    S_HELP="Select mirror for downloading Sorcery itself"
-    G_HELP="Select mirror for downloading GNU sources."
+    C_HELP="Select mirror for downloading CTAN sources."
     K_HELP="Select mirror for downloading KDE sources."
-    N_HELP="Select mirror for downloading GNOME sources." 
     L_HELP="Select mirror for downloading kernel related sources."
+    N_HELP="Select mirror for downloading GNOME sources." 
+    G_HELP="Select mirror for downloading GNU sources."
+    S_HELP="Select mirror for downloading Sorcery itself"
+   SF_HELP="Select mirror for downloading Sourceforge"
     X_HELP="Select mirror for downloading XFree86 related sources."
       HELP="Selecting a mirror site can speed your downloads."
 
-    COMMAND=`$DIALOG  --title "Mirror Menu"     \
-                      --ok-label      "Select"  \
-                      --cancel-label  "Exit"    \
-                      --item-help               \
-                      --menu     ""  0 0 0      \
-		      "SORCERY"  ""  "$S_HELP"  \
-                      "GNOME"    ""  "$N_HELP"  \
-                      "GNU"      ""  "$G_HELP"  \
-                      "KDE"      ""  "$K_HELP"  \
-                      "KERNEL"   ""  "$L_HELP"  \
-                      "XFREE86"  ""  "$X_HELP"`
+    COMMAND=`$DIALOG  --title "Mirror Menu"        \
+                      --ok-label      "Select"     \
+                      --cancel-label  "Exit"       \
+                      --item-help                  \
+                      --menu        ""  0 0 0      \
+                      "CTAN"        ""  "$C_HELP"  \
+                      "KDE"         ""  "$K_HELP"  \
+                      "KERNEL"      ""  "$L_HELP"  \
+                      "GNOME"       ""  "$N_HELP"  \
+                      "GNU"         ""  "$G_HELP"  \
+		      "SOURCEFORGE" ""  "$S_HELP"  \
+		      "SORCERY"     ""  "$S_HELP"  \
+                      "XFREE86"     ""  "$X_HELP"`
   do
 
     case  $COMMAND in
-      SORCERY)  MIRROR=" SORCERY_URL"    ;;
-      GNOME)    MIRROR="   GNOME_URL"    ;;
-      GNU)      MIRROR="     GNU_URL"    ;;
-      KDE)      MIRROR="     KDE_URL"    ;;
-      KERNEL)   MIRROR="  KERNEL_URL"    ;;
-      XFREE86)  MIRROR=" XFREE86_URL"    ;;
+      CTAN)         MIRROR="        CTAN_URL"  ;;
+      KDE)          MIRROR="         KDE_URL"  ;;
+      KERNEL)       MIRROR="      KERNEL_URL"  ;;
+      GNOME)        MIRROR="       GNOME_URL"  ;;
+      GNU)          MIRROR="         GNU_URL"  ;;
+      SORCERY)      MIRROR="     SORCERY_URL"  ;;
+      SOURCEFORGE)  MIRROR=" SOURCEFORGE_URL"  ;;
+      XFREE86)      MIRROR="     XFREE86_URL"  ;;
     esac
 
     if  MIRROR_URL=`select_mirror  $COMMAND`;  then

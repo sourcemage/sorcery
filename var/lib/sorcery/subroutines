@@ -1,3 +1,5 @@
+#!/bin/sh
+
 sound()  {
 
   case  $SOUND  in
@@ -72,7 +74,14 @@ query()  { (
 
 message()    {
 
-  [  -n  "$SILENT"  ]  ||  echo  -e  "$*"
+  if  [  !  -n  "$SILENT"  ];  then
+    if  [  "$1"  ==  "-n"  ];  then
+      shift  1
+      echo  -n  -e  "$*"
+    else
+      echo  -e  "$*"
+    fi
+  fi
 
 }
 
@@ -152,7 +161,7 @@ testpack() {
           Zip)  unzip  -tq   $FILENAME   1>/dev/null 2>&1  ;;
           RPM)  rpmunpack  < $FILENAME   |                 \
                 gzip   -t                1>/dev/null 2>&1  ;;
-            *)  true                                       ;;
+            *)  ! filename_indicates_compression $FILENAME ;;
   esac
 
 }
@@ -514,9 +523,14 @@ is_depends()  {  (
 
   EXIT_STATUS="false"
 
+  SAVED_IFS=$IFS 
+  IFS=$ENTER_IFS
+
   for  DEP  in  `cut  -d :  -f2-  $DEPENDS_STATUS  |
                  grep  "^$1:"`
   do
+
+    IFS=$SAVED_IFS 
 
     DEP_STATUS=`echo  "$DEP"  |  cut  -d :  -f2`
 
@@ -526,6 +540,8 @@ is_depends()  {  (
     fi
 
   done
+
+  IFS=$SAVED_IFS
 
   $EXIT_STATUS
 
@@ -1082,7 +1098,12 @@ satisfy_depends()  {
           .  $SPELL_CONFIG
   fi
 
+  SAVED_IFS=$IFS 
+  IFS=$ENTER_IFS
+
   for  LINE  in  `grep  "^$SPELL:"  $DEPENDS_STATUS`;  do
+
+    IFS=$SAVED_IFS
 
      DEP_SPELL=`echo  $LINE  |  cut  -d :  -f2`
     DEP_STATUS=`echo  $LINE  |  cut  -d :  -f3`
@@ -1477,3 +1498,81 @@ requires()  { (
 
 verify_sources()  {  verify_source  `sources  $SPELL`;  }
 handle_depends()  {  true;  }
+
+
+#---------------------------------------------------------------------
+##=item filename_indicates_compression <filename>
+## 
+## Returns true if the name of the file indicates that it should be
+## a compressed file.  In other words, this function returns true if
+## the filename ends in .gz, .tgz, .bz2, .zip, .rpm, or .Z.
+##
+#---------------------------------------------------------------------
+filename_indicates_compression()  {
+  local FILENAME=`echo "file$1" | sed 's/^.*\.gz$//'  \
+                                | sed 's/^.*\.tgz$//' \
+                                | sed 's/^.*\.bz2$//' \
+                                | sed 's/^.*\.zip$//' \
+                                | sed 's/^.*\.Z$//'   \
+                                | sed 's/^.*\.rpm$//' \
+                                | sed 's/^.*\.bz2$//'`
+  [  -z  "$FILENAME"  ]
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag_up
+## 
+## Activate wait flag (used for printing dots until a job is done)
+##
+#---------------------------------------------------------------------
+wait_flag_up()  {
+
+  touch  /tmp/.$$.wait_flag
+  chmod  000  /tmp/.$$.wait_flag
+
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag_down
+## 
+## Deactivate wait flag (used for printing dots until a job is done)
+##
+#---------------------------------------------------------------------
+wait_flag_down()  {
+
+  rm  -f  /tmp/.$$.wait_flag
+
+}
+
+
+#---------------------------------------------------------------------
+##=item ping_pid
+## 
+## 
+##
+#---------------------------------------------------------------------
+ping_pid() {
+
+  renice  10  $1  1>/dev/null 2>&1
+
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag
+## 
+## Prints out dots as long as wait_flag is set
+## To be started in the background
+##
+#---------------------------------------------------------------------
+wait_flag()  {
+
+  while  [  -e  /tmp/.$$.wait_flag  ];  do
+    message  -n  "."
+    sleep  2
+    ping_pid  $1  ||  wait_flag_down
+  done
+
+}
