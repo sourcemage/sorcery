@@ -52,6 +52,11 @@ function run_prepare()
   if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
     . $SCRIPT_DIRECTORY/PREPARE
   fi
+  
+  # here we deal with xinetd/initd script installations.
+  use_xinetd
+  use_initd
+
 }
 
 
@@ -76,8 +81,6 @@ function run_configure()
   SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
-  determine_xinetd_or_initd   # ask user pref, default xinetd if both yes.
-
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
     . $SCRIPT_DIRECTORY/CONFIGURE
     true  # otherwise if CONFIGURE returns `false' DEPENDS is not executed

@@ -581,28 +581,53 @@ function install_pam_confs()  {
 #---------------------------------------------------------------------
 ##
 ## Copies xinetd configuration files to /etc/xinetd.d/
-##
+## Accepts list of services to be installed.
 #---------------------------------------------------------------------
 function install_xinetd_confs()  { (
 
   debug  "libgrimoire" "Running install_xinetd_confs() on $SPELL"
 
-  if  [  -d  "$SCRIPT_DIRECTORY/xinetd.d"  ];  then
+  LIST=$@
 
-    cd       "$SCRIPT_DIRECTORY/xinetd.d"
-    mkdir  -p  /etc/xinetd.d
+  if  [  -z  "$LIST"  ] ; then
+    LIST=$( cd $SCRIPT_DIRECTORY/xinetd.d; ls )
+    debug  "libgrimiore" "services from install_xinetd_confs to be deactivated : '$LIST'"
+  else
+    debug  "libgrimiore" "services from install_xinetd_confs to be activated : '$LIST'"
+  fi
+  
+  # Something is seriously wrong if this doesn't already exist.
+  mkdir  -p  /etc/xinetd.d
+  cd       "$SCRIPT_DIRECTORY/xinetd.d"
 
-    for  SERVICE  in  $SERVICES;  do
-      for  FILE  in  `ls`;  do
-        if    grep  -q  "service $SERVICE"   $FILE
-        then  cp  $FILE  /etc/xinetd.d
-        fi
-      done
+  for  SERVICE  in  $LIST;  do
+    for  FILE  in  `ls`;  do
+      if    grep  -q  "service $SERVICE"   $FILE
+      then  
+        debug  "libgrimoire" "Activating service in install_xinetd_confs for '$FILE'"
+        # activate service.
+        cp  $FILE  /etc/xinetd.d
+      else
+        debug  "libgrimoire" "Deactivating service in install_xinetd_confs for '$FILE'"
+        # install but deactivate services.
+        ( 
+          head -2 $FILE 
+          echo "  disable = yes" 
+          tail +3 $FILE 
+        ) > /etc/xinetd.d/$FILE
+      fi
     done
+  done
 
-    if  [  -n  "$SERVICES"  ];  then
-      unset  LD_PRELOAD
-      /sbin/telinit  run  xinetd  restart
+  if  [  -n  "$LIST"  ];  then
+    if  query  "If new services installed, please answer yes to restart xinetd?"  "y"
+    then
+      if  [  -x  /etc/init.d/runlevels/%3/xinetd  ] ; then
+        unset  LD_PRELOAD
+        /sbin/telinit  run  xinetd  restart
+      else
+        message "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}" 
+      fi
     fi
   fi
 
@@ -612,23 +637,22 @@ function install_xinetd_confs()  { (
 ##
 ## Installs init scripts in /etc/init.d, and creates links in
 ## /etc/rc*.d
-##
+## Accepts list of scripts to be installed.
 #---------------------------------------------------------------------
 function install_initd_confs()  { (
 
   debug  "libgrimoire" "Running install_initd_confs() on $SPELL"
 
-  if  [  -d  "$SCRIPT_DIRECTORY/init.d"  ];  then
+  LIST="$@"
+  
+  debug  "libgrimiore" "install_initd_confs LIST: '$LIST'"
+  
+  # Something is seriously wrong if this doesn't already exist.
+  mkdir  -p  $INSTALL_ROOT/etc/init.d
 
-    cd       "$SCRIPT_DIRECTORY/init.d"
-
-    # Something is seriously wrong if this doesn't already exist.
-    mkdir  -p  $INSTALL_ROOT/etc/init.d
-
-    for  INITSCRIPT  in  $INITDSCRIPTS;  do
-      init_install  ${INITSCRIPT}
-    done
-  fi
+  for  INITSCRIPT  in  $LIST;  do
+    init_install  ${INITSCRIPT}
+  done
 
 ) }
 
@@ -664,9 +688,6 @@ function install_services()  { (
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
 ##
-## 20031230 - removed install_xinetd_confs and initd version as should
-##            be in libdepends.determine_xinetd_or_initd() and are called 
-##            from libdepends.use_{xinetd | initd}() functions.
 #---------------------------------------------------------------------
 function real_default_post_build() {
 
