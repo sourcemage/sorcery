@@ -516,6 +516,7 @@ function find_check()  { (
 
   if  [  "$FIND_CHECK"  ==  "off"             ]   ||
       [  "$1"           ==  "xfree86"         ]   ||
+      [  "$1"           ==  "xfree86-devel"         ]   ||
       [  "$1"           ==  "xfree86-custom"  ];  then
     return
   fi
@@ -766,12 +767,14 @@ function run_fix()  { (
     # Because we want to always check them first?
     if    spell_installed  xfree86
     then  SPELLS="glibc xfree86"
+    elif  spell_installed xfree86-devel
+    then  SPELLS="glibc xfree86-devel"
     else  SPELLS="glibc"
     fi
 
     #was $SPELL_STATUS_BACKUP (2002/09/29)
     SPELLS="$SPELLS $(  awk -F : '{print $1; }' $SPELL_STATUS |
-                        grep  -v  'glibc|xfree86|sorcery|j2sdk'   )"
+                        grep  -v  'glibc|xfree86|xfree86-devel|sorcery|j2sdk'   )"
   fi
 
   if  [  -z  "$QUIET"  ];  then
