@@ -733,7 +733,8 @@ function codex_list_provides () {
 
     for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
         spell=$(dirname $file)
-        for provides in $(gawk '/provides[[:blank:]]+/{print $2}' $file); do
+        for provides in $(gawk '{if (/provides/) { print $2 } 
+                                 else { print $1 }}' $file); do
             echo "$provides $spell"
         done
     done | sort
