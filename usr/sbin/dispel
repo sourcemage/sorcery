@@ -1,21 +1,12 @@
 #!/bin/bash
 #---------------------------------------------------------------------
+## @Synopsis Dispel is the spell removal utility. It can be called by the user or by intone.
 ##
-##=head1 SYNOPSIS
+## @Copyright Original version Copyright 2001 by Kyle Sallee
+## @Copyright Additions/corrections Copyright 2002 by the Source Mage Team
 ##
-## Dispel is the spell removal utility
-## It can be called by the user or by intone
+## Dispel is the spell removal utility. It can be called by the user or by intone.
 ##
-##=head1 DESCRIPTION
-##
-## ...
-##
-##=head1 COPYRIGHT
-##
-## Original version Copyright 2001 by Kyle Sallee
-## Additions/corrections Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 
@@ -48,6 +39,11 @@ EOF
 
 }
 
+#-----
+## Downgrade a spell to a previously installed version
+## @param Spell
+## @param Previous version
+#-----
 function downgrade()  {
 
   SPELL=$1
@@ -118,7 +114,10 @@ function downgrade()  {
   return 0
 }
 
-
+#-----
+## Parse the dispel script's parameters
+## @Args Parameters
+#-----
 function process_parameters()  {
   while  [  -n  "$1"  ];  do
     if  echo  ""  $1  |  grep  -q  "^ -";  then
@@ -139,7 +138,11 @@ function process_parameters()  {
   done
 }
 
-
+#-----
+## Remove the parsed parameters
+## This is a silly way to do it
+## @Args Parameters
+#-----
 function strip_parameters()  {
   while  [  -n  "$1"  ];  do
     if  echo  "" $1  |  grep  -q  "^ -";  then
@@ -158,6 +161,10 @@ function strip_parameters()  {
   done
 }
 
+#-----
+## Main loop for dispel
+## @Args Parameters
+#-----
 function main() {
 
   process_parameters        $*
