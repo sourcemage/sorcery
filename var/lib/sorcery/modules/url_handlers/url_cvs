@@ -123,12 +123,12 @@ url_cvs_download() {
     tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
     message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
     if cd $S_FILE ; then
-	    cvs $CVS_COMPRESSION -q -d$CVS_ROOT update -r $CVS_TAG $CVS_MODULE -Pd
+	    cvs $CVS_COMPRESSION -q update -Pd
         cd ..
 	fi
   else
     message "${MESSAGE_COLOR}Running cvs checkout...${DEFAULT_COLOR}"
-    cvs $CVS_COMPRESSION -q -d$CVS_ROOT checkout -r $CVS_TAG -d $S_FILE $CVS_MODULE
+	cvs $CVS_COMPRESSION -q -d$CVS_ROOT checkout -r $CVS_TAG -d $S_FILE $CVS_MODULE
   fi
 
   if [ $? == 0 ]; then
