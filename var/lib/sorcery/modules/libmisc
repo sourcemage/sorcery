@@ -57,16 +57,7 @@ function explode ()
 ##
 #---------------------------------------------------------------------
 function real_sedit()  {
-  (
-    # Execute in a subshell to avoid globally affecting the umask
-    umask 077
-    TMP_FILE="/tmp/`basename  $2`.$$.$RANDOM"  &&
-    rm    -rf    $TMP_FILE                     &&
-    cp    $2     $TMP_FILE                     &&
-    sed   "$1"   $TMP_FILE  >  $2              &&
-    rm    -rf    $TMP_FILE
-
-  )
+  sed -i "$1" "$2"
 }
 
 
