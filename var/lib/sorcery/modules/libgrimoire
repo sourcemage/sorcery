@@ -532,9 +532,58 @@ function real_default_build() {
   make    install
 
 ) > $C_FIFO 2>&1
-
 }
 
+
+#---------------------------------------------------------------------
+## @Type API
+## Used if no COMPILE script is found for a spell using the new
+## split BUILD setup
+## Default compile is:
+## <pre>
+##  ./configure  --build=$BUILD        \
+##               --prefix=/usr         \
+##               --sysconfdir=/etc     \
+##               --localstatedir=/var  \
+##               $OPTS                 &&
+##  make
+## </pre>
+##
+#---------------------------------------------------------------------
+function real_default_compile() {
+(
+#If these switches are used, they stop distcc and ccache from working
+#  We could write wrappers for all of the possible binaries
+[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
+	
+  ./configure --prefix=${INSTALL_ROOT}/usr  \
+	  --sysconfdir=${INSTALL_ROOT}/etc  \
+       --localstatedir=${INSTALL_ROOT}/var  \
+	      --mandir=${INSTALL_ROOT}/usr/share/man   \
+	     --infodir=${INSTALL_ROOT}/usr/share/info  \
+		       $OPTS                 &&
+  make
+
+) > $C_FIFO 2>&1
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## Used if no INSTALL script is found for a spell using the new
+## split BUILD setup
+## Default install is:
+## <pre>
+##  prepare_install                    &&
+##  make    install
+## </pre>
+##
+#---------------------------------------------------------------------
+function real_default_install() {
+(
+  prepare_install                            &&
+  make    install
+) > $C_FIFO 2>&1
+}
 
 #---------------------------------------------------------------------
 ##

@@ -333,33 +333,7 @@ function activate_voyeur()  {
   fi
 
 }
-
-
-function run_build()  {
-
-  debug "cast" "Starting run_build()"
-   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
-
-  rm  -f $C_FIFO
-  mkfifo  $C_FIFO
-  rm  -f $C_LOG
-  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
-  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
-
-  activate_voyeur
-
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
-
-  invoke_build_dir
-  invoke_gcc2
-  optimize
-  invoke_installwatch
-
-  message -n "Installing in dir: "
-  pwd
-  message "$SPELL    $VERSION"
+function run_config_loc () {
   if  [ -x ./configure ] || [ -x ./src/configure ] ; then
 		
     if  [[  $CONFIG_LOC  == on  ]]; then
@@ -404,6 +378,35 @@ function run_build()  {
     fi
 
   fi
+}
+
+function run_build()  {
+
+  debug "cast" "Starting run_build()"
+   C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  rm  -f $C_FIFO
+  mkfifo  $C_FIFO
+  rm  -f $C_LOG
+  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+
+  activate_voyeur
+
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY
+
+  invoke_build_dir
+  invoke_gcc2
+  optimize
+  invoke_installwatch
+
+  message -n "Installing in dir: "
+  pwd
+  message "$SPELL    $VERSION"
+
+  run_config_loc
 
   if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
     .  $SCRIPT_DIRECTORY/BUILD
@@ -428,6 +431,72 @@ function run_build()  {
 
 }
 
+function run_compile()  {
+
+  debug "cast" "Starting run_compile()"
+   C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  rm  -f $C_FIFO
+  mkfifo  $C_FIFO
+  rm  -f $C_LOG
+  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+
+  activate_voyeur
+
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY
+
+  invoke_build_dir
+  invoke_gcc2
+  optimize
+  invoke_installwatch
+
+  message -n "Installing in dir: "
+  pwd
+  message "$SPELL    $VERSION"
+
+  run_config_loc
+
+  if  [  -x  $SCRIPT_DIRECTORY/COMPILE  ];  then
+    .  $SCRIPT_DIRECTORY/COMPILE
+  else
+    default_compile
+  fi
+}
+
+function run_install() {
+  debug "cast" "Starting run_install()"
+  #turn voyeur back on, very important, INSTALL will hang otherwise
+
+   C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  [ -w $C_FIFO ] || mkfifo $C_FIFO
+
+  activate_voyeur
+
+  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
+    .  $SCRIPT_DIRECTORY/INSTALL 
+  else
+    default_install
+  fi &&
+  install_xinetd &&
+  install_initd
+
+  if  [  "$?"  ==  0  ];  then
+    create_compile_log
+  else
+    sound  FAILURE
+    message  "${PROBLEM_COLOR}"      \
+             "! Problem Detected !"  \
+             "${DEFAULT_COLOR}"
+    view_compile_log
+    create_compile_log
+    false
+  fi
+}
 
 function run_post_build() {
 
@@ -448,6 +517,9 @@ function run_post_install() {
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]
   then       . $SCRIPT_DIRECTORY/POST_INSTALL
   fi
+}
+
+function run_triggers() {
 
   if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
   then       . $SCRIPT_DIRECTORY/TRIGGERS
@@ -1037,6 +1109,7 @@ function resurrect()  {  (
     satisfy_depends  &&
     bzip2         -cd   $CACHE_BZ  |  tar  -Pkx  1>/dev/null  2>&1
     run_post_install #bug 199
+    run_triggers
     
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
     pop_install_queue "$SPELL"
@@ -1142,9 +1215,17 @@ function cast_spell()  { (
   message " done."
   
   if    run_pre_build              			&&
-		run_build                   		&&
+  		if  [[  -x  $SCRIPT_DIRECTORY/COMPILE ||
+			-x $SCRIPT_DIRECTORY/INSTALL ]];  then
+echo OKAY
+			run_compile			&&
+			run_install
+		else
+          		run_build
+        	fi					&&
 		run_post_build              		&&
 		run_post_install            		&&
+                run_triggers				&&
 		add_spell $SPELL installed $VERSION	&&
 		cd  /                       		&&
 		report_install						;

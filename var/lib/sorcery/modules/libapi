@@ -5,6 +5,8 @@
 # functions defined in here: (in alphabetical order)
 #    conflicts              (libgrimoire)  
 #    default_build          (libgrimoire)   
+#    default_compile        (libgrimoire)   
+#    default_install        (libgrimoire)   
 #    default_post_build     (libgrimoire)   
 #    default_pre_build      (libgrimoire)   
 #    depends                (libdepends)
@@ -92,8 +94,40 @@ function default_build () {
     debug "default_build - $*"
     real_default_build "$@"
 }
-
-
+#---------------------------------------------------------------------
+## @Type API
+## Used if no COMPILE script is found for a spell using the new
+## split BUILD setup
+## Default compile is:
+## <pre>
+##  ./configure  --build=$BUILD        \
+##               --prefix=/usr         \
+##               --sysconfdir=/etc     \
+##               --localstatedir=/var  \
+##               $OPTS                 &&
+##  make
+## </pre>
+##
+#---------------------------------------------------------------------
+function default_compile () {
+    debug "default_compile - $*"
+    real_default_compile "$@"
+}
+#---------------------------------------------------------------------
+## @Type API
+## Used if no INSTALL script is found for a spell using the new
+## split BUILD setup
+## Default install is:
+## <pre>
+##  prepare_install                    &&
+##  make    install
+## </pre>
+##
+#---------------------------------------------------------------------
+function default_install () {
+    debug "default_install - $*"
+    real_default_install "$@"
+}
 #---------------------------------------------------------------------
 ## @Type API
 ## Installs configuration files and documentation.  Stops installwatch.
