@@ -437,10 +437,12 @@ gaze_catalog_html()  {
 display()  {
 
   if  [  -f  "$1"  ];  then
-    case  `file  -b  $1  |  cut -d ' ' -f1`  in
-      ASCII)       cat  $1  |  $PAGER  ;;
-      bzip2)     bzcat  $1  |  $PAGER  ;;
-      gzip)   gzip -cd  $1  |  $PAGER  ;;
+    case  "$(file  -b  $1)"  in
+      *text)       cat  $1  |  $PAGER  ;;
+      bzip2*)     bzcat  $1  |  $PAGER  ;;
+      gzip*)   gzip -cd  $1  |  $PAGER  ;;
+	  *) message "Unknown file type."
+	    return 1 ;;
     esac
   else
     message  "$2"
