@@ -608,7 +608,7 @@ function cleanse_fix_find_check()  {
   grep -v "$FIX_IGNORE_PATHS" $I_LOG > $TMP_I_LOG
 
   while read LINE ; do
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     if  [ !  -e  "$LINE"  ];  then
       BADLIST="${BADLIST}${LINE}"$'\n'
     fi
@@ -646,7 +646,7 @@ function cleanse_fix_init_ldd_check()  {
   for SPELL in $* ; do
     I_LOG=$INSTALL_LOGS/$SPELL-$(installed_version  $SPELL)
     hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort|uniq|tr '\n' :)"
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     let count++
   done
   clear_line
@@ -681,7 +681,7 @@ function cleanse_fix_ldd_check()  { (
   export LD_LIBRARY_PATH
   while read LINE; do
 
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     let count++
     if     [  -f  "$LINE"  ]     &&
         file  -b  "$LINE"        |
@@ -730,7 +730,7 @@ function cleanse_fix_sym_check() {
   local count=0
 
   while read LINE ; do
-    progress_bar $DOT_PROGRESS $count $size 50
+    progress_bar $count $size 50
     # Add this if so 'file' doesn't have to run for everything,
     # check that's a symlink first
     if [ -h "$LINE" ] && file "$LINE" | grep "broken symbolic link" ; then

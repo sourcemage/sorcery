@@ -21,8 +21,6 @@ Usage:            cast  [parameters]  [spell]
 
 Optional Parameters:
 
--q  |  --quiet                  Do not be verbose, show less info
-
        --cflags                 Custom CFLAGS
        --cxxflags               Custom CXXFLAGS
        --ldflags                Custom LDFLAGS
@@ -30,7 +28,6 @@ Optional Parameters:
                                 for those found in --cflags, --cxxflags and
                                 --ldflags
 
--t  |  --dot                    Display progress as dots, not percent
 -V [on|off]                     Override \$VOYEUR setting
 
 -f  |  --fix                    Discover and fix broken spells
@@ -68,7 +65,7 @@ EOF
 
 #---------------------------------------------------------------------
 ## @Aguments Arguments of cast
-## @Globals QUIET DOT_PROGRESS DEPS_ONLY RECONFIGURE COMPILE 
+## @Globals DEPS_ONLY RECONFIGURE COMPILE 
 ## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX NOFIX SEPARATE
 ## @Globals BASE_URL INSTALL_QUEUE 
 ##
@@ -85,12 +82,10 @@ function process_parameters()  {
 
       case  $1  in
 
-          -q|--quiet)  QUIET="yes";                      shift 1  ;;
             --cflags)  export OVERRIDE_CFLAGS="$2";      shift 2  ;;
           --cxxflags)  export OVERRIDE_CXXFLAGS="$2";    shift 2  ;;
            --ldflags)  export OVERRIDE_LDFLAGS="$2";     shift 2  ;;
            --no-opts)  export NO_OPTIMIZATION_FLAGS=1;   shift 1  ;;
-            -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
                   -V)  export VOYEUR_OVERRIDE="$2";      shift 2  ;;
               --deps)  export  DEPS_ONLY="$1";           shift 1  ;;
     -r|--reconfigure)  RECONFIGURE="$1";                 shift 1  ;;
@@ -111,10 +106,6 @@ function process_parameters()  {
                          sorcery review-queue
                        fi
 
-                       if [ -z $QUIET ]; then
-                         list_install_queue
-                       fi
-                         
                        if  [  -s $INSTALL_QUEUE  ]; then
                          message -n "${MESSAGE_COLOR}Casting install queue..."
                          message    "${DEFAULT_COLOR}"
@@ -164,19 +155,20 @@ function strip_parameters()  {
       case  $1  in
 
                   --deps)  shift 1  ;;
-              -q|--quiet)  shift 1  ;;
                 --cflags)  shift 2  ;;
               --cxxflags)  shift 2  ;;
                --ldflags)  shift 2  ;;
                --no-opts)  shift 1  ;;
-                -d|--dot)  shift 1  ;;
                       -V)  shift 2  ;;
+        -R|--recast-down)  shift 1  ;;
+          -B|--recast-up)  shift 1  ;;
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
                 -f|--fix)  shift 1  ;;
               -n|--nofix)  shift 1  ;;
             -c|--compile)  shift 1  ;;
+           -d|--download)  shift 1  ;;
                       -s)  shift 1  ;;
                    --url)  shift 2  ;;
                    --pam)  shift 1  ;;
