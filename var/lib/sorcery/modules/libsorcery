@@ -736,34 +736,46 @@ function list_install_queue() {
 ## install queue.
 ##
 #---------------------------------------------------------------------
-function update_install_queue()  { (
+function update_install_queue()  {
+  local line spell curr_version curr_updated page_dir info
+  local tmp_queue=$TMP_DIR/install_queue
+  touch $tmp_queue
 
   message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
-  rm  -f  $INSTALL_QUEUE
-  for  LINE  in  `all_spell_status`;  do
-
-  	#0=spell, 1=date, 2=status, 3=version
-	explode "$LINE" ":" "INFO"
-
-    if  [  "${INFO[2]}"  ==  "installed"  ]          &&
-        codex_set_current_spell_by_name  ${INFO[0]};  then
-
-      if  [[ $VERSION != ${INFO[3]} ]]  ||
-          [[     -z ${INFO[1]}      ]]	||
-	  	  (( UPDATED  >  ${INFO[1]} ))
-	  then
-            QUEUE="$QUEUE\n$SPELL"
+  for  line  in  `all_spell_status`;  do
+    #0=spell, 1=date, 2=status, 3=version
+    explode "$line" ":" "info"
+    spell=${info[0]}
+    curr_updated=${info[1]}
+    status=${info[2]}
+    curr_version=${info[3]}
+    
+    ( # do this in a subshell in case a spell mis-behaves and exits we
+      # still want queueing to work
+      if  [[  "$status"  ==  "installed"  ]] &&
+        codex_set_current_spell_by_name  $spell;  then
+        if  [[ $VERSION != $curr_version ]] ; then
+          echo $spell >> $tmp_queue
+        else
+          if tablet_find_spell_dir $spell page_dir ; then
+            curr_updated=""
+            tablet_get_updated $page_dir curr_updated
+          fi
+          if [[ -z $curr_updated ]] ||
+             (( "${UPDATED:-0}" >  "$curr_updated" )) ; then
+            echo $spell >> $tmp_queue
+          fi
+        fi
       fi
-
-    fi
-
+    )
   done
 
   lock_file $INSTALL_QUEUE
-  echo -e "$QUEUE" | sort | uniq > $INSTALL_QUEUE
+  rm  -f  $INSTALL_QUEUE
+  sort $tmp_queue | uniq > $INSTALL_QUEUE
   unlock_file $INSTALL_QUEUE
 
-) }
+}
 
 
 #---------------------------------------------------------------------
