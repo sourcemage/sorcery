@@ -420,7 +420,7 @@ function cleanse_fix()
     local tmp_spells
     # ensure they are all installed
     for SPELL in $SPELLS ; do
-      status_okay $SPELL &&
+      spell_okay $SPELL &&
       tmp_spells="$tmp_spells $SPELL" ||
       message "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
               "is not installed or held, not fixing"
@@ -881,23 +881,6 @@ function cleanse_fix_md5sum_check() {
   return 0
 }
  
-
-
-function status_okay()  {
-  spell_installed  $1  || spell_held       $1
-}
-
-function export_ld()  {
-
-  if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
-  then  export   LD_LIBRARY_PATH="$( lib_dirs  $*  )"
-  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  $*  )"
-  fi
-  
-  export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
-  
-}
-
 function lib_dirs()  {
 
   for  DIRECTORY  in  $*;  do
