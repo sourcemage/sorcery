@@ -184,20 +184,26 @@ function resurrect()  { (
   local TABLET_PATH=.$TABLET_PATH
   test -d $TABLET_PATH &&
   local OLD_TABLET_DIR
+  local SPELL_CONFIG_FILTER
   tablet_find_resurrect_dir $SPELL OLD_TABLET_DIR
   local TMP_VERSION=$VERSION
   if [[ $OLD_TABLET_DIR ]] && test -d $OLD_TABLET_DIR ; then
     debug "libresurrect" "loading tablet at $OLD_TABLET_DIR"
-    tablet_set_spell $SPELL $OLD_TABLET_DIR
+    tablet_set_spell $SPELL $OLD_TABLET_DIR || {
+      message "something is wrong with $OLD_TABLET_DIR"
+      returrect_fail
+      return 1
+    }
     # some earlier tablets didnt have the version (oops)
-    VERSION=${VERSION:-$TMP_VERSION}
+    tablet_get_filter $OLD_TABLET_DIR configs SPELL_CONFIG_FILTER
   else
     unset $OLD_TABLET_DIR
     debug "libresurrect" "no tablet"
     codex_set_current_spell_by_name $SPELL
+    SPELL_CONFIG_FILTER=$SCRIPT_DIRECTORY/configs
     # loading the spell may give us a different version which we dont want
-    VERSION=${TMP_VERSION}
   fi
+  VERSION=${VERSION:-TMP_VERSION}
 
   # 6) find the cache's install log and divide it up every way imaginable
   if ! [[ $OLD_TABLET_DIR ]] ; then
@@ -233,9 +239,11 @@ function resurrect()  { (
   log_adjuster $NEW_INSTALL_LOG $NEW_INSTALL_LOG_R log root
   seperate_state_files $NEW_INSTALL_LOG_F $NEW_DATA_F $NEW_MDATA_F
   log_adjuster $NEW_DATA_F $NEW_DATA_R filterable root
-  cat $NEW_DATA_F| filter_configs -v > $NEW_DATA_F_C
+  # cannot use filter_configs here because the tablet is in a
+  # non-standard location and may not exist at all...
+  cat $NEW_DATA_F| filter_in $CONFIGS $SPELL_CONFIG_FILTER > $NEW_DATA_F_C
   log_adjuster $NEW_DATA_F_C $NEW_DATA_R_C filterable root
-  cat $NEW_DATA_F| filter_configs > $NEW_DATA_F_NC
+  cat $NEW_DATA_F| filter $CONFIGS $SPELL_CONFIG_FILTER > $NEW_DATA_F_NC
   log_adjuster $NEW_DATA_F_NC $NEW_DATA_R_NC filterable root
   log_adjuster $NEW_MDATA_F $NEW_MDATA_R filterable root
 
@@ -292,8 +300,8 @@ function resurrect()  { (
 
 function resurrect_sub() {
   # 10) if theres a PRE_RESURRECT run it or fail/rollback
-  if test -x $SPELL_DIRECTORY/PRE_RESURRECT ; then
-    . $SPELL_DIRECTORY/PRE_RESURRECT || {
+  if test -x $SCRIPT_DIRECTORY/PRE_RESURRECT ; then
+    . $SCRIPT_DIRECTORY/PRE_RESURRECT || {
       debug "libresurrect" "PRE_RESURRECT failed"
       resurrect_fail 1
       return 1
@@ -309,8 +317,8 @@ function resurrect_sub() {
   cat $NEW_DATA_F_NC | while read line; do
     # filterable data also has the clever trait that to make it relative
     # in this context we prepend a .
-    test -d $line || echo .$line
-  done | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
+    test -d "$line" || echo .$line
+  done | cat | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
     debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
@@ -323,9 +331,9 @@ function resurrect_sub() {
 
   local res_fail=0 BREAK
   function resurrect_install_conf_sub() {
-    test -d .$1 ||
-    internal_install_config_file .$1 ${INSTALL_ROOT}${1} $savetime \
-                                                         $OLD_MD5_LOG || {
+    test -d ".$1" ||
+    internal_install_config_file ".$1" "${INSTALL_ROOT}${1}" $savetime \
+                                                         "$OLD_MD5_LOG" || {
       res_fail=1
       BREAK=1
     }
@@ -350,7 +358,7 @@ function resurrect_sub() {
     log_adjuster /dev/stdin  $TMP_DIR/leftover.$SPELL.non-config filterable root
 
     # clear out old files/symlinks
-    remove_files_and_dirs $TMP_DIR/leftover.$SEPLL.non-config $INSTALL_ROOT
+    remove_files_and_dirs $TMP_DIR/leftover.$SEPLL.non-config "$INSTALL_ROOT"
 
     # this handles configs which must be backed up if they've changed
     awk -F : 'BEGIN {
@@ -358,12 +366,12 @@ function resurrect_sub() {
       while (getline < ARGV[1] ) { if( fc[$1] != 1 ) { print $1; } }
     }' $OLD_DATA_F_C $NEW_DATA_F_C |
     log_adjuster /dev/stdin  $TMP_DI/leftover.$SPELL.configg filterable root
-    backup_config_file $TMP_DIR/leftover.$SPELL.config $savetime $OLD_MD5_LOG
+    backup_config_file $TMP_DIR/leftover.$SPELL.config $savetime "$OLD_MD5_LOG"
   fi
 
   # 14) if theres a POST_RESURRECT run it
-  if test -x $SPELL_DIRECTORY/POST_RESURRECT ; then
-    . $SPELL_DIRECTORY/POST_RESURRECT || {
+  if test -x $SCRIPT_DIRECTORY/POST_RESURRECT ; then
+    . $SCRIPT_DIRECTORY/POST_RESURRECT || {
       message "POST_RESURRECT failed"
       resurrect_fail 1
       return 1
@@ -390,12 +398,12 @@ function real_install_config_file() {
   if [[ $OLD_SPELL_VERSION ]] ; then
     old_md5_log=$MD5SUM_LOGS/$SPELL-$OLD_SPELL_VERSION
     # log must be in filterable form
-    log_adjuster $old_md5_log $TMP_DIR/$SPELL.md5 filterable root
+    log_adjuster "$old_md5_log" "$TMP_DIR/$SPELL.md5" filterable root
   else
     old_md5_log=/dev/null
   fi
   local savetime=${3:-$(date +'%Y%m%d%H%M')}
-  internal_install_config_file $1 $2 $savetime $TMP_DIR/$SPELL.md5
+  internal_install_config_file "$1" "$2" $savetime $TMP_DIR/$SPELL.md5
   rc=$?
   [[ $OLD_SPELL_VERSION ]] && rm $TMP_DIR/$SPELL.md5
 
@@ -415,32 +423,33 @@ function internal_install_config_file() {
   local savetime=$3
   local md5_log=$4
 
-  test -f $from || return
+  test -f "$from" || return
 
   # if the file does not exist, 
-  if ! test -e $to; then
+  if ! test -e "$to"; then
     # copy the new one in (plus leading directories)
-    mkdir -p $(dirname $to) &&
-    cp -p $from $to
+    mkdir -p "$(dirname "$to")" &&
+    cp -pv "$from" "$to"
 
   # to get here the file must exist
-  elif test -d $to; then
+  elif test -d "$to"; then
     message "Trying to install a file ($from) to what was a directory ($to), I dont know what to do!"
     return 1
 
   # elif the file exists and is identical to the new one
-  elif cmp $to $from &>/dev/null; then
+  elif cmp "$to" "$from" &>/dev/null; then
     # do nothing
     echo "$from"
   # else the file exists and differs from the new one then
   else
-    local my_md5=$(md5sum $to)
+    local my_md5=$(md5sum "$to")
     # if it is owned by the old spell with a valid md5
     # note that the md5_log is a subset of the install log, so if it
     # matches in the md5 log, it is owned by the spell
     if test -f $md5_log && grep -q "$my_md5" $md5_log ; then
       # replace the file
-      tar -c $from | tar -xv $to
+      mkdir -p "$(dirname "$to")" &&
+      cp -pv "$from" "$to"
 
     # it is owned by the old spell with an invalid md5 OR
     # the file might be owned by another spell OR
@@ -448,7 +457,7 @@ function internal_install_config_file() {
     # note, it might be nice to split the above cases out for more informative
     # user messages
     else
-      real_handle_changed_config $from $to $savetime
+      real_handle_changed_config "$from" "$to" $savetime
     fi
   fi
 }
@@ -496,15 +505,15 @@ function real_handle_changed_config() {
     done
     echo
     case $number in
-      0)  cp -pv $from $to
+      0)  cp -pv "$from" "$to"
           break ;;
-      1)  cp -pv $to $to.$savetime
-          cp -pv $from $to
+      1)  cp -pv "$to" "$to.$savetime"
+          cp -pv "$from" "$to"
           break ;;
-      2)  cp -pv $from $to.$savetime
+      2)  cp -pv "$from" "$to.$savetime"
           break ;;
       3)  break ;;
-      4)  diff $to $from | $PAGER;;
+      4)  diff "$to" "$from" | $PAGER;;
     esac
     message "\n\nPlease select another option"
   done
@@ -522,14 +531,14 @@ function resurrect_success() {
   # 14) copy compile log
   # this file is not regenerated unlike its friends install and md5sum
   local OLD_COMPILE_LOG=$(find .${COMPILE_LOGS#$INSTALL_ROOT}/ -maxdepth 1 -type f|head -n 1)
-  local COMPILE_LOG=$COMPILE_LOGS/$(basename $OLD_COMPILE_LOG)
+  local COMPILE_LOG="$COMPILE_LOGS/$(basename "$OLD_COMPILE_LOG")"
   # also relative to STATE_ROOT
-  cp $OLD_COMPILE_LOG $COMPILE_LOG
+  cp "$OLD_COMPILE_LOG" "$COMPILE_LOG"
 
   # 15) commit state data:
   if [[ $OLD_TABLET_DIR ]] ; then
     # depends info if it exists
-    local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
+    local t_DEPENDS_STATUS=$(lock_start_transaction "$DEPENDS_STATUS")
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $t_DEPENDS_STATUS $SPELL
     local spell_depends=$OLD_TABLET_DIR/depends
