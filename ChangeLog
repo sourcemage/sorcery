@@ -1,3 +1,19 @@
+2005-02-28 Andrew Stitt <astitt@sourcemage.org>
+	* sorcery: combine number of jobs menu and distcc hosts menu into
+	  a single menu, add a field for jobs per host rather than always
+	  doing num_hosts+1 for the number of jobs, addresses bug 6432.
+	* libgrimoire: enhance make() function to use
+	  num_hosts*jobs_per_host+make_njobs for the number of make
+	  jobs. Fixes bug 6432
+	* libsorcery: make invoke_build_dir to set a USE_DISTCC variable
+	  due to the buggy way that spell writers have been told to disable
+	  distcc and the way run_compiler works. Provide a new more robust
+	  way to disable distcc with DISABLE_DISTCC. Also add a long comment
+	  explaining all this stuff for the future explorer.
+	* build/run_compiler: respect USE_DISTCC as set from libsorcery
+	  instead of just looking at DISTCC_HOSTS
+	* compile_config: add a new field for jobs per distcc host
+	
 2005-02-24 Andrew Stitt <astitt@sourcemage.org>
 	* libgcc2: generalize use_gcc2 function to check any gcc version
 	* libmisc: fix a long standing bug with esc_str, now all

@@ -1019,68 +1019,39 @@ that should receive reports from this box."  \
 }
 
 
-#---------------------------------------------------------------------
-##=item sorcery_set_jobs
-##
-## Brings up a dialog that allows administrator to choose the number
-## of processes that make should use.  If the user selects "Commit",
-## the MAKE_NJOBS variable is written to the local config file.
-##
-#  Created by Eric Sandall <sandalle@yahoo.com>  2002-06-28@00:08 PST
-#---------------------------------------------------------------------
-sorcery_set_jobs() {
-  [  -z  "$MAKE_NJOBS"  ]  &&  MAKE_NJOBS=1
+function parallel_compilation_menu() {
+  local RESULTS KEY rc
+  local TITLE="Parallel/Distributed Compilation Options Menu"
+  local HELP="Number of make jobs is\n((length of DISTCC_HOSTS)*JOBS_PER_HOST+EXTRA_JOBS)\nIf distcc is disabled by a spell, then the number of make jobs is EXTRA_JOBS, it is recommended that you dont set it to zero. If the number of jobs totals to zero make will run an unlimited number of jobs."
 
-  local MAKE_NJOBS_HELP="Enter the number of jobs 'make' should run at the     \
-                         same time.  WARNING: Anything greater than 1 is risky \
-                         as not all makefiles support concurrent builds."
+  while true ; do
+    # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
+    # the ( ) interprits as an array, then using the magic power of set we
+    # get to use shift and $@ to get things done
+    RESULTS=(`eval $DIALOG ' --extra-label Adjust --inputmenu \
+                          "$TITLE\n$HELP" \
+                          23 70 9 \
+                          DISTCC_HOSTS "$DISTCC_HOSTS" \
+                          JOBS_PER_HOST "$JOBS_PER_HOST" \
+                          EXTRA_JOBS "$MAKE_NJOBS"'`)
+    rc=$?
+    [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
+    set ${RESULTS[*]}
+    KEY=$2
+    shift 2
+    case "$KEY" in
+      DISTCC_HOSTS) DISTCC_HOSTS="$@"  ;;
+      JOBS_PER_HOST) JOBS_PER_HOST="$@" ;;
+      EXTRA_JOBS) MAKE_NJOBS="$@" ;;
+    esac
+  done
 
-  if  MAKE_NJOBS=`eval $DIALOG '  --ok-label  "Commit"  \
-                           --inputbox            \
-                           "$MAKE_NJOBS_HELP"      \
-                           0 0  "$MAKE_NJOBS"'`
-  then
-
-    TEMP=`cat       $LOCAL_COMPILE_CONFIG  |
-          grep -v   "MAKE_NJOBS="`
-    echo  "$TEMP"                   >       $LOCAL_COMPILE_CONFIG
-    echo  "MAKE_NJOBS=$MAKE_NJOBS"  >>      $LOCAL_COMPILE_CONFIG
+  # only commit values if user selected "OK"
+  if [ $rc == 0 ] ; then
+    modify_config $LOCAL_COMPILE_CONFIG DISTCC_HOSTS "$DISTCC_HOSTS"
+    modify_config $LOCAL_COMPILE_CONFIG JOBS_PER_HOST "$JOBS_PER_HOST"
+    modify_config $LOCAL_COMPILE_CONFIG MAKE_NJOBS "$MAKE_NJOBS"
   fi
-}
-
-
-#---------------------------------------------------------------------
-##=item sorcery_distcc
-##
-## Allows the admin to set which hosts are compile volunteers.
-##
-#---------------------------------------------------------------------
-
-sorcery_distcc() {
-
-  [  -z  "$DISTCC_HOSTS"  ]  &&  DISTCC_HOSTS=""
-
-  local DISTCC_HELP="Enter space separated list of volunteers. Leave empty to \
-                     disable distributed compilation. Number of make jobs is  \
-                     automatically altered to the number of volunteers plus one"
-
-  if  DISTCC_HOSTS=`eval $DIALOG '  --ok-label  "Commit"  \
-                             --inputbox                   \
-                             "$DISTCC_HELP"               \
-                             0 0 "$DISTCC_HOSTS"'`
-  then
-    TEMP=`cat       $LOCAL_COMPILE_CONFIG  |
-          grep  -v  "DISTCC_HOSTS="        |
-          grep  -v  "MAKE_NJOBS="`
-
-    echo  "$TEMP"                               >   $LOCAL_COMPILE_CONFIG
-    echo  "DISTCC_HOSTS=\"$DISTCC_HOSTS\""      >>  $LOCAL_COMPILE_CONFIG
-
-    explode "$DISTCC_HOSTS" " " "hosts"
-    echo  "MAKE_NJOBS=$(( ${#hosts[@]} + 1 ))"  >>  $LOCAL_COMPILE_CONFIG
-    unset hosts
-  fi
-
 }
 
 
@@ -1483,8 +1454,7 @@ option_menu()  {
                       "E"  "Email of Sorcerer"        "$E_HELP" \
                       "F"  "Feature Menu"             "$F_HELP" \
                       "I"  "Integrity Checking"       "$I_HELP" \
-                      "J"  "Number of \"make\" Jobs"  "$J_HELP" \
-                      "C"  "Distributed compilation"  "$C_HELP" \
+                      "C"  "parallel/distribute compilation"  "$C_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
                       "T"  "Compression Type"         "$T_HELP" \
@@ -1496,23 +1466,22 @@ option_menu()  {
 
     case  $COMMAND in
 
-      B)  set_branch             ;;
-      H)  color_schemes_menu     ;;
-      D)  set_delay              ;;
-      R)  set_download_rate      ;;
-      N)  set_nice               ;;
-      U)  set_umask              ;;
-      E)  set_email              ;;
-      F)  feature_menu           ;;
-      I)  integrity_menu         ;;
-      J)  sorcery_set_jobs       ;;
-      C)  sorcery_distcc         ;;
-      M)  mirror_menu            ;;
-      O)  optimize_architecture  ;;
-      S)  sorcery_devel_settings ;;
-      T)  set_compression_type   ;;
-      W)  set_http_ftp_timeout   ;;
-      Z)  sound_schemes_menu     ;;
+      B)  set_branch                ;;
+      H)  color_schemes_menu        ;;
+      D)  set_delay                 ;;
+      R)  set_download_rate         ;;
+      N)  set_nice                  ;;
+      U)  set_umask                 ;;
+      E)  set_email                 ;;
+      F)  feature_menu              ;;
+      I)  integrity_menu            ;;
+      C)  parallel_compilation_menu ;;
+      M)  mirror_menu               ;;
+      O)  optimize_architecture     ;;
+      S)  sorcery_devel_settings    ;;
+      T)  set_compression_type      ;;
+      W)  set_http_ftp_timeout      ;;
+      Z)  sound_schemes_menu        ;;
 
     esac
 

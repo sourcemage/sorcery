@@ -289,13 +289,25 @@ function make() {
 
   local JOBS=""
 
-  if  [[ $MAKE_NJOBS == 0 ]]; then
+  local make_njobs=${MAKE_NJOBS:-1}
+  local jobs_per_host=${JOBS_PER_HOST:-0}
+  local tmp num_hosts=0
+  for tmp in $DISTCC_HOSTS; do let num_hosts+=1; done
+  local JOBS
+
+  if [[ "$USE_DISTCC" == on ]] ; then
+    let JOBS=$(($make_njobs+$jobs_per_host*$num_hosts))
+  else
+    let JOBS=$make_njobs
+  fi
+
+  if  [[ $JOBS == 0 ]]; then
     # Zero jobs has the effect of unlimiting the number of make processes
     JOBS=""
   else
     # Check there is a reasonable value.
-    [ $MAKE_NJOBS -gt 0 ] &&
-    JOBS="$MAKE_NJOBS"    ||
+    [ $JOBS -lt 0 ] ||
+    echo $JOBS|grep -q '[0-9]+' &&
     JOBS="1" # Use default of one when MAKE_NJOBS is nonsense.
   fi
 
@@ -305,8 +317,8 @@ function make() {
   # Cache the result
   local  STATUS=$?
 
-  if [[ $STATUS -ne 0 ]] && [[ $JOBS != 1 ]] ; then
-    query "Running make with $MAKE_NJOBS jobs failed. Attempt to run with a single job?" y &&
+  if [[ $STATUS -ne 0 ]] && [[ "$JOBS" != 1 ]] ; then
+    query "Running make with $JOBS jobs failed. Attempt to run with a single job?" y &&
     # Try again
     /usr/bin/make -j1 -S "$@"
     STATUS=$?

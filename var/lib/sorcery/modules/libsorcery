@@ -1238,14 +1238,61 @@ function prune()  {
 
 #---------------------------------------------------------------------
 ##
-## Adds /var/lib/sorcery/build to the C<PATH>
+## Sets DISTCC=[on|off] depending on the value of DISTCC_HOSTS.
+## Adds /var/lib/sorcery/build to the C<PATH> if necessary.
 ##
 #---------------------------------------------------------------------
 function invoke_build_dir() { 
-  { 
-    { [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache ; }  || 
-    { [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc ; } 
-  }  &&  export  PATH="/var/lib/sorcery/build:$PATH" 
+
+  # This merits some explaination:
+  #
+  # In the /var/lib/sorcery/build dir are frontends for the compilers
+  # they run CCACHE and DISTCC. By putting them in the front of the path
+  # they get run first, then hand the work off to the real compilers.
+  # The script also loads /etc/sorcery/compile_config, this made it
+  # convenient for building stuff outside of sorcery and taking advantage
+  # of ccache/distcc, just do "export  PATH="/var/lib/sorcery/build:$PATH""
+  # and you're set, you can also edit the DISTCC hosts on the fly.
+  #
+  # Then someone had the bright idea "if we set DISTCC_HOSTS to the empty
+  # string, distcc wont run!" due to a misconception in how this function
+  # worked, that spell hack would only work /some/ of the time: if you
+  # used ccache in addition to distcc, distcc wouldnt get disabled. *Sigh*
+  #
+  # SO...now we're stuck with a bunch of spells in the field disabling
+  # distcc in an broken way, obviously they all cant change overnight. To
+  # make matters worse inside make() we have to fiddle with the number of
+  # make jobs to use in case distcc is disabled (badly).
+  #
+  # so the answer is: 
+  # 1) make a new variable "USE_DISTCC" and set it to "off" if distcc
+  # is being disabled by the spell
+  # 2) check if USE_DISTCC == off in run_compiler, but still check the
+  # other signs just in case its being run manually
+  # 3) add a check for DISABLE_DISTCC so spells can start using that someday
+  #   (phase this in after a few months, then phase out the old check below,
+  #   but not in run_compiler)
+  # 4) remove the old stupid logic for MAKE_NJOBS (num_hosts + 1),
+  # instead split MAKE_NJOBS up, add a JOBS_PER_HOST multiplier, and add
+  # MAKE_NJOBS to that. This results in the number of jobs being $MAKE_NJOBS
+  # (default 1) when distcc is disabled (bug 6432), and allows an automatic
+  # increase in the number of jobs per host if its desired.
+  # 
+
+  USE_DISTCC=off
+  if [[ $DISABLE_DISTCC != yes ]] ; then
+    if test -n "$DISTCC_HOSTS" && spell_ok distcc ; then
+      USE_DISTCC=on
+    fi
+  fi
+
+  if ! spell_ok ccache ; then
+    CCACHE=off
+  fi
+
+  if [[ "CCACHE" == on ]] || [[ "$USE_DISTCC" == on ]] ; then
+    export  PATH="/var/lib/sorcery/build:$PATH" 
+  fi
 } 
 
 
