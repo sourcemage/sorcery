@@ -1,0 +1,709 @@
+#!/bin/sh
+############################################################
+# gaze - view sorcery spell management information         #
+# (gaze into the crystal ball)                             #
+############################################################
+# Original gaze written by Brian Peterson                  #
+# Copyright 2001 by Brian Peterson                         #
+############################################################
+# gaze is part of the                                      #
+# sorcery spell management utility                         #
+# This version contains none of Brian Peterson's source    #
+# Copyright 2001 by Kyle Sallee                            #
+############################################################
+
+
+help() {
+cat << EOF
+
+Invoke gaze with desired command followed by arguments.
+Please note that anything in brackets [] is optional.
+
+Command		Arguments	Description
+
+alien		<empty>		discover untracked files
+from		path/file	discover what installed a file
+search		"phrase"	Searches spells' long descriptions for
+				phrase.
+service		port|acronym	Displays spells that provide that service
+
+what		spell		print the spell's description
+where		spell		print the spell's section
+website		spell		print the spell's website
+install		spell		view an install log
+installed	[spell]		view/querry installed spells
+compile		spell		view a compile log
+sources		spell		List the source files for a spell
+history		spell		Show history for a spell
+
+sum		[spell]		prints checksums
+md5sum		[spell]		prints md5sums
+export				make snapshot of box's configuration.
+import		snapshot	restore snapshot
+
+section		[section]	list grimoire sections
+maintainer	[section]	see who is the maintainer for a section
+grimoire			view a text listing of the grimoire
+html				view a html listing of the grimoire
+
+newer		20020521	Show available spells newer than May 21, 2002
+older		20010521	Show spells installed before May 21, 2001
+
+prune		<empty>		Removes all old sources from $SOURCE_CACHE
+				Removes all old backups from $INSTALL_CACHE
+
+voyeur		[delay or spell]  Peak into spell compilation
+
+pam		<empty>		Display installed or held spells that are
+				Linux-PAM aware
+
+
+orphans		<empty>		Display installed spells that have no
+				explicit dependencies on them
+
+depends		spell		Displays the spells that explicitly
+				or recursively depend on this spell
+
+\$SPELL_SCRIPT	spell		will print the spell script for that spell
+EOF
+}
+
+
+export_snapshot()  {
+
+  SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
+  mk_source_dir          $SOURCE_DIRECTORY
+  cp  -a  /etc           $SOURCE_DIRECTORY
+  cp  -a  $CONFIG_CACHE  $SOURCE_DIRECTORY
+
+  for  LINE  in  `cat  $SPELL_STATUS`;  do
+    SPELL=`echo  $LINE  |  cut  -d  :  -f1`
+     STATUS=`echo  $LINE  |  cut  -d  :  -f2`
+    if  [  "$STATUS"  ==  "installed"  ];  then
+      echo  $SPELL  >>  /usr/src/snapshot/install
+    fi
+  done
+
+  SNAPSHOT="/root/snapshot-$HOSTNAME-`date  -u  +%Y%m%d`.tar.bz2"
+
+  cd  $BUILD_DIRECTORY
+  tar    -c  snapshot     |
+  bzip2  -9  >  $SNAPSHOT
+  rm_source_dir          $SOURCE_DIRECTORY
+  echo  "$SNAPSHOT created."
+
+}
+
+
+import_snapshot()  {
+
+          SNAPSHOT=$1
+  SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
+
+  if  [  -f  "$1"  ];  then
+
+    cd  $BUILD_DIRECTORY
+    mk_source_dir          $SOURCE_DIRECTORY
+
+    bzcat $SNAPSHOT  |  tar  -x
+    cd  $SOURCE_DIRECTORY
+
+    for  LINE  in  `cat  install`;  do
+      push_install_queue  $LINE
+    done
+    report  $INSTALL_QUEUE  "Install Queue"
+
+    cp  -ai  local  /etc/sorcery
+    cp  -ai  etc    /
+
+    cd  /
+    rm_source_dir  $SOURCE_DIRECTORY
+
+  else
+
+    message  "Unable to find snapshot  \"$SNAPSHOT\""
+    false
+
+  fi
+
+}
+
+
+checksum()      { for FILE in `cat $1 | files`; do sum -s  $FILE; done; }
+md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  $FILE; done; }
+
+
+alien()  {
+
+  message  "In a few minutes I will print files found on this disk"
+  message  "that were not installed by sorcery.  This is not a"
+  message  "security feature!  Files could still be lurking"
+  message  "undetected on this box."
+
+  rm    -f  /tmp/gaze.found
+  rm    -f  /tmp/gaze.known
+
+  message  "Discovering ambient files..."
+  find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >/tmp/gaze.found
+ 
+  message  "Discovering installed files..."
+  cat  $INSTALL_LOGS/*  |  files  |  sort  >  /tmp/gaze.known
+
+  diff  -B  -a  -d  /tmp/gaze.found  /tmp/gaze.known  |
+  grep  -v  "^> "                                     |
+  grep      "^< "                                     |
+  cut  -c  3-                                         |
+  filter  "$PROTECTED"
+
+  rm  -f  /tmp/gaze.found
+  rm  -f  /tmp/gaze.known
+
+}
+
+
+gaze_catalog()  {
+
+  echo  "Sorcery Grimoire for `date  -u`"
+
+  ((  COUNT=0  ))
+
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    echo 
+    echo  "-------------------------------------------------"
+    echo  "SECTION:  $SECTION"  
+    echo  "-------------------------------------------------"
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      echo  $SPELL
+      ((  COUNT++  ))
+    done
+  done
+
+  echo
+  echo  "Total spells:  $COUNT"
+
+}
+
+
+gaze_catalog_html()  {
+
+  GRIMOIRE=/var/lib/sorcery/grimoire
+
+  echo  "<html><head><title>Sorcery Grimoire for `date  -u`</title></head>"
+  echo  "<body background=\"media/blackmarble.jpg\">"
+
+  echo  "<table  align=\"center\""
+  echo  "        background=\"media/whitemarble.jpg\""
+  echo  "        border=5>"
+
+  echo  "<tr><th colspan=4><font color=green  size=+1>"
+  echo  "Sorcery Grimoire<br>`date  -u`"
+  echo  "</font></th></tr>"
+
+  echo  "<tr>"
+  echo  "<th>Spell</th>"
+  echo  "<th>Version</th>"
+  echo  "<th>Updated</th>"
+  echo  "<th>Website</th>"
+  echo  "</tr>"
+
+  ((  COUNT=0  ))
+
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    echo  "<tr><th colspan=4><font color="green">$SECTION</font></th></tr>"
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      (
+        [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
+             . $GRIMOIRE/$SECTION/$SPELL/DETAILS  1>/dev/null
+        echo  "<tr>"
+        if  [  "$SPELL"  ==  "linux"  ]   ||
+            [  "$SPELL"  ==  "glibc"  ];  then
+            BOLD="<b>"
+          UNBOLD="</b>"
+        else
+          unset    BOLD
+          unset  UNBOLD
+        fi
+        if  [  ${#SPELL}  -gt  15  ];  then
+          SPELL="<font size=-1>$SPELL</font>"
+        fi
+	if  [  -z  "$UPDATED"  ]  &&  [  "$ENTERED"  ];  then
+	    UPDATED=$ENTERED
+	fi
+        echo  "<td>$BOLD $SPELL $UNBOLD</td>"
+        echo  "<td><font size=-1>$BOLD $VERSION $UNBOLD</font></td>"
+        echo  "<td><font size=-1>$UPDATED</font></td>"
+
+        WEBSITE=$WEB_SITE
+        if    [  ${#WEB_SITE}  -lt 20  ];  then
+            SHRINK="<font size=-1>"
+          UNSHRINK="</font>"
+        elif  [  ${#WEB_SITE}  -lt 30  ];  then
+            SHRINK="<font size=-2>"
+          UNSHRINK="</font>"
+        else
+           WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
+            SHRINK="<font size=-3>"
+          UNSHRINK="</font>"
+        fi
+
+        if  [  "$WEB_SITE"  !=  "unknown"  ];  then
+          echo  "<td> $SHRINK"
+          echo  "<a href=\"$WEB_SITE\" target=\"_blank\">$WEBSITE</a>"
+          echo  "$UNSHRINK </td>"
+        else
+          echo  "<td></td>"
+        fi
+        echo  "</tr>"
+      )
+      ((  COUNT++  ))
+    done
+  done
+
+
+  echo  "<tr><th colspan=4>Total spells:  $COUNT</th></tr>"
+  echo  "</table></body></html>"
+}
+
+
+display()  {
+
+  if  [  -f  "$1"  ];  then
+    case  `file  -b  $1  |  cut -d ' ' -f1`  in
+      ASCII)    cat  $1  |  $PAGER  ;;
+      bzip2)  bzcat  $1  |  $PAGER  ;;
+    esac
+  else
+    message  "$2"
+    false
+  fi
+
+}
+
+
+newer()  {
+
+  DATE=$1
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
+               . $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
+        if  [  "$ENTERED"  ]  &&  [  $ENTERED  -gt  $DATE  ];  then
+          echo  $SPELL
+        fi
+      fi
+    done
+  done
+
+}
+
+
+older()  {
+
+  DATE=$1
+
+  for  LINE  in `cat  $SPELL_STATUS_BACKUP`;  do
+    CAST_DATE=`echo  $LINE  |  cut  -d  :  -f2`
+    if  [  $CAST_DATE  -gt  $DATE  ]  2>/dev/null;  then
+      true
+    else
+      echo  $LINE  |  cut  -d  :  -f1
+    fi
+  done
+
+}
+
+
+get_grimoire_details()  {
+
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
+          echo  $GRIMOIRE/$SECTION/$SPELL/DETAILS
+      fi
+    done
+  done
+
+}
+
+
+spider_check()  { (
+
+  SPELL=$1
+  shift  1
+  for  URL  in  $*;  do
+    wget  --spider  --passive-ftp  $URL  1>/dev/null  2>&1  ||
+    echo  "$SPELL  $URL"  >>  /tmp/spider.broke
+  done
+
+) }
+
+
+spider()  {
+
+  rm  -rf  /tmp/spider.broke
+  rm  -rf  /tmp/spider
+  mkdir    /tmp/spider
+  cd       /tmp/spider
+
+  message  "Writing broken URLs to /tmp/spider.broke"
+  message  "This test might take a while to complete"
+  message  "and consume significant resources."
+
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+
+    (
+      if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
+              .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  > /dev/null
+      then
+
+        message  "Checking URLs for $SPELL"
+
+        spider_check  $SPELL  ${SOURCE_URL[*]}    &
+        spider_check  $SPELL  ${SOURCE2_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE3_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE4_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE5_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE6_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE7_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE8_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE9_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE10_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE11_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE12_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE13_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE14_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE15_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE16_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE17_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE18_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE19_URL[*]}  &
+        sleep  1
+        sleep  `sources  $SPELL  |  wc  -w`
+      fi
+    )
+    done
+  done
+
+  cd  /
+
+}
+
+
+show_from()  {
+
+  cd  $INSTALL_LOGS
+  grep  $1  *
+
+}
+
+
+show_spell_component()  {
+
+  COMPONENT=$1
+      SPELL=$2
+    SECTION=`find_section  $SPELL`
+  if  [  -x  $GRIMOIRE/$SECTION/$SPELL/$COMPONENT  ];  then
+    cat      $GRIMOIRE/$SECTION/$SPELL/$COMPONENT
+  fi
+
+}
+
+
+long_search()  {
+  cd  $GRIMOIRE
+  for  SECTION  in  `ls`;  do
+    for  SPELL  in  `ls  $SECTION`;  do
+      (   [  -x  $SECTION/$SPELL/DETAILS  ]  &&
+               . $SECTION/$SPELL/DETAILS     |
+          grep  -q  -i  "$1"                 &&
+          echo  "$SPELL"
+      )
+    done
+  done
+}
+
+
+service()  {
+  cd  $GRIMOIRE
+  for  SECTION  in  `ls`;  do
+    for  SPELL  in  `ls  $SECTION`;  do
+      if    [  -f           $SECTION/$SPELL/services  ]  && 
+            grep  -q  -i  "$1"  $SECTION/$SPELL/services
+      then  echo  "$SPELL"
+      fi
+    done
+  done
+}
+
+
+find_casting()  {
+
+  for  FILE in `ls  /var/lock/casting*  2>/dev/null`;  do
+    if  ps  `cat  $FILE  2>/dev/null`  |  grep  -q  cast;  then
+      echo  $FILE  |  sed  "s:/var/lock/casting.::"
+      return  0
+    fi
+  done
+  false
+
+}
+
+
+peak_casting()  {
+
+  if  [  -f     /var/lock/casting.$1   ]            &&
+      ps  `cat  /var/lock/casting.$1  2>/dev/null`  |
+      grep  -q  cast                                &&
+      [  -f  /tmp/$1.compile.log  ]
+  then
+    nice  -n  +20                  \
+    tail  -f  /tmp/$1.compile.log  \
+          --follow=name            \
+          --pid=`cat /var/lock/casting.$1`  2>/dev/null
+  fi
+
+}
+
+
+activate_voyeur()  {
+
+  if  [  -n  "$1"  ]  &&
+      !  find_section  $1  >  /dev/null
+  then  ((  DEFAULT_DELAY  =  $1  *  60  ))
+        shift  1
+  fi
+
+  for  SPELL  in  $@;  do
+    peak_casting  $SPELL
+  done
+
+  DEFAULT_DELAY=${DEFAULT_DELAY:=60}
+
+  while  true;  do
+
+    if    !  ACTIVE_SPELL=`find_casting`;  then
+      message  "${MESSAGE_COLOR}Waiting"       \
+               "${DEFAULT_DELAY}"              \
+               "seconds for a cast to begin."  \
+               "${DEFAULT_COLOR}"
+
+      for  ((  DELAY=DEFAULT_DELAY  ;  DELAY > 0  ;  DELAY--  )); do
+        if  ACTIVE_SPELL=`find_casting`;  then
+          break
+        else
+          sleep 1
+        fi
+      done
+    fi
+
+    if    [  -z  "$ACTIVE_SPELL"  ];  
+    then  break
+    else  peak_casting  $ACTIVE_SPELL
+    fi
+
+  done
+
+}
+
+
+show_orphans()  {
+
+  for  SPELL  in  `cat  $SPELL_STATUS  |  cut  -d :  -f1`;  do
+    if    !  cut  -d :  -f2-  $DEPENDS_STATUS  |
+             grep             "^$SPELL:"       |
+             grep  -q         ":on:"
+    then     echo   $SPELL
+    fi
+  done
+
+}
+
+
+show_depends()  {
+
+  if  !  echo  "$DONE"  |  grep  -q  "$1";  then
+    DONE="$DONE  $1"
+
+    for  LINE  in  `grep  ":$1:"  $DEPENDS_STATUS`;  do
+
+       SPELL=`echo  $LINE  |  cut  -d :  -f1`
+      STATUS=`echo  $LINE  |  cut  -d :  -f3`
+
+      if    [  "$STATUS"  ==  "on"  ]
+      then  echo          $SPELL
+            show_depends  $SPELL
+      fi
+
+    done
+  fi
+
+}
+
+old_show_depends()  {
+
+  if  !  echo  "$DONE"  |  grep  -q  "$1";  then
+    DONE="$DONE  $1"
+    cd  $DEPENDS_CONFIG
+    for  SPELL  in  `ls`;  do
+      if    grep  "$1"    $SPELL  |  grep  -q  " on "
+      then  echo          $SPELL
+            show_depends  $SPELL
+      fi
+    done
+  fi
+
+}
+
+
+show_website()  {
+
+  if    SECTION=`find_section  $SPELL`                     &&
+        .   $GRIMOIRE/$SECTION/$SPELL/DETAILS > /dev/null  &&
+        [  -n  "$WEB_SITE"  ]
+  then  echo    $WEB_SITE
+  else  echo   "http://sorcerer.wox.org/typo.html"
+  fi
+
+}
+
+show_maintainer()  {
+
+  SECTION=$1
+
+  if  [  -d  "$GRIMOIRE/$SECTION"  ];  then
+
+    if  [  -f  "$GRIMOIRE/$SECTION/MAINTAINER"  ];  then
+      cat $GRIMOIRE/$SECTION/MAINTAINER
+    else
+      echo "No maintainer available for section '$SECTION'"
+    fi
+
+  else
+
+    echo  "No such section '$SECTION'"
+
+  fi
+
+}
+
+
+show_history()  {
+
+  SPELL=$1
+  if  SECTION=`find_section  $SPELL`; then
+
+    if  [  -f  "$GRIMOIRE/$SECTION/$SPELL/HISTORY"  ]; then
+      cat  $GRIMOIRE/$SECTION/$SPELL/HISTORY
+    else
+      echo "No history available for spell '$SPELL'"
+    fi
+
+  else
+
+    echo "No such spell '$SPELL'"
+
+  fi
+}
+
+
+parse()  {
+
+  SPELL=$2
+  SECTION=$2
+  VERSION=`installed_version  $SPELL`
+
+  case  $1  in
+
+            html)  gaze_catalog_html                     ;;
+          export)  export_snapshot                       ;;
+          import)  import_snapshot  $2                   ;;
+         section)  ls  $GRIMOIRE/$SECTION                ;;
+           alien)  alien                                 ;;
+            from)  show_from   $2                        ;;
+           newer)  newer       $2                        ;;
+           older)  older       $2                        ;;
+           prune)  prune                                 ;;
+         sources)  sources     $SPELL                    ;;
+          spider)  spider      $SPELL                    ;;
+        grimoire)  gaze_catalog  |  $PAGER               ;;
+         DETAILS)  show_spell_component $1 $2            ;;
+         DEPENDS)  show_spell_component $1 $2            ;;
+       CONFIGURE)  show_spell_component $1 $2            ;;
+       CONFLICTS)  show_spell_component $1 $2            ;;
+       PRE_BUILD)  show_spell_component $1 $2            ;;
+           BUILD)  show_spell_component $1 $2            ;;
+           PATCH)  show_spell_component $1 $2            ;;
+      POST_BUILD)  show_spell_component $1 $2            ;;
+    POST_INSTALL)  show_spell_component $1 $2            ;;
+      PRE_REMOVE)  show_spell_component $1 $2            ;;
+     POST_REMOVE)  show_spell_component $1 $2            ;;
+          search)  long_search   "$2"                    ;;
+         service)  service       "$2"                    ;;
+         depends)  show_depends  "$2"  |  sort  |  uniq  ;;
+         orphans)  show_orphans        |  sort  |  uniq  ;;
+         website)  show_website  "$2"                    ;;
+      maintainer)  show_maintainer  "$2"                 ;;
+         history)  show_history  "$2"                    ;;
+
+
+    compile)  if  [  -z  "$VERSION"  ];  then
+                SECTION=`find_section  $SPELL`             &&
+                DETAILS=$GRIMOIRE/$SECTION/$SPELL/DETAILS  &&
+                [  -x  $DETAILS  ]                         &&
+                    .  $DETAILS                               >/dev/null
+              fi
+              display  $COMPILE_LOGS/$SPELL-$VERSION.bz2   \
+                       "Compile log for $SPELL does not exist"
+              ;;
+
+    install)  display  $INSTALL_LOGS/$SPELL-$VERSION   \
+              "Install log for $SPELL does not exist"
+              ;;
+
+    installed)  if    [  -z  "$SPELL"    ]
+                then  $PAGER   $SPELL_STATUS
+                elif  [  -n  "$VERSION"  ]
+                then  echo   "$VERSION"
+                else  message  "$SPELL is not installed";  false
+                fi
+                ;;
+
+
+    sum)  [  -n  "$SPELL"  ]                         &&
+          checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
+          checksum  "$INSTALL_LOGS/*"
+          ;;
+
+
+    md5sum)  [  -n  "$SPELL"  ]                             &&
+             md5sum_files  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
+             md5sum_files  "$INSTALL_LOGS/*"
+             ;;
+
+
+    what)  SECTION=`find_section  $SPELL`             &&
+           DETAILS=$GRIMOIRE/$SECTION/$SPELL/DETAILS  &&
+           [  -x  $DETAILS  ]                           &&
+               .  $DETAILS                              ||
+           message  "Details for $SPELL not found"
+           ;;
+
+    where)  SECTION=`find_section  $SPELL`  &&
+            echo     "$SECTION"             ||
+            message  "$SPELL not found"
+            ;;
+
+   voyeur)  shift  1;  activate_voyeur  $@  ;;
+
+      pam)  find_pam_aware  ;;
+
+        *)  help  ;;
+
+  esac
+
+}
+
+
+. /etc/sorcery/config
+if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  $@;  fi
