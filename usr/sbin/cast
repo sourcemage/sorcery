@@ -394,6 +394,9 @@ function run_checks()  {
 
 
 function run_fix()  { (
+  message "${PROBLEM_COLOR}cast --fix is depreciated and will be" \
+          "removed in the next sorcery releae.\nPlease use cleanse --fix" \
+          "instead.${DEFAULT_COLOR}"
 
   SPELLS=$*
 
@@ -511,7 +514,6 @@ function run_fix()  { (
       fi
     done
   done
-  rm  -f  /tmp/LD_LIBRARY_PATH_FILE
 
 ) }
 
@@ -1035,7 +1037,7 @@ function mk_tmp_dirs() {
   # in order for TMP_DIR to make it through make and into pass_three/four
   # we must export
   export TMP_DIR=/tmp/sorcery/cast/$$
-  if [ -d $TMP_DIR ] ; then
+  if [ -e $TMP_DIR ] ; then
     echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
     rm -rf $TMP_DIR
   fi
@@ -1115,8 +1117,12 @@ elif  [  "$UID"  -gt  0  ];  then
 elif  [  ${0:0:5} !=  "/tmp/"  ];  then
 
   # Make a nice dir structure to put stuff in
-  mk_tmp_dirs
-
+  if ! mk_tmp_dirs ; then
+    message "Failed to make temporary dir, this" \
+             "might be due to a security attack,\nplease" \
+             "check the permissions of /tmp/sorcery. Bailing out..."
+    exit 1
+  fi
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
     # and fill it up with stuff we feel the need to delete
