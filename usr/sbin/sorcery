@@ -359,37 +359,33 @@ update_pkgs() {
 
 . /etc/sorcery/config
 
-message  "${MESSAGE_COLOR}"
-message  "Interrupting while upgrading the sorcery scripts may"
-message  "cause the sorcery scripts to be lost.  If the sorcery,"
-message  "scripts are lost, Source Mage can be restored by"
-message  "running the following script:"
-message  "${FILE_COLOR}"
-message  "            ${RESTORE_SCRIPT}"
-message  "${MESSAGE_COLOR}"
-message  "If for some reason this does not work, see the"
-message  "Source Mage website at http://www.sourcemage.org/"
-message  "${DEFAULT_COLOR}"
-
-
-if  [[  $1 != "upgrade"  ]] && [[  $1 != "queue"  ]] ;  then
-  message  "${MESSAGE_COLOR}Updating grimoire...${DEFAULT_COLOR}"
-  scribe update
-  message  "${MESSAGE_COLOR}Ensuring sorcery-$SORCERY_BRANCH is at it's latest version...${DEFAULT_COLOR}"
-  update_sorcery_scripts $SORCERY_BRANCH
+if [[ $1 == "autoupdate" ]]; then
+    message  "${MESSAGE_COLOR}"
+    message  "Interrupting while upgrading the sorcery scripts may"
+    message  "cause the sorcery scripts to be lost.  If the sorcery,"
+    message  "scripts are lost, Source Mage can be restored by"
+    message  "running the following script:"
+    message  "${FILE_COLOR}"
+    message  "            ${RESTORE_SCRIPT}"
+    message  "${MESSAGE_COLOR}"
+    message  "If for some reason this does not work, see the"
+    message  "Source Mage website at http://www.sourcemage.org/"
+    message  "${DEFAULT_COLOR}"
+    message  "${MESSAGE_COLOR}Updating grimoire...${DEFAULT_COLOR}"
+    scribe update
+    message  "${MESSAGE_COLOR}Ensuring sorcery-$SORCERY_BRANCH is at it's latest version...${DEFAULT_COLOR}"
+    update_sorcery_scripts $SORCERY_BRANCH
 fi
 
 clean_logs
 update_install_queue         # generate $INSTALL_QUEUE file
 list_install_queue
 
-if [[  $1 != "queue"  ]]; then
-  message  "${MESSAGE_COLOR}Casting updated spells...${DEFAULT_COLOR}"
-  cast -q --queue
+message  "${MESSAGE_COLOR}Casting updated spells...${DEFAULT_COLOR}"
+cast -q --queue
 
-  # XXX should this be 'cast --fix' ?
-  fix_installed_spells     # check integrity of installed spells
-fi
+# XXX should this be 'cast --fix' ?
+fix_installed_spells     # check integrity of installed spells
 
 
 wait_flag_down
@@ -439,6 +435,30 @@ EOF
 
 }
 
+
+update_sorcery () {
+
+    message  "${MESSAGE_COLOR}"
+    message  "Interrupting while upgrading the sorcery scripts may"
+    message  "cause the sorcery scripts to be lost.  If the sorcery,"
+    message  "scripts are lost, Source Mage can be restored by"
+    message  "running the following script:"
+    message  "${FILE_COLOR}"
+    message  "            ${RESTORE_SCRIPT}"
+    message  "${MESSAGE_COLOR}"
+    message  "If for some reason this does not work, see the"
+    message  "Source Mage website at http://www.sourcemage.org/"
+    message  "${DEFAULT_COLOR}"
+
+    update_sorcery_scripts $SORCERY_BRANCH
+
+}
+
+
+update_queue () {
+    update_install_queue
+    list_install_queue
+}
 
 rebuild()  {
 
@@ -1438,10 +1458,10 @@ main() {
     main_menu
   else
     case  $1  in
-               update)  update_sorcery_scripts $SORCERY_BRANCH  ;;
+               update)  update_sorcery                          ;;
         system-update)  update_pkgs  autoupdate                 ;;
               upgrade)  update_pkgs  upgrade                    ;;
-                queue)  update_pkgs  queue                      ;;
+                queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
               rebuild)  rebuild                                 ;;
             -h|--help)  help                                    ;;
