@@ -742,9 +742,11 @@ main()        {
 . /etc/sorcery/config
 
 #check if root. If not, become root
-if    [  "$UID"  ==  0  ]
-then  renice +10 -p $$  >/dev/null
-      main  $*
+if    [  "$UID"  ==  0  ] ; then
+  if  [[  $NICE != "0"  ]] ; then
+    renice $NICE -p $$  >/dev/null
+  fi
+  main  $*
 else  
   echo  "Enter the root password, please."  1>&2
   su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
