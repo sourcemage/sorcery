@@ -1,39 +1,43 @@
-.TH GRIMOIRE 5 "August 2002" "Source Mage GNU Linux" "File Formats"
+.TH GRIMOIRE 5 "September 2004" "Source Mage GNU Linux" "File Formats"
 .SH NAME
-grimoire \- the software catalogue for sorcery
+grimoire \- a software catalogue for sorcery
 .SH "DESCRIPTION"
-The software catalogue is a list of software packages (simply referred to
-as "packages") divided into sections. Each package contains one
+A software catalogue is a list of software packages (simply referred to
+as "packages" or "spells") divided into sections. Each package contains one
 or more description files. Description files contain such information as
 package name, version, URL, directory information, etc. Other description files 
-provide unpacking, compilation, installation, and tracking instructions. One 
-section in the 
-software catalogue of particular interest is PROFILES. Profiles are
-groups of packages. With profiles you can automatically install predefined or
-custom-built package sets using a single command.
+provide unpacking, compilation, installation, and tracking instructions.
 .SH "SUMMARY"
-The grimoire is found under /var/lib/sorcery. The top level of directories
-are the section names. The directories under the section names are the
+The grimoires are found under /var/lib/sorcery. The top level of directories
+are the grimoires names. The list of grimoires is found under
+/etc/sorcery/local/grimoire
+
+The subdirectories are the sections.
+The directories under the section names are the
 packages. Each package directory will have a BASH description file called
 DETAILS and optionally contain one or more of the following description
-files: PRE_BUILD, BUILD, POST_BUILD, POST_INSTALL, DEPENDS. If a description 
-file does not exist in
+files:
+.PP
+PREPARE, CONFLICTS, CONFIGURE, DEPENDS,
+PRE_BUILD, BUILD, PRE_INSTALL, INSTALL, POST_INSTALL, FINAL,
+PRE_REMOVE, POST_REMOVE.
+.PP
+If a description file does not exist in
 the package directory then a set of default description instructions are
 used. The default instructions for each description file can be found in 
-/etc/sorcery/subroutines.
-.SH "DETAILS"
-\fBPROFILES\fR
+/var/lib/sorcery/modules/build_api/api2.
+.SH "PRELIMINARY NOTES"
 .PP
-Each profile contains a simplified DETAILS file: profile name, version, and
-description. Profiles are effectively just a DEPEND file with a list of
-packages to be installed. 
-.PP
-\fBDESCRIPTION FILES\fR
+This manpage describes build_api 2. The older build_api 1 is
+deprecated and getting removed.
+For spells to work with api2, BUILD_API=2 needs to be set in DETAILS.
 .PP
 A better description of these file are found on the website, under the spell 
-howto.
+howto:
+.IP
+http://wiki.sourcemage.org/index.php?page=Spellbook
 .PP
-A typical source code installation might look like this (assume the
+A typical manual source code installation might look like this (assume the
 application is called foo):
 .IP
 step 1) find the URL and download the tarball
@@ -52,83 +56,148 @@ step 7) make
 .IP
 step 8) make install
 .PP
+Sourcemage basically automates these steps.
 .PP
-Here is a breakdown of the description files and how they relate to the above
-installation procedure:
-.PP
-\fBDETAILS\fR
+Note on the defaults: While the defaults are found in
+.I build_api/api2
+as e.g. real_default_pre_build,
+any calls of sorcery functions from grimoire files should be limited to
+functions from
+.I libapi.
+This is so your spell doesn't break as soon as some
+sorcery code is rewritten.
+So if you want your spell to patch some files after the unpacking of sources,
+your PRE_BUILD file should contain
 .IP
-This file is required and describes the URL for step 1. It also contains version 
-
-
-
-information,
+default_pre_build && patch
+.SH "DESCRIPTION FILES"
+.PP
+.I PREPARE
+.IP
+This file can be created if there needs to be some kind of preconfiguration
+before DETAILS is sourced. Note that this file is only used in a cast.
+.PP
+.I DETAILS
+(necessary for every spell)
+.IP
+This file is required and describes the URL for step 1.
+It also contains version information,
 package name, source name, source directory, and a description of the package.
 .PP
-\fBCONFIGURE\fR
+.I CONFLICTS
 .IP
-The configure script.
+This file contains a list of spells conflicting with this one.
+Usually only used when two spells install the same file(s).
 .PP
-\fBDEPENDS\fR
+.I CONFIGURE
+.IP
+The configure script. This is not step 6, but rather questions about
+options to be passed to ./configure and other changes to the build.
+.PP
+.I DEPENDS
 .IP
 This file contains a list of other packages upon which the package depends.
+This enables automatic installing of packages needed.
 If dependencies are turned on then the packages listed are installed in order
 prior to installing package.
 .PP
+If any of the files mentioned up to now are missing, nothing will be used.
+(except DETAILS, which is required)
 .PP
-\fBCONFLICTS\fR
-.IP
-Contains a list of spells that conflict with this. Use very sparingly. A good 
-example of a good
-use is when u have 2 packages in the grimoire that are the same but one is 
-patched. eg apache and apache-mod_ssl
+(dependencies are being cast, DETAILS run again)
 .PP
-\fBPRE_BUILD\fR
+all the following files have defaults as default_<name in lowercase>,
+or real_default_... in build_api/api2.
+(except FINAL and TRIGGERS)
+.PP
+.I PRE_BUILD
 .IP
 This describes the unpacking process as performed in step 2. The default 
-PRE_BUILD will work for
-tarballs with gzip or bzip2 compression.
-.PP
-\fBBUILD\fR
+PRE_BUILD will work for the following compressions:
 .IP
-This describes the compilation and installation processes as performed in steps 
-6-8. If the
-software package compiles and installs using these 3 steps then the default
-BUILD can be used. 
+bzip2, gzip, zip, RPM, tar
 .PP
-\fBPOST_BUILD\fR
+.I BUILD
 .IP
-The default POST_BUILD simply calls the software tracking script. 
+This describes the compilation process as performed in steps 
+6 and 7. Here the package is built, not installed yet. If the
+software package compiles using these 2 steps then the default
+BUILD can be used. Sorcery automatically changes the install path and sets
+optimization options.
 .PP
-\fBPOST_INSTALL\fR
+.I PRE_INSTALL
 .IP
-There is no default POST_INSTALL. If no POST_INSTALL is present in the
-package directory no operations are not performed. 
+This will start installwatch, sorcery's install logging system.
+It will log every file touched during install so we can get the install log
+of files installed by the spell.
+
+It is recommended that if you add this file it contains 
+.I default_pre_install.
 .PP
-\fBPOST_REMOVE\fR
+.I INSTALL
 .IP
-Done after remove.
+This is step 8. "make install" by default.
+If your spell needs another way to install its files, here is the place to
+do so.
 .PP
-.SH "NOTES"
+.I POST_INSTALL
+.IP
+This step finishes off the install process. It installs configuration files
+and documentation, and finally turns off installwatch.
+It is highly recommended to run
+.I default_post_install
+at the end of this file.
+.PP
+.I FINAL
+.IP
+This file contains instructions on files to be installed and instructions
+to be performed that should for some reason not appear in the install logs
+(e.g. modifying another package's /etc files)
+
+This is the only file in the build process that does not have a default,
+so if it does not exist, nothing will be done.
+.PP
+.I TRIGGERS
+.IP
+If this file exists, the triggers in it are registered.
+A trigger is a mechanism in sorcery to recompile a package as soon as
+another package is recompiled/removed
+(e.g. drivers are triggered to recast on kernel recasts)
+.PP
+The next two files are run at remove. Their defaults are to do nothing.
+.PP
+.I PRE_REMOVE
+.IP
+This file contains instructions on what to do before dispelling the package,
+e.g. stopping the daemon installed by it.
+.PP
+.I POST_REMOVE
+.IP
+This file contains instructions to perform after successfully removing the
+package. This might be used to undo changes done in FINAL.
+.SH "FINAL NOTES"
 The best way to learn the software catalogue is to examine some of the
 description files yourself. Most software catalogue entries are simple. For
-example try looking under /var/lib/sorcery/grimoire/editors/emacs.
-If however you want to look at a very unusual, but much more complex example 
-look at
-/var/lib/sorcery/grimoire/x11/xfree86. To understand how the software
-catalog works it is also important to look at /etc/sorcery/subroutines and
-examine the functions default_pre_build, default_build, and default_post_build.
+example try looking under /var/lib/sorcery/codex/test/editors/emacs.
+(use your grimoire for test)
+
+If however you want to look at a very unusual,
+but much more complex example, look at
+/var/lib/sorcery/codex/test/x11-libs/xorg. To understand how the software
+catalog works it is also important to look at
+/var/lib/sorcery/modules/build_api/api2 and examine the default functions.
 .SH "AUTHOR"
-Original version by Kyle Sallee, and updated Thomas Stewart.
+Original version by Kyle Sallee, and updated Thomas Stewart
+and Karsten Behrmann.
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .SH "REPORTING BUGS"
 .PP
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-cast(8), dispel(8), gaze(1), invoke(8), sorcery(8), scribe(8), summon(8)
+cast(8), cleanse(8), dispel(8), gaze(1), grimoire (5),
+scribbler (8), scribe(8), sorcery(8), summon(8)
 .PP
 .SH "WARRANTY"
 .PP
 This is free software with ABSOLUTELY NO WARRANTY
-
