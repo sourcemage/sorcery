@@ -57,7 +57,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring
 ## @stdout full path to sorcery key (if successful)
 #---------------------------------------------------------------------
 function gpg_get_sorcery_key() {
-  local branch=${1:-SORCERY_BRANCH}
+  local branch=${1:-$SORCERY_BRANCH}
   local key=$GPG_KEY_DIR/sorcery-$branch.gpg
   test -e $key || return 1
   echo $key
@@ -77,6 +77,44 @@ function gpg_get_grimoire_key() {
   echo $key
   return 0
 }
+
+function gpg_verify_sorcery() {
+  if [[ "$GPG_VERIFY_SORCERY" != yes ]] ; then
+    return 0
+  fi
+
+  local SOURCE=$1
+  local SOURCE_URL=$2
+  local FILENAME=$3
+
+
+  local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
+  local SIG_URL=$SOURCE_URL/$SIG_FILE
+
+  local gpg_pub_key=$(gpg_get_sorcery_key)
+  if test -z $gpg_pub_key ; then
+    message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
+    return 255
+  fi
+
+  # download the signature
+  if test -z "$4" ; then
+    echo "$SIG_FILE $SIG_URL" |
+    download_files "for sorcery verification" "$TMP_DIR" "no" "neither" || {
+      message "Failed to get gpg signature! verification is impossible"
+      return 255
+    }
+  else
+    cp $4 $TMP_DIR/$SIG_FILE
+  fi
+
+  gpg_verify_signature $TMP_DIR/$SIG_FILE $FILENAME $gpg_pub_key
+  rc=$?
+  rm $TMP_DIR/$SIG_FILE
+
+  return $rc
+}
+
 
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify

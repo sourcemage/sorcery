@@ -44,13 +44,23 @@ function update_sorcery_scripts() {
   # there is no spoon
   SOURCE=sorcery-$SORCERY_BRANCH.tar.bz2
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/sorcery
-  SOURCE_URL[0]=$SORCERY_URL/$SOURCE
+  SOURCE_URL=$SORCERY_URL/$SOURCE
   FUZZ="off"
 
-  echo "$SOURCE  ${SOURCE_URL[*]}" |
-  download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither"
+  echo "$SOURCE  ${SOURCE_URL}" |
+  download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither" || {
+    messaage "${PROBLEM_COLOR}Failed to download sorcery${DEFAULT_COLOR}"
+    return 1
+  }
 
   FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
+
+  if ! gpg_verify_sorcery $SOURCE $SORCERY_URL $FILENAME; then
+    message "${PROBLEM_COLOR}Failure to verify gpg signature${DEFAULT_COLOR}"
+    query "Continue anyway?" n || return 1
+  else
+    message "${MESSAGE_COLOR}gpg signature verified!${DEFAULT_COLOR}"
+  fi
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
   cd $BUILD_DIRECTORY
@@ -67,6 +77,7 @@ function update_sorcery_scripts() {
   lock_resources "solo" "cast" # prevent other casts
   excllock_resources "cast" "sorcery" # wait for other casts
   message "done."
+  lock_resources "libgrimoire" "install"      &&
 
   # rough equivalent to prepare_install...
   rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
@@ -78,8 +89,8 @@ function update_sorcery_scripts() {
 
   ./install                                     &&
 
-  cd /                                          && # (Bear, 2004-11-28)
-  unlock_resources "libgrimoire" "install"      && # where was this created?
+  cd /                                          &&
+  unlock_resources "libgrimoire" "install"      &&
 
   SORCERY_VERSION=`cat /etc/sorcery/version`
 
