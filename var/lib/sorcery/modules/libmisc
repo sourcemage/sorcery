@@ -25,9 +25,20 @@ function explode ()
 { # $1==string to explode, $2==delimiter, $3==name of array to put it in
 
   [[ "$3" ]] || return 1
-  local ASSIGN=`echo "$1" | awk -F "$2" "{ for(i=1; i<=NF; i++) print \"${3}[\" i-1 \"]='\" \\\$i \"';\"; }"`
-  debug "libmisc" "explode() - $ASSIGN"
-  eval "$ASSIGN"
+  local l=$1
+  local i=0
+  while [[ $l ]]; do
+    local result=${l%%$2*}
+    l=${l#"$result"}
+    l=${l#$2}
+    eval "$3[$i]=\"$result\""
+    ((i++))
+  done
+  # this adds an empty array element at the end if the line ended in $2
+  local lc=${1//\*$2/true}
+  if [ "$lc" = "true" ]; then
+    eval "$3[$i]=\"\""
+  fi
 }
 
 
@@ -46,16 +57,7 @@ function explode ()
 ##
 #---------------------------------------------------------------------
 function real_sedit()  {
-  (
-    # Execute in a subshell to avoid globally affecting the umask
-    umask 077
-    TMP_FILE="/tmp/`basename  $2`.$$.$RANDOM"  &&
-    rm    -rf    $TMP_FILE                     &&
-    cp    $2     $TMP_FILE                     &&
-    sed   "$1"   $TMP_FILE  >  $2              &&
-    rm    -rf    $TMP_FILE
-
-  )
+  sed -i "$1" "$2"
 }
 
 
@@ -479,7 +481,7 @@ function select_list()
     let i=0
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR($i)  $SPELL_COLOR$foo$DEFAULT_COLOR"
-        temp[$i]=$foo
+        temp[$i]="$foo"
         let i++
     done
 
@@ -492,7 +494,7 @@ function select_list()
 
     echo
 
-    eval ''$returnvar'='${temp[$number]}''
+    eval $returnvar=\"${temp[$number]}\"
 }
 
 #---------------------------------------------------------------------
