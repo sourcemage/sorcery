@@ -1251,6 +1251,17 @@ function pass_zero()  {
 
 }
 
+function int_trap()
+{
+	message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
+	message "Cleaning up as well as I can..."
+	cleanup
+	exit 1
+}
+
+function cleanup() {
+	rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+}
 
 function main()	{
   debug "cast" "main() - $*"
@@ -1330,10 +1341,11 @@ elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
 else
 
   renice +10 -p $$  >/dev/null
+  trap int_trap INT
   main  $*
   if [ $SHLVL -eq 2 ] ; then
 	unlock_file $SAFE_CAST
-	rm $(cat $RM_AT_END) $RM_AT_END 2>/dev/null
+	cleanup
   fi
 
 fi
