@@ -57,7 +57,7 @@ function update_sorcery_scripts() {
 
   # pre build
   mk_source_dir  $SOURCE_DIRECTORY       &&
-  cd /usr/src                            &&
+  cd $INSTALL_ROOT/usr/src                            &&
   bzip2  -cdf   $SOURCE_CACHE/$FILENAME |
   tar --owner=root --group=root -xf /dev/stdin   &&
   cd      $SOURCE_DIRECTORY              &&
@@ -1002,7 +1002,7 @@ function optimize()  {
 
   export  CFLAGS="-O $CFLAGS"
   export  CXXFLAGS="$CFLAGS"
-  export  LDFLAGS
+  export  LDFLAGS="-L$INSTALL_ROOT/lib -L$INSTALL_ROOT/usr/lib $LDFLAGS"
   export  LC_ALL="C"
 
 }
@@ -1471,7 +1471,7 @@ function syms_not_owned()  {
 #---------------------------------------------------------------------
 function parse_iw()  {
 
-  OMIT="^/dev\|^/tmp\|^/usr/src"
+  OMIT="^$INSTALL_ROOT/dev\|^$INSTALL_ROOT/tmp\|^$INSTALL_ROOT/usr/src"
   OMIT_IN="	rename\|	symlink\|	unlink"
 
   grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep -v "$OMIT"

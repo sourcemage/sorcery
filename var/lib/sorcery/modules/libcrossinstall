@@ -35,7 +35,7 @@ invoke_cross_environment()
            INSTALL_CACHE=${INSTALL_ROOT}/var/cache/sorcery
 
          BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
-      DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/doc
+      DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/share/doc
 
   	debug "libcrossinstall" "Install root is ${INSTALL_ROOT}"
 
@@ -64,7 +64,7 @@ cross_install_sorcery()
 	message -n "${DEFAULT_COLOR}"
 	
 	mkdir -p ${INSTALL_ROOT}/etc/init.d/runlevels/{%1,%2,%3,%4,%5,%S}
-	mkdir -p ${INSTALL_ROOT}/etc/sysconfig
+	mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig}
 	mkdir -p ${INSTALL_ROOT}/{home,root,dev,lib,bin,sbin,mnt,tmp,proc}
 	mkdir -p ${INSTALL_ROOT}/var/state/sorcery
 	mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
@@ -77,15 +77,18 @@ cross_install_sorcery()
 	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
 	mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/
 	mkdir -p ${INSTALL_ROOT}/var/spool/sorcery/
-	mkdir -p ${INSTALL_ROOT}/var/tmp
-	cp -ruv /etc/sorcery ${INSTALL_ROOT}/etc
-        rm -f ${INSTALL_ROOT}/etc/sorcery/local/depends/*
+	mkdir -p -m 0666 ${INSTALL_ROOT}/var/tmp
+	cp -ruv /etc/sorcery/{accounts,config,groups,mirrors,version,cabal,dialogrc,licenses,uid,compile_config,gid,update} ${INSTALL_ROOT}/etc/sorcery
+        mkdir -p ${INSTALL_ROOT}/etc/sorcery/local/depends
+        cp -pf /etc/sorcery/local/* ${INSTALL_ROOT}/etc/sorcery/local
+        rm -f $INSTALL_ROOT$GRIMOIRE_LIST*
+        touch $INSTALL_ROOT$GRIMOIRE_LIST
         cp /etc/sysconfig/init ${INSTALL_ROOT}/etc/sysconfig
         touch ${INSTALL_ROOT}/var/state/sorcery/{depends,packages,triggers}
-	cp -ruv /var/lib/sorcery ${INSTALL_ROOT}/var/lib
+        cp -ruv /var/lib/sorcery/{archspecs,excluded,protected,subroutines,build,modules,solo,sustained} ${INSTALL_ROOT}/var/lib/sorcery/         
         cp -p /usr/sbin/{cast,dispel,gaze,invoke,scribbler,scribe,sorcery,summon,vcast,xsorcery} ${INSTALL_ROOT}/usr/sbin
-        cp -p /usr/share/man/man8/{cast.8,dispel.8,invoke.8,scribbler.8,scribe.8,sorcery.8,summon.8} ${INSTALL_ROOT}/usr/share/man/man8
-        cp -p /usr/share/man/man1/gaze.1 ${INSTALL_ROOT}/usr/share/man/man1/
-        cp -p /usr/share/man/man5/grimoire.5 ${INSTALL_ROOT}/usr/share/man/man5/
+        cp -p /usr/share/man/man8/{cast.8*,dispel.8*,invoke.8*,scribbler.8*,scribe.8*,sorcery.8*,summon.8*} ${INSTALL_ROOT}/usr/share/man/man8
+        cp -p /usr/share/man/man1/gaze.1* ${INSTALL_ROOT}/usr/share/man/man1/
+        cp -p /usr/share/man/man5/grimoire.5* ${INSTALL_ROOT}/usr/share/man/man5/
 
 }
