@@ -32,6 +32,9 @@ Optional Parameters:
 --nosustain		Turns off dispel protection for vital spells
 			(you usually don't want to do this)
 --noreap		Dispels spells but doesn't remove its files
+--no-reap-depends	Dont remove dependency information, dont use this
+			unless you know exactly what you are doing, and
+			dont complain if it breaks your box.
 
 EOF
 
@@ -128,6 +131,7 @@ function process_parameters()  {
                       shift  3  
                       ;;
            --noreap)  REAP="off";         shift  1  ;;
+  --no-reap-depends)  NO_REAP_DEPENDS="on";  shift  1  ;;
         --nosustain)  SUSTAIN="off";      shift  1  ;;
        --notriggers)  TRIGGER="off";      shift  1  ;;
                   *)  help                          ;;
@@ -150,6 +154,7 @@ function strip_parameters()  {
             -e|--exile)  shift  1  ;;
         -d|--downgrade)  shift  3  ;;
               --noreap)  shift  1  ;;
+     --no-reap-depends)  shift  1  ;;
            --nosustain)  shift  1  ;;
           --notriggers)  shift  1  ;;
                      *)  shift  1  ;;
