@@ -1,0 +1,292 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Synopsis Functions that download and verify urls.
+##
+##
+## This file contains functions for downloading and verifying urls.
+## It does this by fowarding url download and verification requests to
+## the appropriate url handler.  For example, the request to download
+## the following url is made through the generic F<url_download>
+## function:
+##
+##     http://machinename.com/path/to/file.tar.bz2
+##
+## The F<url_download> function parses the url prefix (in this
+## case, http) and passes the url to the http download handler
+## (F<url_http_download>).  A similar approach is used for url 
+## verification.
+##
+## This file provides an infrastructure that makes it relatively easy
+## to add new url handlers.  In order to add new handlers, all that
+## has to be done is add a new file to the sorcerer library directory
+## with the new url handler functions defined in the file.  This new
+## file will automatically be discovered and used by the sorcerer 
+## scripts.
+##
+## The following section describes how to add new url handlers in
+## a little more detail.
+##
+## <p>WRITING NEW URL HANDLERS</p>
+##
+## This section describes the steps needed to write new url handlers.
+##
+## <p>Decide on the Url Format</p>
+##
+## Urls must be of the form <prefix>://<address>.  The prefix should
+## be something unique.  Only the prefix is used by this script,
+## the address is not parsed or used, simply passed to the appropriate
+## url handler.
+##
+## <p>Create a File to Hold the New Url Handling Functions</p>
+##
+## In the SGL library directory (i.e., the directory pointed to by the
+## SGL_LIBRARY variable), create a new file called url_<prefix>.  For
+## example, if your new url prefix is I<xyz>, you should create a new
+## file called F<url_xyz>.  The file should be executable.
+##
+## <p>Implement Url Handlers</p>
+##
+## The next (and final) step is to write the actual functions that
+## will handle url requests and put them in the new file you just
+## created.  The functions that must be implemented are:
+##
+##    url_<URL_PREFIX>_download <url>
+##    url_<URL_PREFIX>_verify <url>
+##    url_<URL_PREFIX>_set_options <option>
+##    url_<URL_PREFIX>_help
+##
+## The easiest way to figure out what to do is to look at
+## one of the existing files (e.g., url_http handles http requests).
+##
+## <p>Handling Multiple Url Types in a Single File</p>
+##
+## It's perfectly valid for a file to handle mutlple types of urls.
+## The F<url_http> file actually handles ftp, http, and https urls.
+## Take a look at the file to see how it's done.
+##
+##
+## @Copyright Copyright 2002 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
+#Note to self, possibly move the netselect function into URL libs?
+
+
+#---------------------------------------------------------------------
+# Load library files (url_*) that contain url handlers
+#
+# (2002/09/29) added if so it onlt loads the stuff once
+#---------------------------------------------------------------------
+if ! [[ $URL_HANDLER_FILES ]] ; then
+  URL_HANDLER_FILES=`ls $SGL_LIBRARY_MODULES/url_handlers/url_*[^~]`
+  for  url_handler_file  in  $URL_HANDLER_FILES;  do
+    [  -x $url_handler_file  ]                               && 
+    URL_PREFIX=`echo $url_handler_file | sed "s/.*\/url_//"` && 
+    URL_TYPES[${#URL_TYPES[@]}]=$URL_PREFIX                  &&
+    . $url_handler_file
+  done
+fi
+
+
+#---------------------------------------------------------------------
+## url_name_is_function <function name>
+## @param function name
+## @Type Private
+## @return 0 if argument is a valid function
+## @return 1 otherwise
+## Returns true if input argument is the name of an
+## existing function, false otherwise.
+##
+#---------------------------------------------------------------------
+function url_is_function()  {
+  local  FUNCTION_NAME=$1
+  [  "`type -t $FUNCTION_NAME`"  =  "function"  ]
+}
+
+
+#---------------------------------------------------------------------
+## @Type Private
+## @param url 
+## @Stdout url prefix
+## @return 0 valid url
+## @return 1 otherwise
+##Takes a url and echos the url prefix.  Returns
+## true if a valid url could be found, returns false otherwise.
+##
+#---------------------------------------------------------------------
+function url_get_prefix()  {
+  local  URL_PREFIX=`echo $URL | sed "s/[\:\/\/].*$//"` 
+  [  -n  "$URL_PREFIX"  ]  &&
+  echo    $URL_PREFIX
+}
+
+
+#---------------------------------------------------------------------
+## @Type Private 
+## @Global BASE_URL FILE
+## If BASE_URL is set, then change URL to 
+## use BASE_URL as the download location.  Also sets FILE variable.
+#---------------------------------------------------------------------
+function url_change_base()  {
+  if  [  -n  "$BASE_URL"  ]  &&  [  -n  "$FILE"  ];  then  
+    URL="$BASE_URL/`basename $FILE`"
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## @param url
+## @return 0 valid url
+## @return 1 otherwise
+## Returns true if the given url is a valid url understood by the url
+## library, returns false otherwise.
+##
+#---------------------------------------------------------------------
+function url_is_valid()  {
+  [ "$1" == " " ] && return 1 #If it's only a space, it's not valid
+  local  URL_PREFIX=`echo $1 | sed "s/[\:\/\/].*$//"` 
+  [  -n  "$URL_PREFIX"  ]  &&
+  url_is_function "url_${URL_PREFIX}_download"
+}
+
+
+#---------------------------------------------------------------------
+## @param urllist
+## @Stdout new list
+## Ranks the urls in order of speed from fastest to slowest
+##
+#---------------------------------------------------------------------
+function url_rank() {
+
+ local urlList shortedList urlCounter netSelectedList
+
+ debug "liburl" "unshorted list: $*"
+
+ let urlCounter=${#*}
+ urlList="$*"
+
+ # if we have only 1 URL... no shorting needed.
+ if [ $urlCounter -eq 1 ]; then 
+   echo $*
+ else
+   # short them
+   netSelectedList=`netselect -s 20 $urlList`
+
+   # extract the FQDN from the shorted list (netselect outputs: <score> <FQDN> per line)
+   shortedList=`echo "$netSelectedList" | awk '{printf("%s ", $2);}'`
+
+   # if all sites are ICMP Unreachable, return the unshorted list instead of null.
+   if [ "$shortedList" == " " ] ; then
+     shortedList=$urlList
+   fi
+
+   debug "liburl" "Ordered URLs: $shortedList"
+
+   echo $shortedList
+ fi
+
+}
+
+
+
+#---------------------------------------------------------------------
+## @param url
+## @return 0 if file could be downloaded
+## @return 1 otherwise
+## @Global FILE
+## Downloads the specified url.  Returns true if file could be 
+## downloaded, false otherwise.  The name of the downloaded file
+## is left in the FILE variable.
+##
+#---------------------------------------------------------------------
+function url_download() {
+  local URL_LIST=$*
+  local SUCCESS=false
+
+  debug "liburl" "url_download() $*"
+  
+  if (  [[ $NET_SELECT == on ]]  &&  spell_installed "netselect"  );  then
+    lock_resources "network" "network"
+    message -n "${CHECK_COLOR}Looking for the fastest mirror site...${DEFAULT_COLOR} "
+    URL_LIST=`url_rank $URL_LIST 2> /dev/null` 
+    unlock_resources "network" "network"
+    message " done."
+  fi
+
+  for URL in $URL_LIST; do
+    if  url_is_valid $URL                             &&
+        url_change_base                               &&
+        URL_PREFIX=`url_get_prefix $URL`              &&
+        url_is_function "url_${URL_PREFIX}_download"  && 
+        url_${URL_PREFIX}_download $URL;              then
+        SUCCESS=true
+        break;
+    fi
+  done
+
+
+  $SUCCESS
+}
+
+
+#---------------------------------------------------------------------
+## @param url
+## @return 0 url could be verified
+## @return 1 otherwise
+## Verifies the specified url.  Returns true if file could be 
+## verified, false otherwise.
+##
+#---------------------------------------------------------------------
+function url_verify() {
+  local URL=$1
+  
+  url_change_base
+  URL_PREFIX=`url_get_prefix $URL`            &&
+  url_is_function "url_${URL_PREFIX}_verify"  && 
+  url_${URL_PREFIX}_verify $URL
+}
+
+
+#---------------------------------------------------------------------
+## @param option 
+## Set options for url handling
+##
+#---------------------------------------------------------------------
+function url_set_options() {
+  for URL_TYPE in ${URL_TYPES[@]}; do
+    url_is_function url_${URL_TYPE}_set_options &&
+    url_${URL_TYPE}_set_options $@
+  done
+}
+
+
+#---------------------------------------------------------------------
+## @Stdout help message 
+## Prints help message regarding url handling
+##
+#---------------------------------------------------------------------
+function url_help() {
+  for URL_TYPE in ${URL_TYPES[@]}; do
+    url_is_function url_${URL_TYPE}_help &&
+    url_${URL_TYPE}_help
+  done
+}
+
+
+#---------------------------------------------------------------------
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#---------------------------------------------------------------------
+
