@@ -90,6 +90,7 @@ function run_configure() {
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
     . $SCRIPT_DIRECTORY/CONFIGURE
+    true  # otherwise if CONFIGURE returns `false' DEPENDS is not executed
   fi
 
 }
@@ -373,8 +374,7 @@ function private_run_depends()
   run_details     	  && 
   run_configure   	  && 
   run_depends $1  	  && 
-  private_add_depends ||
-  private_remove_dependees
+  private_add_depends
   
 }
 
