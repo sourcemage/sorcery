@@ -584,13 +584,21 @@ codex_get_spell_keywords()  {
 codex_cache_spell_lookup()  {
 
 	debug "libcodex" "looking up $1 in ${2}'s cache"
+	local SECTION=""
+	local spell="$1"
+	shift
+
+	while [ $# -gt 0 ] ; do
 	
-	codex_check_cache $2
+		codex_check_cache $1
 	
-	local SECTION=`grep "^$1 " -m 1 $2/$SPELL_INDEX_FILE | cut -d' ' -f2`
-	[[ $SECTION ]] && echo "$SECTION/$1"
+		SECTION=`grep "^$spell " -m 1 $2/$SPELL_INDEX_FILE | cut -d' ' -f2`
+		[[ $SECTION ]] && echo "$SECTION/$spell" && return
 	
-	debug "DB" "Found in $SECTION"
+		shift
+	done
+	
+	return 1
 
 }
 
@@ -611,7 +619,6 @@ codex_create_cache()  {
 	[[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 
 	for i in $list ; do
-debug "DB" "looking at $i"
 		find $i -name DETAILS -follow -perm +700 |		\
 			sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' |	\
 			sort > $i/$SPELL_INDEX_FILE
