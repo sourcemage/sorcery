@@ -105,22 +105,22 @@ function scribe_add_worker() {
     return 1
   fi
 
+  local grim_dir=$(dirname $grimoire)
+  local grim_name=$(basename $grimoire)
+
   #If the associated FROM is not empty, check it for validity
   if  [ -n "$from" ];  then
     if  ! url_is_valid "$from";  then
       #if not valid, use $CODEX_URL
       message  "Error: $from is not a recognized url. Using default."
-      from="$CODEX_URL/$grimoire.tar.bz2"
+      from="$CODEX_URL/$grim_name.tar.bz2"
     fi
   else
     #from is empty - use the default
-    from="$CODEX_URL/$grimoire.tar.bz2"
+    from="$CODEX_URL/$grim_name.tar.bz2"
   fi
 
-  message "Adding grimoire to $grimoire from $from"
-
-  local grim_dir=$(dirname $grimoire)
-  local grim_name=$(basename $grimoire)
+  message "Adding grimoire $grim_name to $grim_dir from $from"
 
   #switch to and work in the codex
   pushd $grim_dir &> /dev/null
