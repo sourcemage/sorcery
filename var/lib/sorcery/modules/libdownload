@@ -34,24 +34,28 @@ function get_spell_files_and_urls() {
   local index source_index current_urls
 
   #run_patch
+#  [[ ${!SOURCE*} ]] && #some spells need nothing
+#  [[ ${SOURCE%%[^[:graph:]]*} ]] && #just in case a spell has SOURCE=" "
+#  echo  $SOURCE  ${SOURCE_URL[*]}
 
-  compgen -v | grep -q "^SOURCE$" && #some spells need nothing
-  echo "$SOURCE" | grep -q '[[:graph:]]' && #just in case a spell has SOURCE=""
-  echo  $SOURCE  ${SOURCE_URL[*]}
-
-  index=2
-  source_index=SOURCE${index}
-  while  compgen -v | grep -q "^${source_index}$" ;  do
-    if echo "${!source_index}" | grep -q '[[:graph:]]'
-    then #don't attempt do download blanks
-      current_urls="${source_index}_URL[*]"
- 
-      echo  ${!source_index}  ${!current_urls}
-    fi
-   
-    let index++
-    source_index=SOURCE${index}
+  for src in $( compgen -v SOURCE | grep '^SOURCE[[:digit:]]*$' ) ; do
+    url="$src"'_URL[*]'
+	src=${!src}
+	[[ ${src%%[^[:graph:]]*} ]] && echo ${src} ${!url}
   done
+#  index=2
+#  source_index=SOURCE${index}
+#  while  compgen -v | grep -q "^${source_index}$" ;  do
+#    if echo "${!source_index}" | grep -q '[[:graph:]]'
+#    then #do not attempt do download blanks
+#      current_urls="${source_index}_URL[*]"
+# 
+#      echo  ${!source_index}  ${!current_urls}
+#    fi
+#   
+#    let index++
+#    source_index=SOURCE${index}
+#  done
   
 }
 

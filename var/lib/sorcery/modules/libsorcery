@@ -1328,9 +1328,8 @@ function sources()  { (
   if  [  -z  "$SOURCE"  ];  then
     codex_set_current_spell_by_name  $1
   fi
-  get_spell_files_and_urls|while read line; do
-    explode "$line" " " "dl_array"
-    echo "${dl_array[0]}"
+  get_spell_files_and_urls|while read -a line; do
+    echo "${line[0]}"
   done
 
 
@@ -1351,10 +1350,9 @@ function source_urls()  { (
   if  [  -z  "$SOURCE"  ];  then
     codex_set_current_spell_by_name  $1
   fi
-  get_spell_files_and_urls|while read line; do
-    explode "$line" " " "dl_array"
-    unset dl_array[0]
-    echo "${dl_array[*]}"
+  get_spell_files_and_urls|while read -a line; do
+    unset line[0]
+    echo "${line[*]}"
   done
 
 
@@ -1386,17 +1384,16 @@ function generate_keep_list()  { (
 ##
 ## Removes unnecessary files from the source cache and install cache.
 ## 
-## This function includes a stale depends question for the user, if yes
-## then the depends file is checked for old dependencies that can be
-## removed. These lines are added to a file 'depends.stale' and a cleaned
-## up depends file is installed. The depends.stale will be left for the
-## user to manage.
-##
 #---------------------------------------------------------------------
 function prune()  { (
 
   debug  "libsorcery" "Running prune()"
-
+  local NO_KEEP KEEP
+  local NUM_NO_KEEP=0
+  
+  # This if is useless. The su will run, then exit. The rest of the script will
+  # continue to run as the original user, with no environment change
+  # Who put this here? Why??
   if  [  "$UID"  !=  0  ];  then
     echo  "Enter the root password, please."
     su  - -c "DISPLAY=$DISPLAY PATH=$PATH"
@@ -1407,24 +1404,35 @@ function prune()  { (
   generate_keep_list  >  $KEEP
 
   message "${MESSAGE_COLOR}Cleaning up source cache (${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
-  ls  $SOURCE_CACHE  |
-  while  read  FILE;  do
-    local FILENAME=`guess_filename $SOURCE_CACHE/$FILE`
-    if  [  -n  "$FILENAME"  ];  then
-      grep  -q -m 1  "^$( basename $FILENAME )$"  $KEEP  ||
-      rm  $FILENAME
-    fi
-  done
-
+  NO_KEEP=$( find $SOURCE_CACHE -mindepth 1 -maxdepth 1 -type f  | awk -F/ 'BEGIN { 
+				while (getline < "'$KEEP'") 
+					Installed[$1] = 1; 
+			}
+			{
+				if(!Installed[$NF]) 
+					print $0;
+			}' )
+  NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
+  if query "Remove $NUM_NO_KEEP files from $SOURCE_CACHE?" "y" ; then
+    echo "I would have deleted: $NO_KEEP"
+#  	rm $NO_KEEP
+  fi
+  
   message "${MESSAGE_COLOR}Cleaning up install cache (${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
-  ls  $INSTALL_CACHE  |
-  while  read  FILE;  do
-    if  [  -f  $INSTALL_CACHE/$FILE  ];  then
-      grep  -q  "^$FILE$"  $KEEP  ||
-      rm  $INSTALL_CACHE/$FILE
-    fi
-  done
-
+  NO_KEEP=$( find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f  | awk -F/ 'BEGIN { 
+				while (getline < "'$KEEP'") 
+					Installed[$1] = 1; 
+			}
+			{
+				if(!Installed[$NF]) 
+					print $0;
+			}' )
+  NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
+  if query "Remove $NUM_NO_KEEP files from $INSTALL_CACHE?" "y" ; then
+    echo "I would have deleted: $NO_KEEP"
+#  	rm $NO_KEEP
+  fi
+  
   rm  -f  $KEEP
 
 ) }
