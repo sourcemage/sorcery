@@ -1,0 +1,583 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Functions for dealing with dependencies as a non-cyclic directed
+## graph. Since that's such a mouthful, it will simply be referred to
+## as a tree, even though it's not.
+##
+##=head1 DESCRIPTION
+##
+## A spell is represented as a node containing some pieces of data
+## seperated by colons.
+## :spellname:casting_flag:is_a_target_flag:
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
+##
+##=head1 CONTRIBUTORS
+## Chris Brien <christopher_brien@hotmail.com>
+## Paul Mahon <pmahon@sourcemage.org)
+##
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+# Surprise env vars:
+# COMPILE: set in cast. It means that the main spells should be recompiled
+# RECONFIGURE: set in cast. I means that the info in the state depends should 
+#  be disregarded and replaced.
+# LAST_SPELL: set in here. It is for the recursive dependency checking. It is
+#  set to the parent spell.
+# PRETEND_NOT_INSTALLED: set here. It is a list of spells that are to be 
+#  recompiled, so they should not be treated as installed.
+
+function run_prepare() 
+{
+
+  SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
+  debug "cast" "run_prepare() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+ 
+  if  [  -n  "$RECONFIGURE"  ];  then
+    rm  -f  $DEPENDS_CONFIG/$SPELL
+    remove_depends_status  $SPELL
+  fi
+
+  message  "${CHECK_COLOR}Preparing environment for"  \
+               "${SPELL_COLOR}${SPELL}"                   \
+               "${DEFAULT_COLOR}"
+  prepare_spell_config #from cast
+
+  if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
+    . $SCRIPT_DIRECTORY/PREPARE
+  fi
+  
+  # ask the questions about xinetd/initd script installation
+  use_xinetd
+  use_initd
+}
+
+
+function run_depends() 
+{ 
+ 
+  if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
+
+    message  "${CHECK_COLOR}Checking dependencies for"  \
+               "${SPELL_COLOR}${SPELL}"                   \
+               "${DEFAULT_COLOR}"
+
+      .  $SCRIPT_DIRECTORY/DEPENDS
+
+    fi
+}
+
+
+function run_configure() 
+{
+
+  SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
+  debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+ 
+  if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
+    . $SCRIPT_DIRECTORY/CONFIGURE
+    true  # otherwise if CONFIGURE returns `false' DEPENDS is not executed
+  fi
+}
+
+
+function run_spell_config() 
+{
+
+  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+  debug "libdepends" "run_spell_config() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
+    
+  if  [  -x  $SPELL_CONFIG  ];  then
+    debug "libdepends" "run_spell_config() - found $SPELL_CONFIG"
+	.  $SPELL_CONFIG
+  fi
+}
+
+
+function show_depends()  
+{
+  debug "libdepends" "show_depends() - $@"
+  local DEP_SPELL=`esc_str $1`
+  local DEPTH=$2
+
+  if  !  echo  "$DONE"  |  grep  -q  "$DEP_SPELL";  then
+    DONE="$DONE  $1"
+
+    function ld99()  {
+
+     [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
+ 
+      SPELL=`echo  $1 |  cut  -d :  -f1`
+      STATUS=`echo  $1  |  cut  -d :  -f3`
+
+      if    [  "$STATUS"  ==  "on"  ]; then
+        echo          $1 
+        show_depends  $SPELL $(( DEPTH + 1 ))
+      fi
+      
+    }
+    
+    iterate "ld99" $'\n' `grep  ":$DEP_SPELL:"  $DEPENDS_STATUS`
+
+  fi
+}
+
+
+function satisfy_depends()
+{
+
+  debug "libdepends" "Running satisfy_depends() on $SPELL"  
+  local DEP
+ 
+  unset  OPTS
+
+  # some spells apply changes to OPTS directly
+  run_spell_config
+
+  local LINE=''
+  search_depends_status "$SPELL" | while read LINE; do
+
+    debug "libdepends" "satisfy_depends() - $LINE"
+
+    # line format is: spell:dependency:status:something:on-opts:off=opts
+    DEP=()
+    explode "$LINE" ":" "DEP"
+
+    # First, see if the spell exists.
+    DEP_SPELL_LOCATION=`codex_find_spell_by_name ${DEP[1]}`
+    if  [  -z  "$DEP_SPELL_LOCATION"  ];  then
+      if [  "${DEP[2]}"  !=  'providedby'  ]; then
+        message  "${PROBLEM_COLOR}Unable to find previously configured"  \
+                 "dependency ${SPELL_COLOR}'${DEP[1]}'${PROBLEM_COLOR}"
+        message  "in grimoire.  Removing spell from cached depends."     \
+                 "${DEFAULT_COLOR}"
+        remove_depends_status  "$SPELL"  "${DEP[1]}"
+      fi
+    else
+
+      #Second, am I trying to cast --fix or is this just a normal cast?
+      if  [[  $FIX  ]] ; then
+      
+	#Third, if it's a fix, and the dependency is on, cast --fix it
+        if  [[ ${DEP[2]} == on ]] 
+	then  debug "libdepends" "cast  $FIX  ${DEP[1]}" && cast  $FIX  ${DEP[1]}
+	else debug "libdepends" "Fix=$FIX, and DEP[2]=${DEP[2]}"
+        fi
+
+      #(second) It's a normal cast, and this may need to be cast
+      elif  [[  ${DEP[2]}  ==  on  ]]; then
+        #
+        # Spell must be installed or help up to this point (this is a guard fence)
+        #
+        if  !  spell_installed  ${DEP[1]}  &&
+            !  spell_held       ${DEP[1]}
+        then
+          message "One of the dependancies of ${DEP[0]} failed to cast."
+          message "You should try to cast ${DEP[1]} manualy."
+          message "Failed to cast ${DEP[1]}. I will have trouble casting ${DEP[0]}."
+          return 1          
+        fi
+        #
+        # End of guard fence
+        #
+      fi
+    fi
+
+  done
+
+  #
+  # TODO: Do something about exiled spells so that they've got `off'
+  #       in DEPENDS_STATUS file, or something else do improve this
+  #
+  local OPTS_DEPENDS=$(get_depends_options "$SPELL")
+  OPTS="$OPTS $OPTS_DEPENDS"
+  debug 'libdepends' "satisfy_depends() - final OPTS=$OPTS"
+}
+
+
+function compute_depends() 
+{ 
+
+  # $1=var to place spells in, $* = root spells
+
+  debug "libdepends" "compute_depends of $*"
+  local outVar="$1"
+  shift
+  BASE_SPELLS=( $@ )
+  
+  local i
+  SPELLS=()
+  let i=0;
+  for spell in "$@" ; do
+    SPELLS[$i]="$spell"
+    let i++
+  done
+  
+  for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
+    if ! private_run_depends ${SPELLS[$i]} ; then
+		private_remove_dependees ${SPELLS[i]}
+		hash_unset "libdepends" "${SPELLS[i]}"
+		SPELLS[i]=""
+	fi
+  done
+  
+  for SPELL in ${SPELLS[*]} ; do
+    debug "libdepends" "Appending info for $SPELL."
+    eval "$outVar=\"${!outVar}${SPELL}: "`hash_get "libdepends" "$SPELL"`$'\n'\"
+  done
+
+  SPELLS="${BASE_SPELLS[*]}"
+}
+
+
+function real_depends()
+{
+    local INST
+    if ! codex_does_spell_exist $1 &> /dev/null; then
+        select_provider "INST" "$4" "$@"
+        [[ $? ]]     || return 1
+        [[ ! $INST ]] && return 1
+        local PROVIDERNAME=$1
+        shift
+        work_depends "$INST" "$@"
+        work_optional_depends "no_question" "$PROVIDERNAME" "$INST" ""
+
+    else
+        work_depends      "$@"
+    fi
+}
+
+
+function real_requires() 
+{ 
+	#deprecated, martin 20030906
+    depends "$@"
+}
+
+
+function real_optional_depends()
+{
+    local INST
+
+    if ! codex_does_spell_exist $1 &> /dev/null; then
+
+        select_provider "INST" "$4" "[none]" "$@"
+        [[ $? ]] || return 1
+        [[ ! $INST ]] && return 0
+        [[ $INST == "[none]" ]] &&
+          work_optional_depends "no_question" "$1" "$INST" "$3" && return 0
+        local PROVIDERNAME=$1
+        shift
+        work_optional_depends "no_question" "$INST" "$@"
+        work_optional_depends "no_question" "$PROVIDERNAME" "$INST" ""
+
+    else
+        work_optional_depends "$@" 
+    fi
+}
+
+
+#---------------------------------------------------------------------
+##=item select_provider <return_var> <provider> <reasontext> <elements,..>
+## 
+## gives the user some nice select list and puts the selected
+## spell in return_var
+##
+#---------------------------------------------------------------------
+function select_provider()
+{
+    local INSTALLED=false
+    local returnvar=$1
+    local reasontext=$2
+    shift; shift
+
+    if [[ $1 == '[none]' ]]; then
+        local ASK_NONE=true
+        shift
+    fi
+
+    local TO_STORE="`grep "^$SPELL:$1:providedby:optional:.*:.*$" $DEPENDS_STATUS | cut -d':' -f 5 | tail -n 1`"
+
+    if [ -z "$TO_STORE" ]; then
+
+      if [[ "$ASK_NONE" == true ]]; then
+        message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR optionally needs some "
+        message "$SPELL_COLOR$1$DEFAULT_COLOR. ($reasontext)"
+      else
+        message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR needs some "
+        message "$SPELL_COLOR$1$DEFAULT_COLOR as a requirement."
+      fi
+
+      local INST_PROV_LIST temp spell
+      local CANDIDATES=$( find_providers $1 )
+
+      for spell in $CANDIDATES; do
+          if spell_installed $spell || spell_held $spell; then
+              [[ $INSTALLED == false ]] && INST_PROV="$spell"
+              INSTALLED=true
+          fi
+
+          if ! spell_exiled $spell; then
+              temp="$temp $spell"
+          fi
+      done
+
+      if [[ $INSTALLED == true ]]; then
+          message -n "$SPELL_COLOR$1$DEFAULT_COLOR is already provided " 
+          message   "by $SPELL_COLOR$INST_PROV$DEFAULT_COLOR"
+          if query "Do you want to use that?" "y"; then
+              eval ''$returnvar'='$INST_PROV''
+              return 0
+          fi 
+      fi
+
+      if [[ ! $temp ]]; then
+          echo "Cannot satisfy requirements for $1"
+          return 1
+      fi
+
+      if [[ $ASK_NONE == true ]]; then
+          select_list "TO_STORE" "[none]" $temp
+      else
+          select_list "TO_STORE" $temp
+      fi
+    fi
+    eval ''$returnvar'='$TO_STORE''
+}
+
+
+function work_depends()
+{
+
+  if spell_exiled $1 ; then 
+    message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
+    return 1
+  fi
+  private_common_depends "$1" "on" "required" "$2" "$3"
+}
+
+
+function work_optional_depends()
+{
+  local NOQUESTION=false
+
+  if [[ "$1" == "no_question" ]]; then
+		shift;
+		NOQUESTION=true
+  fi
+	
+  if spell_exiled $1 ; then 
+    message "${SPELL_COLOR}$1${DEFAULT_COLOR} has been exiled!"
+    return 1
+  fi
+  
+  local install="off"
+  local status=""
+  
+  #See if there are preferences already
+  #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
+  explode "`search_depends_status "$SPELL" "$1"`" ":" "status"
+	
+  if [[ $RECONFIGURE ]] || ! [[ ${status[2]} && ${status[2]} != "providedby" ]] ; then
+
+		if [[ $NOQUESTION == false ]]; then
+			message "${SPELL_COLOR}$1${DEFAULT_COLOR} is an optional dependency for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
+
+			if spell_installed $1 || spell_held $1 ; then
+				query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "y" && 
+					install="on"
+			else
+				query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "n" && 
+					install="on"
+      fi
+		else
+			if codex_does_spell_exist $1 >/dev/null; then
+				install="on"
+			else # in this case, it's a provider and they said [none]
+				install="providedby"
+			fi
+  	fi
+
+  elif [[ ${status[2]} == on ]] ; then
+		install="on"
+  fi
+
+  private_common_depends "$1" "$install" "optional" "$2" "$3"
+}
+
+
+#---------------------------------------------------------------------
+##=item requires <"provides" specification>
+##
+## Given a category of spell, returns true if a spell is installed
+## that provides that category of spell.  For example,
+## C<requires email-client> returns true if evolution is installed.
+##
+#---------------------------------------------------------------------
+#requires()  { #deprecated, martin 20030906 
+#
+#  local CANDIDATES SATISFIED CANDIDATE 
+#  local temp found
+#
+#  CANDIDATES=$(  find_providers  $1  )
+#
+#  for   CANDIDATE  in       $CANDIDATES;  do
+#	if spell_installed $CANDIDATE	|| spell_held $CANDIDATE ; then
+#	   message "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a" \
+#  	   	"${MESSAGE_COLOR}$1${DEFAULT_COLOR}."
+#	   message "You already have ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR} providing that. "\
+#	    "Using ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR}."
+#	   CANDIDATES="$CANDIDATE"
+#	   SATISFIED="true"
+#	   break
+#	 else
+#        temp="$temp"$'\n'"$CANDIDATE"
+#	fi	 
+#  done
+#  if ! [[ $SATISFIED ]] ; then
+#    message  "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a"  \
+#             "${MESSAGE_COLOR}$1${DEFAULT_COLOR}"   \
+#             "which can be provided by:"
+#    message  "${FILE_COLOR}$CANDIDATES${DEFAULT_COLOR}"
+#
+#    SATISFIED="false"
+#    for  CANDIDATE  in  $CANDIDATES;  do
+#      if    query "Cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}? " "y"  && 
+#            depends  $CANDIDATE
+#      then  SATISFIED="true";  break
+#      else
+#            message "Didn't cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}."
+#      fi
+#    done
+#  fi
+#  
+#  if [[ $SATISFIED ]] ; then
+#    private_common_depends "$CANDIDATE" "on" "required" "" ""
+#  else
+#    return 1
+#  fi
+#  
+#}
+
+
+function private_common_depends()
+{
+  add_depends "$SPELL" "$@"
+  
+  if [[ $2 == on ]] && private_should_cast $1 ; then
+    NEW_DEPENDS=( "${NEW_DEPENDS[@]}" $1 )
+  fi
+  
+  return 0
+}
+
+
+function private_remove_installed_spells()
+{
+
+  for ((i=0 ; i< ${#SPELLS[*]} ; i++)) ; do
+    spell="${SPELLS[$i]}"
+    if private_should_cast $spell ; then
+      message "${SPELL_COLOR}$spell${DEFAULT_COLOR} is already installed. Skipping."
+	  SPELLS[$i]=" "
+    fi
+  done
+  
+  SPELLS=( ${SPELLS[*]} ) #Compact the array
+}
+
+
+function private_run_depends()
+{
+
+  SPELL="$*"
+  NEW_DEPENDS=()
+  
+  run_prepare     	  && 
+  run_details     	  && 
+  run_configure   	  && 
+  run_depends $1  	  && 
+  private_add_depends 
+}
+
+
+function private_add_depends()
+{
+
+  local i j
+  
+  hash_put "libdepends" "$SPELL" "${NEW_DEPENDS[*]}"
+  
+  for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
+    for (( j=0 ; j<${#NEW_DEPENDS[*]} ; j++ )) ; do
+      [[ ${SPELLS[$i]} == ${NEW_DEPENDS[$j]} ]] && NEW_DEPENDS[$j]=" "
+    done
+  done
+  SPELLS=( "${SPELLS[@]}" ${NEW_DEPENDS[*]} )
+}
+
+
+function private_list_dependees()
+{
+
+  local i
+  for (( i=0 ; "${SPELLS[$i]}"!="$SPELL" ; i++ )) ; do
+    is_member "$1" `hash_get "libdepends" "${SPELLS[$i]}"` && echo $i
+  done
+}
+
+function private_remove_dependees()
+{
+
+	local spell i
+	echo "Removing dependees of $1"
+
+	# spell is being removed from cast list, add to FAILED_LIST
+	echo "$1" >> $FAILED_LIST
+
+	for spell in $(private_list_dependees $1) ; do
+		hash_unset "libdepends" "${SPELLS[spell]}"
+		SPELLS[spell]=""
+		for ((i=0;i<${#BASE_SPELLS[*]}; i++)) ; do
+			[[ $spell == ${BASE_SPELLS[i]} ]] && BASE_SPELLS[i]=""
+		done
+	done
+	SPELLS=( ${SPELLS[*]} )
+	BASE_SPELLS=( ${BASE_SPELLS[*]} )
+}
+
+function private_should_cast()
+{
+	codex_does_spell_exist $1						&&
+  ( echo "$PRETEND_NOT_INSTALLED" | grep -q $1 		||
+	! ( spell_installed $1	|| 	spell_held $1 ))	&&
+	! spell_exiled $1 		;
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -1,0 +1,273 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for downloading http, https, and ftp urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying 
+## http, https, and ftp urls.  This file uses the "wget" program.
+## 
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------
+# url_http_strip_extension <filename>
+# 
+# Private Function.  Strip tar & compression extensions off filename 
+#
+#---------------------------------------------------------------------
+url_http_strip_extension()  {  
+  echo  $1               |
+  sed  "s/\.tar\.gz$//"  |
+  sed  "s/\.tgz$//"      |
+  sed  "s/\.tar\.bz2$//"
+}
+
+
+#---------------------------------------------------------------------
+# url_http_set_wget_options 
+# 
+# Private Function.  Sets wget options
+#
+#---------------------------------------------------------------------
+url_http_set_wget_options()  {
+  if    [  -n  "$ACTIVE_FTP"  ]
+  then  unset  PASSIVE
+  else         PASSIVE="--passive-ftp"
+  fi
+
+  if    echo  "$URL"  |  grep  -q  "sourceforge"
+  then  unset  CONTINUE
+  else         CONTINUE="-c"
+  fi
+
+  if    [  -n  "$DOWNLOAD_RATE"  ]
+  then  RATE="--limit-rate=${DOWNLOAD_RATE}"
+  fi
+
+  if    [  -n  "$URL_HTTP_FTP_TIMEOUT"  ]
+  then         URL_HTTP_TIMEOUT="-T $URL_HTTP_FTP_TIMEOUT"
+  else  unset  URL_HTTP_TIMEOUT
+  fi
+
+  if    [  -n  "$URL_HTTP_FTP_RETRIES"  ]
+  then         URL_HTTP_RETRIES="-t $URL_HTTP_FTP_RETRIES"
+  else         URL_HTTP_RETRIES="-t 3"
+  fi
+  
+  ONLY_NEWER=""
+  DEREF_SYM="--retr-symlinks"
+
+  WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM"
+  debug 'url_http' "wget options: $WGET_OPTIONS"
+}
+
+
+#---------------------------------------------------------------------
+# url_http_erase <file basename>
+# 
+# Private Function.  If download continuation is not set, then remove
+# partially downloaded or previously downloaded files.
+#
+#---------------------------------------------------------------------
+url_http_erase()  {
+  local  S_FILE=$1
+
+  if  [  -z  "$CONTINUE"  ];  then
+    rm  -f  $S_FILE.tar.gz  $S_FILE.tgz  $S_FILE.tar.bz2
+  fi
+}
+
+
+#---------------------------------------------------------------------
+# url_http_call_wget <filename> <extension-less filename> <url>
+# 
+# Private Function.  Call wget to download the url.  Set's FILE
+# as a side-effect.
+#
+#---------------------------------------------------------------------
+url_http_call_wget()  {  
+  local  FILENAME=$1
+  local  STRIPPED_FILENAME=$2
+  local  URL=$3
+
+  debug 'url_http' "call wget: $*"
+
+  url_http_erase  $STRIPPED_FILENAME   &&  
+  # eval is used here due to screwy IFS (maybe)
+  eval "wget $WGET_OPTIONS $URL"      &&
+  FILE="$FILENAME"
+}
+
+
+#---------------------------------------------------------------------
+##=item url_http_download <url>
+## 
+## Downloads the specified http url.
+##
+#---------------------------------------------------------------------
+url_http_download() {
+  local  URL=$1
+
+  url_http_set_wget_options  $URL
+
+  local  S_URL=`url_http_strip_extension $URL`
+  [  -z  "$FILE"  ]  &&  FILE=`basename  $S_URL`
+  local  S_FILE=`url_http_strip_extension $FILE`
+
+  if  url_http_call_wget  $FILE  $S_FILE  $URL;  then
+    true
+  elif  [  "$NO_FUZZ"  ==  "on"  ]; then  
+    false
+  else  
+    url_http_call_wget  $S_FILE.tar.bz2  $S_FILE  $S_URL.tar.bz2 ||
+    url_http_call_wget  $S_FILE.tar.gz   $S_FILE  $S_URL.tar.gz  ||
+    url_http_call_wget  $S_FILE.tgz      $S_FILE  $S_URL.tgz
+  fi
+}
+
+
+#---------------------------------------------------------------------
+##=item url_https_download <url>
+## 
+## Downloads the specified https url.
+##
+#---------------------------------------------------------------------
+url_https_download() {
+  url_http_download  $1
+}
+
+
+#---------------------------------------------------------------------
+##=item url_ftp_download <url>
+## 
+## Downloads the specified http url.
+##
+#---------------------------------------------------------------------
+url_ftp_download() {
+  local  URL=$1
+
+  url_http_set_wget_options  $URL
+
+  local  S_URL=`url_http_strip_extension $URL`
+  [[  $FILE  ]]  ||  FILE=`basename  $S_URL`
+  local  S_FILE=`url_http_strip_extension $FILE`
+
+  if  url_http_call_wget  $FILE  $S_FILE $URL;  then
+    true
+  elif  [  "$NO_FUZZ"  ==  "on"  ]; then  
+    false
+  else
+    local  DIRECTORY=`dirname $URL`
+    local  OUTPUT=`wget  $WGET_OPTIONS  -O -  "$DIRECTORY/"  2>&1`
+
+    if  echo  $OUTPUT  |  grep  -q  $S_FILE.tar.bz2;  then
+      url_http_call_wget  $S_FILE.tar.bz2  $S_FILE  $S_URL.tar.bz2
+    elif  echo  $OUTPUT  |  grep  -q  $S_FILE.tar.gz;  then
+      url_http_call_wget  $S_FILE.tar.gz   $S_FILE  $S_URL.tar.gz
+    elif  echo  $OUTPUT  |  grep  -q  $S_FILE.tgz;  then
+      url_http_call_wget  $S_FILE.tgz      $S_FILE  $S_URL.tgz
+    else  
+      false
+    fi
+  fi
+}
+
+
+#---------------------------------------------------------------------
+##=item url_http_verify <url>
+## 
+## Verifies the specified http url.  Returns true if the url exists
+## OR if the url is an empty string.
+##
+#---------------------------------------------------------------------
+url_http_verify() {
+  local  URL=$1
+
+  if [  -n  "$URL"  ]; then
+    if  OUTPUT=`wget --passive-ftp -t 1 -T 30 --spider "$URL" 2>&1`;  then
+      true
+    else
+      echo  $OUTPUT
+      false
+    fi
+  fi   
+}
+
+
+#---------------------------------------------------------------------
+##=item url_https_verify <url>
+## 
+## Verifies the specified https url.  Returns true if the url exists
+## OR if the url is an empty string.
+##
+#---------------------------------------------------------------------
+url_https_verify() {
+  url_http_verify  $1
+}
+
+
+#---------------------------------------------------------------------
+##=item url_ftp_verify <url>
+## 
+## Verifies the specified ftp url.  Echos results of wget if file
+## is not found.
+##
+#
+#  Implementation note:  wget --spider still downloads ftp files in
+#  full rather than just checking that the file is there.  To get 
+#  around this problem, we download the directory and see if the file
+#  is in the directory listing.
+# 
+#---------------------------------------------------------------------
+url_ftp_verify() {
+  local  URL=$1
+
+  if  [  -n  "$URL"  ];  then
+    local  FILENAME=`basename $URL`
+    local  DIRECTORY=`dirname $URL`
+    local  OUTPUT=`wget --passive-ftp -t 1 -T 30 -O - --spider -nr "$DIRECTORY/" 2>&1`
+
+    if  echo  $OUTPUT  |  grep  -q  "$FILENAME";  then
+      rm  -f  .listing
+    else
+      echo  $OUTPUT  |  sed  's/LIST.*//g'
+      [  -f  .listing  ]  &&  cat  .listing
+      rm -f  .listing
+      false
+    fi
+  fi   
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
