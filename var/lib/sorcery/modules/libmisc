@@ -178,8 +178,7 @@ debug "libmisc" "progress_bar - $*"
     len=0
     shift 1
   else
-    len="$3"
-    len="${len:-$COLUMNS}"
+    len=${3:-${COLUMNS:-70}}
   fi
   
   # Can't make a bar because there's no total, or the length isn't
@@ -195,6 +194,7 @@ debug "libmisc" "progress_bar - $*"
   percent=`printf "%.0f" $percent`
   
   if [[ $LAST_PERCENT == $percent ]] ; then
+    progress_spinner
     return 0
   fi
 

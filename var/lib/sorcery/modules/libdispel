@@ -23,7 +23,7 @@ function reap_regular_files()  {
   debug "libsorcery" "reap_regular_files()"
   local FILE
   while read FILE; do
-    rm  -vf   "$FILE"
+    rm  -f   "$FILE"
   done
 }
 
@@ -40,6 +40,7 @@ function reap_config_files()  {
   debug "libsorcery" "reap_config_files()"
   local FILE
   while  read  FILE;  do
+    [[ $FILE ]] || continue
     if grep -q "$(md5sum "$FILE" )" "$MD5S"; then
       debug libdispel "$FILE is a config file that hasnt changed, removing..."
       rm -f "$FILE"
@@ -116,7 +117,7 @@ function reaper()  {
   # then to INSTALL_ROOT.
   # INSTALL_ROOT is relative to /, TRACK_ROOT is arbitrary.
   log_adjuster $1 /dev/stdout log filterable          |
-  filter  $PROTECTED                                  |
+  filter_protected                                    |
   log_adjuster /dev/stdin /dev/stdout filterable root |
   while read ITEM; do
     if   test -h  "$ITEM"; then echo "$ITEM" >> $REAPER_SYMS
@@ -128,13 +129,13 @@ function reaper()  {
   if test -f $REAPER_FILES ; then
     sed "s:^$TRACK_ROOT::" $REAPER_FILES |
     grep -v /var/log/sorcery             |
-    filter_in $CONFIGS                   |
+    filter_configs -v                    |
     sed "s:^:$INSTALL_ROOT:"             |
     reap_config_files
 
     sed "s:^$TRACK_ROOT::" $REAPER_FILES |
     grep -v /var/log/sorcery             |
-    filter $CONFIGS                      |
+    filter_configs                       |
     sed "s:^:$INSTALL_ROOT:"             |
     reap_regular_files
   fi

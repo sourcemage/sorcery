@@ -466,44 +466,35 @@ function filter_in() {
   fi
 }
 
-function filter_volatiles() {
-  local SPELL_VOLATILES=$(tablet_find_spell_file $SPELL spell/volatiles)
+function filter_generic() {
+  local args=$1
+  local filter_name=$2
+  local system_filter=$3
+  local spell_filter
+  tablet_find_spell_file $SPELL $filter_name spell_filter
+  set -- $args
   if [ "$1" == -v ] ; then
     shift
-    filter_in $@ $VOLATILES $SPELL_VOLATILES
+    filter_in $@ $system_filter $spell_filter
   else
-    filter $@ $VOLATILES $SPELL_VOLATILES
+    filter $@ $system_filter $spell_filter
   fi
+}
+
+function filter_volatiles() {
+  filter_generic "$*" volatiles $VOLATILES
 }
 
 function filter_configs() {
-  local SPELL_CONFIGS=$(tablet_find_spell_file $SPELL spell/configs)
-  if [ "$1" == -v ] ; then
-    shift
-    filter_in $@ $CONFIGS $SPELL_CONFIGS
-  else
-    filter $@ $CONFIGS $SPELL_CONFIGS
-  fi
+  filter_generic "$*" configs $CONFIGS
 }
 
 function filter_excluded() {
-  local SPELL_EXCLUDED=$(tablet_find_spell_file $SPELL spell/excluded)
-  if [ "$1" == -v ] ; then
-    shift
-    filter_in $@ $EXCLUDED $SPELL_EXCLUDED
-  else
-    filter $@ $EXCLUDED $SPELL_EXCLUDED
-  fi
+  filter_generic "$*" excluded $EXCLUDED
 }
 
 function filter_protected() {
-  local SPELL_PROTECTED=$(tablet_find_spell_file $SPELL spell/protected)
-  if [ "$1" == -v ] ; then
-    shift
-    filter_in $@ $PROTECTED $SPELL_PROTECTED
-  else
-    filter $@ $PROTECTED $SPELL_PROTECTED
-  fi
+  filter_generic "$*" protected $PROTECTED
 }
 
 #---------------------------------------------------------------------

@@ -60,15 +60,17 @@ Command		Description
 --nofix		attempts to detect errors in cast spells but does not recast
 --nofix_quick	like --nofix, but does not check dependent spells.
 
+--tablet	clean up the tablet
 --logs		cleans old logs in the same way a system-update does
 --sweep		clean out old downloaded sources and cached binaries
 It is suggested that you try the following order the first time:
 	1) $s --packages
 	2) $s --delint
-	3) $s --logs
-	4) $s --prune
-	5) $s --sweep
-	6) $s --fix
+	3) $s --tablet
+	4) $s --logs
+	5) $s --prune
+	6) $s --sweep
+	7) $s --fix
 EOF
 	[[ $# -gt 0 ]] && echo "Unknown $*"
 }
@@ -83,6 +85,7 @@ EOF
 ##                          specified
 ## @Args  --packages        Find packages entries that are corrupted, or
 ##                          non-existant
+## @Args  --tablet          Clean up the tablet
 ## @Args  --logs            Remove stale logs
 ## @Args  --sweep           Remove uneeded spool and cache files
 ## @Args  --fix             Find binaries that are missing libs and files,
@@ -140,6 +143,16 @@ function args()
         let rc+=$?
         ;;
       --packages) packages
+        let rc+=$?
+        ;;
+      --tablet)
+        tablet_cleanse_tablet $TABLET_PATH $BACKUPDIR
+        let rc+=$?
+        if [[ $1 == coalesce ]] ; then
+          tablet_coalesce_files $TABLET_PATH
+          let rc+=$?
+          shift
+        fi
         let rc+=$?
         ;;
       *)  usage $arg $* ; return 1  ;;
@@ -468,7 +481,7 @@ function cleanse_fix()
   
   # load our ldd hash with the spells we know we'll care about
   # but no more then necessary
-  cleanse_fix_init_ldd_check $(/usr/bin/make -s -f $MAKEFILE all)
+  cleanse_fix_init_ldd_check $(/usr/bin/make -s -f $MAKEFILE all 2>/dev/null)
 
   local PASSED FIXED HOPELESS TOTALNR CURNR unused
  
@@ -490,7 +503,7 @@ function cleanse_fix()
   else
     # non-quick mode implies we check from the bottom up, so get all
     # the spells..
-    TOTALNR=$(/usr/bin/make -s -f $MAKEFILE all|wc -l)
+    TOTALNR=$(/usr/bin/make -s -f $MAKEFILE all 2>/dev/null|wc -l)
     cleanse_fix_depends all
   fi
 
@@ -524,7 +537,7 @@ function cleanse_fix()
 function cleanse_fix_depends() {
   local SPELL=$1
   # run the makefile to get the proper order
-  local FIX_ORDER=$(/usr/bin/make -s -f $MAKEFILE $1 | grep -v "^$SPELL\$")
+  local FIX_ORDER=$(/usr/bin/make -s -f $MAKEFILE $1  2>/dev/null| grep -v "^$SPELL\$")
   #for each spell
   for SPELL in ${FIX_ORDER}; do
     # check it
@@ -715,7 +728,7 @@ function cleanse_fix_ldd_check()  { (
   fi
 
   local tmp
-  for each in $(/usr/bin/make -s -f $MAKEFILE $1); do
+  for each in $(/usr/bin/make -s -f $MAKEFILE $1 2>/dev/null); do
     tmp=$(hash_get ldd_hash $each)
     [[ $tmp ]] && LD_LIBRARY_PATH="$(hash_get ldd_hash $each):${LD_LIBRARY_PATH}"
   done
