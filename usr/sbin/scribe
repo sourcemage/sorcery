@@ -49,7 +49,7 @@ echo ""
 
 #get installed grimoires
 grimoires=`codex_get_all_grimoires`
-    
+
 #for each grimoire
 let c=0
 for j in $grimoires; do
@@ -108,9 +108,9 @@ fi
 
 
 ######################################
-#set()
+#scribe_set()
 ######################################
-set(){
+scribe_set(){
 
 #get installed grimoires
 grimoires=`codex_get_all_grimoires`
@@ -528,7 +528,24 @@ else
     done
 
 fi
+
+reindex
+
 }
+######################################
+#reindex()
+#
+#Update the spell index for grimoires
+#####################################
+reindex() {
+
+	message -n "Reindexing spell list... "
+	codex_create_cache ${ITEMS[@]}
+	message "done."
+
+}
+
+
 
 ######################################
 #transcribe()
@@ -598,11 +615,12 @@ process_parameters()  {
                                                     f|fi|fix) FUNCTION="f" ;;
    t|tr|tra|tran|trans|transcr|transcri|transcrib|transcribe) FUNCTION="t" ;;
                                                     a|ad|add) FUNCTION="a" ;;
-                                  r|re|rem|remo|remov|remove) FUNCTION="r" ;;
+                                    rm|rem|remo|remov|remove) FUNCTION="r" ;;
                                   u|up|upd|upda|updat|update) FUNCTION="u" ;;
                                                  sw|swa|swap) FUNCTION="swap";;
                                                       se|set) FUNCTION="set";;
                                          i|in|ind|inde|index) FUNCTION="index";;
+									rei|reind|reinde|reindex) FUNCTION="reindex";;
                                                            *) #unrecognized function. give help
                                                               help    ;;
  esac
@@ -672,18 +690,19 @@ main()        {
 
     #check out what it is we are doing
     process_parameters        $*
-  
+
     #now that we have a function, do it.
     case $FUNCTION in
       l) learn ;;
       f) fix ;;
       t) transcribe ;;
       a) add ;;
-      r) remove ;;
+      rm) remove ;;
       u) update ;;
-      set) set ;;
+      set) scribe_set ;;
       swap) swap ;;
       index) index ;;
+	  reindex) reindex ;;
       *) help ;;
     esac
 }
