@@ -169,25 +169,28 @@ use_initd()  { (
 
   debug "cast" "In use_initd()"
 
-  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  &&
-      !  grep  -q  "INITSCRIPTS="  $SPELL_CONFIG
-  then
+  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
     debug "cast" "use_initd: found an init.d directory - processing"
 
-    ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/*.sh  |
-                     sed   's#.*/##'                    |
-                     sed   "s#\..*##"`
+    INITDSCRIPTS=""
+    . $SPELL_CONFIG
+
+    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
     debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
 
-    for  INITSCRIPT  in  $ALL_INITSCRIPTS;  do
-      if    query  "Invoke $INITSCRIPT at boot via init?"  y
-      then  INITSCRIPTS="$INITSCRIPT $INITSCRIPTS"
+    for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
+      echo  "$INITDSCRIPTS"  |  grep  -q  "$INITSCRIPT"  &&  continue
+
+      if    query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
+        INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
+        init_prepare_install  $INITSCRIPT
       fi
     done
 
     debug "cast" "saving initscripts"
-    echo  "INITSCRIPTS=\"$INITSCRIPTS\""  >>  $SPELL_CONFIG
-
+    tmp=$( grep -v "^INITDSCRIPTS=" $SPELL_CONFIG )
+    echo $tmp > $SPELL_CONFIG
+    echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
   fi
 
 ) }

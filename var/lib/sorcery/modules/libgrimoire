@@ -619,8 +619,8 @@ install_initd_confs()  { (
     cd       "$SCRIPT_DIRECTORY/init.d"
     mkdir  -p  /etc/init.d    # Something is seriously wrong if this doesn't already exist.
 
-    for  INITSCRIPT  in  $INITSCRIPTS;  do
-      installscript  ${INITSCRIPT}.sh
+    for  INITSCRIPT  in  $INITDSCRIPTS;  do
+      init_install  ${INITSCRIPT}
     done
   fi
 
@@ -666,6 +666,7 @@ default_post_build() {
   install_initd_confs
   gather_docs
   devoke_installwatch
+  init_post_install
   ldconfig
   # release_saved_libraries
   cd  /
