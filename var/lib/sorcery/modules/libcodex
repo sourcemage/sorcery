@@ -679,11 +679,47 @@ codex_create_cache()  {
 	[[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 
 	for i in $list ; do
-		find $i -name DETAILS -follow -perm +700 -maxdepth 3 -mindepth 3 |		\
+        codex_find_in_grimoire $i "DETAILS" | \
 			sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' |	\
 			sort > $i/$SPELL_INDEX_FILE
+
+        codex_list_provides $i > "$i/$PROVIDE_INDEX_FILE"
 	done
 
+}
+
+
+
+#---------------------------------------------------------------------
+##=item codex_find_in_grimoire [<grimoire-path>] [<file-name>}
+##
+## Prints every file matching file-name in grimoire
+##
+#---------------------------------------------------------------------
+codex_find_in_grimoire () {
+    find "$1" -follow -perm +700 -maxdepth 3 -mindepth 3 -name "$2"
+}
+
+
+
+#---------------------------------------------------------------------
+##=item codex_list_provides [<grimoire-path>]
+## 
+## returns all providers in grimoire in the form of "provides spell"
+## for instance:
+## shell /home/martin/p4/grimoire/shell-term-fm/sash
+## 
+#---------------------------------------------------------------------
+codex_list_provides () {
+    grimoire=$1
+    (
+    for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
+        spell=$(dirname $file)
+        for provides in $(cat $file); do
+            echo "$provides $spell"
+        done
+    done
+    ) | sort
 }
 
 
