@@ -731,11 +731,11 @@ optimization_menu(){
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
   
-  local    SPEEDY_HELP="Optimize to increase performance of generated code"
+  local    SPEEDY_HELP="Optimize to increase performance of generated code (safe)"
   local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules"
-  local      TINY_HELP="Optimize to decrease size of generated code"
-  local     STRIP_HELP="Remove all symbol table and relocation information"
-  local COMBRELOC_HELP="speeds up loading libs, also needed for prelink"
+  local      TINY_HELP="Optimize to decrease size of generated code (safe)"
+  local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
+  local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink (safe)"
   
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -1095,6 +1095,42 @@ log_menu()  {
 
 }
 
+sorcery_devel_settings()   {
+
+  while
+  
+    D_HELP="Set the debugging file for normal debugging."
+	S_HELP="Turn on Super Debug. You probably don't want to do this."
+	
+	COMMAND=`eval $DIALOG '--title      "Sorcery Development"		\
+						--ok-label      "Select"					\
+						--cancel-label  "Exit"						\
+						--default-item  $COMMAND					\
+						--item-help									\
+						--menu										\
+						""											\
+						0 0 0										\
+						"D"  "Debug file"				"$D_HELP"	\
+						"S"  "Super debugging toggle"	"$S_HELP"'`
+  do
+
+    case $COMMAND in 
+	  
+	  D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
+	  		FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
+	  		modify_local_config "DEBUG" "$FILE" 
+			read ;;
+	  S) TEXT="Note: You don't want to do this probably. Don't forget to >/root/debug.out.\nDo you want super debugging on?"
+	  		TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
+	  		( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
+			( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
+
+	esac
+  
+  done
+
+}
+
 
 feature_menu()  {
 
@@ -1228,6 +1264,7 @@ option_menu()  {
     J_HELP="Enter the number of jobs 'make' should run at the same time"
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
+	S_HELP="Sorcery development options (debugging)"
     
 
     COMMAND=`eval $DIALOG '  --title "Option Menu"                     \
@@ -1246,7 +1283,8 @@ option_menu()  {
                       "J"  "Number of \"make\" Jobs"  "$J_HELP" \
                       "C"  "Distributed compilation"  "$C_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
-                      "O"  "Optimize Architecture"    "$O_HELP"'`
+                      "O"  "Optimize Architecture"    "$O_HELP" \
+					  "S"  "Sorcery Development"      "$S_HELP"'`
 
   do
 
@@ -1262,6 +1300,7 @@ option_menu()  {
       C)  sorcery_distcc         ;;
       M)  mirror_menu            ;;
       O)  optimize_architecture  ;;
+	  S)  sorcery_devel_settings ;;
 
     esac
       

@@ -90,6 +90,27 @@ run_conflicts() {
 }
 
 
+# checks for a security file
+# returns 0 if spell should be cast, 1 otherwise
+run_security() {
+    debug "cast" "Starting run_security() on $SPELL"
+    if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
+      echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
+      tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
+        if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
+          if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
+            return 0 
+          fi
+          return 1
+        else
+          if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
+            return 0 
+          fi
+          return 1
+        fi
+    fi
+    return 0
+}
 
 
 prepare_spell_config()  {
@@ -259,7 +280,7 @@ run_build()  {
       if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
         message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
         message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL
+        cat $SM_CONFIG_OPTION_CACHE/$SPELL | column
       fi
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
         edit_file $SM_CONFIG_OPTION_CACHE/$SPELL
@@ -392,6 +413,7 @@ ldd_check()  {  (
         LDD_STATUS=1
       fi
     done
+	clear_line
   fi
   return  $LDD_STATUS
 
@@ -445,6 +467,7 @@ find_check()  { (
         FIND_STATUS=1
       fi
     done
+	clear_line
   else
     (
        message  "${SPELL_COLOR}${SPELL} "                     \
@@ -534,6 +557,7 @@ sym_check()  { (
 
       fi
     done
+	clear_line
   fi
 
 ) }
@@ -594,6 +618,7 @@ md5sum_check()  { (
           fi
         fi
       done
+	  clear_line
     fi
   else
     (
@@ -698,7 +723,7 @@ run_fix()  { (
 
         if  [  -z  "$QUIET"  ];  then
           progress_bar $DOT_PROGRESS 5 5 50 
-	  clear_line 
+		  clear_line 
           message    "${CHECK_COLOR}Checking integrity of"  \
                      "${SPELL_COLOR}${SPELL}"               \
                      "${DEFAULT_COLOR}"
@@ -778,8 +803,7 @@ process_parameters()  {
                          list_install_queue
                        fi
                          
-                       if  [  -f $INSTALL_QUEUE  ] &&   #Is this -f necessary? (duff, 2002/10/13)
-                           [  -s $INSTALL_QUEUE  ]; then
+                       if  [  -s $INSTALL_QUEUE  ]; then
                          message -n "${MESSAGE_COLOR}Casting install queue..."
                          message    "${DEFAULT_COLOR}"
                          cast -c `cat $INSTALL_QUEUE`
@@ -871,7 +895,7 @@ resurrect()  {  (
              "version"                               \
              "${VERSION_COLOR}${VERSION}"            \
              "${DEFAULT_COLOR}"
-    cast  --fix  $SILENT  $SPELL 
+    cast  --fix  $SILENT  $SPELL && echo $SPELL >> $SUCCESS_LIST
   else
     false
   fi
@@ -933,11 +957,14 @@ report_install()  {
 
 
 cast_spell()  { (
+
   debug "cast" "Casting spell [$SPELL]"
-  run_details                 &&
-  run_conflicts               &&
-  debug "DB" "cast_spell run_conflicts done" &&
-  satisfy_depends             &&
+  run_details                                 &&
+  run_security                                &&
+  run_conflicts                               &&
+  run_spell_config                            &&
+  debug "DB" "cast_spell run_conflicts done"  &&
+#  satisfy_depends             &&  #Not needed since make dakes care of deps now?
   debug "DB" "cast_spell about to show_d/l" &&
   show_downloading            ||   return 1
   
@@ -966,6 +993,7 @@ cast_spell()  { (
   if [ $? -eq 0 ] ; then
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     rm_source_dir
+	echo $SPELL >> $SUCCESS_LIST
   else
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     rm  -f  $CASTING
@@ -985,68 +1013,6 @@ cast_spell()  { (
 
 ##Removed *_solo functions, Duff 2002/11/01
 
-cast_spells()  {
-
-  local SOME_CAST_FAILED=0
-  local must_recompile="${COMPILE}${RECONFIGURE}"
-  SUCCESSFUL_CASTS=""
-  FAILED_CASTS=""
-
-  for  SPELL  in  $SPELLS;  do
-    SPELL=`echo "$SPELL" | tr -d "[:space:]"`
-    
-    if spell_exiled $SPELL ; then
-      message "${SPELL_COLOR}$SPELL{$DEFAULT_COLOR} is exiled. Refusing to cast."
-      continue
-    fi
-    
-    trigger "pre_cast"
-
-    if  [[  $must_recompile  ]]     ||
-        ! spell_installed  $SPELL
-    then
-      if ( ! [[ $must_recompile ]]  && 
-           resurrect     $SPELL )   ||
-         cast_spell    $SPELL
-      then
-        set_successful_cast $SPELL
-      else
-        set_failed_cast $SPELL
-        SOME_CAST_FAILED=1
-      fi
-    else
-      message "I tried casting $SPELL, but there's some reason I'm not supposed to."
-      message "If I am wrong, please report me to bugs.sourcemage.org. A detailed"
-      message "bug report is necessary. Don't forget to see if I've been reported"
-      message "already. Thank you."
-    fi
-    
-    trigger "cast"
-    
-  done
-  
-  message "${MESSAGE_COLOR}Finished processing install requests."
-  message ""
-  message "Spells installed successfully:"
-  message "------------------------------${SPELL_COLOR}"
-  for item in $SUCCESSFUL_CASTS; do
-    message "$item"
-  done
-  message "${DEFAULT_COLOR}"
-  message "${MESSAGE_COLOR}Spells that encountered problems:"
-  message "---------------------------------${PROBLEM_COLOR}"
-  for item in $FAILED_CASTS; do
-    message "$item"
-  done
-  message "${DEFAULT_COLOR}"
-
-  if  [  -n  "$SOME_CAST_FAILED"  ];  then
-    exit  1
-  fi
-
-}
-
-
 current_sources()  {
 
   spell_installed  $SPELL  &&
@@ -1056,15 +1022,15 @@ current_sources()  {
 
 
 run_summon()  {
-
-  if  !  spell_installed  $SPELL  ||
-      !  current_sources          ||
-         [  -n  "$COMPILE"   ]    ||
-	 [  -n  "$FORCE_COMPILE"  ]
+  
+  if 	[[ $COMPILE ]] 			|| 
+  		[[ $FORCE_COMPILE ]] 	|| 
+		! current_sources 		|| 
+		! (spell_installed $SPELL || spell_held $SPELL) 
   then
     lock_file   $D_LOG
     
-    ( . summon  $SPELL  >>  $D_LOG  2>&1 ; )
+    ( . summon  $SPELL  >>  $D_LOG  2>&1 )
     
     unlock_file $D_LOG
   fi
@@ -1074,72 +1040,172 @@ run_summon()  {
 
 }
 
-
-
-
 pass_one()  {
   #  This pass does configuration and dependency identification.
-
-  local i j tempList
-  ALL_SPELLS="" 
-  
   debug "cast" "Starting pass_one()"
-  compute_depends $SPELLS  ||  exit  1
-  sort_save_depends "ALL_SPELLS" $SPELLS
-  
-  if  [  -n  "$DEPS_ONLY"  ];  then  
-    for i in $SPELLS ; do
-      ALL_SPELLS=`echo "$ALL_SPELLS" | sed "s/ $i //"`
-    done  
+
+  local i j tempList SPELL_RULES=""
+  local numRules=0
+
+  compute_depends "SPELL_RULES" $SPELLS
+
+  message "${MESSAGE_COLOR}Collating dependancies...${DEFAULT_COLOR}"
+  echo "$SPELL_RULES" | depends_to_Makefile $numRules $SPELLS > $MAKEFILE
+
+  if  [  -n  "$DEPS_ONLY"  ] ;  then  
+   	for i in $SPELLS ; do
+	  #BUG: $i=="foo" and "foobar" is also to be built it will remove foobar too"
+	  sed -e 's/cast .* $i.*/true/' $MAKEFILE > $MAKEFILE.2
+	  mv $MAKEFILE.2 $MAKEFILE
+   	done  
   fi
   
-  SPELLS="$ALL_SPELLS"
+  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$"`
+
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
 }
 
+function depends_to_Makefile()
+{
+	debug "cast" "depends_to_Makefile - $*"
+	local spell all_spells=""
+	local tmp_list i
+	local LINE=""
+	local args
+	tmp_list=""
+	
+	[[ $COMPILE ]] && args="-c "
 
+	while read LINE ; do
+
+		[[ $LINE ]] || continue		#Remove blank lines
+		spell=${LINE%%:*}
+		all_spells="$all_spells $spell"
+		echo "$LINE"
+		echo -e "\t$0 $args $spell"
+		echo
+		
+		for (( i=1 ; i <= $# ; i++ )) ; do
+			[[ ${!i} == $spell ]] && tmp_list="$tmp_list $spell"
+		done
+		
+	done
+	
+	echo "all: $tmp_list"
+	echo
+	
+#	export SPELLS="$all_spells"
+	
+}
+
+
+#A bit of a misnomer, eh? Doesn't build anything, just summons it.
 build_sources()  {
 
   for  SPELL  in  $SPELLS;  do
     ( run_details                       &&
 #      satisfy_depends  && (duff, probably not needed 10/07)
       run_summon
-      debug "DB" "Out of run_summon."
+      debug "cast" "Out of run_summon."
     )
   done
 
 }
 
 
-pass_two()  {
+function pass_two()  {
   #  This pass downloads required sources.
-
+  #  And starts the make process
   debug "cast" "Starting pass_two()"
-  if  [  -z  "$SEPARATE"   ];  then  build_sources;  fi
+
+  message "${MESSAGE_COLOR}Spells are to be cast:${DEFAULT_COLOR}"
+  message "---------------------------"
+  message "${SPELL_COLOR}${*}" | tr '[:blank:]' '\n' | column 
+  message "${DEFAULT_COLOR}"
+  
+  if ! query "Do you want to cast these spells?" "y" ; then
+  	message "Ok, quiting cast. Figure out what you want."
+	return 1
+  fi
+  
+  #make: -k keep going even if there's an error, -s silent, -f <file>
+  if  [[  $SEPARATE   ]] ; then
+    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -s -f $MAKEFILE all )
+  else
+    ( CAST_PASS="three" ; /usr/bin/make -j1 -k -s -f $MAKEFILE all ) &
+  fi
+  
+  debug "cast" "Starting stage four make."
+  
+  ( CAST_PASS="four" ; /usr/bin/make  -j1 -k -s -f $MAKEFILE all )
+  rm $MAKEFILE
 
 }
-
 
 pass_three()  {
-  #  This pass compiles sources
-
-  debug "cast" "Starting pass_three()"
-  cast_spells
-
+  debug "cast" "pass_three - $*"
+  SPELL=$1
+  build_sources $*
 }
 
+pass_four()  {
+
+  debug "cast" "pass_four - $*"
+  SPELL=$1
+  trigger "pre_cast"
+
+  if ! [[ $COMPILE ]] && (spell_installed $SPELL ||spell_held $SPELL) ; then
+    resurrect     $SPELL
+  else
+    cast_spell $*
+  fi
+  trigger "cast"
+}
+
+
+# Report generation
+pass_five()  {
+
+  local SOME_CAST_FAILED=""
+  
+  if [ -e $SUCCESS_LIST ] ; then
+
+	  message "${MESSAGE_COLOR}Finished processing install requests."
+	  message ""
+	  message "Spells installed successfully:"
+	  message "------------------------------${SPELL_COLOR}"
+	  for item in `cat $SUCCESS_LIST`; do
+    	message "$item"
+	  done | column
+  fi
+  
+  message "${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Spells that encountered problems:"
+  message "---------------------------------${PROBLEM_COLOR}"
+  for item in $* ; do
+    if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
+	  message "$item"
+	  SOME_CAST_FAILED="1"
+	fi
+  done | column
+  message "${DEFAULT_COLOR}"
+  
+  [[ $SOME_CAST_FAILED ]] || return 1
+
+}
 
 pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
-  PASS_ZERO="y"
+  PASS_ZERO="y"  #<--- What is this here for? (Duff, 03/02/13)
   export  D_LOG="/tmp/sorcery.downloading.$$.$RANDOM"
   rm -f $D_LOG 2>/dev/null
 
-  export  CAST_PASS="one";    pass_one  &&
-  export  CAST_PASS="two";    pass_two  &
-  export  CAST_PASS="three";  pass_three
+  export  CAST_PASS="one";    pass_one $*  &&
+  export  CAST_PASS="two";    pass_two $SPELLS
+#pass_three and _four are hidden inside the makefile
+  export  CAST_PASS="five";  pass_five "$@"
 
   rm  -f   $D_LOG*
   
@@ -1160,12 +1226,20 @@ main()	{
   else
 
     codex_does_spell_exist $SPELLS || return 1
+	
+	MAKEFILE="/tmp/Makefile.cast.$$"
+	SUCCESS_LIST="$0.success_list"
+	export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
+	export RM_AT_END="$RM_AT_END $SUCCESS_LIST $0 $ENV_CACHE"
+	BASE_SPELLS=" $SPELLS "
 
     case  $CAST_PASS  in
-        one)  pass_one    $SPELLS  ;;
-        two)  pass_two    $SPELLS  ;;
-      three)  pass_three  $SPELLS  ;;
-          *)  pass_zero   $SPELLS  ;;
+        one)  pass_one    $SPELLS  ;; #Never matches
+        two)  pass_two    $SPELLS  ;; #Never matches
+	  three)  pass_three  $SPELLS  ;; #d/l sources, Never matches
+	   four)  pass_four   $SPELLS  ;; #real casting, Never matches
+	   five)  pass_five   $SPELLS  ;; #cast report
+          *)  pass_zero   $SPELLS  ;; #start everything
     esac
 
   fi
@@ -1186,19 +1260,23 @@ elif  [  "$UID"  !=  0  ];  then
 
 elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
 
+  RM_AT_END=""
   SAFE_CAST=/tmp/casting.$$
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
+  chmod +x $SAFE_CAST
   exec $SAFE_CAST "$@"
   
-  unlock_file $SAFE_CAST
-
 else
 
   renice +10 -p $$  >/dev/null
-  rm    $0
   main  $*
+  if [ $SHLVL -lt 2 ] ; then
+  	rm    $0
+	unlock_file $SAFE_CAST
+	rm $RM_AT_END
+  fi
 
 fi
 

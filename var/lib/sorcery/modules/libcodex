@@ -255,6 +255,8 @@ codex_set_grimoires() {
 #---------------------------------------------------------------------
 codex_get_all_grimoires() {
   debug "libcodex" "codex_get_all_grimoires()"
+  echo "${GRIMOIRE_DIR[*]}" | tr '[:blank:]' '\n'
+  return $?
   local GRIMOIRE=0
   while [ $GRIMOIRE -lt ${#GRIMOIRE_DIR[@]} ]; do
     echo "${GRIMOIRE_DIR[$GRIMOIRE]}"
@@ -283,15 +285,12 @@ codex_get_section_names() {
 #---------------------------------------------------------------------
 codex_get_sections() { 
   debug "libcodex" "codex_get_sections() - $@"
-  local GRIMOIRE="$1"
-  ! [ -d "$GRIMOIRE" ] && {
-    message "${PROBLEM_COLOR}${GRIMOIRE:-<null>} is not a grimoire directory!${DEFAULT_COLOR}"
-    return
-  }
 
-  local SECTION_NAME=''
-  function lc293() { [ -d  "$GRIMOIRE/$1" ] && echo "$GRIMOIRE/$1" ; }
-  iterate "lc293" $'\n' `ls -1 "$GRIMOIRE"`
+  codex_check_cache $1
+
+  local GRIMOIRE="$1"
+  
+  cut -d' ' -f2 $GRIMOIRE/$SPELL_INDEX_FILE | sort | uniq
   
 }
 
@@ -367,24 +366,15 @@ codex_is_directory_a_spell() {
 codex_does_spell_exist() {
 
   local retValue=0
-
-  # Quicker (due to lazy evaluation) special case for common single spell check 
-  if [ $# -eq 1 ] ; then
-    if ! codex_get_all_spells | grep -q "/$1$" ; then
-      message "${SPELL_COLOR}$1${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
-      return 1
+  for i in $* ; do
+    if ! [[ `codex_find_spell_by_name $i` ]] ; then
+      message "${SPELL_COLOR}$i${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
+	  retValue=1
     fi
-  else
-    local spellList=`codex_get_all_spells`
-    for i in $* ; do
-      if ! echo "$spellList" | grep -q "/$i\$" ; then
-        message "${SPELL_COLOR}$i${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
-	retValue=1
-      fi
-    done
-  fi
-  
-  return 0
+  done
+ 
+  return 0  #Do this or cast --queue will quit if even one spell doesn't exist
+#  return $retValue
 
 }
 
@@ -397,34 +387,10 @@ codex_does_spell_exist() {
 ##
 #---------------------------------------------------------------------
 codex_find_spell_by_name() {
-  local SPELL_NAME="$1"
-  local SPELL_LOCATION=""
-  local CACHE_INFO=()
-  local CACHE_FILE="/tmp/libcodex.findspellbyname.cache.$UID"
-  
-  [ -f $CACHE_FILE ] && CACHE_INFO=( `cat $CACHE_FILE` )
-  if [[ $SPELL_NAME == ${CACHE_INFO[0]} ]] ; then
-     debug "libcodex" "codex_find_spell_by_name - Found cached info."
-     echo "${CACHE_INFO[1]}"
-     return 0
-  fi
-  
-  function lc372() {
-    debug "libmisc" "codex_find_spell_by_name(lc372) - $*"
-    if codex_is_directory_a_spell "$1/$SPELL_NAME" ; then
 
-      debug "libcodex" "codex_find_spell_by_name() - found spell $1/$SPELL_NAME"
-      echo "$1/$SPELL_NAME"
-      BREAK="y"
-    fi
-  }
+  debug "libcodex" "codex_find_spell_by_name - $*"
   
-  SPELL_LOCATION=$( iterate "lc372" $'\n' `codex_get_all_sections` )
-  echo "$SPELL_NAME"      > $CACHE_FILE
-  echo "$SPELL_LOCATION" >> $CACHE_FILE
-
-  
-  echo $SPELL_LOCATION
+  codex_cache_spell_lookup $1 `codex_get_all_grimoires`
   
 }
 
@@ -437,14 +403,17 @@ codex_find_spell_by_name() {
 ##
 #---------------------------------------------------------------------
 function codex_get_spells() {
-  local SECTION="$1"
-  ! [ -d "$SECTION" ] && {
-    message "${PROBLEM_COLOR}${SECTION:-<null>} is not a section directory!${DEFAULT_COLOR}"
-    return
-  }
 
-  function lc401() { codex_is_directory_a_spell "$SECTION/$1" && echo $SECTION/$1 ; }
-  iterate "lc401" $'\n' `ls -1 "$SECTION"`
+  debug "libcodex" "codex_get_spells - $*"
+
+  local section=`basename $1`
+  local index="`dirname $1`/$SPELL_INDEX_FILE"
+  if ! [ -r $index ] ; then
+    message "${PROBLEM_COLOR}${section:-<null>} is not a section directory!${DEFAULT_COLOR}"
+    return  
+  fi
+  grep "/$section$" "$index" | awk '{ printf("%s/%s\n",$2,$1); }'
+
 }
 
 
@@ -610,6 +579,51 @@ codex_get_spell_keywords()  {
       cat  "$1/KEYWORDS"
     fi
   fi
+}
+
+codex_cache_spell_lookup()  {
+
+	debug "libcodex" "looking up $1 in ${2}'s cache"
+	local SECTION=""
+	local spell="$1"
+	shift
+
+	while [ $# -gt 0 ] ; do
+	
+		codex_check_cache $1
+	
+		SECTION=`grep "^$spell " -m 1 $1/$SPELL_INDEX_FILE | cut -d' ' -f2`
+		[[ $SECTION ]] && echo "$SECTION/$spell" && return
+	
+		shift
+	done
+	
+	return 1
+
+}
+
+codex_check_cache()  {
+
+	[ -f $1/$SPELL_INDEX_FILE ] || codex_create_cache
+	if ! [ -f $1/$SPELL_INDEX_FILE ] ; then
+		message "${PROBLEM_COLOR}Eeek, $2 isn not a grimoire!${DEFAULT_COLOR}"
+		exit 1
+	fi
+}
+
+
+codex_create_cache()  {
+	
+	debug "libcodex" "codex_create_cache - $*"
+	local list="$*"
+	[[ $list ]] || list="${GRIMOIRE_DIR[*]}"
+
+	for i in $list ; do
+		find $i -name DETAILS -follow -perm +700 |		\
+			sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' |	\
+			sort > $i/$SPELL_INDEX_FILE
+	done
+
 }
 
 

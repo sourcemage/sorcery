@@ -58,6 +58,18 @@ for COMPILER in "cc" "gcc" "c++" "g++"; do
   ln -svf $BUILD_DIR/run_compiler $BUILD_DIR/$COMPILER
 done
 
+# Create other files which should exist, but aren't installed by sorcery
+for FILE in                        \
+  /etc/sorcery/local/config         \
+  /etc/sorcery/local/compile_config  \
+  ; do
+  if  ! [[  -x $FILE  ]]; then
+    touch $FILE
+    chmod -v +x $FILE
+  fi
+done
+  
+# Convert an old-style grimoire into a scribe managed one.
 if ! [ -d /var/lib/sorcery/codex ]; then
  . convert
 fi

@@ -43,9 +43,12 @@ function run_prepare() {
     remove_depends_status  $SPELL
   fi
 
-  prepare_spell_config
+  message  "${CHECK_COLOR}Preparing environment for"  \
+               "${SPELL_COLOR}${SPELL}"                   \
+               "${DEFAULT_COLOR}"
+  prepare_spell_config #from cast
 # Should this be here? It causes the questions to be asked twice - Chris 20030123
-#  use_xinetd
+#  use_xinetd #from cast
 #  use_initd
 
   if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
@@ -76,12 +79,12 @@ function run_configure() {
   SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
-  if  [  -n  "$RECONFIGURE"  ];  then
-    rm  -f  $DEPENDS_CONFIG/$SPELL
-    remove_depends_status  $SPELL
-  fi
+#  if  [  -n  "$RECONFIGURE"  ];  then
+#    rm  -f  $DEPENDS_CONFIG/$SPELL
+#    remove_depends_status  $SPELL
+#  fi
 
-  prepare_spell_config
+#  prepare_spell_config  #This is also run in run_prepare. Shouldn't be needed here too.
   use_xinetd
   use_initd
 
@@ -89,6 +92,18 @@ function run_configure() {
     . $SCRIPT_DIRECTORY/CONFIGURE
   fi
 
+}
+
+function run_spell_config() {
+
+  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+  debug "libdepends" "run_spell_config() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
+    
+  if  [  -x  $SPELL_CONFIG  ];  then
+    debug "libdepends" "satisfy_depends() - found $SPELL_CONFIG"
+	.  $SPELL_CONFIG
+  fi
+  
 }
 
 
@@ -117,513 +132,6 @@ function show_depends()  {
 
 }
 
-function private_run_depends()
-{   #1=spell
-  
-  SPELL=$1
-  run_prepare    &&
-  run_details    &&
-  run_configure  &&
-  run_depends $1
-  
-}
-
-function build_depends()
-{
-
-  echo "Bad. Deprecated."
-
-}
-
-
-function spell_to_node()
-{ #1=spell
-
-  hash_get "spell_to_node" "$1"
-
-}
-
-function node_to_spell()
-{ #1=node
-
-  hash_get "node_to_spell" "$1"
-
-}
-
-function all_spells_added()
-{
-
-  hash_get_table "node_to_spell"
-
-}
-
-function all_spells_to_install()
-{
-  debug "libdepends" "all_spells_to_install($*)"
-  local allConnections allSpells
-  local i
-  
-  #Reminder, this next line needs the \<newline> to work properly. Ooops.
-  allConnections=$(hash_get_table_fields "GRAPHS" | sed -n 's/\([[:digit:]]*\)_to_\([[:digit:]]*\).*$/\1\
-\2/p' | sort -n | uniq)
-  allSpells=$(hash_get_table "spell_to_node")
-debug "DB" "allConnections=$allConnections"
-debug "DB" "allSpells=$allSpells"
-  for i in $* ; do
-    allSpells="$allSpells"$'\n'`spell_to_node $i`
-  done
-
-  debug "libdepends" "all_spells_to_install() - $*"
-  
-  function ld172()  {
-  
-    debug "libdepends" "looking at spell $1"
-    
-    if ( [[ $(graph_node_data $1) != installed ]] ||
-      echo "$PRETEND_NOT_INSTALLED" | grep -q " `node_to_spell $1` "  ) 
-    then
-      node_to_spell $1
-    else
-      debug "libdepends" "$1 is not in PRETEND_NOT_INSTALLED list and is installed"
-    fi
-  
-  }
-  iterate "ld172" $'\n' `echo -e "${allConnections}\n${allSpells}" | sort -n | uniq -d`
-
-}
-
-function is_looked_at()
-{ #1=spell
-
-  if [[ `spell_to_node $1` ]] ; then
-    return 0
-  else
-    return 1
-  fi
-
-}
-
-function depends()
-{ #1=spell, 2=on args, 3=off args
-  debug "libdepends" "depends - $*"
-  local node=""
-
-  #If it's exiled, 
-  if spell_exiled $1       ; then 
-    message "${SPELL_COLOR}$1${DEFAULT_COLOR} is exiled."
-    [[ $LAST_SPELL ]] && message "${SPELL_COLOR}$1${DEFAULT_COLOR} is required for ${SPELL_COLOR}$LAST_SPELL${DEFAULT_COLOR}."
-    return 1
-  fi
-  
-  depends_recurse "$1" "$2" "$3" "required" "absolutely"
-  
-  # Make sure this node is marked as required
-  if [ "$( graph_node_data $(spell_to_node $1) )" = "optional" ] ; then
-    graph_node_modify_data $(spell_to_node $1) "required"
-  fi
-  
-
-}
-
-
-function optional_depends()
-{ #1=spell
-  debug "libdepends" "optional_depends() - $@"
-  
-  local install="SureWhyNot"
-  local status=()
-
-  # If it's installed, no need to do anything
-#  if spell_installed $1 || spell_held $1 ; then return 0 ; fi
-  #If it's exiled, 
-  if spell_exiled "$1"       ; then 
-    message "${SPELL_COLOR}$1${DEFAULT_COLOR} is exiled."
-    [[ $LAST_SPELL ]] && message "${SPELL_COLOR}$1${DEFAULT_COLOR} is optional for ${SPELL_COLOR}$LAST_SPELL${DEFAULT_COLOR}."
-    return 0
-  fi
-  
-  # If this node isn't being used yet:  
-  if ! is_looked_at "$1"                                          ||
-     ! [[ $( graph_node_connections_to $(spell_to_node "$1") ) ]] &&
-     ! ( spell_installed "$1" || spell_held "$1" )
-  then
-      #See if there are preferences already
-      #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
-      explode `search_depends_status "$LAST_SPELL" "$1"` ":" "status"
-      if [[ ${status[2]} == off ]] && ! [[ $RECONFIGURE ]] ; then
-        install=""
-      elif [[ $RECONFIGURE ]] || ! [[ ${status[2]} ]] ; then
-        message "${SPELL_COLOR}$1${DEFAULT_COLOR} is an optional dependency for ${SPELL_COLOR}$LAST_SPELL${DEFAULT_COLOR} ($4)"
-        query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "n" || 
-	  install=""      
-      fi
-  fi
-   
-  depends_recurse "$1" "$2" "$3" "optional" $install
-  
-}
-
-#---------------------------------------------------------------------
-##=item requires <"provides" specification>
-##
-## Given a category of spell, returns true if a spell is installed
-## that provides that category of spell.  For example,
-## C<requires email-client> returns true if evolution is installed.
-##
-#---------------------------------------------------------------------
-requires()  { 
-
-  local CANDIDATES SATISFIED CANDIDATE 
-  local temp
-
-  CANDIDATES=$(  find_providers  $1  )
-
-  for   CANDIDATE  in       $CANDIDATES;  do
-    if ! spell_exiled  $CANDIDATE ; then
-      temp="$temp"$'\n'"$CANDIDATE"
-    fi
-  done
-  CANDIDATES="$temp"
-
-  for  CANDIDATE  in       $CANDIDATES;  do
-    if    spell_installed  $CANDIDATE  ||
-          spell_held       $CANDIDATE
-    then  
-          return 0;
-    fi
-  done
-
-  message  "${QUERY_COLOR}This spell requires a"  \
-           "${MESSAGE_COLOR}$1${DEFAULT_COLOR}"   \
-           "which can be provided by:"
-  message  "${FILE_COLOR}$CANDIDATES${DEFAULT_COLOR}"
-
-  SATISFIED="false"
-  for  CANDIDATE  in  $CANDIDATES;  do
-    if    query "Cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}? " "y"  && 
-          depends  $CANDIDATE
-    then  SATISFIED="true";  break
-    else
-          message "Didn't cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}."
-    fi
-  done
-
-  $SATISFIED
-
-}
-
-function depends_recurse()
-{ #1=spell, 2=on-opts, 3=off-opts, 4=type, 5=connect or not?
-
-  debug "libdepends" "depends_recurse - $*"
-  local parent=()
-  local node=""
-  local was_not_needed=""  is_new_node=""
-  local connect="$5"
-
-  #Does the spell even exist??
-  if ! [[ `codex_get_spell_section $1` ]] ; then
-    message "${PROBLEM_COLOR}I was unable to find spell ${SPELL_COLOR}$1${DEFAULT_COLOR}"
-    return 1
-  fi
-
-  # Only make a new node for this spell if it doesn't already have one
-  if ! is_looked_at $1 ; then
-    graph_new_node "$4" "node" 
-    hash_put "spell_to_node" "$1" "$node"
-    hash_put "node_to_spell" "$node" "$1"
-    is_new_node="yes"
-  else
-    node=`spell_to_node $1`  
-  fi
-  
-  is_already_needed=$( graph_node_connections_to $node )
-  
-  if [[ $LAST_SPELL ]] ; then
-    debug "libdepends" "depends_recurse, I think that $LAST_SPELL($LAST_NODE) is my parent."
-    parent[0]=$LAST_SPELL
-    parent[1]=$LAST_NODE
-    [[ $connect ]] && graph_connect_node ${parent[1]} $node
-
-    hash_put "${LAST_SPELL}-depends" "${1}-on"   "$2"
-    hash_put "${LAST_SPELL}-depends" "${1}-off"  "$3"
-    hash_put "${LAST_SPELL}-depends" "${1}-type" "$4"
-  fi
-  
-  # We only need to recurse if this node has been looked at and has at least one connection
-  #  A spell's depends aren't checked until the spell is actualy a dependency. It's node is
-  #   always created though, even if it's an unwanted optional_depends.
-  if ( ! [[ $is_new_node ]] && [[ $is_already_needed ]] ) || ! [[ $connect ]] ; then
-    return 0 
-  fi
-
-  # Set the last spell info for the dependencies of me
-  LAST_SPELL=$1
-  LAST_NODE=$node
-
-  # do the depends of me
-  if ( spell_installed $1                               && 
-       echo "$PRETEND_NOT_INSTALLED" | grep -qv " $1 " ) ||
-     spell_held $1
-  then 
-    debug "libdepends" "$1 is installed and not in [$PRETEND_NOT_INSTALLED]"
-    graph_node_modify_data $node "installed"
-  else
-    private_run_depends $1 || return 1
-  fi
-
-  # Reset the last spell info for the next depends of my parent
-  LAST_SPELL=${parent[0]}
-  LAST_NODE=${parent[1]}
-
-}
-
-
-# This assumes that the graph has been constructed already
-function list_required_depends()
-{ #1=some spell
-  local rootNode=`spell_to_node $1`
-  local wholeGraph=`graph_all_downstream $rootNode`
-  
-  for node in $wholeGraph ; do
-     [ `graph_node_data $node` == required ] && node_to_spell $node  
-  done  
-
-}
-
-# This assumes that the graph has been constructed already
-function list_optional_depends()
-{ #1=some spell
-  local rootNode=`spell_to_node $1`
-  local wholeGraph=`graph_all_downstream $rootNode`
-  
-  for node in $wholeGraph ; do
-     [ `graph_node_data $node` == optional ] && node_to_spell $node  
-  done  
-
-}
-
-function remove_selected_depends()
-{
-
-  local rmSpells newRmSpells
-  local spellList=()
-  spellList=( $MAIN_SPELLS )
-
-  read rmSpells
-  
-  message -n "Computing parents... "
-  for spell in $rmSpells ; do
-      node=`spell_to_node $spell`
-      tempList=${tempList}$(graph_all_upstream $node)$'\n'
-  done
-    rmSpells=$(echo "$tempList" |sort | uniq)
-    message "done"
-  
-    message "Removing spells... "
-    # Remove spells from the parameters passed
-  for (( i=0 ; i<${#spellList[*]} ; i++ )) ; do
-      for j in $rmSpells ; do
-        [[ `node_to_spell $j` == ${spellList[$i]} ]]  &&  spellList[$i]=""
-      done
-  done
-  spellList=( ${spellList[*]} )
-  
-  if [ ${#spellList[*]} -lt 1 ] ; then
-      MAIN_SPELLS=""
-      return 1
-  fi  
-
-  # Actualy remove the spells from the graph now
-  while [[ $rmSpells ]] ; do
-    newRmSpells=""
-    for i in $rmSpells ; do
-      spell=`node_to_spell $i`
-      tempList=`graph_node_connections_from $i`
-
-      #Now that we have the node's children we can remove it
-      message "\tNot casting ${SPELL_COLOR}"$spell"${DEFAULT_COLOR}."
-      graph_unset_node "$i"
-      hash_unset "spell_to_node" "$spell"
-      hash_unset "node_to_spell" "$i"
-      hash_reset "${spell}-depends"
-
-      for j in $tempList ; do
-        if ! [[ `graph_node_connections_to $j` ]] ; then
-          newRmSpells="${newRmSpells} $j"
-        fi
-      done
-      
-    done
-    rmSpells="${newRmSpells:1}"
-  done
-  message "done"
-  
-  MAIN_SPELLS="${spellList[*]}"
-
-}
-
-# This assumes that the graph has been constructed already
-function confer_with_user_on_depends()
-{ # $1=var to put final spells into, $* is list of spells to cast
-
-  local spellList
-  local node tempList 
-  local i j
-  
-  SPELLS=${SPELLS:-$*}
-  MAIN_SPELLS="$SPELLS"
-
-  unset SPELL
-  unset LAST_SPELL
-  
-  message "${MESSAGE_COLOR}Gathering spells to cast...${MESSAGE_COLOR}"
-  
-  tempList=$(all_spells_to_install $MAIN_SPELLS)  
-
-  until  ! ( [[ $MAIN_SPELLS ]] && [[ $tempList ]] ) ;  do
-    
-    message "${MESSAGE_COLOR}In order to cast ${SPELL_COLOR}${MAIN_SPELLS}${MESSAGE_COLOR}, the following spells are going to be cast:${SPELL_COLOR}" &&
-
-    debug "libdepends" "Wanting to cast $tempList"
-    echo "${tempList}"  | column
-    if query "${QUERY_COLOR}Do you wish to cast these spells?${DEFAULT_COLOR}" "y"  ; then
-      break
-    fi    
-    
-    #Next two lines added until I can test remove_selected_depends properly (duff, 2002/11/01)
-    message "${MESSAGE_COLOR}Canceling cast until you figure out what you want.${DEFAULT_COLOR}"
-    exit
-    
-    # At this point, it's ok to assume the user is there, since the question above defaults to yes.
-    echo -en "What spell(s) do you wish to remove? "
-    
-    # remove_selected_depends does the read and modifies the graph and MAIN_SPELLS
-    remove_selected_depends 
-   
-    tempList=$( all_spells_to_install $MAIN_SPELLS )  
-    
-      
-  done
-
-  if ! ( [[ $MAIN_SPELLS ]] && [[ $tempList ]] ) ; then 
-    message "${PROBLEM_COLOR}Nothing to cast!${DEFAULT_COLOR}"
-    exit
-  fi
-  
-}
-
-function compute_depends()
-{ # $1=var to place spells in, $* = root spells
-
-
-  local spells="$*"
-  #PRETEND_NOT_INSTALLED assumes list is space separated
-  [[ $COMPILE ]] && PRETEND_NOT_INSTALLED=" $spells "
-
-
-  for i in $spells ; do
-    LAST_SPELL=""
-    LAST_NODE=""
-    
-    if  [[ $RECONFIGURE ]] ; then
-      remove_depends_status "$SPELL"
-    fi
-    
-    if [[ $COMPILE ]] || ! ( spell_installed $i || spell_held $i ); then
-      SPELL=$i
-      depends $i     || 
-      return 1
-    else
-      message "${SPELL_COLOR}$i${DEFAULT_COLOR} is already cast. Try cast -c $i."
-    fi
-  done
-
-  confer_with_user_on_depends $spells
-
-}
-
-function sort_save_depends()
-{
-
-  local spellList i j
-  local returnVariable=$1
-  local SPELL connections dependency
-  shift
-  
-  message "Sorting spells and saving dependency information..."
-  
-  SORTED=""
-  
-  spellList=$( all_spells_to_install $* )
-  TOTAL_SPELLS_TO_CHECK=$( hash_get_table spell_to_node | wc -l )
-  NUM_SPELLS_CHECKED=0 
-
-  lock_file $DEPENDS_STATUS  
-  for SPELL in $spellList ; do
-  
-    sort_save_depends_recurse $SPELL
-  
-  done
-  unlock_file $DEPENDS_STATUS  
-
-  hash_unset "MarkNodes"
-  
-  eval "$returnVariable=\"${SORTED:1}\""
-  clear_line 51
-  message "Done sorting."
-
-  unset SORTED  
-}
-
-function sort_save_depends_recurse()
-{
-  
-  local connections dependency
-  local i
-  
-  [[ `hash_get "MarkNodes" "$1"` ]] && return 0
-  hash_put "MarkNodes" "$1" "checked"
-    
-  let NUM_SPELLS_CHECKED++
-  progress_bar $NUM_SPELLS_CHECKED $TOTAL_SPELLS_TO_CHECK 50
-        
-  for i in  $( graph_node_connections_from $( spell_to_node $1 ) ) ; do
-    connections="$connections"$'\n'"$i"
-  done
-    
-  for i in  $( hash_get_table_fields "${1}-depends" ) ; do
-    if [[ ${i%-type} != ${i} ]] ; then
-      dependency=${i:0:${#i}-5}
-    else
-      continue
-    fi
-     
-    debug "libdepends" "Looking at  $1 -> $dependency "
-      
-    DEP_NODE=`spell_to_node $dependency`
-
-    if echo "$connections" | grep -q "^$DEP_NODE$" ; then
-      sort_save_depends_recurse "$dependency" "$1"
-      DEP_MODE="on"
-    else
-      DEP_MODE="off"
-    fi
-
-    #Save depends info
-    if [[ $1 ]] ; then
-      local DEP_OPTS_TYPE=`hash_get "${1}-depends" "$dependency-type"`
-      local DEP_OPTS_ON=`hash_get "${1}-depends" "$dependency-on"`
-      local DEP_OPTS_OFF=`hash_get "${1}-depends" "$dependency-off"`
-      add_depends  "$1"  "$dependency"  "$DEP_MODE"  \
-        "$DEP_OPTS_TYPE"  "$DEP_OPTS_ON"  "$DEP_OPTS_OFF"    
-    fi
-
-  done
-
-  echo "$spellList" | grep -q  "^$1$" &&  SORTED="$SORTED $1"  
-
-}
 
 function satisfy_depends()
 {
@@ -632,13 +140,7 @@ function satisfy_depends()
   local DEP
  
   unset  OPTS  
-  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
-  debug "libdepends" "satisfy_depends() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
-    
-  if  [  -x  $SPELL_CONFIG  ];  then
-    debug "libdepends" "satisfy_depends() - found $SPELL_CONFIG"
-    .  $SPELL_CONFIG
-  fi
+  run_spell_config
 
   local LINE=''
   search_depends_status "$SPELL" | while read LINE; do
@@ -696,6 +198,217 @@ function satisfy_depends()
   OPTS=`get_depends_options "$SPELL"`
   debug 'libdepends' "satisfy_depends() - final OPTS=$OPTS"
 
+}
+function compute_depends()
+{ # $1=var to place spells in, $* = root spells
+
+  debug "libdepends" "compute_depends of $*"
+  local outVar="$1"
+  shift
+  BASE_SPELLS="$*"
+  
+  local i
+  SPELLS=()
+  let i=0;
+  for spell in "$@" ; do
+    SPELLS[$i]="$spell"
+    let i++
+  done
+  
+  #PRETEND_NOT_INSTALLED assumes list is space separated
+#  if [[ $COMPILE ]] ; then
+#    PRETEND_NOT_INSTALLED=" ${SPELLS[*]} "
+#  else
+#    private_remove_installed_spells
+#  fi
+  
+  for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
+    private_run_depends ${SPELLS[$i]}
+  done
+  
+  for SPELL in ${SPELLS[*]} ; do
+    debug "libdepends" "Appending info for $SPELL."
+    eval "$outVar=\"${!outVar}${SPELL}: "`hash_get "libdepends" "$SPELL"`$'\n'\"
+  done
+
+  SPELLS="$BASE_SPELLS"
+
+}
+
+function depends()
+{
+
+  if spell_exiled $1 ; then 
+    message "$SPELL_COLOR}$1${DEFUALT_COLOR} has been exiled!"
+    return 1
+  fi
+  private_common_depends "$1" "on" "required" "$2" "$3"
+
+}
+function optional_depends()
+{
+
+  if spell_exiled $1 ; then 
+    message "$SPELL_COLOR}$1${DEFUALT_COLOR} has been exiled!"
+    return 1
+  fi
+  
+  local install="off"
+  local status=""
+  
+  #See if there are preferences already
+  #example: icewm:imlib:off:optional:--with-imlib:--with-xpm
+  explode "`search_depends_status "$SPELL" "$1"`" ":" "status"
+  if [[ $RECONFIGURE ]] || ! [[ ${status[2]} ]] ; then
+debug "DB" "status: ${status[*]}"
+    message "${SPELL_COLOR}$1${DEFAULT_COLOR} is an optional dependency for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
+    if spell_installed $1 || spell_held $1 ; then
+      query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "y" && 
+        install="on"
+    else
+      query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "n" && 
+        install="on"
+    fi
+  elif [[ ${status[2]} == on ]] ; then
+    install="on"
+  fi
+  private_common_depends "$1" "$install" "optional" "$2" "$3"
+
+}
+
+#---------------------------------------------------------------------
+##=item requires <"provides" specification>
+##
+## Given a category of spell, returns true if a spell is installed
+## that provides that category of spell.  For example,
+## C<requires email-client> returns true if evolution is installed.
+##
+#---------------------------------------------------------------------
+requires()  { 
+
+  local CANDIDATES SATISFIED CANDIDATE 
+  local temp found
+
+  CANDIDATES=$(  find_providers  $1  )
+
+  for   CANDIDATE  in       $CANDIDATES;  do
+	if spell_installed $CANDIDATE	|| spell_held $CANDIDATE ; then
+	   message "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a" \
+  	   	"${MESSAGE_COLOR}$1${DEFAULT_COLOR}."
+	   message "You already have ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR} providing that. "\
+	    "Using ${SPELL_COLOR}${CANDIDATE}${DEFAULT_COLOR}."
+	   CANDIDATES="$CANDIDATE"
+	   SATISFIED="true"
+	   break
+	 else
+        temp="$temp"$'\n'"$CANDIDATE"
+	fi	 
+  done
+  if ! [[ $SATISFIED ]] ; then
+    message  "${SPELL_COLOR}${SPELL}${QUERY_COLOR} requires a"  \
+             "${MESSAGE_COLOR}$1${DEFAULT_COLOR}"   \
+             "which can be provided by:"
+    message  "${FILE_COLOR}$CANDIDATES${DEFAULT_COLOR}"
+
+    SATISFIED="false"
+    for  CANDIDATE  in  $CANDIDATES;  do
+      if    query "Cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}? " "y"  && 
+            depends  $CANDIDATE
+      then  SATISFIED="true";  break
+      else
+            message "Didn't cast ${SPELL_COLOR}$CANDIDATE${DEFAULT_COLOR}."
+      fi
+    done
+  fi
+  
+  if [[ $SATISFIED ]] ; then
+    private_common_depends "$CANDIDATE" "on" "required" "" ""
+  else
+    return 1
+  fi
+  
+}
+
+
+function private_common_depends()
+{
+debug "DB" "private_common_depends - $*"
+  add_depends "$SPELL" "$@"
+  
+  if [[ $2 == on ]] && private_should_cast $1 ; then
+debug "DB" "adding a new depends here."
+    NEW_DEPENDS=( "${NEW_DEPENDS[@]}" $1 )
+  fi
+  
+  return 0
+
+}
+
+
+function private_remove_installed_spells()
+{
+
+  for ((i=0 ; i< ${#SPELLS[*]} ; i++)) ; do
+    spell="${SPELLS[$i]}"
+    if private_should_cast $spell ; then
+      message "${SPELL_COLOR}$spell${DEFAULT_COLOR} is already installed. Skipping."
+	  SPELLS[$i]=" "
+    fi
+  done
+  
+  SPELLS=( ${SPELLS[*]} ) #Compact the array
+  
+}
+
+function private_run_depends()
+{
+
+  SPELL="$*"
+  NEW_DEPENDS=()
+#  private_mark_spell  &&
+  run_prepare     	  && 
+  run_details     	  && 
+  run_configure   	  && 
+  run_depends $1  	  && 
+  private_add_depends ||
+  private_remove_dependees
+  
+}
+
+function private_add_depends()
+{
+
+  local i j
+  
+  hash_put "libdepends" "$SPELL" "${NEW_DEPENDS[*]}"
+  
+  for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
+    for (( j=0 ; j<${#NEW_DEPENDS[*]} ; j++ )) ; do
+      [[ ${SPELLS[$i]} == ${NEW_DEPENDS[$j]} ]] && NEW_DEPENDS[$j]=" "
+    done
+  done
+  SPELLS=( "${SPELLS[@]}" ${NEW_DEPENDS[*]} )
+
+  debug "DB" "adding ${NEW_DEPENDS[*]}"
+
+}
+
+
+function private_list_dependees()
+{
+
+  local i
+  for (( i=0 ; "${SPELLS[$i]}"!="$SPELL" ; i++ )) ; do
+    is_member "$1" `hash_get "libdepends" "${SPELLS[$i]}"` && echo $1
+  done
+
+}
+
+function private_should_cast()
+{
+  ( echo "$PRETEND_NOT_INSTALLED" | grep -q $1 		||
+	! ( spell_installed $1	|| 	spell_held $1 ))	&&
+	! spell_exiled $1 		;
 }
 
 
