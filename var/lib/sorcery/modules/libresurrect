@@ -138,9 +138,9 @@ function resurrect()  { (
     # note if installed is not yes, none of this should be assumed to exist
 
     # welcome to the first ring of pathname adjustment hell
-    local OLD_VERSION=$(installed_version $SPELL)
-    local OLD_INSTALL_LOG=${INSTALL_LOGS}/$SPELL-$OLD_VERSION
-    local OLD_MD5_LOG=${MD5SUM_LOGS}/$SPELL-$OLD_VERSION
+    local OLD_SPELL_VERSION=$(installed_version $SPELL)
+    local OLD_INSTALL_LOG=${INSTALL_LOGS}/$SPELL-$OLD_SPELL_VERSION
+    local OLD_MD5_LOG=${MD5SUM_LOGS}/$SPELL-$OLD_SPELL_VERSION
 
     local OLD_INSTALL_LOG_F=$TMP_DIR/old.install.$SPELL.filterable
     local OLD_INSTALL_LOG_R=$TMP_DIR/old.install.$SPELL.root
@@ -324,7 +324,8 @@ function resurrect_sub() {
   local res_fail=0 BREAK
   function resurrect_install_conf_sub() {
     test -d $1 ||
-    install_config_file .$1 ${INSTALL_ROOT}${1} $savetime $OLD_MD5_LOG || {
+    internal_install_config_file .$1 ${INSTALL_ROOT}${1} $savetime \
+                                                         $OLD_MD5_LOG || {
       res_fail=1
       BREAK=1
     }
@@ -371,19 +372,48 @@ function resurrect_sub() {
   ldconfig # can never be too careful
 }
 
-#
-# @param from	File we might want to install
-# @param to	File to replace
-# @param savetime	Backup time if necessary
-# @param install_log	Install log for previous version of the spell
-# @param md5_log	Md5 log for previous version of the spell
-#
-function install_config_file() {
+
+#------------------------------------------------------------------------
+## @param from	File we might want to install
+## @param to	File to replace
+## @param savetime	Backup time if necessary (optional, defaults to
+##                      $(date +'%Y%m%d%H%M')
+#------------------------------------------------------------------------
+function real_install_config_file() {
+  if [[ $1 ]] || [[ $2 ]] ; then
+    message "${PROBLEM_COLOR}Missing values for arguments \"$1\" or \"$2\"" \
+            "$DEFAULT_COLOR"
+    return 1
+  fi
+  
+  local old_md5_log
+  if [[ $OLD_SPELL_VERSION ]] ; then
+    old_md5_log=$MD5SUM_LOGS/$SPELL-$OLD_SPELL_VERSION
+    # log must be in filterable form
+    log_adjuster $old_md5_log $TMP_DIR/$SPELL.md5 filterable root
+  else
+    old_md5_log=/dev/null
+  fi
+  local savetime=${3:-$(date +'%Y%m%d%H%M')}
+  internal_install_config_file $1 $2 $savetime $TMP_DIR/$SPELL.md5
+  rc=$?
+  [[ $OLD_SPELL_VERSION ]] && rm $TMP_DIR/$SPELL.md5
+
+  return $rc
+}
+
+#------------------------------------------------------------------------
+## @param from	File we might want to install
+## @param to	File to replace
+## @param savetime	Backup time if necessary
+## @param md5_log	MD5 log for previous version of the spell,
+#                       must be in root form
+#------------------------------------------------------------------------
+function internal_install_config_file() {
   local from=$1
   local to=$2
   local savetime=$3
-  local install_log=$4
-  local md5_log=$5
+  local md5_log=$4
 
   test -f $from || return
 
@@ -407,7 +437,7 @@ function install_config_file() {
     # if it is owned by the old spell with a valid md5
     # note that the md5_log is a subset of the install log, so if it
     # matches in the md5 log, it is owned by the spell
-    if test -f $my_md5 && grep -q "$my_md5" $4 ; then
+    if test -f $md5_log && grep -q "$my_md5" $md5_log ; then
       # replace the file
       tar -c $from | tar -xv $to
 
@@ -417,12 +447,26 @@ function install_config_file() {
     # note, it might be nice to split the above cases out for more informative
     # user messages
     else
-      handle_changed_config $from $to $savetime
+      real_handle_changed_config $from $to $savetime
     fi
   fi
 }
 
-function handle_changed_config() {
+#------------------------------------------------------------------------
+## @param from	File we might want to install
+## @param to	File to replace
+## @param savetime	Backup time if necessary
+##
+## Present the user with the following menu
+## (0) trash $to and install over it
+## (1) backup $to to $to.$savetime, install the new file in its place
+## (2) leave $to in its place, copy the new file to $to.$savetime
+## (3) do nothing
+## (4) see a diff between $to and the new file
+## choice 2 is currently the default, someday there will be a menu to
+## choose what the default will be
+#------------------------------------------------------------------------
+function real_handle_changed_config() {
   local from=$1
   local to=$2
   local savetime=$3

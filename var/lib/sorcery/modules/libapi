@@ -26,7 +26,9 @@
 #    devoke_installwatch    (libtrack)
 #    gather_docs            (build_api/common)
 #    get_spell_provider     (libstate)
+#    handle_changed_config  (libresurrect)
 #    installed_version      (libgrimoire)   
+#    install_config_file    (libresurrect)
 #    invoke_installwatch    (libtrack
 #    list_add               (libmisc)
 #    list_find              (libmisc)
@@ -368,6 +370,28 @@ function get_spell_provider() {
     real_get_spell_provider "$@"
 }
 
+#------------------------------------------------------------------------
+## @Type API
+## @param from	File we might want to install
+## @param to	File to replace
+## @param savetime	Backup time if necessary
+##
+## @See <@function var.lib.sorcery.modules.libresurrect.html,real_handle_changed_config> for more details.
+##
+## Present the user with the following menu
+## (0) trash $to and install over it
+## (1) backup $to to $to.$savetime, install the new file in its place
+## (2) leave $to in its place, copy the new file to $to.$savetime
+## (3) do nothing
+## (4) see a diff between $to and the new file
+## choice 2 is currently the default, someday there will be a menu to
+## choose what the default will be
+#------------------------------------------------------------------------
+function handle_changed_config() {
+    debug "libapi" "handle_changed_config - $*"
+    real_handle_changed_config "$@"
+}
+
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell
@@ -378,6 +402,20 @@ function get_spell_provider() {
 function installed_version () {
     debug "libapi" "installed_version - $*"
     real_installed_version "$@"
+}
+
+#------------------------------------------------------------------------
+## @Type API
+## @param from	File we might want to install
+## @param to	File to replace
+## @param savetime	Backup time if necessary (optional, defaults to
+##                      $(date +'%Y%m%d%H%M')
+## @See <@function var.lib.sorcery.modules.libresurrect.html,real_install_config_file> for more details.
+## Returns the current version of the given spell
+#------------------------------------------------------------------------
+function install_config_file() {
+    debug "libapi" "install_config_file - $*"
+    real_install_config_file "$@"
 }
 
 #---------------------------------------------------------------------
