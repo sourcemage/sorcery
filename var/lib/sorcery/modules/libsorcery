@@ -1541,7 +1541,12 @@ function archive()  {
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
-  tar --no-recursion --"$COMPRESSBIN" -cPf "$CACHE_COMP" -T $INST_LOG
+
+  if  [  "$COMPRESSBIN" == "tar"  ]; then 
+    tar --no-recursion -cPf "$CACHE_COMP" -T $INST_LOG
+  else
+    tar --no-recursion --"$COMPRESSBIN" -cPf "$CACHE_COMP" -T $INST_LOG
+  fi
 
 }
 
