@@ -679,7 +679,7 @@ function install_services()  { (
     cat  $SCRIPT_DIRECTORY/services  |  while  read  LINE;  do
     
       debug "install_services" "LINE : '$LINE'"
-	    explode "$LINE" '\t| ' tmp
+	    explode "$LINE" '[\t ]+' tmp
     
       # Cleaning out existing lines in service file with
       # tmp[0] is "service name", tmp[1] is "space", tmp[2] is "port/protocol"
@@ -692,7 +692,7 @@ function install_services()  { (
       echo "$LINE" >> $t_services
       
     done
-	lock_commit_transaction /etc/services
+  lock_commit_transaction /etc/services
   fi
 
 ) }
