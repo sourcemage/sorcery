@@ -186,6 +186,19 @@ function add_spell_status()
 
 }
 
+#---------------------------------------------------------------------
+## @param spell name
+##
+## Given a spell, status (installed, held, etc), and version, add_spell
+## adds the spell to the /var/state/sorcery/packages file
+##
+#---------------------------------------------------------------------
+function add_spell()  {
+
+  remove_spell  $1
+  add_spell_status $1 $2 $3
+
+}
 
 
 #---------------------------------------------------------------------
@@ -214,6 +227,53 @@ function query_spell_status()
 
 }
 
+#---------------------------------------------------------------------
+## @param spell name
+## @Stdout status
+## Returns the given spell's status (installed, held, exiled, etc.)
+##
+#---------------------------------------------------------------------
+function get_status()  {
+
+  if    query_spell_status $1    >/dev/null
+  then  query_spell_status $1    |  cut  -d : -f3
+  else  query_spell_status "$1-" |  cut  -d : -f3
+  fi
+
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+##
+## @return 0 if the given spell's status is "installed"
+#---------------------------------------------------------------------
+function real_spell_installed() {
+  [  "$(  get_status  $1  )"  ==  "installed"  ];
+}
+
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+## @return 0 if the given spell's status is "held"
+##
+#---------------------------------------------------------------------
+function spell_held()      {
+  [  "$(  get_status  $1  )"  ==  "held"       ];
+}
+
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+##  @return 0 if the given spell's status is "exiled"
+##
+#---------------------------------------------------------------------
+function spell_exiled()    {
+  [  "$(  get_status  $1  )"  ==  "exiled"     ];
+}
+
 
 #---------------------------------------------------------------------
 ## @param spell to remove status of
@@ -227,6 +287,26 @@ function remove_spell_status()
   grep  -v  "^$1:" $SPELL_STATUS  >  $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
     
+}
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+## Removes the given spell from the /var/state/sorcery/packages file.
+## if C<EXILE> is set, the spell is changed to "exiled" in the file.
+##
+#---------------------------------------------------------------------
+function remove_spell()  {
+
+  debug  "libsorcery" "Running remove_spell() on $1"
+
+  remove_spell_status $1
+
+  if  [  -n  "$EXILE"  ];  then
+    add_spell_status $1 "." "exiled" "0.0"
+    remove_depends_status ".*" $1
+  fi
+
 }
 
 
