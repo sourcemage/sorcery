@@ -46,7 +46,20 @@ function create_account() {
     groupadd -g $GROUP_ID -f $GNAME
   done
 
-  useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1
+	# check for adding user problems and try to notify user.
+	if  [[  `useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1`  ==  "4"  ]]
+	then 
+		message "${MESAGE_COLOR}The user id $ACCOUNT_UID already exists, so continuing...${DEFAULT_COLOR}"
+		return 0
+	elif  [[  `useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1`  ==  "9"  ]]
+	then
+		message "${MESAGE_COLOR}The user name $1 already exists, so continuing...${DEFAULT_COLOR}"
+		return 0
+	else
+		message "${MESAGE_COLOR}Something went wrong with adding the user $1 with uid $ACCOUNT_UID"
+		message "and gid $PRIMARY_GNAME so going to stop here...${DEFAULT_COLOR}"
+		return 1
+	fi
 
 }
 
