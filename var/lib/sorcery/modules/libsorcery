@@ -1054,15 +1054,15 @@ install_queue_history() {
     local date="`grep "^${spell}:" /var/state/sorcery/packages | cut -d':' -f2`"
     local datedash="`echo "$date" | cut -c1-4`-`echo "$date" | cut -c5-6`-`echo "$date" | cut -c7-8`"
     (
-      echo -e "${QUERY_COLOR}Viewing history since last update (${DEFAULT_COLOR}$datedash${QUERY_COLOR}) for spell ${SPELL_COLOR}${spell}${QUERY_COLOR}:${DEFAULT_COLOR}" && 
+      echo -e "Viewing history since last update ($datedash) for spell -- ${spell}  -- :" && 
       echo                 &&
       gaze history $spell
     ) |
       awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0) }; NR == 1, d { if (!d) print }' | 
       $PAGER2
-    query "Would you like to ${RED}remove${QUERY_COLOR} spell ${SPELL_COLOR}$spell${QUERY_COLOR} from the install queue?" n &&
+    query "Would you like to ${RED} remove ${QUERY_COLOR} spell ${SPELL_COLOR} $spell ${QUERY_COLOR} from the install queue?" n &&
       sedit "s/^$spell$//" $INSTALL_QUEUE &&
-      echo -e "Spell ${SPELL_COLOR}$spell${QUERY_COLOR} removed from $INSTALL_QUEUE."
+      echo -e "${QUERY_COLOR} The spell ${SPELL_COLOR} $spell ${QUERY_COLOR} removed from $INSTALL_QUEUE."
   done
 }
 
