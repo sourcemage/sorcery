@@ -70,6 +70,8 @@ html	[-s]	[grimoire]	Views a html listing of all grimoires.
 
 newer		20020521	Shows available spells newer than May 21, 2002.
 older		20010521	Shows spells installed before May 21, 2001.
+newer last_sorcery_update  Shows spells newer than your previous sorcery update
+newer last_cast            Shows spells newer than your last casting
 
 voyeur		[delay or spell]  
 				Peeks into spell compilation.
@@ -491,7 +493,23 @@ function display()  {
 #-----
 function newer()  {
 
-  DATE=$1
+  local DATE=$1
+  local COMPUTE
+
+  if [ x"$DATE" == x"last_sorcery_update" ]; then
+    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $5 ; exit } }'
+  elif [ x"$DATE" == x"last_cast" ]; then
+    COMPUTE='($3 == "cast" && $6 == "success") { print $1 ; exit }'
+  fi
+
+  if [ -n "$COMPUTE" ]; then
+    DATE=$( tac $ACTIVITY_LOG | awk -F '\t| |:' "$COMPUTE" )
+    if [ -z "$DATE" ]; then
+      message "${PROBLEM_COLOR}No previous $1 date found${DEFAULT_COLOR}"
+      exit 1
+    fi
+  fi
+
   if  [  -n  "$DATE"  ];  then
   (
     echo "Grimoire|Section|Spell|Grimoire Version|Installed Version|Added"
@@ -1609,3 +1627,4 @@ if  [  $#  == 0  ];  then  help  |  $PAGER;  else  parse  "$@";  fi
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
+# vim: tabstop=2:shiftwidth=2:expandtab
