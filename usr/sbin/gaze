@@ -38,9 +38,13 @@ Command		Arguments	Description
 
 alien		<empty>		Discover untracked files.
 from		path/file	Discover what installed a file.
+
 search		"phrase"	Searches for "phrase" in the long and 
-				  short spell descriptions and in the spell 
-				  name.
+				  short spell descriptions and in the spell name.
+search      -name  "phrase" Searches for "phrase" in the spell name.
+search      -short "phrase" Searches for "phrase" in the short spell 
+                            descriptions
+
 service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
@@ -67,8 +71,12 @@ import		snapshot	Restore snapshot.
 
 section		[section]	List grimoire sections.
 maintainer	[section]	See who is the maintainer for a section
-grimoire			View a text listing of the grimoire.
-html				View a html listing of the grimoire.
+grimoire	[grimoire]	View a text listing of all grimoires.
+                        Or of the specified grimoire.
+html	[-s]	[grimoire]	View a html listing of all grimoires.
+                        Or of the specified grimoire.
+                        Additionally displays links to the source files 
+                        when -s is given.
 
 newer		20020521	Show available spells newer than May 21, 2002.
 older		20010521	Show spells installed before May 21, 2001.
@@ -189,11 +197,27 @@ alien()  {
 
 gaze_catalog()  {
 
+  local grimoire
+
+  if [[ $# -gt 0 ]]; then
+        grimoire=$(codex_find_grimoire_by_name $1)
+        if [[ $? != 0 ]]; then
+            echo "No such grimoire $1"
+            exit 1;
+        fi  
+  fi
+
   echo  "Sorcery Grimoire for `date  -u`"
+
+  if [ $grimoire ]; then
+        echo "Grimoire: " $(basename $grimoire)
+  else
+        echo "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+  fi
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `codex_get_all_sections`;  do
+  for  SECTION  in  `codex_get_all_sections $grimoire`;  do
     echo 
     echo  "-------------------------------------------------"
     echo  "SECTION:  $(  basename  $SECTION  )"  
@@ -213,6 +237,21 @@ gaze_catalog()  {
 
 gaze_catalog_html()  {
 
+  local grimoire COLS=4
+
+  if [[ $1 == "-s" ]]; then
+        shift;
+        (( COLS++ ))
+  fi
+    
+  if [[ $# -gt 0 ]]; then
+        grimoire=$(codex_find_grimoire_by_name $1)
+        if [[ $? != 0 ]]; then
+            echo "No such grimoire $1"
+            exit 1;
+        fi
+  fi
+
   echo  "<html><head><title>Sorcery Grimoires for `date  -u`</title></head>"
   echo  "<body background=\"media/blackmarble.jpg\">"
 
@@ -220,8 +259,16 @@ gaze_catalog_html()  {
   echo  "        background=\"media/whitemarble.jpg\""
   echo  "        border=5>"
 
-  echo  "<tr><th colspan=4><font color=green  size=+1>"
-  echo  "Sorcery Grimoires<br>`date  -u`"
+  echo  "<tr><th colspan=${COLS}><font color=green  size=+1>"
+  echo  "Sorcery Grimoires<br>"
+  echo  $(date -u) "<br>"
+
+  if [ $grimoire ]; then
+        echo  "Grimoire: " $(basename $grimoire)
+  else
+        echo  "Grimoires: " $(codex_get_all_grimoires | get_basenames)
+  fi
+
   echo  "</font></th></tr>"
 
   echo  "<tr>"
@@ -229,12 +276,13 @@ gaze_catalog_html()  {
   echo  "<th>Version</th>"
   echo  "<th>Updated</th>"
   echo  "<th>Website</th>"
+  [[ $COLS -eq 5 ]] && echo "<th>Source</th>"
   echo  "</tr>"
 
   ((  COUNT=0  ))
 
-  for  SECTION  in  `codex_get_all_sections`;  do
-    echo  "<tr><th colspan=4><font color="green">$( basename  $SECTION )</font></th></tr>"
+  for  SECTION  in  `codex_get_all_sections $grimoire`;  do
+    echo  "<tr><th colspan=${COLS}><font color="green">$( basename  $SECTION )</font></th></tr>"
     for  SPELL  in  `codex_get_spells  $SECTION`;  do
       (
         codex_set_current_spell  $SPELL
@@ -277,6 +325,11 @@ gaze_catalog_html()  {
           echo  "$UNSHRINK </td>"
         else
           echo  "<td></td>"
+        fi
+        if [[ $COLS -eq 5 ]]; then
+            echo "<td>"
+            echo "<a href=\"$SOURCE_URL\">$(echo $SOURCE | cut -c-25)</a>"
+            echo "</td>"
         fi
         echo  "</tr>"
       )
@@ -363,7 +416,117 @@ show_spell_component()  {
 }
 
 
-long_search()  {
+#-----------------------------------------------------------------------
+#
+# gaze_search 
+#
+# parameter processing for the search routines.
+# the case statement should be self-explanatory 
+#
+#-----------------------------------------------------------------------
+
+gaze_search() {
+    case $1 in
+
+     -name) shift; real_name_search  $@  ;;
+    -short) shift; real_short_search $@  ;;
+         *)        real_long_search  $@  ;;
+
+    esac
+}
+
+
+#-----------------------------------------------------------------------
+#
+# real_name_search pattern(s) 
+#
+# searches for pattern(s) in the name of all spells.
+# it searches in the codex.index files for the sake of speed 
+#
+#-----------------------------------------------------------------------
+
+real_name_search() {
+    local grimoire pattern
+
+    for grimoire in $(codex_get_all_grimoires); do
+        for pattern in $@; do
+            gawk ' BEGIN {
+                        OFS=""
+                        IGNORECASE=1
+                        quiet = "'$GAZE_VERBOSE'"
+                    }
+                    /^[^[:blank:]]*'$pattern'/ {
+                        if (quiet) {
+                            print $1
+                        }
+                        else {
+                            print "'$pattern' -> ", $1 
+                        }
+                    }
+                ' "$grimoire/$SPELL_INDEX_FILE"
+        done
+    done
+}
+
+
+#-----------------------------------------------------------------------
+#
+# grep_find_grimoire path filename pattern
+#
+# path should be a grimoire, since it only searches files in a specific
+# depth
+# filename is the filename it searches for in path
+# pattern is the pattern it searches for in the files
+#
+# returns the full path to the matching files
+# eg /var/lib/sorcery/codex/grimoire/games/coal/DETAILS
+#
+#-----------------------------------------------------------------------
+
+grep_find_grimoire() {
+        local path=$1
+        local name=$2
+        local pattern=$3
+
+        grep -il -- "${pattern}" $(
+                        find $path -maxdepth 3 -mindepth 3 -name "${name}"
+                                  )
+}
+
+
+#-----------------------------------------------------------------------
+#
+# real_short_search pattern(s) 
+#
+# searches for pattern(s) in the SHORT field of every SPELL in every 
+# grimoire
+#
+#-----------------------------------------------------------------------
+
+real_short_search() {
+    local pattern grimoire spell spellname
+
+    for pattern in $@; do
+        for grimoire in $(codex_get_all_grimoires); do
+            for spell in $(
+    grep_find_grimoire $grimoire "DETAILS" "SHORT=.*${pattern}"
+                        ); do
+
+                spellname=$(basename $(dirname $spell))
+                if [[ $GAZE_VERBOSE == 0 ]]; then
+                    echo $spellname
+                else
+                    echo "$pattern -> $spellname" 
+                fi
+
+            done
+        done
+    done
+}
+
+
+
+real_long_search()  {
 
   local numSpells=`codex_get_all_spells|wc -l`
   local atSpell=0
@@ -384,7 +547,7 @@ long_search()  {
 	file="$SPELL_DIRECTORY/DETAILS"
 	
     for pattern in "$@"; do
-		grep -iq "$pattern" $file || continue
+		grep -iq -- "$pattern" $file || continue
 		SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
 			/'${pattern}'/{
 				if(/^[[:blank:]]*SPELL/)	{print "(Name Match)";			exit 0;}
@@ -978,7 +1141,7 @@ parse()  {
         TRIGGERS)  show_spell_component $1 $2            ;;
 
         # Other options
-            html)  gaze_catalog_html                     ;;
+            html)  shift; gaze_catalog_html $@           ;;
           export)  export_snapshot                       ;;
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
@@ -990,8 +1153,8 @@ parse()  {
            older)  older             $2                  ;;
            prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
-        grimoire)  gaze_catalog  |   $PAGER              ;;
-          search)  shift; long_search $@                 ;;
+        grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
+          search)  shift; gaze_search $@                 ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
          depends)  show_depends  "$2"  |  sort  |  uniq  ;;
