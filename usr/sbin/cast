@@ -1246,7 +1246,6 @@ function pass_four()  {
 # Report generation
 function pass_five()  {
 
-  local SOME_CAST_FAILED=""
   
   if [ -e $SUCCESS_LIST ] ; then
 
@@ -1254,29 +1253,32 @@ function pass_five()  {
 	  message ""
 	  message "Spells installed successfully:"
 	  message "------------------------------${SPELL_COLOR}"
+
 	  for item in `cat $SUCCESS_LIST`; do
     	message "$item"
 	  done | column
-  fi
-  
-  message "${DEFAULT_COLOR}"
-  message "${MESSAGE_COLOR}Spells that encountered problems:"
-  message "---------------------------------${PROBLEM_COLOR}"
-  for item in $* ; do
-    if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
-      message "$item"
-	    SOME_CAST_FAILED="1"
-	  fi
-  done | column
-  message "${DEFAULT_COLOR}"
-  
-  if [ "$SOME_CAST_FAILED" == "0" ];  then
-      set_term_title "Casting successfull."
-  else
-      set_term_title "Casting failed."
-  fi
-  [ "$SOME_CAST_FAILED" ] || return 1
+   
+    set_term_title "Casting successfull."
+    return 0
 
+  else 
+  
+    message "${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spells that encountered problems:"
+    message "---------------------------------${PROBLEM_COLOR}"
+    
+    for item in $* ; do
+      if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
+        message "$item"
+	    fi
+    done | column
+
+    set_term_title "Casting failed."
+    message "${DEFAULT_COLOR}"
+    return 1
+  
+  fi 
+   
 }
 
 function pass_zero()  {
