@@ -943,9 +943,8 @@ gaze_show_version()  {
 #---------------------------------------------------------------------
 ##=item gaze_show_versions <spell>
 ##
-## Shows the all versions of spell:
-## - the version in the actual grimoire and the version installed on the system
-## - the all versions in all grimoires
+## Shows the all versions of spell, all versions in all grimoires and 
+## the version installed on the system.
 ##
 #---------------------------------------------------------------------
 gaze_show_versions()  {
@@ -954,37 +953,43 @@ gaze_show_versions()  {
   local SPELL_DIRECTORY=
   local GRIMOIRE=
   local GRIMOIRES=
+  local ECHO_INSTALLED=1
 
   if ! codex_does_spell_exist $SPELL
   then return 1
   fi
 
-  message "${SPELL_COLOR}Actual version:${DEFAULT_COLOR}"
-  echo
-  gaze_show_version $SPELL
+  local INSTALLED=`installed_version $SPELL`
 
-  message "${SPELL_COLOR}All versions:${DEFAULT_COLOR}"
-  echo
   GRIMOIRES=$(codex_get_all_grimoires)
 
   (
 
-  echo "Version|Grimoire|Section"
-  echo "-------|--------|-------"
+  echo "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+  echo "--------|-------|-----|----------------|-----------------"
 
   for GRIMOIRE in $GRIMOIRES
   do
     if SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $GRIMOIRE)
     then
       codex_set_current_spell $SPELL_DIRECTORY
-      echo  "$VERSION|$(echo $GRIMOIRE | get_basenames)|$SECTION"
+
+	  if [ $ECHO_INSTALLED -eq 1 ]
+	  then
+        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}"
+        ECHO_INSTALLED=0
+      else
+        echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|-"
+      fi
+
     else
-      echo "---|$(echo $GRIMOIRE | get_basenames)|---"
+      echo "$(echo $GRIMOIRE | get_basenames)|-|-|-|-"
     fi
   done
 
   ) | column -t -s "|"
 
+  echo
 }
 
 
