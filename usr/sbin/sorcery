@@ -313,9 +313,6 @@ update_pkgs() {
     return  1
   fi
 
-  message  "${CHECK_COLOR}Updating, do not interrupt..."
-  message  "${CHECK_COLOR}Please wait... ${DEFAULT_COLOR}"
-
   cat  << EOF >  $UPDATE_SCRIPT
 #!/bin/sh
 ############################################################
@@ -326,13 +323,11 @@ update_pkgs() {
 ############################################################
 
 . /etc/sorcery/config
-
 if  cast  -c  sorcery;  then
 
   # note to self remove dispel linux and apprentice_off in a few days.
-  # apprentice_off
-  # dispel  linux  1>/dev/null  2>/dev/null
-
+  apprentice_off
+  dispel  linux  1>/dev/null  2>/dev/null
   clean_logs
   update_installed
   upgrade_install_queue

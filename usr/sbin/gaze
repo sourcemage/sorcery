@@ -64,8 +64,6 @@ orphans		<empty>		Display installed spells that have no
 depends		spell		Displays the spells that explicitly
 				or recursively depend on this spell
 
-spider		[nothing|section|spell] Test url for the full grimoire, the selected section or just one spell
-
 \$SPELL_SCRIPT	spell		will print the spell script for that spell
 EOF
 }
@@ -170,16 +168,14 @@ gaze_catalog()  {
   ((  COUNT=0  ))
 
   for  SECTION  in  `ls  $GRIMOIRE`;  do
-    if  [  -d  "$GRIMOIRE/$SECTION"  ];  then
-      echo 
-      echo  "-------------------------------------------------"
-      echo  "SECTION:  $SECTION"  
-      echo  "-------------------------------------------------"
-      for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-        [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&  echo  $SPELL
-        ((  COUNT++  ))
-      done
-    fi
+    echo 
+    echo  "-------------------------------------------------"
+    echo  "SECTION:  $SECTION"  
+    echo  "-------------------------------------------------"
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&  echo  $SPELL
+      ((  COUNT++  ))
+    done
   done
 
   echo
@@ -213,58 +209,56 @@ gaze_catalog_html()  {
   ((  COUNT=0  ))
 
   for  SECTION  in  `ls  $GRIMOIRE`;  do
-    if  [  -d  "$GRIMOIRE/$SECTION"  ];  then
-      echo  "<tr><th colspan=4><font color="green">$SECTION</font></th></tr>"
-      for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-        [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
-        (
-  
-          . $GRIMOIRE/$SECTION/$SPELL/DETAILS  1>/dev/null
-  
-          echo  "<tr>"
-          if  [  "$SPELL"  ==  "linux"  ]   ||
-              [  "$SPELL"  ==  "glibc"  ];  then
-              BOLD="<b>"
-            UNBOLD="</b>"
-          else
-            unset    BOLD
-            unset  UNBOLD
-          fi
-          if  [  ${#SPELL}  -gt  15  ];  then
-            SPELL="<font size=-1>$SPELL</font>"
-          fi
-  	if  [  -z  "$UPDATED"  ]  &&  [  "$ENTERED"  ];  then
-  	    UPDATED=$ENTERED
-  	fi
-          echo  "<td>$BOLD $SPELL $UNBOLD</td>"
-          echo  "<td><font size=-1>$BOLD $VERSION $UNBOLD</font></td>"
-          echo  "<td><font size=-1>$UPDATED</font></td>"
-  
-          WEBSITE=$WEB_SITE
-          if    [  ${#WEB_SITE}  -lt 20  ];  then
-              SHRINK="<font size=-1>"
-            UNSHRINK="</font>"
-          elif  [  ${#WEB_SITE}  -lt 30  ];  then
-              SHRINK="<font size=-2>"
-            UNSHRINK="</font>"
-          else
-             WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
-              SHRINK="<font size=-3>"
-            UNSHRINK="</font>"
-          fi
-  
-          if  [  "$WEB_SITE"  !=  "unknown"  ];  then
-            echo  "<td> $SHRINK"
-            echo  "<a href=\"$WEB_SITE\" target=\"_blank\">$WEBSITE</a>"
-            echo  "$UNSHRINK </td>"
-          else
-            echo  "<td></td>"
-          fi
-          echo  "</tr>"
-        )
-        ((  COUNT++  ))
-      done
-    fi
+    echo  "<tr><th colspan=4><font color="green">$SECTION</font></th></tr>"
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
+      (
+
+        . $GRIMOIRE/$SECTION/$SPELL/DETAILS  1>/dev/null
+
+        echo  "<tr>"
+        if  [  "$SPELL"  ==  "linux"  ]   ||
+            [  "$SPELL"  ==  "glibc"  ];  then
+            BOLD="<b>"
+          UNBOLD="</b>"
+        else
+          unset    BOLD
+          unset  UNBOLD
+        fi
+        if  [  ${#SPELL}  -gt  15  ];  then
+          SPELL="<font size=-1>$SPELL</font>"
+        fi
+	if  [  -z  "$UPDATED"  ]  &&  [  "$ENTERED"  ];  then
+	    UPDATED=$ENTERED
+	fi
+        echo  "<td>$BOLD $SPELL $UNBOLD</td>"
+        echo  "<td><font size=-1>$BOLD $VERSION $UNBOLD</font></td>"
+        echo  "<td><font size=-1>$UPDATED</font></td>"
+
+        WEBSITE=$WEB_SITE
+        if    [  ${#WEB_SITE}  -lt 20  ];  then
+            SHRINK="<font size=-1>"
+          UNSHRINK="</font>"
+        elif  [  ${#WEB_SITE}  -lt 30  ];  then
+            SHRINK="<font size=-2>"
+          UNSHRINK="</font>"
+        else
+           WEBSITE="`echo  $WEB_SITE  |  cut  -c-30`..."
+            SHRINK="<font size=-3>"
+          UNSHRINK="</font>"
+        fi
+
+        if  [  "$WEB_SITE"  !=  "unknown"  ];  then
+          echo  "<td> $SHRINK"
+          echo  "<a href=\"$WEB_SITE\" target=\"_blank\">$WEBSITE</a>"
+          echo  "$UNSHRINK </td>"
+        else
+          echo  "<td></td>"
+        fi
+        echo  "</tr>"
+      )
+      ((  COUNT++  ))
+    done
   done
 
 
@@ -338,145 +332,60 @@ spider_check()  { (
 
   SPELL=$1
   shift  1
-  let  URL_NUM=0
   for  URL  in  $*;  do
-     SPELL_FILE=`echo $URL | sed 's/.*\///'`
-     URL_BASE_ONLY=${URL%"$SPELL_FILE"*}
-     PROTOCOL=${URL%://*}
-     if  [  "$PROTOCOL"  ==  "http"  ];  then
-       ((wget  --verbose  --tries=1  --timeout  30  --spider  $URL  1>>  /tmp/spider.log  2>&1)  &&  echo  -n  "."  )  || 
-       (
-         echo      "$SPELL URL[$URL_NUM]:$URL broken."  >>  /tmp/spider.broke
-         echo  -n  "!$URL_NUM"
-       )
-     else
-       wget  --verbose  --tries=1  --timeout  30  --dont-remove-listing  $URL_BASE_ONLY  1>>  /tmp/spider.log  2>&1
-       if  [  -e  .listing  ];  then
-         SPELL_PRESENT=`grep $SPELL_FILE .listing`
-       fi
-       if  [  "$SPELL_PRESENT"  ==  ""  ];  then
-         echo      "$SPELL URL[$URL_NUM]:$URL broken."  >>  /tmp/spider.broke
-         echo  -n  "!$URL_NUM"
-       else
-         echo  -n  "."
-       fi
-       rm  -f  .listing  index.html
-       unset  SPELL_PRESENT
-     fi
- 
-     let  URL_NUM++;
+    wget  --spider  --passive-ftp  $URL  1>/dev/null  2>&1  ||
+    echo  "$SPELL  $URL"  >>  /tmp/spider.broke
   done
 
 ) }
 
 
-spider_walk() {
-
-  if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
-    .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
-  then
-
-    echo  -n  "Checking URLs for $SPELL "
-
-    spider_check  $SPELL  ${SOURCE_URL[*]}    
-    spider_check  $SPELL  ${SOURCE2_URL[*]}  
-    spider_check  $SPELL  ${SOURCE3_URL[*]}   
-    spider_check  $SPELL  ${SOURCE4_URL[*]}   
-    spider_check  $SPELL  ${SOURCE5_URL[*]}   
-    spider_check  $SPELL  ${SOURCE6_URL[*]}   
-    spider_check  $SPELL  ${SOURCE7_URL[*]}   
-    spider_check  $SPELL  ${SOURCE8_URL[*]}   
-    spider_check  $SPELL  ${SOURCE9_URL[*]}   
-    spider_check  $SPELL  ${SOURCE10_URL[*]}  
-    spider_check  $SPELL  ${SOURCE11_URL[*]}  
-    spider_check  $SPELL  ${SOURCE12_URL[*]}  
-    spider_check  $SPELL  ${SOURCE13_URL[*]}  
-    spider_check  $SPELL  ${SOURCE14_URL[*]}  
-    spider_check  $SPELL  ${SOURCE15_URL[*]}  
-    spider_check  $SPELL  ${SOURCE16_URL[*]}  
-    spider_check  $SPELL  ${SOURCE17_URL[*]}  
-    spider_check  $SPELL  ${SOURCE18_URL[*]}  
-    spider_check  $SPELL  ${SOURCE19_URL[*]}  
-
-    unset  SOURCE_URL   SOURCE_URL2  SOURCE_URL3        \
-           SOURCE_URL4  SOURCE_URL5  SOURCE_URL6        \
-           SOURCE_URL7  SOURCE_URL8  SOURCE_URL9        \
-           SOURCE_URL10 SOURCE_URL11 SOURCE_URL12       \
-           SOURCE_URL13 SOURCE_URL14 SOURCE_URL15       \
-           SOURCE_URL16 SOURCE_URL17 SOURCE_URL18       \
-           SOURCE_URL19
-
-    unset  SOURCE   SOURCE2  SOURCE3  SOURCE4  SOURCE5  \
-           SOURCE6  SOURCE7  SOURCE8  SOURCE9  SOURCE10 \
-           SOURCE11 SOURCE12 SOURCE13 SOURCE14 SOURCE15 \
-           SOURCE16 SOURCE17 SOURCE18 SOURCE19
-
-    echo  " Done."
-  else
-    echo  " Error: unable to step into spell's directory or DETAILS file."
-  fi
-
-}
-
-
 spider()  {
 
-  rm  -f   /tmp/spider.broke  /tmp/spider.log
+  rm  -rf  /tmp/spider.broke
   rm  -rf  /tmp/spider
   mkdir    /tmp/spider
   cd       /tmp/spider
-
-  # proxying prevents wget to get .listing files done
-  unset ftp_proxy
 
   message  "Writing broken URLs to /tmp/spider.broke"
   message  "This test might take a while to complete"
   message  "and consume significant resources."
 
-  # no args: gaze on the full grimoire
-  if [ "$1" == "" ]; then
-    message "Full grimoire gaze."
-    for  SECTION  in  `ls  $GRIMOIRE`;  do
-      for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-        if [ -d $GRIMOIRE/$SECTION/$SPELL ]; then
-          spider_walk
-        fi
-      done
-    done
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
 
-    # again for kde3
-#    SECTION=kde3
-#    GRIMOIRE=$GRIMOIRE/kde
-#    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
-#      if [ -d $GRIMOIRE/$SECTION/$SPELL ]; then
-#        spider_walk
-#      fi
-#    done
-  else
-    # check if arg is a grimoire's directory, so it's a section
-#    if [ -d $GRIMOIRE/$1 ] || [ -d $GRIMOIRE/kde/$1 ]; then
-    if [ -d $GRIMOIRE/$1 ]; then
-      SECTION=$1
-      message "Gaze on section $SECTION"
+    (
+      if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
+              .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  > /dev/null
+      then
 
-      # check all spells in this section
-#      if [ "$SECTION" == "kde3" ]; then
-#        GRIMOIRE=$GRIMOIRE/kde
-#      fi
-      for SPELL in `ls $GRIMOIRE/$SECTION`; do
-        if [ -d $GRIMOIRE/$SECTION/$SPELL ]; then
-          spider_walk
-         fi
-      done
-    else
-      # check if arg is a spell
-      SECTION=`find_section  $SPELL` 
-      if [ ! "$SECTION" == "" ]; then
-        message "Gaze on spell $SPELL"
-        spider_walk
+        message  "Checking URLs for $SPELL"
+
+        spider_check  $SPELL  ${SOURCE_URL[*]}    &
+        spider_check  $SPELL  ${SOURCE2_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE3_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE4_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE5_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE6_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE7_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE8_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE9_URL[*]}   &
+        spider_check  $SPELL  ${SOURCE10_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE11_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE12_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE13_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE14_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE15_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE16_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE17_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE18_URL[*]}  &
+        spider_check  $SPELL  ${SOURCE19_URL[*]}  &
+        sleep  1
+        sleep  `sources  $SPELL  |  wc  -w`
       fi
-    fi
-  fi
+    )
+    done
+  done
 
   cd  /
 
@@ -655,7 +564,7 @@ show_website()  {
         .   $GRIMOIRE/$SECTION/$SPELL/DETAILS > /dev/null  &&
         [  -n  "$WEB_SITE"  ]
   then  echo    $WEB_SITE
-  else  echo   "No spell by that name found"
+  else  echo   "http://sorcerer.wox.org/typo.html"
   fi
 
 }

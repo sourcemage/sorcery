@@ -851,34 +851,6 @@ sedit()  {
 }
 
 
-use_gcc2()  {
-
-  gcc --version  |  head -n 1  |  grep  '2\.95\.'  >  /dev/null
-
-}
-
-
-prepend_path()  {
-
-  if    test  -z  $2
-  then  echo $1
-  else  echo $1:$2
-  fi
-
-}
-
-
-add_paths()  {
-
-  export  PATH=$(  prepend_path  $1/bin  $PATH  )
-  export  LD_LIBRARY_PATH=$(  prepend_path  $1/lib  $LD_LIBRARY_PATH  )
-  export  LD_RUN_PATH=$(  prepend_path  $1/lib  $LD_RUN_PATH  )
-  export  INFOPATH=$(  prepend_path  $1/info  $INFOPATH  )
-  export  CPPFLAGS="-I $1/include  $CPPFLAGS"
-
-}
-
-
 optimize()  {
 
   unset  I586 I686 K6 ATHLON POWERPC FAST SMALL SPEEDY TINY RISKY STRIP
@@ -906,9 +878,9 @@ optimize()  {
                          SMALL="-Os"
                     ;;
 
-               athlon)  if    use_gcc2
-                        then  CFLAGS="-mcpu=i686    -march=i686"
-                        else  CFLAGS="-mcpu=athlon  -march=athlon"
+               athlon)  if    spell_installed  gcc3
+                        then  CFLAGS="-mcpu=athlon  -march=athlon"
+                        else  CFLAGS="-mcpu=i686    -march=i686"
                         fi
                          BUILD="i686-pc-linux-gnu"
                         ATHLON="on"
@@ -985,15 +957,8 @@ optional_depends()  {
 
 update_installed()  { (
 
-  message     " "
-  message -n  "${CHECK_COLOR}Stage 2... ${DEFAULT_COLOR}"
-  wait_flag_up
-  wait_flag  $$  &
-
   rm  -f  $INSTALL_QUEUE
   for  LINE  in  `cat  $SPELL_STATUS`;  do
-
-    message  -n  "."
 
        SPELL=`echo  "$LINE"  |  cut  -d : -f1`
        IDATE=`echo  "$LINE"  |  cut  -d : -f2`
@@ -1016,15 +981,10 @@ update_installed()  { (
     fi
   done
 
-  wait_flag_down
-
 ) }
 
 
 upgrade_install_queue()  {
-
-  message  " "
-  message  "${CHECK_COLOR}Stage 3... ${DEFAULT_COLOR}"
 
   if  [  -f  $INSTALL_QUEUE  ];  then
 
@@ -1064,31 +1024,26 @@ log_list()  {
 clean_logs()  {
 
   echo  "Running clean_logs()"  >>  $DEBUG
-
-  message    " "
-  message -n "${CHECK_COLOR}Stage 1... ${DEFAULT_COLOR}"
-  wait_flag_up
-  wait_flag  $$  &
   
   LOGS=`log_list`
 
   for  FILE  in  `ls  $INSTALL_LOGS`;  do
     if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
-      message  "Removing stale log  :  $INSTALL_LOGS/$FILE "
+      message  "Removing stale log  :  $INSTALL_LOGS/$FILE"
       rm                               $INSTALL_LOGS/$FILE
     fi
   done
 
   for  FILE  in  `ls  $COMPILE_LOGS`;  do
     if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
-      message  "Removing stale log  :  $COMPILE_LOGS/$FILE "
+      message  "Removing stale log  :  $COMPILE_LOGS/$FILE"
       rm                               $COMPILE_LOGS/$FILE
     fi
   done
 
   for  FILE  in  `ls  $MD5SUM_LOGS`;  do
     if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
-      message  "Removing stale log  :  $MD5SUM_LOGS/$FILE "
+      message  "Removing stale log  :  $MD5SUM_LOGS/$FILE"
       rm                               $MD5SUM_LOGS/$FILE
     fi
   done
@@ -1097,8 +1052,6 @@ clean_logs()  {
   if    [  -n  "$EMPTY"  ]
   then  rmdir   $EMPTY
   fi
-
-  wait_flag_down
 
 }
 
@@ -1487,24 +1440,6 @@ prune()  { (
   rm  -f  $KEEP
 
 ) }
-
-
-invoke_gcc2()  {
-
-  USEGCC2=$(  ls  $SCRIPT_DIRECTORY/USEGCC2  2>/dev/null  )
-
-  if    [  "$USEGCC2"  ]
-  then  add_paths  /opt/gcc2
-  fi
-
-  . $LOCAL_CONFIG
-
-  echo
-  echo -n "using gcc version "
-  gcc --version
-  echo
-
-}
 
 
 invoke_compilercache()  {
