@@ -968,19 +968,17 @@ update_install_queue()  { (
 
   rm  -f  $INSTALL_QUEUE
   for  LINE  in  `all_spell_status`;  do
+  
+  	#0=spell, 1=date, 2=status, 3=version
+	explode "$LINE" ":" "INFO"
+	
+    if  [  "${INFO[2]}"  ==  "installed"  ]          &&
+        codex_set_current_spell_by_name  ${INFO[0]};  then
 
-       SPELL=`echo  "$LINE"  |  cut  -d : -f1`
-       IDATE=`echo  "$LINE"  |  cut  -d : -f2`
-      STATUS=`echo  "$LINE"  |  cut  -d : -f3`
-    IVERSION=`echo  "$LINE"  |  cut  -d : -f4`
-
-    if  [  "SPELL"  !=  "sorcery"      ]          &&
-        [  "$STATUS"  ==  "installed"  ]          &&
-        codex_set_current_spell_by_name  $SPELL;  then
-
-      if  [  "$VERSION"   !=  "$IVERSION"   ]  ||
-          [  -z  "$IDATE"                   ]  ||
-          ((  UPDATED  >  IDATE  ));           then
+      if  [[ $VERSION != ${INFO[3]} ]]  || 
+          [[     -z ${INFO[1]}      ]]	|| 
+	  	  (( UPDATED  >  ${INFO[1]} ))
+	  then
 
           push_queue  $INSTALL_QUEUE  $SPELL
 
