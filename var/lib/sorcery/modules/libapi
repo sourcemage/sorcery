@@ -3,16 +3,16 @@
 #That file must NOT contain any logic.
 
 # functions defined in here: (in alphabetical order)
-#    conflicts              (libgrimoire)   
+#    conflicts              (libgrimoire)  
 #    default_build          (libgrimoire)   
 #    default_post_build     (libgrimoire)   
 #    default_pre_build      (libgrimoire)   
 #    depends                (libdepends)
 #    installed_version      (libgrimoire)   
-#    message                (libmisc)       
+#    message                (libmisc)      
 #    mk_source_dir          (libgrimoire)   
 #    on_cast                (libtriggers)   
-#    on_dispel              (libtriggers)   
+#    on_dispel              (libtriggers)  
 #    on_pre_cast            (libtriggers)   
 #    on_pre_dispel          (libtriggers)   
 #    optional_depends       (libdepends)
@@ -29,9 +29,8 @@
 
 
 #---------------------------------------------------------------------
-##=item depends 
-##
-##
+## @Type API
+## @param spell/service
 #---------------------------------------------------------------------
 function depends () {
     debug "depends - $*"
@@ -40,9 +39,8 @@ function depends () {
 
 
 #---------------------------------------------------------------------
-##=item optional_depends 
-##
-##
+## @Type API
+## @param spell/service
 #---------------------------------------------------------------------
 function optional_depends () {
     debug "optional_depends - $*"
@@ -51,8 +49,8 @@ function optional_depends () {
 
 
 #---------------------------------------------------------------------
-##=item conflicts <spell>
-##
+## @param spell
+## @Type API
 ## returns the given spellname if it is installed
 ##
 #---------------------------------------------------------------------
@@ -63,8 +61,7 @@ function conflicts () {
 
 
 #---------------------------------------------------------------------
-##=item default_pre_build
-##
+## @Type API
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
 ##
@@ -76,10 +73,10 @@ function default_pre_build () {
 
 
 #---------------------------------------------------------------------
-##=item default_build
-##
+## @Type API
 ## Used if no BUILD script is found for a spell
 ## Default build is:
+## <pre>
 ##  ./configure  --build=$BUILD        \
 ##               --prefix=/usr         \
 ##               --sysconfdir=/etc     \
@@ -88,6 +85,7 @@ function default_pre_build () {
 ##  make                               &&
 ##  prepare_install                    &&
 ##  make    install
+## </pre>
 ##
 #---------------------------------------------------------------------
 function default_build () {
@@ -97,8 +95,7 @@ function default_build () {
 
 
 #---------------------------------------------------------------------
-##=item default_post_build
-##
+## @Type API
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
 ##
@@ -108,9 +105,10 @@ function default_post_build () {
     real_default_post_build "$@"
 }
 
-
 #---------------------------------------------------------------------
-##=item unpack <file to unpack> <md5sum>
+## @Type API
+## @param file to unpack 
+## @param md5sum
 ##
 ## Given a file, unpack runs the decompression program for that file,
 ## as well as untar'ing the file if appropriate and if the MD5
@@ -125,12 +123,8 @@ function unpack () {
 
 
 #---------------------------------------------------------------------
-##=item requires <"provides" specification>
-##
-## Given a category of spell, returns true if a spell is installed
-## that provides that category of spell.  For example,
-## C<requires email-client> returns true if evolution is installed.
-##
+## @Type API
+## Only a call to depends. Deprecated.
 #---------------------------------------------------------------------
 function requires () {
     debug "requires - $*"
@@ -139,7 +133,12 @@ function requires () {
 
 
 #---------------------------------------------------------------------
-##=item query <question> <default answer>
+## @Type API
+## @param question 
+## @param default answer
+##
+## @return 0 on yes
+## @return 1 on no
 ##
 ## Asks the user a yes/no question.  First argument is the question to
 ## ask, second argument is the default answer.  If a timeout occurs
@@ -154,9 +153,10 @@ function query () {
 
 
 #---------------------------------------------------------------------
-##=item message <message to echo>
-##
-## echo's the given arguments if C<SILENT> is not set.
+## @Type API
+## @param message to echo
+## @Stdout message
+## echo's the given arguments if SILENT is not set.
 ##
 #---------------------------------------------------------------------
 function message () {
@@ -166,12 +166,14 @@ function message () {
 
 
 #---------------------------------------------------------------------
-##=item sedit
+## @Type API
+## @param sed command
+## @param file
 ##
 ## First argument is a sed command.  Second argument is a file.  
-## C<sedit> performs the sed command on the file, modifiying the 
-## original file.  For example,
-## C<sedit "s/foo/bar/g" /tmp/somefile>
+## sedit performs the sed command on the file, modifiying the 
+## original file.  For example, 
+## <br>sedit "s/foo/bar/g" /tmp/somefile <br>
 ## will replace all occurances of foo with bar in /tmp/somefile.  
 ## This function is often used in spells to make changes to source
 ## files before compiling.  See the sed man page for more information.
@@ -184,8 +186,7 @@ function sedit () {
 
 
 #---------------------------------------------------------------------
-##=item prepare_install
-##
+## @Type API
 ## Prepares to install the spell.  Writes the boost lock file.  If the
 ## spell is installed already, the libraries are saved with
 ## save_libraries() and the spell is dispelled.  Usually called from
@@ -199,11 +200,12 @@ function prepare_install () {
 
 
 #---------------------------------------------------------------------
-##=item mk_source_dir <directory name> [<size>]
-##
+## @Type API
+## @param directory name 
+## @param [size]
 ## Creates a tmpfs filesystem.  By default, the size is 1GB.
 ## The caller may optionally supply a size argument.
-##
+## <pre>
 ## Example1:  Create a 2GB mount at $SOURCE_DIRECTORY
 ##
 ##    mk_source_dir  $SOURCE_DIRECTORY  2g
@@ -211,7 +213,7 @@ function prepare_install () {
 ## Example2:  Create a mount at /tmp/newdir, defaults to 1GB size
 ##
 ##    mk_source_dir  /tmp/newdir
-##
+## </pre>
 #---------------------------------------------------------------------
 function mk_source_dir () {
     debug "mk_source_dir - $*"
@@ -220,10 +222,10 @@ function mk_source_dir () {
 
 
 #---------------------------------------------------------------------
-##=item spell_installed <spell name>
+## @Type API
+## @param spell name
 ##
-## Returns true if the given spell's status is "installed"
-##
+## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
 function spell_installed () {
     debug "spell_installed - $*"
@@ -232,8 +234,8 @@ function spell_installed () {
 
 
 #---------------------------------------------------------------------
-##=item installed_version
-##
+## @Type API
+## @param spell
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
@@ -244,7 +246,9 @@ function installed_version () {
 
 
 #---------------------------------------------------------------------
-#=item on_cast
+## @Type API
+## @param spell that triggers
+## @param action
 ##
 ## Used by spells to make adding triggerse nice.
 ##
@@ -255,8 +259,11 @@ function on_cast () {
 }
 
 
+
 #---------------------------------------------------------------------
-#=item on_dispel
+## @Type API
+## @param spell that triggers
+## @param action
 ##
 ## Used by spells to make adding triggers nice.
 ##
@@ -268,7 +275,9 @@ function on_dispel () {
 
 
 #---------------------------------------------------------------------
-#=item on_pre_cast
+## @Type API
+## @param spell that triggers
+## @param action
 ##
 ## Used by spells to make adding triggerse nice.
 ##
@@ -278,8 +287,11 @@ function on_pre_cast () {
     real_on_pre_cast "$@"
 }
 
+
 #---------------------------------------------------------------------
-#=item on_pre_dispel
+## @Type API
+## @param spell that triggers
+## @param action
 ##
 ## Used by spells to make adding triggerse nice.
 ##
