@@ -807,7 +807,8 @@ function cleanse_fix_md5sum_check() {
     # remove anything from a non-current version of the spell
     # this is ugly but the only reasonable way I know of to do this...
     FOUND_IN=$(for each in $FOUND_IN; do
-                each_spell=$(basename $each|cut -f1 -d-)
+                # make the assumption that spell versions dont contain dashes...
+                each_spell=$(basename $each|awk -F- '{for (i=1;i<NF-1;i++) {printf "%s-",$i}printf "%s\n",$i}')
                 each_version=$(installed_version $each_spell)
                 [[ $each_version ]] &&
                 [[ $MD5SUM_LOGS/${each_spell}-${each_version} == $each ]] &&
