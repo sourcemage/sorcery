@@ -1184,11 +1184,16 @@ gaze_show_dependencies() {
     
             repeat "\t" $DEPTH
             echo "$name ($WHAT)"
+            grep () {
+               local foo=$(which grep)
+               $foo "$@"
+            }
     
             local SPELL=$(codex_find_spell_by_name $name)
             [[ -e "$SPELL/DEPENDS" ]] &&
             (
                     (( DEPTH++ ))
+                    grep () { return 0 }
                     source "$SPELL/DEPENDS" 2>/dev/null
             )
         }
