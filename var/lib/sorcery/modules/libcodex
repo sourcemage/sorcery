@@ -582,6 +582,13 @@ codex_get_spell_keywords()  {
   fi
 }
 
+#---------------------------------------------------------------------
+##=item codex_cache_spell_lookup <spell> <grimoire-path> [grimoire-path ...]
+##
+## Searches the indicies of the specified grimories for a spell.
+## This will return only the first match found.
+##
+#---------------------------------------------------------------------
 codex_cache_spell_lookup()  {
 
 	debug "libcodex" "looking up $1 in ${2}'s cache"
@@ -603,16 +610,29 @@ codex_cache_spell_lookup()  {
 
 }
 
+#---------------------------------------------------------------------
+##=item codex_check_cache <grimoire-path>
+##
+## Checks that the cache exists. if it doesn't exist, make it.
+## If it still doesn't exist, the barf an error
+##
+#---------------------------------------------------------------------
 codex_check_cache()  {
 
 	[ -f $1/$SPELL_INDEX_FILE ] || codex_create_cache
 	if ! [ -f $1/$SPELL_INDEX_FILE ] ; then
-		message "${PROBLEM_COLOR}Eeek, $2 isn not a grimoire!${DEFAULT_COLOR}"
+		message "${PROBLEM_COLOR}Eeek, $2 is not a grimoire!${DEFAULT_COLOR}" >&2
 		exit 1
 	fi
 }
 
-
+#---------------------------------------------------------------------
+##=item codex_create_cache [<grimoire-path>]
+##
+## Creates the cache/index for the specified grimoire, or all if none
+## is asked for.
+##
+#---------------------------------------------------------------------
 codex_create_cache()  {
 	
 	debug "libcodex" "codex_create_cache - $*"
@@ -620,7 +640,7 @@ codex_create_cache()  {
 	[[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 
 	for i in $list ; do
-		find $i -name DETAILS -follow -perm +700 |		\
+		find $i -name DETAILS -follow -perm +700 -maxdepth 3 -mindepth 3 |		\
 			sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' |	\
 			sort > $i/$SPELL_INDEX_FILE
 	done
