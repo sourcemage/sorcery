@@ -45,6 +45,7 @@ service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
 what		spell		Print the spell's description.
+short           spell           Print the spell's short description.
 where		spell		Print the spell's section.
 website | url	spell		Print the spell's website.
 install		spell		View an install log.
@@ -701,48 +702,54 @@ show_orphans()  {
 #---------------------------------------------------------------------
 gaze_show_website()  {
 
-  if  codex_set_current_spell_by_name  $1;  then
-    if  [  -n  "$WEB_SITE"  ];  then   
-      echo  $WEB_SITE
+  for spell in $@; do
+    if  codex_set_current_spell_by_name  $spell;  then
+      if  [  -n  "$WEB_SITE"  ];  then
+        message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        echo  $WEB_SITE
+      else
+        echo  "  "
+        echo  "No website found for '$spell'.  If you know of a website for"
+        echo  "'$spell',  please let the Source Mage developers know so that"
+        echo  "it can be included in future versions of the Source Mage"
+        echo  "grimoire.  You can report the omission at the Source Mage"
+        echo  "bug tracking website:"
+        echo  "  "
+        echo  "           http://bugs.sourcemage.org/"
+      fi
     else
       echo  "  "
-      echo  "No website found for '$1'.  If you know of a website for"
-      echo  "'$1',  please let the Source Mage developers know so that"
-      echo  "it can be included in future versions of the Source Mage"
-      echo  "grimoire.  You can report the omission at the Source Mage"
-      echo  "bug tracking website:"
+      echo  "'$spell' is not a spell in the current grimoire(s).  If it's"
+      echo  "not a typo and it's a spell you'd really like to see, consider"
+      echo  "creating a spell for it yourself.  For instructions on how to"
+      echo  "write & submit spells, see the Source Mage Wiki:"
       echo  "  "
-      echo  "           http://bugs.sourcemage.org/"
+      echo  "             http://wiki.sourcemage.org."
     fi
-  else  
-    echo  "  "
-    echo  "'$1' is not a spell in the current grimoire(s).  If it's"
-    echo  "not a typo and it's a spell you'd really like to see, consider"
-    echo  "creating a spell for it yourself.  For instructions on how to"
-    echo  "write & submit spells, see the Source Mage Wiki:"
-    echo  "  "
-    echo  "             http://wiki.sourcemage.org."
-  fi
-
+  done
 }
 
 show_maintainer()  {
 
-  SECTION=`codex_find_section_by_name $1`
-  
-  if  [  -d  "$SECTION"  ];  then
+  for section in $@; do
 
-    if  [  -f  "$SECTION/MAINTAINER"  ];  then
-      cat $SECTION/MAINTAINER
+    message "${SPELL_COLOR}${section}:${DEFAULT_COLOR}"
+    SECTION=`codex_find_section_by_name $section`
+
+    if  [  -d  "$SECTION"  ];  then
+
+      if  [  -f  "$SECTION/MAINTAINER"  ];  then
+        cat $SECTION/MAINTAINER
+      else
+        echo "No maintainer available for section '$( basename  $SECTION )'"
+      fi
+
     else
-      echo "No maintainer available for section '$( basename  $SECTION )'"
+
+      echo  "No such section"
+
     fi
-
-  else
-
-    echo  "No such section '$1'"
-
-  fi
+  done
 
 }
 
@@ -1022,6 +1029,58 @@ gaze_show_license()  {
 
 }
 
+gaze_show_installed() {
+
+  if    [  -z  "$1"    ]
+        then  $PAGER   $SPELL_STATUS
+  else
+        for spell in $@; do
+                message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+                VERSION=$(installed_version  $spell)
+                if  [  -n  "$VERSION"  ]; then
+                        echo   "$VERSION"
+                else
+                        message  "not installed"
+                fi
+        done
+  fi
+}
+
+gaze_show_short_description() {
+
+  for spell in $@; do
+        message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        (
+          codex_set_current_spell_by_name  $spell           &&
+          echo $SHORT
+        )                                                 ||
+        message  "No details found"
+  done
+}
+
+gaze_show_long_description() {
+
+  for spell in $@; do
+        message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        (
+          codex_set_current_spell_by_name  $spell           &&
+          codex_get_spell_description  $SPELL_DIRECTORY
+        )                                       ||
+        message  "No details found"
+  done
+}
+
+gaze_show_section() {
+  for spell in $@; do
+        SECTION=$(codex_get_spell_section_name  $spell)
+        if [[ $SECTION ]]; then
+                message "$spell -> $SECTION"
+        else
+                message "$spell not found"
+        fi
+  done
+}
+
 
 parse()  {
 
@@ -1063,9 +1122,13 @@ parse()  {
         provides)  gaze_provides "$2"                    ;;
          depends)  show_depends  "$2"  |  sort  |  uniq  ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
-     website|url)  gaze_show_website  "$2"               ;;
-      maintainer)  show_maintainer  "$2"                 ;;
          history)  show_history  "$2"                    ;;
+     website|url)  shift; gaze_show_website           $@ ;;
+      maintainer)  shift; show_maintainer             $@ ;;
+       installed)  shift; gaze_show_installed         $@ ;;
+           short)  shift; gaze_show_short_description $@ ;;
+            what)  shift; gaze_show_long_description  $@ ;;
+           where)  shift; gaze_show_section           $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
@@ -1079,15 +1142,6 @@ parse()  {
               "Install log for $SPELL does not exist"
               ;;
 
-    installed)  if    [  -z  "$SPELL"    ]
-                then  $PAGER   $SPELL_STATUS
-                elif  [  -n  "$VERSION"  ]
-                then  echo   "$VERSION"
-                else  message  "$SPELL is not installed";  false
-                fi
-                ;;
-
-
     sum)  [  -n  "$SPELL"  ]                         &&
           checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
           checksum  "$INSTALL_LOGS/*"
@@ -1098,19 +1152,6 @@ parse()  {
              md5sum_files  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
              md5sum_files  "$INSTALL_LOGS/*"
              ;;
-
-
-    what)  (
-              codex_set_current_spell_by_name  $2           &&  
-              codex_get_spell_description  $SPELL_DIRECTORY
-           )                                       || 
-           message  "Details for $2 not found"
-           ;;
-
-    where)  SECTION=`codex_get_spell_section_name  $2`  &&
-            echo     "$SECTION"             ||
-            message  "$2 not found"
-            ;;
 
    voyeur)  shift  1;  activate_voyeur  $@  ;;
 
