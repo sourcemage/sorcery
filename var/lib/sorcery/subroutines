@@ -1,0 +1,1396 @@
+sound()  {
+
+  case  $SOUND  in
+    on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
+         if  [  -e  $SOUND_FILE  ];  then
+           (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
+         fi
+    ;;
+  esac
+
+}
+
+
+
+############################################################
+#  Any sorcery related script may prompt
+#  the Sys-Admin to read a report.
+#  Reports are also automatically mailed.
+############################################################
+
+
+query()  { (
+#  2 arguments
+#  query  "what do you want?  "  DEFAULT
+
+  if  [  -z  "$SILENT"  ];  then
+
+    # message  "Press y for yes, n for no."
+    if  [  -n  "$SPELL"  ];  then
+      echo  -e  -n  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}:  "
+      echo  -e  -n  "${QUERY_COLOR}$1 [$2] ${DEFAULT_COLOR}"
+    else
+      echo  -e  -n  "${QUERY_COLOR}$1 [$2] ${DEFAULT_COLOR}"
+    fi
+
+    read   -t  $PROMPT_DELAY  -n  1  RESPONSE
+    echo
+
+    RESPONSE=${RESPONSE:=$2}
+    case  $RESPONSE  in
+      n|N|f|F|m|M)  false  ;;
+                *)  true   ;;
+    esac
+
+  else
+
+    case  $2  in
+      n|N|f|F|m|M)  false  ;;
+                *)  true   ;;
+    esac
+
+  fi
+
+) }
+
+
+message()    {  [  -n  "$SILENT"  ]  ||  echo  -e  "$*";  }
+edit_file()  {  ${EDITOR:-nano}  $1;                      }
+
+
+report() {
+
+  if  !  [  -f  $1  ];  then  return;  fi
+
+  if  [  "$VIEW_REPORTS"  ==  "on"  ];  then
+
+    VIEW_PROMPT="View $2 for ${SPELL_COLOR}${SPELL}-${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}?"
+    sound  REPORT
+    if  query  "$VIEW_PROMPT" n;  then  less  $1;  fi
+  fi
+
+  if  [  "$MAIL_REPORTS"  ==  "on"  ];  then
+    date  -u  |
+    mail  -s  "Sorcery Report : $HOSTNAME : $2 for $SPELL-$VERSION"  \
+              $SORCERER  -a  $1  2>/dev/null
+  fi
+
+  true
+
+}
+
+
+
+############################################################
+#  The following routines are used by 
+#  cast, PRE_BUILD, BUILD, and POST_BUILD scripts
+############################################################
+
+
+guess_filename()  {
+
+  FILENAME=$1
+  BASENAME=`echo  $FILENAME         |
+            sed  "s/\.tar\.gz$//"   |
+            sed  "s/\.tgz$//"       |
+            sed  "s/\.tar\.bz2$//"`
+
+  if    [  -f  $FILENAME          ];  then  echo  $FILENAME
+  elif  [  "$FUZZ"  ==  "off"     ];  then  return  1
+  elif  [  -f  $BASENAME.tar.gz   ];  then  echo  $BASENAME.tar.gz
+  elif  [  -f  $BASENAME.tar.bz2  ];  then  echo  $BASENAME.tar.bz2
+  elif  [  -f  $BASENAME.tgz      ];  then  echo  $BASENAME.tgz
+  else  false
+  fi
+
+}
+
+
+testpack() {
+
+  FILENAME=`guess_filename                $1`  ||
+  FILENAME=`guess_filename  $SOURCE_CACHE/$1`
+
+  [  -f  $FILENAME  ]                                    &&
+  COMPRESSOR=`file  -b  $FILENAME  |  cut  -d ' '  -f1`  &&
+  
+  case  $COMPRESSOR  in
+        bzip2)  bzip2  -tf   $FILENAME   1>/dev/null 2>&1  ;;
+         gzip)  gzip   -tf   $FILENAME   1>/dev/null 2>&1  ;;
+    compress*)  gzip   -tf   $FILENAME   1>/dev/null 2>&1  ;;
+          Zip)  unzip  -tq   $FILENAME   1>/dev/null 2>&1  ;;
+          RPM)  rpmunpack  < $FILENAME   |                 \
+                gzip   -t                1>/dev/null 2>&1  ;;
+            *)  true                                       ;;
+  esac
+
+}
+
+
+unpack() {
+
+    FILENAME=`guess_filename  $SOURCE_CACHE/$1`          &&
+  COMPRESSOR=`file  -b  $FILENAME  |  cut  -d ' '  -f1`  &&
+
+  case  $COMPRESSOR  in
+        bzip2)  bzip2  -cdf   $FILENAME  |  tar   --owner=root  --group=root  -xf  -  ;;
+         gzip)  gzip   -cdf   $FILENAME  |  tar   --owner=root  --group=root  -xf  -  ;;
+    compress*)  gzip   -cdf   $FILENAME  |  tar   --owner=root  --group=root  -xf  -  ;;
+          Zip)  unzip  -q     $FILENAME                 ;;
+          RPM)  rpmunpack  <  $FILENAME  |  gzip  -d    \
+                                         |  cpio  -idm  ;;
+            *)  false                                   ;;
+  esac
+
+}
+
+
+boost_locked()  {
+
+  [  -f     $BOOST_LOCK  ]  &&
+  ps  `cat  $BOOST_LOCK`    |
+  grep  -q  cast
+
+}
+
+
+save_libraries()  {
+
+  if    [  -z  "$SOURCE_DIRECTORY"  ]
+  then  return
+  fi
+
+  OLD_LIBS=$SOURCE_DIRECTORY/old.libraries
+  mkdir  -p  $OLD_LIBS
+
+            SAVED=$OLD_LIBS/$SPELL.saved.libraries
+  rm  -rf  $SAVED
+
+    OLD_VERSION=`installed_version  $SPELL`
+        OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
+
+  grep   "^/lib/\|^/usr/lib"  $OLD_LOG  |
+  while  read        LINE;  do
+
+    if   [  -f      $LINE   ]  &&
+         file  -bL  $LINE   |
+         grep  -q   "shared object"
+    then
+      if  [  -h  $LINE  ];  then
+        DEST=$(  basename  $(  ls   -la  "$LINE"  |
+                               cut  -d  '>'  -f2  |
+                               cut  -c  2-
+                            )
+              )
+        ln  -sf  $DEST  $OLD_LIBS/`basename  $LINE`
+      else
+        cp  $LINE  $OLD_LIBS
+      fi
+      echo       $OLD_LIBS/`basename  $LINE`  >>  $SAVED
+    fi
+
+
+  done
+
+
+  ldconfig  $OLD_LIBS
+
+  if  [  -z   "$LD_LIBRARY_PATH"  ]
+  then  export  LD_LIBRARY_PATH="$OLD_LIBS"
+  else  export  LD_LIBRARY_PATH="$OLD_LIBS:LD_LIBRARY_PATH"
+  fi
+
+  if  [  "$SPELL"  ==  "glibc"         ]   ||
+      [  "$SPELL"  ==  "glibc-custom"  ];  then
+    ln  -sf  $OLD_LIBS/ld-$OLD_VERSION.so  /lib/ld-linux.so.2
+  fi
+
+}
+
+
+release_saved_libraries()  {  ldconfig;  }
+
+
+prepare_install() {
+
+  message  "${MESSAGE_COLOR}Preparing to install"  \
+           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+
+  while  boost_locked;  do
+    sleep  5
+  done
+
+  echo  $$  >  $BOOST_LOCK
+
+  if  spell_installed  $SPELL   ||
+      spell_held       $SPELL;  then
+
+    save_libraries
+    dispel  --nosustain  $SPELL
+    true
+
+  fi
+
+  rm  -f  /tmp/$SPELL.iw
+
+}
+
+
+rm_source_dir() {
+
+  cd  /
+
+  DEAD_DIR=$1
+  DEAD_DIR=${DEAD_DIR:=$SOURCE_DIRECTORY}
+
+  if  [  -n  "$DEAD_DIR"  ];  then
+    umount    $DEAD_DIR  2>  /dev/null
+    rmdir     $DEAD_DIR  2>  /dev/null
+    rm   -f   $BOOST_LOCK
+  fi
+
+}
+
+
+mk_source_dir() {
+
+  NEW_DIR=$1
+  NEW_DIR=${NEW_DIR:=$SOURCE_DIRECTORY}
+
+  if  [  -n  "$NEW_DIR"  ];  then
+    umount    $NEW_DIR  2>  /dev/null
+    rmdir     $NEW_DIR  2>  /dev/null
+    mkdir     $NEW_DIR  &&
+    mount  -o  size=1g,nr_inodes=1m  -t  tmpfs  tmpfs  $NEW_DIR
+  fi
+
+}
+
+
+default_pre_build() {
+
+  mk_source_dir        $SOURCE_DIRECTORY  &&
+  unpack               $SOURCE
+
+}
+
+
+default_build() {
+
+(
+
+  ./configure  --build=$BUILD        \
+               --prefix=/usr         \
+               --sysconfdir=/etc     \
+               --localstatedir=/var  \
+               $OPTS                 &&
+  make                               &&
+  prepare_install                    &&
+  make    install
+
+) > $C_FIFO 2>&1
+
+}
+
+
+gather_docs()  {
+
+  DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
+  mkdir  -p  $DOC_DIR
+  cp         $SOURCE_DIRECTORY/README*     $DOC_DIR  2>/dev/null
+  cp         $SOURCE_DIRECTORY/INSTALL*    $DOC_DIR  2>/dev/null
+  cp         $SOURCE_DIRECTORY/FAQ*        $DOC_DIR  2>/dev/null
+  cp         $SOURCE_DIRECTORY/CHAN*       $DOC_DIR  2>/dev/null
+  cp     -r  $SOURCE_DIRECTORY/doc*        $DOC_DIR  2>/dev/null
+  cp     -r  $SOURCE_DIRECTORY/DOC*        $DOC_DIR  2>/dev/null
+  cp         $SOURCE_DIRECTORY/*doc        $DOC_DIR  2>/dev/null
+  cp         $SOURCE_DIRECTORY/*rc         $DOC_DIR  2>/dev/null
+  cp     -r  $SOURCE_DIRECTORY/conf        $DOC_DIR  2>/dev/null
+  cp     -r  $SOURCE_DIRECTORY/SETUP       $DOC_DIR  2>/dev/null
+
+}
+
+
+install_pam_confs()  {
+
+  if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
+    cd       "$SCRIPT_DIRECTORY/pam.d"
+
+    mkdir  -p  /etc/pam.d
+
+    for  FILE  in  `ls`;  do
+      if  !  [  -f  /etc/pam.d/$FILE  ];  then
+        cp  $FILE   /etc/pam.d
+      fi
+    done
+
+  fi
+
+}
+
+
+install_xinetd_confs()  { (
+
+  if  [  -d  "$SCRIPT_DIRECTORY/xinetd.d"  ];  then
+
+    cd       "$SCRIPT_DIRECTORY/xinetd.d"
+    mkdir  -p  /etc/xinetd.d
+
+    for  SERVICE  in  $SERVICES;  do
+      for  FILE  in  `ls`;  do
+        if    grep  -q  "service $SERVICE"   $FILE
+        then  cp  $FILE  /etc/xinetd.d
+        fi
+      done
+    done
+
+    if  [  -n  "$SERVICES"  ];  then
+      unset  LD_PRELOAD
+      /etc/init.d/xinetd.sh  restart
+    fi
+  fi
+
+) }
+
+
+install_services()  { (
+
+
+  if  [  -f  $SCRIPT_DIRECTORY/services  ];  then
+
+  export  IFS="$ENTER_IFS"
+
+    cat  $SCRIPT_DIRECTORY/services  |
+    while  read  LINE;  do
+      grep  -q  "$LINE"      /etc/services  ||
+      echo      "$LINE"  >>  /etc/services
+    done
+  fi
+
+) }
+
+
+default_post_build() {
+
+  install_pam_confs
+  install_services
+  install_xinetd_confs
+  gather_docs
+  devoke_installwatch
+  ldconfig
+  # release_saved_libraries
+  cd  /
+  boost
+
+}
+
+
+
+############################################################
+#  find_section is used by cast, dispel, and sorcery.
+############################################################
+
+
+find_section()  {
+
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    [  -x  $GRIMOIRE/$SECTION/$1/DETAILS  ]   &&
+    echo             $SECTION                 &&
+    break
+  done  
+ 
+}
+
+
+############################################################
+#  These routines are used by DEPENDS, sorcery, and cast
+############################################################
+
+
+get_status()  {
+
+  if    grep  -q  "^$1\:"   $SPELL_STATUS
+  then  grep      "^$1\:"   $SPELL_STATUS  |  cut  -d : -f3
+  else  grep      "^$1-"    $SPELL_STATUS  |  cut  -d : -f3
+  fi
+
+}
+
+
+spell_installed() {  [  "$(  get_status  $1  )"  ==  "installed"  ];  }
+spell_held()      {  [  "$(  get_status  $1  )"  ==  "held"       ];  }
+spell_exiled()    {  [  "$(  get_status  $1  )"  ==  "exiled"     ];  }
+
+
+installed_version()  {
+
+  if    grep  -q  "^$1\:"  $SPELL_STATUS
+  then  grep      "^$1\:"  $SPELL_STATUS  |  cut  -d : -f4  |  head  -n 1
+  else  grep      "^$1-"   $SPELL_STATUS  |  cut  -d : -f4  |  head  -n 1
+  fi
+
+}
+
+
+remove_spell()  {
+
+  grep  -v  "^$1:"       $SPELL_STATUS_BACKUP  >  $SPELL_STATUS
+  cp    $SPELL_STATUS    $SPELL_STATUS_BACKUP
+
+  if  [  -n  "$EXILE"  ];  then
+    echo  "$1::exiled:0.0"  >>  $SPELL_STATUS
+    cp  $SPELL_STATUS           $SPELL_STATUS_BACKUP
+    grep  -v  ":$1:"            $DEPENDS_STATUS_BACKUP  \
+                            >   $DEPENDS_STATUS
+    cp  $DEPENDS_STATUS         $DEPENDS_STATUS_BACKUP
+  fi
+
+}
+
+
+add_spell()  {
+
+  remove_spell  $1
+  echo  "$1:`date  -u  +%Y%m%d`:$2:$3"  >>  $SPELL_STATUS
+  cp    $SPELL_STATUS                       $SPELL_STATUS_BACKUP
+
+}
+
+
+is_depends()  {  (
+  #  Is $1 a previously selected dependency of any spell.
+
+  EXIT_STATUS="false"
+
+  for  DEP  in  `cut  -d :  -f2-  $DEPENDS_STATUS  |
+                 grep  "^$1:"`
+  do
+
+    DEP_STATUS=`echo  "$DEP"  |  cut  -d :  -f2`
+
+    if    [  "$DEP_STATUS"  ==  "on"  ]
+    then  EXIT_STATUS="true"
+          break
+    fi
+
+  done
+
+  $EXIT_STATUS
+
+)  }
+
+
+in_depends()  {
+  #  Was $1 presented as a depenency for $SPELL
+
+  if    grep  -q  "^$SPELL:$1"  $DEPENDS_STATUS
+  then  true
+  else  false
+  fi
+
+}
+
+
+remove_depends()  {
+
+  if    [  -n  "$2"  ]
+  then  grep  -v  "^$1:$2"  $DEPENDS_STATUS_BACKUP  >  $DEPENDS_STATUS
+  else  grep  -v  "^$1:"    $DEPENDS_STATUS_BACKUP  >  $DEPENDS_STATUS
+  fi
+  cp  $DEPENDS_STATUS       $DEPENDS_STATUS_BACKUP
+
+}
+
+
+add_depends()  {
+
+  remove_depends  "$1"  "$2"
+  echo  "$1:$2:$3:$4:$5:$6"  >>  $DEPENDS_STATUS
+  cp  $DEPENDS_STATUS            $DEPENDS_STATUS_BACKUP
+  
+}
+
+
+depends()  {
+
+  if  ! spell_installed  $1   &&
+      ! spell_held       $1
+  then
+    if  !  is_depends    $1  &&
+        !  spell_exiled  $1  &&
+        !  query  "Install required dependency $1 $4?" y
+    then  return  1
+    else
+      cast  --deps  $1
+    fi
+  fi
+  add_depends  "$SPELL"  "$1"  "on"  "required"  "$2"  "$3"
+
+}
+
+
+conflicts() {
+
+  if  spell_installed  $1;  then
+    dispel  $1
+  fi
+
+  true
+
+} 
+
+
+############################################################
+#  These routines are used mostly by cast and dispel
+############################################################
+
+
+directories() {
+
+  while  read       ITEM;  do
+    if  [     -d  "$ITEM"  ]   &&
+        !  [  -h  "$ITEM"  ];  then
+      echo        "$ITEM"
+    fi
+  done
+
+}
+
+
+files()  {
+
+  while  read       ITEM;   do
+    if  [     -f  "$ITEM"  ]   &&
+        !  [  -h  "$ITEM"  ];  then
+      echo        "$ITEM"
+    fi
+  done
+
+}
+
+
+symlinks()  {
+
+  while  read    ITEM;   do
+    if  [  -h  "$ITEM"  ];  then
+      echo     "$ITEM"
+    fi
+  done
+
+}
+
+
+filter() {
+
+  if  [  -f  $1  ];  then
+
+     DIRS=`directories  <  $1  2>/dev/null`
+    FILES=`files        <  $1  2>/dev/null`
+     SYMS=`symlinks     <  $1  2>/dev/null`
+
+    RID_LIST=`for  DIR   in  $DIRS;   do  echo  -n  "^$DIR\|";     done
+              for  FILE  in  $FILES;  do  echo  -n  "^$FILE\$\|";  done
+              for  SYM   in  $SYMS;   do  echo  -n  "^$SYM\$\|";   done
+              echo  -n  "/dev/null"`
+
+    grep  -v  "$RID_LIST"
+
+  else
+    cat
+  fi
+
+}
+
+
+reap_modified_file()  {
+
+  message  "${FILE_COLOR}${1}${DEFAULT_COLOR}"
+  message  "${MESSAGE_COLOR}was previously modified by SA?"
+  case  $PRESERVE  in
+     on)  message  "Therefore, it was not reaped."  ;;
+    off)  SAVE="$1.`date  -u  +%Y%m%d`"
+          mv  $1  $SAVE
+          message  "Therefore, it was moved to"
+          message  "${FILE_COLOR}${SAVE}"  ;;
+  esac
+  message  "${DEFAULT_COLOR}"
+
+}
+
+
+dirnames()            {  while  read  FILE;  do  dirname  "$FILE";  done;  }
+reap_regular_files()  {  while  read  FILE;  do  rm  -f   "$FILE";  done;  }
+
+
+reap_config_files()  {
+
+  while  read  FILE;  do
+
+    if    grep  -q  "$(  md5sum  "$FILE" )"  "$MD5S"
+    then  rm    -f               "$FILE"
+    else  reap_modified_file     "$FILE"
+    fi
+
+  done
+
+}
+
+
+reaper()  { (
+#  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
+
+  if  !  [  "$REAP"  ==  "on"  ]   ||
+      !  [  -f  $1             ];  then  return
+  fi
+
+  export  IFS="$TAB_ENTER_IFS"
+
+  MD5S=$2
+  MD5S=${MD5S:=/dev/null}
+
+           UNIQUE="$$.$RANDOM"
+     REAPER_FILES="/tmp/reaper.$UNIQUE.files"
+      REAPER_DIRS="/tmp/reaper.$UNIQUE.dirs"
+      REAPER_SYMS="/tmp/reaper.$UNIQUE.syms"
+
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+
+  filter  $PROTECTED  <  $1  |
+  filter  $EXCLUDED          |
+  while   read  ITEM;  do
+    if    [  -h  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_SYMS
+    elif  [  -f  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_FILES
+    elif  [  -d  "$ITEM"  ];  then  echo  "$ITEM"  >>  $REAPER_DIRS
+    fi
+  done
+
+  [     -f           $REAPER_FILES  ]  &&
+  grep      "^/etc"  $REAPER_FILES     |
+  reap_config_files
+
+  [     -f           $REAPER_FILES  ]  &&
+  grep  -v  "^/etc"  $REAPER_FILES     |
+  reap_regular_files
+
+  [  -f  $REAPER_SYMS   ]  &&  rm     -f  `cat          $REAPER_SYMS`                         2>/dev/null
+  [  -f  $REAPER_DIRS   ]  &&  rmdir      `sort  -r     $REAPER_DIRS`                         2>/dev/null
+  [  -f  $REAPER_FILES  ]  &&  rmdir      `dirnames  <  $REAPER_FILES  |  uniq  |  sort  -r`  2>/dev/null
+
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+
+) }
+
+
+
+############################################################
+#  The following routines are used by sorcery and 
+#  sorcery.update for handling access to the
+#  install and removal queues.
+############################################################
+
+
+pop_queue() {  (
+
+  if  !  [  -f  "$1"  ];  then  return  1;  fi
+
+  if  [  -n  "$2"  ];  then
+
+    TEMP=`grep  -v  "^$2\$"  $1`
+    echo  -e  "$TEMP"  >     $1
+
+  else
+
+    FOUND=`sed  -n  1p  $1`
+
+    if  [  -z  "$FOUND"  ];  then  return  1;  fi
+
+    TEMP=`grep  -v  "$FOUND"  $1`
+    echo  -e  "$TEMP"  >      $1
+    echo  $FOUND
+
+  fi
+
+) }
+
+
+push_queue() {  pop_queue  "$1"  "$2";  echo  "$2" >>  $1;  }
+
+push_install_queue() {
+ 
+  pop_queue   $REMOVE_QUEUE    "$1"
+  pop_queue   $INSTALL_QUEUE   "$1"
+  !  spell_installed           "$1"  &&
+  push_queue  $INSTALL_QUEUE   "$1"
+    
+}
+
+
+push_remove_queue() {
+
+  pop_queue   $INSTALL_QUEUE  "$1"
+  pop_queue   $REMOVE_QUEUE   "$1"
+  spell_installed             "$1"  &&
+  push_queue  $REMOVE_QUEUE   "$1"
+    
+}
+
+
+
+############################################################
+#  The following apprentice routines are used by cast
+############################################################
+
+
+apprentice_off()  { (
+
+  rm  -f  $(  find  /usr/bin /usr/games /usr/sbin  -group  apprentice  2>/dev/null )
+
+) }
+
+
+############################################################
+#  sedit is used by almost anything that wants it.
+############################################################
+
+
+sedit()  {
+
+  TMP_FILE="/tmp/`basename  $2`.$$.$RANDOM"
+  rm    -rf    $TMP_FILE
+  cp    $2     $TMP_FILE
+  sed   "$1"   $TMP_FILE  >  $2
+  rm    -rf    $TMP_FILE
+
+}
+
+
+optimize()  {
+
+  unset  I586 I686 K6 ATHLON POWERPC FAST SMALL SPEEDY TINY RISKY STRIP
+
+  for  PARAM  in  $*;  do
+    case  $PARAM  in
+         i586|pentium)  CFLAGS="-mcpu=i586  -march=i586"
+                         BUILD="i586-pc-linux-gnu"
+                          I586="on"
+                          FAST="-O2"
+                         SMALL="-Os"
+                    ;;
+
+      i686|pentiumpro)  CFLAGS="-mcpu=i686  -march=i686"
+                         BUILD="i686-pc-linux-gnu"
+                          I686="on"
+                          FAST="-O3"
+                         SMALL="-Os"
+                    ;;
+
+                   k6)  CFLAGS="-mcpu=k6  -march=k6"
+                         BUILD="i586-pc-linux-gnu"
+                            K6="on"
+                          FAST="-O2"
+                         SMALL="-Os"
+                    ;;
+
+               athlon)  if    spell_installed  gcc3
+                        then  CFLAGS="-mcpu=athlon  -march=athlon"
+                        else  CFLAGS="-mcpu=i686    -march=i686"
+                        fi
+                         BUILD="i686-pc-linux-gnu"
+                        ATHLON="on"
+                          FAST="-O3"
+                         SMALL="-Os"
+                    ;;
+
+              powerpc)  CFLAGS="-mcpu=powerpc"
+                         BUILD="powerpc-linux-gnu"
+                       POWERPC="on"
+                          FAST="-O3"
+                         SMALL="-Os"
+                    ;;
+
+               speedy)  CFLAGS="$CFLAGS $FAST"
+                        SPEEDY="on"
+                    ;;
+
+                 tiny)  CFLAGS="$CFLAGS $SMALL"
+                          TINY="on"
+                    ;;
+
+                risky)  CFLAGS="$CFLAGS -ffast-math -funroll-loops"
+                         RISKY="on"
+                    ;;
+
+                strip)  export  LDFLAGS="-s"
+                        STRIP="on"
+                    ;;
+
+    esac
+  done
+
+  export  CFLAGS
+  export  CXXFLAGS="$CFLAGS"
+
+}
+
+
+optional_depends()  {
+
+  # parameters:  $1 = spell name
+  #              $2 = configure parameter if spell wanted
+  #              $3 = configure parameter if spell declined
+  #              $4 = description of why to use this spell.
+
+
+  if  !  in_depends  "$1";  then
+
+    if    spell_exiled  $1
+    then  add_depends  "$SPELL"  "$1"  "off"  "optional"  "$2"  "$3"
+    else
+
+      if  spell_installed  $1  ||
+          spell_held       $1
+      then  DEFAULT="y"
+      else  DEFAULT="n"
+      fi
+
+      if    [  $DEFAULT  ==  "y"  ]  &&
+            is_depends  $1           ||
+            query  "Install optional dependency $1 $4? " $DEFAULT
+      then  cast  --deps  $1
+            add_depends  "$SPELL"  "$1"  "on"   "optional"  "$2"  "$3"
+      else  add_depends  "$SPELL"  "$1"  "off"  "optional"  "$2"  "$3"
+      fi
+    fi
+  fi
+
+}
+
+
+update_installed()  { (
+
+  rm  -f  $INSTALL_QUEUE
+  for  LINE  in  `cat  $SPELL_STATUS`;  do
+
+       SPELL=`echo  "$LINE"  |  cut  -d : -f1`
+       IDATE=`echo  "$LINE"  |  cut  -d : -f2`
+      STATUS=`echo  "$LINE"  |  cut  -d : -f3`
+    IVERSION=`echo  "$LINE"  |  cut  -d : -f4`
+     SECTION=`find_section  $SPELL`  &&
+
+    if  [  "$STATUS"  ==  "installed"  ];  then
+
+      .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
+      if  [  "$VERSION"   !=  "$IVERSION"   ]  ||
+          [  -z  "$IDATE"                   ]  ||
+          ((  UPDATED  >  IDATE  ))
+      then
+        if    [  "SPELL"  !=  "sorcery"  ]
+        then  push_queue  $INSTALL_QUEUE  $SPELL
+        fi
+      fi
+
+    fi
+  done
+
+) }
+
+
+upgrade_install_queue()  {
+
+  if  [  -f  $INSTALL_QUEUE  ];  then
+
+    message  "The following spells will be updated:"
+    cat  $INSTALL_QUEUE
+
+    unset  SPELL
+    if    query  "Do you wish to edit ${FILE_COLOR}$INSTALL_QUEUE${DEFAULT_COLOR}?" n
+    then  edit_file  $INSTALL_QUEUE
+    fi
+
+    if  [  -n  "`cat  $INSTALL_QUEUE`"  ];  then
+      cast      `cat  $INSTALL_QUEUE`
+      rm              $INSTALL_QUEUE
+    fi
+
+  fi
+
+  if  [  "$AUTOFIX"    ==  "on"  ];  then  cast  --fix;  fi
+  if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;        fi
+
+}
+
+
+log_list()  {
+
+  for  LINE  in  `cat  $SPELL_STATUS_BACKUP`;  do
+    SPELL=`echo  $LINE  |  cut  -d  :  -f1`
+      VER=`echo  $LINE  |  cut  -d  :  -f4`
+    echo  "$SPELL-$VER"
+    echo  "$SPELL-$VER.bz2"
+  done
+
+}
+
+
+clean_logs()  {
+
+  LOGS=`log_list`
+
+  for  FILE  in  `ls  $INSTALL_LOGS`;  do
+    if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
+      message  "Removing stale log  :  $INSTALL_LOGS/$FILE"
+      rm                               $INSTALL_LOGS/$FILE
+    fi
+  done
+
+  for  FILE  in  `ls  $COMPILE_LOGS`;  do
+    if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
+      message  "Removing stale log  :  $COMPILE_LOGS/$FILE"
+      rm                               $COMPILE_LOGS/$FILE
+    fi
+  done
+
+  for  FILE  in  `ls  $MD5SUM_LOGS`;  do
+    if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
+      message  "Removing stale log  :  $MD5SUM_LOGS/$FILE"
+      rm                               $MD5SUM_LOGS/$FILE
+    fi
+  done
+
+  EMPTY=$(  find  $GRIMOIRE  -type d  -empty  |  grep  -v  "pam.d"  )
+  if    [  -n  "$EMPTY"  ]
+  then  rmdir   $EMPTY
+  fi
+
+}
+
+
+activity_log()  { (
+
+     DATE=`date  -u  +%Y%m%d`
+  COMMAND=$1
+    SPELL=$2
+  VERSION=$3
+  OUTCOME=$4
+     INFO=$5
+
+  echo    "$DATE	$COMMAND	$SPELL	$VERSION	$OUTCOME	$INFO"  >> $ACTIVITY_LOG
+
+) }
+
+
+#######################################################
+# Following functions are used by cast and leach
+######################################################
+
+run_details() {
+               
+  if              SECTION=`find_section      $SPELL`  &&
+         SCRIPT_DIRECTORY=$GRIMOIRE/$SECTION/$SPELL   &&
+      . $SCRIPT_DIRECTORY/DETAILS  >  /dev/null
+  then  true
+  else  message  "${PROBLEM_COLOR}Unable to find spell"    \
+                 "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"  \
+                 "in $GRIMOIRE"
+        false
+  fi
+
+}
+
+
+satisfy_depends()  {
+ 
+  unset  OPTS  
+  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+    
+  if  [  -x  $SPELL_CONFIG  ];  then
+          .  $SPELL_CONFIG
+  fi
+
+  for  LINE  in  `grep  "^$SPELL:"  $DEPENDS_STATUS`;  do
+
+     DEP_SPELL=`echo  $LINE  |  cut  -d :  -f2`
+    DEP_STATUS=`echo  $LINE  |  cut  -d :  -f3`
+        DEP_ON=`echo  $LINE  |  cut  -d :  -f5`
+       DEP_OFF=`echo  $LINE  |  cut  -d :  -f6`
+
+    if  [  -n  "$FIX"  ]
+    then  if  DEP_STATUS="on"
+          then  cast  $FIX  $DEP_SPELL
+          fi
+    elif  [  "$DEP_STATUS"  ==  "off"  ]  ||
+          spell_exiled  $DEP_SPELL
+    then  OPTS="$OPTS  $DEP_OFF"
+
+    elif  [  "$DEP_STATUS"  ==  "on"  ]   &&
+          !  spell_installed  $DEP_SPELL  &&
+          !  spell_held       $DEP_SPELL
+    then
+      if    cast  $SILENT  $COMPILE  $DEP_SPELL
+      then  OPTS="$OPTS  $DEP_ON"
+      else  exit  1
+      fi
+    else  OPTS="$OPTS  $DEP_ON"
+    fi
+
+  done
+
+}
+
+
+color()  {
+
+  case  $1  in
+    off)  unset  SPELL_COLOR
+          unset  VERSION_COLOR
+          unset  QUERY_COLOR
+          unset  DISPEL_COLOR
+          unset  CHECK_COLOR
+          unset  RESURRECT_COLOR
+          unset  FILE_COLOR
+          unset  SYMLINK_COLOR
+          unset  PROBLEM_COLOR
+          unset  MESSAGE_COLOR
+          unset  DEFAULT_COLOR
+          COLOR=off
+          ;;
+     on)  COLOR=on
+          ;;
+  esac
+
+}
+
+
+invoke_installwatch()  {
+
+  if  [  -e  /usr/lib/installwatch.so  ];  then
+    rm  -rf  /tmp/$SPELL.iw
+    export  INSTALLWATCHFILE=/tmp/$SPELL.iw
+    export  LD_PRELOAD=/usr/lib/installwatch.so
+  fi
+
+}
+
+
+devoke_installwatch()  {
+
+  unset  LD_PRELOAD
+  unset  INSTALLWATCHFILE
+
+}
+
+
+syms_not_owned()  {
+
+  cat  $1  |
+  while  read  ITEM;  do
+
+    if  [  -h  "$ITEM"  ]   &&
+        [  -f  "$ITEM"  ];  then
+
+      DEST=$(  basename  $(  ls   -la  "$ITEM"  |
+                             cut  -d  '>'  -f2  |
+                             cut  -c  2-
+                          )
+            )
+
+      if  !  grep  -q  "$DEST"  "$1"
+      then   echo  -n  "$ITEM\|"
+             echo      "$ITEM"  >>  /tmp/$SPELL.rejected.symlinks
+      fi
+
+    fi
+
+  done
+
+}
+
+
+parse_iw()  {
+
+  OMIT="^/dev\|^/tmp\|^/usr/src"
+  OMIT_IN="	rename\|	symlink\|	unlink"
+
+  grep -v "$OMIT_IN" $IW_LOG | cut -f3 | grep -v "$OMIT"
+  cat                $IW_LOG | cut -f4 | grep -v "$OMIT" | grep "^/"
+
+}
+
+
+exists()  {  while  read  ITEM;  do  [  -e  $ITEM  ]  &&  echo  $ITEM;  done;  }
+
+
+track()  {
+
+  message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
+
+  export  IFS="$TAB_ENTER_IFS"
+
+  parse_iw                   |
+  sort                       |
+  uniq                       |
+  filter  "$EXCLUDED"        |
+  filter  "$LOCAL_EXCLUDED"  |
+  exists                     >  $TMP_LOG
+
+  echo  "$C_LOG_BZ"         >>  $TMP_LOG
+  echo  "$MD5_LOG"          >>  $TMP_LOG
+  echo  "$INST_LOG"         >>  $TMP_LOG
+
+  MISOWNED_SYMLINKS=`syms_not_owned  $TMP_LOG
+                     echo  -n  "/dev/null"`
+
+  if    [  "$MISOWNED_SYMLINKS"  ==  "/dev/null"  ]
+  then  cp  $TMP_LOG  $INST_LOG
+  else  grep  -v  "$MISOWNED_SYMLINKS"  $TMP_LOG  >  $INST_LOG
+  fi
+
+  rm  -f  $IW_LOG  $TMP_LOG
+
+}
+
+
+archive()  {
+
+  LINES=`wc  -l  <  $INST_LOG`
+  ((  CHUNKS     =  LINES  /  1024  ))
+  ((  REMAINDER  =  LINES  %  1024  ))
+  if  ((  REMAINDER  !=  0  ));  then
+    ((  CHUNKS++  ))
+  fi
+
+  ((  START  =  1     ))
+  ((  STOP   =  1024  ))
+
+  for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
+
+    md5sum  $(  sed  -n  ${START},${STOP}p  $INST_LOG  |
+                files  )  >> $MD5_LOG
+
+    ((  START   =  STOP  +  1  ))
+    ((  STOP   +=  1024        ))
+
+  done
+
+  if    [  "$ARCHIVE"  ==  "off"  ]
+  then  return
+  fi
+
+  ((  START  =  1     ))
+  ((  STOP   =  1024  ))
+
+  for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
+ 
+    tar  --no-recursion  \
+         -rPf  $CACHE    \
+         $(  sed  -n ${START},${STOP}p  ${INST_LOG}  )
+
+    ((  START   =  STOP  +  1  ))
+    ((  STOP   +=  1024        ))
+
+  done
+
+  message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
+  bzip2  -9f  <  $CACHE  >  $CACHE_BZ
+  rm     -f      $CACHE  
+
+}
+
+
+boost()	{ (
+
+     CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
+  CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
+  C_LOG_BZ="$COMPILE_LOGS/$SPELL-$VERSION.bz2"
+   TMP_LOG="/tmp/$SPELL-$VERSION"
+  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+   MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+    IW_LOG="/tmp/$SPELL.iw"
+
+  rm  -rf  $CACHE
+  rm  -rf  $INST_LOG
+  touch    $INST_LOG
+  rm  -rf  $TMP_LOG
+  rm  -rf  $MD5_LOG
+  touch    $MD5_LOG
+
+  track    &&
+  archive  &&
+  add_spell  $SPELL installed $VERSION
+
+) }
+
+
+find_pam_aware()  { (
+
+  cat  $SPELL_STATUS_BACKUP  |
+  while  read  LINE;  do
+                        
+     SPELL="`echo  $LINE  |  cut  -d  :  -f1`"
+    STATUS="`echo  $LINE  |  cut  -d  :  -f3`"
+                                              
+    if  [  "$STATUS"  ==  "installed"  ]   ||
+        [  "$STATUS"  ==  "held"       ];  then
+
+      SECTION=`find_section  $SPELL`
+                                    
+      if    [  -d  "$GRIMOIRE/$SECTION/$SPELL/pam.d"  ]  &&
+            [  "$SPELL"  !=  "Linux-PAM"              ]
+      then  echo  $SPELL
+      fi
+
+    fi
+  done
+
+) }
+
+
+verify_source()  { (
+
+  VERIFIED="true"
+
+  for  SOURCE_FILE  in  $@;  do
+    if  !  guess_filename  $SOURCE_CACHE/$1  >/dev/null
+    then
+      message  "${PROBLEM_COLOR}Missing ${FILE_COLOR}${1}${DEFAULT_COLOR}"
+      message  "${PROBLEM_COLOR}Cast aborting.${DEFAULT_COLOR}"
+      activity_log  "cast"  "$SPELL"  "$VERSION"  "failed"  \
+                    "because it was missing source:  $1"
+      VERIFIED=false
+      break
+    fi
+  done
+
+  $VERIFIED
+
+) }
+
+
+sources()  { (
+
+  if  [  -z  "$SOURCE"  ];  then
+    SECTION=`find_section  $1`               &&
+    [  -x  $GRIMOIRE/$SECTION/$1/DETAILS  ]  &&
+        .  $GRIMOIRE/$SECTION/$1/DETAILS  >  /dev/null
+  fi
+
+  if  [  -n  "$SOURCE"    ];  then  echo  $SOURCE;    fi
+  if  [  -n  "$SOURCE2"   ];  then  echo  $SOURCE2;   fi
+  if  [  -n  "$SOURCE3"   ];  then  echo  $SOURCE3;   fi
+  if  [  -n  "$SOURCE4"   ];  then  echo  $SOURCE4;   fi
+  if  [  -n  "$SOURCE5"   ];  then  echo  $SOURCE5;   fi
+  if  [  -n  "$SOURCE6"   ];  then  echo  $SOURCE6;   fi
+  if  [  -n  "$SOURCE7"   ];  then  echo  $SOURCE7;   fi
+  if  [  -n  "$SOURCE8"   ];  then  echo  $SOURCE8;   fi
+  if  [  -n  "$SOURCE9"   ];  then  echo  $SOURCE9;   fi
+  if  [  -n  "$SOURCE10"  ];  then  echo  $SOURCE10;  fi
+  if  [  -n  "$SOURCE11"  ];  then  echo  $SOURCE11;  fi
+  if  [  -n  "$SOURCE12"  ];  then  echo  $SOURCE12;  fi
+  if  [  -n  "$SOURCE13"  ];  then  echo  $SOURCE13;  fi
+  if  [  -n  "$SOURCE14"  ];  then  echo  $SOURCE14;  fi
+  if  [  -n  "$SOURCE15"  ];  then  echo  $SOURCE15;  fi
+  if  [  -n  "$SOURCE16"  ];  then  echo  $SOURCE16;  fi
+  if  [  -n  "$SOURCE17"  ];  then  echo  $SOURCE17;  fi
+  if  [  -n  "$SOURCE18"  ];  then  echo  $SOURCE18;  fi
+  if  [  -n  "$SOURCE19"  ];  then  echo  $SOURCE19;  fi
+
+) }
+
+
+generate_keep_list()  { (
+
+  for  SECTION  in  `ls  $GRIMOIRE`;  do
+    for  SPELL  in  `ls  $GRIMOIRE/$SECTION`;  do
+      [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
+          .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
+      sources  $SPELL
+      echo     $SPELL-$VERSION-$BUILD.tar.bz2
+    done
+  done
+  echo  README
+
+) }
+
+
+prune()  { (
+
+  KEEP="/tmp/prune.keep"
+  generate_keep_list  >  $KEEP
+
+  ls  $SOURCE_CACHE  |
+  while  read  FILE;  do
+    if  [  -f  $SOURCE_CACHE/$FILE  ];  then
+      grep  -q  "^$FILE$"  $KEEP  ||
+      rm  $SOURCE_CACHE/$FILE
+    fi
+  done
+
+  ls  $INSTALL_CACHE  |
+  while  read  FILE;  do
+    if  [  -f  $INSTALL_CACHE/$FILE  ];  then
+      grep  -q  "^$FILE$"  $KEEP  ||
+      rm  $INSTALL_CACHE/$FILE
+    fi
+  done
+
+  rm  -f  $KEEP
+
+) }
+
+
+invoke_compilercache()  {
+
+  if    [  "$CCACHE"  ==  "on"  ]  &&
+        spell_installed  compilercache
+  then  export  PATH="/usr/bin/compilercache:$PATH"
+  fi
+
+}
+
+
+find_providers()  {
+
+  for  PROVIDER  in  $(  find  $GRIMOIRE -follow  -name  provides  );  do
+    if    grep  -q  $1  $PROVIDER
+    then  basename  $( dirname  $PROVIDER  )
+    fi
+  done
+
+}
+
+
+requires()  { (
+
+  CANDIDATES=$(  find_providers  $1  )
+
+  SATISFIED="false"
+
+  for  CANDIDATE  in       $CANDIDATES;  do
+    if    spell_installed  $CANDIDATE  ||
+          in_depends       $CANDIDATE
+    then  SATISFIED="true";  break
+    fi
+  done
+
+  if  !  $SATISFIED;  then
+
+    message  "${QUERY_COLOR}This spell requires a"  \
+             "${MESSAGE_COLOR}$1${DEFAULT_COLOR}"   \
+             "which can be provided by:"
+    message  "${FILE_COLOR}$CANDIDATES${DEFAULT_COLOR}"
+
+    for  CANDIDATE  in  $CANDIDATES;  do
+      if    depends  $CANDIDATE
+      then  SATISFIED="true";  break
+      fi
+    done
+
+  fi
+
+  $SATISFIED
+
+) }
+
+
+verify_sources()  {  verify_source  `sources  $SPELL`;  }
+handle_depends()  {  true;  }
