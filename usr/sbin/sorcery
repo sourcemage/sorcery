@@ -773,17 +773,30 @@ architecture_menu() {
   local ARCH_TITLE="$2"
   local ARCH_HELP="Please select a microprocessor category"
 
-  if   ARCHITECTURE=`eval $DIALOG '  --title  "$ARCH_TITLE"     \
+# CURRENT_ARCH is the currently selected architecture
+
+# NEW_ARCH is the new architecture selected (can be an empty string if
+# the user press cancel).
+
+# do not use ARCHITECTURE or TARGET variable since they are already
+# used by sorcery configuration
+
+  local CURRENT_ARCH="${!1}"
+
+  if NEW_ARCH=`eval $DIALOG '  --title  "$ARCH_TITLE"     \
                               --item-help                \
-                              --no-cancel                \
+                              --default-item "${CURRENT_ARCH}"   \
                               --menu                     \
                               "$ARCH_HELP"               \
                                0 0 0                     \
 			       '$LIST              `; then
 
-    debug "sorcery" "architecture_menu() - ARCHITECTURE='$ARCHITECTURE'"
+    # remove spurious ""
+    NEW_ARCH=`echo "${NEW_ARCH}" | sed -e 's/^"//' -e 's/"$//'`
 
-    modify_local_config "$1" "$ARCHITECTURE"
+    debug "sorcery" "architecture_menu() - NEW_ARCH='$NEW_ARCH'"
+
+    modify_local_config "$1" "${NEW_ARCH}"
 
   fi
 
