@@ -511,7 +511,7 @@ function cleanse_fix_depends() {
     else
       if [ $FIX == fix ] ; then
         # if its broken try to fix it
-          cleanse_fix_spell $SPELL
+        cleanse_fix_spell $SPELL
       else
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
                  "is broken${DEFAULT_COLOR} and not being fixed\n"
@@ -534,6 +534,13 @@ function cleanse_fix_depends() {
 #----------------------------
 function cleanse_fix_spell() {
   local SPELL=$1
+  if spell_held $SPELL ; then
+    HOPELESS="${HOPELESS}${SPELL}"$'\n'
+    message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
+             "is broken broken, but also held, not fixing${DEFAULT_COLOR}"
+    return 1
+  fi
+
   cast -c $SPELL                && 
   cleanse_fix_run_checks $SPELL &&
   FIXED="${FIXED}${SPELL}"$'\n' &&
@@ -555,7 +562,6 @@ function cleanse_fix_spell() {
 ##
 #--------------------------
 function cleanse_fix_run_checks()  {
-
   local SPELL=$1
   if [ $# -eq 1 ] ;then
     message  "Checking ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
@@ -619,7 +625,7 @@ function cleanse_fix_find_check()  {
   clear_line
 
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The folowing files from "             \
+    message "${PROBLEM_COLOR}The following files from "             \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"               \
             "${PROBLEM_COLOR}don't exist: "$'\n'"${DEFAULT_COLOR}" 
     message "$BADLIST"
@@ -718,7 +724,7 @@ function cleanse_fix_ldd_check()  { (
   clear_line
 
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The folowing files from"                  \
+    message "${PROBLEM_COLOR}The following files from"                  \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"                   \
             "${PROBLEM_COLOR}have missing library dependencies:"       \
             "${DEFAULT_COLOR}"
@@ -780,7 +786,7 @@ function cleanse_fix_sym_check() {
   clear_line
 
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The folowing symlinks from "             \
+    message "${PROBLEM_COLOR}The following symlinks from "             \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"                  \
             "${PROBLEM_COLOR}don't link to files it installed:"       \
             "${DEFAULT_COLOR}"

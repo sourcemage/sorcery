@@ -372,7 +372,7 @@ function install_xinetd_sub() {
   set_xinetd_state $tmp_file $state
 
   if test -e $inst_file &&
-     ! grep -v disabled $inst_file|diff - $file &>/dev/null ; then
+     ! grep -v disable $inst_file|diff - $file &>/dev/null ; then
     message "${QUERY_COLOR}$inst_file differs from the default $file," \
             "what would you like to do?${DEFAULT_COLOR}"
     select_list choice 0 "ignore" "overwrite" "overwrite/backup"
@@ -396,10 +396,10 @@ function install_xinetd_sub() {
 function set_xinetd_state() {
   local file=$1
   local state=$2
-  if grep -q "\s*disabled" $file ; then
-    sedit "s/disabled\s*=.*/disabled=$state/" $file
+  if grep -q "\s*disable" $file ; then
+    sedit "s/disable\s*=.*/disable = $state/" $file
   else
-    sedit "s/}/disabled=$state\n}/" $file
+    sedit "s/}/disable = $state\n}/" $file
   fi
 }
 
