@@ -306,6 +306,7 @@ function private_run_depends()
     get_uncommitted_depends_file $SPELL spell_depends
     if  [  -n  "$RECONFIGURE"  ];  then
       rm  -f  $DEPENDS_CONFIG/$SPELL
+      rm  -f  $DEPENDS_CONFIG/$SPELL.p
     fi
     prepare_spell_config
     SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
@@ -353,7 +354,7 @@ function private_should_cast()
   elif [[ "$RECAST_DOWN" ]] ; then
     # user gave -R so recast...
     return 0
-  elif echo "$UP_DEPENDS" | grep -q " $1 " ; then
+  elif echo "${UP_DEPENDS[*]}" | grep -q "\<$1\>" ; then
     # if someone has determined this is an upward depend (-B)
     return 0
   elif spell_installed $1 ; then
@@ -374,12 +375,12 @@ function private_upward_depends() {
     local tmp
     tmp=$(search_depends_status $DEPENDS_STATUS '.*' "$1"|cut -f1 -d:|tr "\n" " ")
     local j each
-    let j=0
+    let j=${#UP_DEPENDS[*]}
     for each in $tmp; do
       UP_DEPENDS[$j]=$each
       let j++
     done
-    spells=( $spells[*] $UP_DEPENDS[*] )
+    spells=( ${spells[*]} ${UP_DEPENDS[*]} )
   fi
 }
 
@@ -721,6 +722,7 @@ function select_provider()
     local returnvar=$1
     local default=$2
     local optional=$3
+    local i
     shift 3
 
     local each default_char=0 stuff=()

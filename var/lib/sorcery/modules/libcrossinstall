@@ -67,7 +67,8 @@ function set_install_cache_menu() {
                                     0 0  "$INSTALL_CACHE"'`
   then
     INSTALL_CACHE=${INSTALL_CACHE%/}
-    modify_config  $CONFIG_CACHE/roots "INSTALL_CACHE"  "$INSTALL_CACHE" 
+    remove_config $LOCAL_CONFIG "INSTALL_CACHE"
+    modify_config  $LOCAL_ROOTS_CONFIG "INSTALL_CACHE"  "$INSTALL_CACHE" 
   fi
 }
 
@@ -86,7 +87,8 @@ function set_install_root_menu() {
                                     0 0  "$INSTALL_ROOT"'`
   then
     INSTALL_ROOT=${INSTALL_ROOT%/}
-    modify_config  $CONFIG_CACHE/roots "INSTALL_ROOT"  "$INSTALL_ROOT" 
+    remove_config  $LOCAL_CONFIG "INSTALL_ROOT"
+    modify_config  $LOCAL_ROOTS_CONFIG "INSTALL_ROOT"  "$INSTALL_ROOT" 
   fi
 }
 
@@ -105,7 +107,8 @@ function set_state_root_menu() {
                                     0 0  "$STATE_ROOT"'`
   then
     STATE_ROOT=${STATE_ROOT%/}
-    modify_config  $CONFIG_CACHE/roots "STATE_ROOT"  "$STATE_ROOT"
+    remove_config  $LOCAL_CONFIG "STATE_ROOT"
+    modify_config  $LOCAL_ROOTS_CONFIG "STATE_ROOT"  "$STATE_ROOT"
   fi
 }
 
@@ -124,7 +127,7 @@ function set_track_root_menu() {
                                     0 0  "$TRACK_ROOT"'`
   then
     TRACK_ROOT=${TRACK_ROOT%/}
-    modify_config  $CONFIG_CACHE/roots "TRACK_ROOT"  "$TRACK_ROOT"
+    modify_config  $LOCAL_ROOTS_CONFIG "TRACK_ROOT"  "$TRACK_ROOT"
   fi
 }
 
@@ -157,6 +160,15 @@ function replicate_sorcery() {
 #-------------
 ## Do we know why this is commented out?
 ## Do we know why it's still here?
+##
+## Its commented out because it was a product of the old way
+## install_root/cross_install was put together. I left it commented out
+## just to be more conservative than killing it out-right. Its also
+## basically implemented in a more robust way above.
+##
+## I suspect I'll remove it in 1.12 since no one has even mentioned the
+## idea of installing sorcery itself somewhere else and running it from
+## there. (afk 2004-9-30)
 #-------------
 #cross_install_sorcery()
 #{

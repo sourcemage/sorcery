@@ -534,7 +534,8 @@ function real_list_remove () {
         eval "$var=\`echo \" \$$var \" | sed  \
                -e \"s/[[:space:]]\\+/ /g\"   \
                -e \"s/ $i / /g\"             \
-               -r -e \"s/^ (.+) $/\\1/\"\`"
+               -e \"s/^ *//\"                \
+               -e \"s/ *$//\"\`"
     done
 }
 
@@ -760,7 +761,7 @@ function config_set_option () {
 #---------------------------------------------------------------------
 function real_config_query () {
     local ANSWER
-    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
+    if config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
   
@@ -780,23 +781,25 @@ function real_config_query () {
 ## @param config file variable
 ## @param question
 ## @param default answer [y|n]
-## @param option_yes
-## @param option_no
+## @param option_yes - can't be empty string
+## @param option_no - can't be empty string
 ##
 ## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## The string is added to the variable
-## Return variable is also marked as persistent
+## If you want to use empty string, place there dummy string and remove
+## it later by list_remove function. Also for one config variable, all
+## option_yes and option_no have to be different.
 ##
+## Return variable is also marked as persistent
 #---------------------------------------------------------------------
 function real_config_query_option () {
     local ANSWER
   
     # If the option exists
     # If the option contains option_yes or option_no
-    # If RECONFIGURE is not defined
-    if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5 && [ -z "$RECONFIGURE" ]; then
+    if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
         # Then option allready ANSWERed in config
 
         # Find out if the option was 'y' or 'n'
@@ -805,7 +808,7 @@ function real_config_query_option () {
 
         if [ $key != error ]; then
             echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
-            return
+            return 0
         fi
     fi
   
@@ -834,7 +837,7 @@ function real_config_query_option () {
 function real_config_query_string () {
     local ANSWER
     
-    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
+    if config_get_option "$1" ANSWER; then
         # option allready answered in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
     else
@@ -863,7 +866,7 @@ function real_config_query_list () {
   shift
   shift
 
-  if [ -z "$RECONFIGURE" ] && config_get_option "$VARIABLE" ANSWER; then
+  if config_get_option "$VARIABLE" ANSWER; then
     # option allready ANSWERed in config
     (
         for foo in $@; do

@@ -151,7 +151,8 @@ mirror_menu()  {
          MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
       fi  &&
 
-      modify_config $CONFIG_CACHE/url "$MIRROR" "$MIRROR_URL" &&
+      remove_config $LOCAL_CONFIG "$MIRROR" "$MIRROR_URL" &&
+      modify_config $LOCAL_URL_CONFIG "$MIRROR" "$MIRROR_URL" &&
 
       eval $DIALOG  '--msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 0 0'
 
@@ -408,7 +409,6 @@ list_install_queue
 message  "${MESSAGE_COLOR}Casting updated spells...${DEFAULT_COLOR}"
 cast -q --queue
 
-# XXX should this be 'cast --fix' ?
 fix_installed_spells     # check integrity of installed spells
 
 
@@ -831,7 +831,7 @@ optimization_menu(){
 integrity_fix_menu()  {
 
     INT_TITLE="Integrity Checking Selection Menu"
-     INT_HELP="Please select the tests which cast --fix should execute."
+     INT_HELP="Please select the tests which cleanse --fix should execute."
     FIND_HELP="Discover missing  binary executables, libraries, and header files"
      LDD_HELP="Discover broken   binary executables, and libraries"
      SYM_HELP="Discover misowned symbolic links to files"
@@ -927,7 +927,7 @@ integrity_menu()  {
 
   INT_TITLE="Integrity Checking Selection Menu"
    INT_HELP="Options involving integrity checking, including --fix and download options."
-   FIX_HELP="Set cast --fix checks"
+   FIX_HELP="Set cleanse --fix checks"
     DL_HELP="Discover corrupted or modified archives during cast"
 
   while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
@@ -1384,18 +1384,18 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
 }
 
-
 option_menu()  {
 
   while
 
     B_HELP="Specify the sorcery branch you would like to track"
+    H_HELP="Specify the color scheme for messages"
     D_HELP="Enter the default delay time for prompts"
     E_HELP="Enter the email address for this box's sorcerer"
     F_HELP="Select many options on or off at once"
     M_HELP="Select ftp and http mirrors for faster downloads"
     O_HELP="Select architecture optimizations"
-    I_HELP="Select the test that cast --fix, and AUTOFIX execute"
+    I_HELP="Select the test that cleanse --fix, and AUTOFIX execute"
     J_HELP="Enter the number of jobs 'make' should run at the same time"
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
@@ -1414,6 +1414,7 @@ option_menu()  {
                       ""                                        \
                       0 0 0                                     \
                       "B"  "Sorcery Branch"           "$B_HELP" \
+                      "H"  "Color Scheme"             "$H_HELP" \
                       "D"  "Prompt Delay"             "$D_HELP" \
                       "R"  "Download Rate"            "$R_HELP" \
                       "N"  "Nice Level"               "$N_HELP" \
@@ -1434,6 +1435,7 @@ option_menu()  {
     case  $COMMAND in
 
       B)  set_branch             ;;
+      H)  color_schemes_menu     ;;
       D)  set_delay              ;;
       R)  set_download_rate      ;;
       N)  set_nice               ;;

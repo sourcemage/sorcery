@@ -625,19 +625,34 @@ function config_query () {
 ## @param config file variable
 ## @param question
 ## @param default answer [y|n]
-## @param option_yes
-## @param option_no
+## @param option_yes - can't be empty string
+## @param option_no - can't be empty string
 ##
 ## @return 0 in all cases
 ##
 ## Asks user for string, with default answer and timeout (like query)
 ## The string is added to the variable
+## If you want to use empty string, place there dummy string and remove
+## it later by list_remove function. Also for one config variable, all
+## option_yes and option_no have to be different.
 ## Return variable is also marked as persistent
+
 ## <pre>
-## Example:
+## Example 1:
 ##    config_query_option OPT "Use X ?" y "--with-x" "--without-x"
 ##    config_query_option OPT "Use jpeg ?" y "--with-jpeg" "--do-not-use-jpeg"
 ##    echo All selected options together: $OPT
+##
+## Example 2:
+## CONFIGURE:
+## config_query_option ASK "Use X11 ?" y --with-x11 EMPTY1
+## config_query_option ASK "Use Alsa ?" y --with-alsa EMPTY2
+##
+## BUILD:
+## local TEMP="$ASK"
+## list_remove TEMP EMPTY1 EMPTY2
+## ./configure $TEMP
+## ...
 ## </pre>
 ##
 #---------------------------------------------------------------------

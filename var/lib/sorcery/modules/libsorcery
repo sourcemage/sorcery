@@ -32,7 +32,7 @@ function update_sorcery_scripts() {
       if ! ( spell_installed basesystem || spell_held basesystem  ) ; then
         cast basesystem
       fi
-      cast --fix basesystem
+      cleanse --fix basesystem
     fi
   }
 
@@ -788,7 +788,7 @@ function fix_installed_spells()  {
 
   [  "$AUTOFIX"  ==  "on"  ]  &&  ANSWER=y  ||  ANSWER=n
   if  query  "Attempt to fix spells that may have become broken ?" $ANSWER;  then
-    cast  --fix;
+    cleanse --fix;
   fi
 
   if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
@@ -829,7 +829,7 @@ function upgrade_install_queue()  {
 
   [  "$AUTOFIX"  ==  "on"  ]  &&  ANSWER=y  ||  ANSWER=n
   if  query  "Attempt to fix spells that may have become broken ?" $ANSWER;  then
-    cast  --fix;
+    cleanse  --fix;
   fi
 
   if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
@@ -954,34 +954,6 @@ function unset_details()  {
 
 }
 
-
-#---------------------------------------------------------------------
-## @param on/off
-##
-## First argument is "off" or "on" to turn console colors off or on
-##
-#---------------------------------------------------------------------
-function color()  {
-
-  case  $1  in
-    off)  unset  SPELL_COLOR
-          unset  VERSION_COLOR
-          unset  QUERY_COLOR
-          unset  DISPEL_COLOR
-          unset  CHECK_COLOR
-          unset  RESURRECT_COLOR
-          unset  FILE_COLOR
-          unset  SYMLINK_COLOR
-          unset  PROBLEM_COLOR
-          unset  MESSAGE_COLOR
-          unset  DEFAULT_COLOR
-          COLOR=off
-          ;;
-     on)  COLOR=on
-          ;;
-  esac
-
-}
 
 
 
@@ -1317,86 +1289,6 @@ function filename_indicates_compression()  {
   [  -z  "$FILENAME"  ]
 }
 
-
-#---------------------------------------------------------------------
-##
-## Setup sound menu from existing installed sorcery sound spells.
-## Currently no check done for installed sound schemes, just message 
-## to user. 
-##
-## Passes name of chosen scheme to the set_sound_scheme funtion.
-## 
-#---------------------------------------------------------------------
-function sound_schemes_menu() {
-
-		SOUND_HELP="Here you can choose your prefered sound scheme"
-    FER_SOUND="Ferris sound scheme"
-    MIS_SOUND="Misc sound scheme"
-    SIM_SOUND="Simpsons sound scheme"
-		STA_SOUND="Startrek sound scheme"
-		OFF_SOUND="Sound off"
-
-   if  SOUND_CHECKS=`eval $DIALOG '  --title  "Sound Schemes"    \
-                                     --cancel-label  "Exit"      \
-                                     --ok-label      "Select"    \
-                                     --item-help                 \
-                                     --menu                      \
-                                     "$SOUND_HELP"               \
-                                     0 0 0                       \
-                        "OFF"  "$OFF_SOUND"   "$SOUND_HELP"      \
-                        "FER"  "$FER_SOUND"   "$SOUND_HELP"      \
-                        "MIS"  "$MIS_SOUND"   "$SOUND_HELP"      \
-                        "SIM"  "$SIM_SOUND"   "$SOUND_HELP"      \
-                        "STA"  "$STA_SOUND" "$SOUND_HELP"'`
-  then
-
-    for  CHECK  in  $SOUND_CHECKS;  do
-      case  $CHECK  in
-        OFF)  modify_config $CODEX_CACHE/media "SOUND" "off"  &&
-              SOUND=off  
-              eval $DIALOG '--msgbox "Sorcery sounds have been turned off." 0 0' 
-              ;;
-        FER)  set_sound_theme ferris    ;;
-        MIS)  set_sound_theme misc      ;;
-        SIM)  set_sound_theme simpsons  ;;
-        STA)  set_sound_theme startrek  ;;
-      esac
-    done
-
-	fi
-	
-}
-
-
-#---------------------------------------------------------------------
-## @param sound scheme name 
-##
-## Here the passed scheme is set as default sound scheme. 
-## If the sound spell is not installed it will be cast for the user.
-##
-#---------------------------------------------------------------------
-function set_sound_theme()  {
-	
-  modify_config $CODEX_CACHE/media "SOUND" "on"        &&
-  modify_config $CODEX_CACHE/media "SOUND_THEME" "$1"  &&
-  SOUND=on                                &&
-  SOUND_THEME=$1                          
-
-   
-  if  ! spell_installed sorcery-sound-$SOUND_THEME
-  then 
-    eval $DIALOG '--msgbox "Sorcery has determined that the $SOUND_THEME  \
-                            theme must be installed to work. It will now  \
-														be cast for you!" 0 0' 
-		cast sorcery-sound-$SOUND_THEME
-  else
-    eval $DIALOG '--msgbox "The $SOUND_THEME theme is installed and ready  \
-                            for you to enjoy your new sounds!" 0 0' 
-  fi
-
-  goodbye 
-
-}
 
 #---------------------------------------------------------------------
 ##

@@ -1,0 +1,251 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Functions for dealing with screen and sound settings
+##
+##=head1 DESCRIPTION
+##
+## Provides color schemes
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+##
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## sets the colors based upon COLOR_SCHEME and defaults to a BRIGHT
+## color scheme
+#---------------------------------------------------------------------
+function  media_init()  {
+
+    # color ASCII codes
+    #
+    DEFAULT="\e[0m"
+       BOLD="\e[1m"
+      BLACK="\e[30m"
+        RED="\e[31m"
+      GREEN="\e[32m"
+     YELLOW="\e[33m"
+       BLUE="\e[34m"
+     VIOLET="\e[35m"
+       CYAN="\e[36m"
+      WHITE="\e[37m"
+
+    # color schemes
+    #
+    case  X$(echo $COLOR_SCHEME | tr "[A-Z]" "[a-z]")  in
+	Xdark)
+	      SPELL_COLOR="${BLACK}${BOLD}"
+	    VERSION_COLOR="${BLACK}${BOLD}"
+	      QUERY_COLOR="${BLUE}${BOLD}"
+	     DISPEL_COLOR="${BLUE}${BOLD}"
+	      CHECK_COLOR="${CYAN}"
+	  RESURRECT_COLOR="${GREEN}${BOLD}"
+	       FILE_COLOR="${GREEN}${BOLD}"
+	    SYMLINK_COLOR="${CYAN}${BOLD}"
+	    PROBLEM_COLOR="${RED}${BOLD}"
+	    MESSAGE_COLOR="${CYAN}"
+	    DEFAULT_COLOR="${DEFAULT}"
+	;;
+
+	Xblueish)
+	      SPELL_COLOR="${BLACK}${BOLD}"
+	    VERSION_COLOR="${BLACK}${BOLD}"
+	      QUERY_COLOR="${BLUE}${BOLD}"
+	     DISPEL_COLOR="${BLUE}${BOLD}"
+	      CHECK_COLOR="${CYAN}"
+	  RESURRECT_COLOR="${VIOLET}"
+	       FILE_COLOR="${VIOLET}${BOLD}"
+	    SYMLINK_COLOR="${CYAN}${BOLD}"
+	    PROBLEM_COLOR="${RED}${BOLD}"
+	    MESSAGE_COLOR="${CYAN}"
+	    DEFAULT_COLOR="${DEFAULT}"
+	;;
+
+	X*)
+	      SPELL_COLOR="${WHITE}${BOLD}\e[40m"
+	    VERSION_COLOR="${WHITE}${BOLD}\e[40m"
+	      QUERY_COLOR="${YELLOW}${BOLD}"
+	     DISPEL_COLOR="${YELLOW}${BOLD}"
+	      CHECK_COLOR="${CYAN}"
+	  RESURRECT_COLOR="${GREEN}${BOLD}"
+	       FILE_COLOR="${GREEN}${BOLD}"
+	    SYMLINK_COLOR="${CYAN}${BOLD}"
+	    PROBLEM_COLOR="${RED}${BOLD}"
+	    MESSAGE_COLOR="${CYAN}"
+	    DEFAULT_COLOR="${DEFAULT}"
+	;;
+    esac
+}
+
+
+#---------------------------------------------------------------------
+##
+## Setup sound menu from existing installed sorcery sound spells.
+## Currently no check done for installed sound schemes, just message 
+## to user. 
+##
+## Passes name of chosen scheme to the set_sound_scheme funtion.
+## 
+#---------------------------------------------------------------------
+function sound_schemes_menu() {
+
+		SOUND_HELP="Here you can choose your prefered sound scheme"
+    FER_SOUND="Ferris sound scheme"
+    MIS_SOUND="Misc sound scheme"
+    SIM_SOUND="Simpsons sound scheme"
+		STA_SOUND="Startrek sound scheme"
+		OFF_SOUND="Sound off"
+
+   if  SOUND_CHECKS=`eval $DIALOG '  --title  "Sound Schemes"    \
+                                     --cancel-label  "Exit"      \
+                                     --ok-label      "Select"    \
+                                     --item-help                 \
+                                     --menu                      \
+                                     "$SOUND_HELP"               \
+                                     0 0 0                       \
+                        "OFF"  "$OFF_SOUND"   "$SOUND_HELP"      \
+                        "FER"  "$FER_SOUND"   "$SOUND_HELP"      \
+                        "MIS"  "$MIS_SOUND"   "$SOUND_HELP"      \
+                        "SIM"  "$SIM_SOUND"   "$SOUND_HELP"      \
+                        "STA"  "$STA_SOUND" "$SOUND_HELP"'`
+  then
+
+    for  CHECK  in  $SOUND_CHECKS;  do
+      case  $CHECK  in
+        OFF)  remove_config $LOCAL_CONFIG "SOUND"
+              modify_config $LOCAL_MEDIA_CONFIG "SOUND" "off"  &&
+              SOUND=off  
+              eval $DIALOG '--msgbox "Sorcery sounds have been turned off." 0 0' 
+              ;;
+        FER)  set_sound_theme ferris    ;;
+        MIS)  set_sound_theme misc      ;;
+        SIM)  set_sound_theme simpsons  ;;
+        STA)  set_sound_theme startrek  ;;
+      esac
+    done
+
+  fi
+	
+}
+
+
+#---------------------------------------------------------------------
+## @param sound scheme name 
+##
+## Here the passed scheme is set as default sound scheme. 
+## If the sound spell is not installed it will be cast for the user.
+##
+#---------------------------------------------------------------------
+function set_sound_theme()  {
+	
+  remove_config $LOCAL_CONFIG "SOUND"
+  remove_config $LOCAL_CONFIG "SOUND_THEME"
+
+  modify_config $LOCAL_MEDIA_CONFIG "SOUND" "on"          &&
+  modify_config $LOCAL_MEDIA_CONFIG "SOUND_THEME" "$1"    &&
+  SOUND=on                                                &&
+  SOUND_THEME=$1                          
+
+   
+  if  ! spell_ok sorcery-sound-$SOUND_THEME
+  then 
+    eval $DIALOG '--msgbox "Sorcery has determined that the $SOUND_THEME  \
+                            theme must be installed to work. It will now  \
+														be cast for you!" 0 0' 
+		cast sorcery-sound-$SOUND_THEME
+  else
+    eval $DIALOG '--msgbox "The $SOUND_THEME theme is installed and ready  \
+                            for you to enjoy your new sounds!" 0 0' 
+  fi
+
+  goodbye 
+
+}
+
+
+color_schemes_menu()  {
+
+  if
+
+    L_HELP="Light color scheme for use on dark backgrounds"
+    D_HELP="Dark color scheme for use on bright backgrounds"
+    B_HELP="blueish color scheme"
+
+    COMMAND=`eval $DIALOG '  --title "Current scheme: $COLOR_SCHEME"  \
+                      --item-help                                     \
+                      --ok-label      "Select"                        \
+                      --cancel-label  "Exit"                          \
+                      --menu                                          \
+                      ""                                              \
+                      0 0 0                                           \
+                      "L"  "Light"             "$L_HELP"              \
+                      "D"  "Dark"              "$D_HELP"              \
+                      "B"  "Blueish"           "$B_HELP"             '`
+
+  then
+    case  $COMMAND in
+
+      B)  COLOR_SCHEME=blueish ;;
+      D)  COLOR_SCHEME=dark    ;;
+      L)  COLOR_SCHEME=bright  ;;
+
+    esac
+    remove_config $LOCAL_CONFIG COLOR_SCHEME
+
+    modify_config $LOCAL_MEDIA_CONFIG COLOR_SCHEME $COLOR_SCHEME  &&
+    media_init
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param on/off
+##
+## First argument is "off" or "on" to turn console colors off or on
+##
+#---------------------------------------------------------------------
+function color()  {
+
+  case  $1  in
+    off)  unset  SPELL_COLOR
+          unset  VERSION_COLOR
+          unset  QUERY_COLOR
+          unset  DISPEL_COLOR
+          unset  CHECK_COLOR
+          unset  RESURRECT_COLOR
+          unset  FILE_COLOR
+          unset  SYMLINK_COLOR
+          unset  PROBLEM_COLOR
+          unset  MESSAGE_COLOR
+          unset  DEFAULT_COLOR
+          COLOR=off
+          ;;
+     on)  COLOR=on
+          ;;
+  esac
+
+}
+
+
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
