@@ -34,19 +34,19 @@ Optional Parameters:
 
 -h  |  --help		Display this help screen
 
-update			Update the sorcery scripts only.
+-u  |  update		Update the sorcery scripts only.
 
-system-update		Perform a system update (updates sorcery, grimoire,
+-s  |  system-update	Perform a system update (updates sorcery, grimoire,
 			  and spells).
 			  [ scribe update, sorcery queue, cast --queue ]
 
-queue			Compare installed grimoire to installed spells,
+-q  |  queue		Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
 
 review-queue		Review the install queue for each spell's history 
 			  since each was last installed.
 
-upgrade			Do not update grimoire, just any spells that need to
+-g |  upgrade		Do not update grimoire, just any spells that need to
 			  be upgraded.  [ sorcery queue, cast --queue ]
 
 show-held          Shows all held spells.
@@ -1557,12 +1557,12 @@ main() {
     main_menu
   else
     case  $1  in
-               update)  update_sorcery                          ;;
-        system-update)  update_pkgs  autoupdate                 ;;
-              upgrade)  update_pkgs  upgrade                    ;;
-                queue)  update_queue                            ;;
+            -u|update)  update_sorcery                          ;;
+     -s|system-update)  update_pkgs  autoupdate                 ;;
+           -g|upgrade)  update_pkgs  upgrade                    ;;
+             -q|queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
-              rebuild)  rebuild                                 ;;
+           -r|rebuild)  rebuild                                 ;;
             show-held) sorcery_show_held_spells                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
