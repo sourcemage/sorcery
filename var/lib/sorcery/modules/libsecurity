@@ -1,0 +1,323 @@
+#!/bin/bash
+
+#---------------------------------------------------------------------
+##
+## @Synopsis Set of functions for dealing with security related tasks.
+##
+## @Copyright
+##
+## Copyright 2002 by the Source Mage Team
+##
+##
+#---------------------------------------------------------------------
+
+
+
+#---------------------------------------------------------------------
+## @param spelldirectory
+## @param sourcenumber
+##
+## spelldirectory is the spell's directory.
+## sourcenumber is '' or '2', '3', '4', etc.
+## Checks the md5 of a single source file sourcenumber in spelldirectory.
+##
+#---------------------------------------------------------------------
+function gaze_checkmd5 () {
+  i=$1/DETAILS
+  SOURCEnum=$2
+  SOURCEvar=SOURCE$SOURCEnum
+
+  SOURCE=${!SOURCEvar}
+  if [ -n "$SOURCEnum" ]
+  then
+    MD5num="$(($SOURCEnum-1))"
+  else
+    MD5num="0"
+  fi
+  tMD5=${MD5[$MD5num]}
+
+  GRIMOIRE=`echo $i | sed -e 's/\/[^\/]*\/[^\/]*\/DETAILS//' -e 's/\/.*\///'`
+  SECTION=`echo $i | sed -e 's/\/[^\/]*\/DETAILS//' -e 's/\/.*\///'`
+  if test "$SECTION" == "$SPELL" || test "$SECTION" == "DETAILS"
+  then
+    echo -en "${SPELL_COLOR}$SPELL${DEFAULT} "
+  else
+    echo -en "$GRIMOIRE: $SECTION: ${SPELL_COLOR}$SPELL${DEFAULT} "
+  fi
+
+  REALSOURCE=
+  if test "$SOURCE" != '' 
+  then
+    if [ -f $SOURCE_CACHE/$SOURCE ]
+    then
+      APPEND=
+    else
+      OLDESTSOURCE="$SOURCE"
+      OLDSOURCE="`echo $SOURCE | sed -e 's/\./\\\./g'`"
+      SOURCE="`echo $SOURCE | sed -e 's/\.[bt].*/\./'`"
+      SOURCE="`ls $SOURCE_CACHE/$SOURCE* 2> /dev/null | cut -d'/' -f 5 | head -n 1`"
+      if [ "$SOURCE" ]
+      then
+        if [ -z "`echo ${SOURCE#$OLDSOURCE.} | egrep '^[0-9]{14}$'`" ]
+        then
+          APPEND="FUZZ s/$OLDSOURCE/$SOURCE/ "
+        else
+          APPEND=
+          REALSOURCE="$OLDESTSOURCE"
+        fi
+      else 
+        APPEND=
+        SOURCE="$OLDESTSOURCE"
+      fi
+    fi
+    if test -z "$PRECACHEDF"
+    then
+      if test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'gzip'   && 
+         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'bzip2'  &&
+         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'compress'"'"'d' &&
+         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'Zip'  &&
+         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'RPM'  &&
+         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'tar'
+      then
+        fMD5=`cat $SOURCE_CACHE/$SOURCE 2> /dev/null | md5sum | cut -d' ' -f1 | head -n 1`
+      else
+        fMD5=$(
+          uncompress $SOURCE_CACHE/$SOURCE `
+            guess_compressor $SOURCE_CACHE/$SOURCE` | 
+          md5sum | cut -d' ' -f1
+        )
+      fi
+    else
+      fMD5="`grep " $SOURCE\$" $PRECACHEDF | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$' | cut -d' ' -f1 | head -n 1`"
+    fi
+    if [ -n "$REALSOURCE" ]
+    then
+      SOURCE="$REALSOURCE"
+    fi
+    if [ -z "$(find $SOURCE_CACHE/$SOURCE -maxdepth 1 -mtime +3 2> /dev/null)" ]
+    then
+      AGE="${GREEN}NEW${DEFAULT}"
+    else
+      AGE="${YELLOW}${BOLD}OLD${DEFAULT}"
+    fi
+    SRCDATA="SOURCE$SOURCEnum L:'${LICENSE[$MD5num]}' $SOURCE${DEFAULT} $AGE"
+    if test "$fMD5" == "$tMD5"
+    then
+      echo -en "${GREEN}VERIFIED $SRCDATA${DEFAULT}"
+    else
+      if test "$fMD5" == "$EMPTYMD5" || test "$fMD5" == ""
+      then
+        if test "$tMD5" == "IGNORE"
+        then
+          echo -en "SKIPIGN $SRCDATA"
+        else
+          echo -en "SKIPPED $SRCDATA"
+        fi
+      else
+        if test "$tMD5" == ""
+        then
+          echo -en "${YELLOW}${BOLD}UNCHECKED $SRCDATA INSERT MD5[$MD5num]=$fMD5 or MD5[$MD5num]=IGNORE"
+        else   
+          if test "$tMD5" == "IGNORE"
+          then
+            echo -en "${YELLOW}IGNORED $SRCDATA"
+          else
+            if test -z "$PRECACHEDB"
+            then
+              bMD5="`md5sum $SOURCE_CACHE/$SOURCE | cut -d' ' -f1` | head -n 1"
+            else
+              bMD5="`grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$'`" 
+            fi
+            if test "$tMD5" == "$bMD5"
+            then
+              echo -en "${RED}MALFORMED $SRCDATA EDIT s/$tMD5/$fMD5/"
+            elif test "$tMD5" == "$EMPTYMD5"
+            then
+              echo -en "${RED}EMPTY $SRCDATA EDIT s/$tMD5/$fMD5/"
+            elif test "$tMD5" == "gpg"
+            then
+              echo -en "${RED}${BOLD}GPGCHECK $SRCDATA"
+            elif test -n "`echo $tMD5 | grep 'gpg$'`"
+            then
+              echo -en "${RED}${BOLD}GPG-SIGN $SRCDATA"
+            elif test -n "$PRECACHEDB" && test -n "`grep $tMD5 $PRECACHEDF`"
+            then
+              MATCHED="`grep "$tMD5" "$PRECACHEDF" | cut -c60- | head -n 1`"
+              if test -n "`echo "$MATCHED" | fgrep "$SOURCE"`"
+              then
+                echo -en "${RED}${BOLD}MODIFIED $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT} MATCHES $MATCHED"
+              else
+                echo -en "${RED}DIFFERENT $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT} MATCHES $MATCHED"
+              fi
+            else
+              echo -en "${RED}${BOLD}INCORRECT $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT}"
+            fi
+          fi
+        fi
+      fi
+    fi  
+    echo -n " $APPEND"
+    if test "$tMD5" != "IGNORE" ; then
+      gaze_checkmd5syntax "$1" "$2"
+    fi
+  else
+    echo -n "NONSOURCE "
+  fi
+  echo
+
+}
+
+
+#---------------------------------------------------------------------
+## @param spelldirectory
+## @param sourcenumber
+##
+## spelldirectory is the spell's directory
+## sourcenumber is '' or '2', '3', '4', etc.
+## Checks the syntax related to md5 checking of a single source file 
+## sourcenumber in spelldirectory.
+##
+#---------------------------------------------------------------------
+function gaze_checkmd5syntax () {
+  rp=$1
+  sn=$2
+  echo -en "${YELLOW}${BOLD}"
+  if test -f $rp/PRE_BUILD ; then
+    #echo $rp $sn
+    if test "`grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5`" = "" ; then
+      if test "$sn" != "" ; then
+        echo -n "ADD unpack md5 arg to EXISTING PRE_BUILD"
+      else
+        if test "`grep default_pre_build $rp/*`" = "" ; then
+          echo -n "ADD unpack md5 arg to EXISTING PRE_BUILD"
+        fi
+      fi
+    fi
+  else
+    if test -f $rp/POST_INSTALL ; then
+      if test "`grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5`" = "" ; then
+        if test "$sn" != "" ; then
+          echo -n "ADD unpack md5 arg to EXISTING POST_INSTALL or CREATED PRE_BUILD"
+        fi
+      fi
+    elif test -f $rp/BUILD ; then
+      if test "`grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5`" = "" ; then
+        if test "$sn" != "" ; then
+          echo -n "INIT unpack md5 arg or default_pre_build to NEW PRE_BUILD"
+        fi
+      fi
+    else
+      if test "$sn" != "" ; then
+        echo -n "APPEND unpack md5 arg to CREATED PRE_BUILD"
+      else
+        if test "$SOURCE2" != "" ; then
+          echo -n "INIT unpack md5 arg or default_pre_build to NEW PRE_BUILD"
+        fi
+      fi
+    fi
+  fi
+  echo -en "${DEFAULT}"
+	
+}
+
+#---------------------------------------------------------------------
+## @param spelldirectory
+##
+## spelldirectory is the spell's directory.
+## Checks the md5s of all source files in spelldirectory.
+##
+#---------------------------------------------------------------------
+function gaze_checkmd5s() {
+  spellroot=$1
+  SCRIPT_DIRECTORY=$spellroot
+  spellpath=$spellroot/DETAILS
+  spellname=`echo $spellroot | sed -e 's!/.*/!!'`
+  unset FORCE_DOWNLOAD
+  unset SOURCE
+  unset MD5 2> /dev/null
+  unset LICENSE 2> /dev/null
+  SPELL_CONFIG=/etc/sorcery/local/depends/$spellname
+  #echo $SPELL_CONFIG
+  source $spellpath > /dev/null 2> /dev/null
+
+  gaze_checkmd5  $spellroot  ''
+
+  unset SOURCE
+  unset MD5[0] 2> /dev/null
+  unset LICENSE[0] 2> /dev/null
+  j=2
+  jj=SOURCE$j
+  while  [  -n "${!jj}"  ];  do
+
+    SOURCEvar=SOURCE$j
+    SOURCE=${!SOURCEvar}
+    if test "$SOURCE" != " " ; then
+
+      gaze_checkmd5  $spellroot  $j
+
+    fi
+    unset $jj
+    unset MD5[$(($j-1))] 2> /dev/null
+    unset LICENSE[$(($j-1))] 2> /dev/null
+    j=$(($j+1))
+    jj=SOURCE$j
+  done
+  unset VERSION
+
+}
+
+
+#---------------------------------------------------------------------
+## @param [<item> ...]
+##
+## item is a spell or section name.
+## Checks the md5s of various spells, sections, or if called with no 
+## arguments, the entire grimoire.
+##
+#---------------------------------------------------------------------
+function gaze_md5check() {
+
+  message "${MESSAGE_COLOR}Going to check the md5 sums for the requested item, section or"
+	message "grimoire by testing your current collection of sources...${DEFAULT_COLOR}"
+
+  source /etc/sorcery/config
+
+  EMPTYMD5="`echo -n | md5sum | cut -d' ' -f1`"
+
+  #if CACHED is defined, then use some caches for speedy checking.
+  if ! test -z "$CACHED" ; then
+    PRECACHEDF=/var/spool/sorcery/reports/md5unpack
+    PRECACHEDB=/var/spool/sorcery/reports/md5sum
+  fi
+
+  unset  SECTIONS  SPELLS  UNKNOWN
+
+  [  -z  "$1"  ]  &&  SECTIONS=`codex_get_all_sections`
+
+  for  spell_or_section  in  $@;  do
+
+    if  codex_find_spell_or_section_by_name  $spell_or_section;  then
+      [  -n  "$CODEX_FOUND_SECTION"  ]  &&  SECTIONS="$SECTIONS $CODEX_FOUND_SECTION"
+      [  -n  "$CODEX_FOUND_SPELL"  ]    &&  SPELLS="$SPELLS $CODEX_FOUND_SPELL"
+    else
+      UNKNOWN="$spell_or_section $UNKNOWN"
+    fi
+
+  done
+
+  for i in $SECTIONS ; do
+    SPELLS="$SPELLS `codex_get_spells $i`"
+  done
+
+  for i in $SPELLS ; do
+    gaze_checkmd5s   $i
+  done
+
+  if [  -n  "$UNKNOWN"  ] ; then
+    for i in $UNKNOWN ; do
+      echo "unknown: $i"
+    done
+  fi
+
+}
+

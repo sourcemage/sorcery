@@ -1,10 +1,340 @@
+2004-05-25 Neuron <vlmarek@volny.cz>
+	* libstate: bug #6898
+
+2004-05-25 Neuron <vlmarek@volny.cz>
+	* libmisc: More robust handling of missing config files
+	* libmisc: some \t changed to spaces
+
+2004-05-24 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery excluded: revert Casey Harkins, blind removal of
+	the "files", "directories" and "symlinks" functions (change 34187).
+
+2004-05-21 Eric Schabell <eschabell@sourcemage.org>
+	* libcrossinstall: /tmp and /var/tmp given proper permissions, 
+	  bug #6891.
+
+2004-05-23 Neuron <vlmarek@volny.cz>
+	* config_query_* functions now respects reconfigure option for cast
+
+2004-05-23 Neuron <vlmarek@volny.cz>
+	* cosmetic fix for libmisc/config_get_option
+
+2004-05-21 Eric Schabell <eschabell@sourcemage.org>
+	* archspecs/amd64: added two versions for AMD64 specs, one
+	  is for -m64 and one is for 32 bit with -m32, bug #5487.
+	* libcrossinstall, sorcery: added menu to libcrossinstall for
+	  user menu to set install root as he/she pleases, bug #4933.
+	* sorcery: rigorous testing with help from sandall produced
+	  a need to reset install_root when turning off cross install.
+
+2004-05-19 Neuron <vlmarek@volny.cz>
+	* libhash: Applied Afrayedknot's hint on speeding up things,
+	  version 2 :)
+
+2004-05-18 Casey Harkins <charkins@pobox.com>
+	* libsorcery: modified filter() to accept patterns, bug #6423
+	* excluded: added /lib/modules/*/modules.*, bugs #6423, #6331
+
+2004-05-18 Neuron <vlmarek@volny.cz>
+	* libhash: reverted for now
+
+2004-05-18 Neuron <vlmarek@volny.cz>
+	* libhash: Applied Afrayedknot's hint on speeding up things,
+	  which gives us nice -1s per cast
+
+2004-05-17 Eric Schabell <eschabell@sourcemage.org>
+	* subroutines: added fix from alley_cat to make it "ls"
+	  anything independent.
+	* libstate: fixed problem with libstate.modify_local_config()
+	  not passing more than one arg to be set with variable, thanks
+	  to CuZnDragon for pointing out the problem. I am not sure how
+	  this came to be... what has changed that might cause this? Or
+	  was this around longer and just unnoticed?
+
+2004-05-17 Neuron <vlmarek@volny.cz>
+	* subroutines: Fixed 'ls' -> 'ls --color=no'
+
+2004-05-15 Seth Woolley <seth@tautology.org>
+	* libdepends: rycee's fix for uninstalled providers
+
+2004-05-08 Paul Mahon <pmahon@sourcemage.org>
+	* Fix for prune in cleanse
+
+2004-05-06 Eric Schabell <eschabell@sourcemage.org>
+	* libdepends: slight adjustment to get the fix from yesterday
+	  to actually cast the spells chosen, fixes bug #6831.
+	* groups, accounts: added scanlogd:126:126, fixes bug #6745.
+
+2004-05-05 Eric Schabell <eschabell@sourcemage.org>
+	* sorcery: added a one line check for empty sections
+	  when trying to display menu, fixes bug #6829.
+	* libsorcery: removed a basename cut show path where
+	  the 'provider' listings is coming from (which grimoire),
+	  fixes bug #6831 (might want to beautify this later?).
+	* libsorcery, libdepends: changed the previous fix to show
+	  only the basename and also the version number, fixes #6831.
+
+2004-04-03 Seth Woolley <seth@tautology.org>
+	* libdepends: spelling corrections.
+
+2004-04-30 Andrew Stitt <astitt@sourcemage.org>
+	* cast, libdepends: Fixed the private_compute_installed_depends
+	  function. The function was failing to properly create a depends
+	  tree, and was taking too long to run. It now correctly builds the
+	  dependency tree out of installed spells and, most of the processing
+	  is now internal to awk, and thus much faster. One libhash operation
+	  per installed spell in contrast to three or more depending on the
+	  size, and amount of lint in the depends file.
+
+2004-04-26 Andrew Stitt <astitt@sourcemage.org>
+	* libcast: add ability to override functions in the build pipeline with
+	  a FUNCTIONS file in a grimoire or section, and the USE_FUNCTIONS 
+	  variable in DETAILS to control it.
+
+2004-04-22 Neuron <vlmarek@volny.cz>
+	* Fixed 'empty string' warnings for cast -fix (Bug 6771)
+
+2004-04-21 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery, libgrimoire, libtrack, libaccount, libstate:
+	  Move some functions around to hopefully more intuitive places
+	  in an effort to make sorcery more modular and understandable.
+	  Hopefully these efforts will make sorcery calls less of a web
+	  structure.
+
+2004-04-20 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/api1 build_api/api2: Add return values to run_build_spell 
+	  so that the caller can do special stuff this may end up just getting 
+	  passed back to the success/fail api specific function instead. Fixes 
+	  issues with compile log generation after aborts from bad md5s during 
+	  unpack.
+
+2004-04-19 Andrew Stitt <astitt@sourcemage.org>
+	* Adding code for build split. Major changes to cast, libsorcery, 
+	  libgrimoire libcodex and libapi. Addition of 
+	  /var/lib/sorcery/modules/build_api directory and the files api1 
+	  api2 and common to it.
+
+2004-04-18 Eric Schabell <eschabell@sourcemage.org>
+	* install: added sorcery library removal before installing
+	  new version, should prevent problems in the future.
+
+2004-04-16 Karsten Behrmann <bearperson@gmx.net>
+	* usr/sbin/cast: started eliminating the spaces-in-filenames problem
+
+2004-04-16 Eric Schabell <eschabell@sourcemage.org>
+	* libmisc, libapi: spelling fix for 'persistant.'
+
+2004-04-14 Martin Ruderer <martin@lddd.org>
+	* sort of added libstate::modify_config
+	* added libstate::codex_is_local
+	* added scribe localize and unlocalize (Bug 3607)
+
+2004-04-14 Karsten Behrmann <bearperson@gmx.net>
+	* install: first file to get quotes around everything
+
+2004-04-14 Paul Mahon <pmahon@sourcemage.org>
+	* Make cleanse not sweep twice (two functions had the same name)
+
+2004-04-14 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: removed pre-cleanse code for cleaning stale depneds,
+	  part of bug #6534.
+
+2004-04-13 hgg <hgreig@bigpond.net.au>
+	* libcrossinstall: adding /var/spool/mail to list of dirs to be made
+	* Scribe,libcodex: make scribe work with INSTALL_ROOT, adding multiple
+	  grimoires not working yet, but "CROSS_INSTALL=on scribe add stable"
+	  works fine.
+
+2004-04-12 Paul Mahon <pmahon@sourcemage.org>
+	* Addition of cleanse script and man page
+
+2004-04-10 Eric Schabell <eschabell@sourcemage.org>
+	* libinitd: added touch $target_file for tracking of
+	  config scripts in /etc/sysconfig, bug #6640.
+
+2004-04-08 Eric Schabell <eschabell@sourcemage.org>
+	* mirror/SORCERY: updated my mirror to work again.
+
+2004-04-07 hgg <hgreig@bigpond.net.au>
+	* libcrossinstall: minor fixes for a new install structure
+
+2004-04-06 Andrew Stitt <astitt@sourcemage.org>
+	* /usr/sbin/sorcery: added shorter options to sorcery bug #1145
+	* /usr/share/man/man8/sorcery.8: add short options to manual and
+	  add a listing for the upgrade option that seems to be missing.
+
+2004-04-05 Eric Schabell <eschabell@sourcemage.org>
+	* mirror/APACHE: fixed typo in basis url, bug #6552.
+	* accounts, groups: added ntop:132:125: uid/gid, bug #6520.
+
+2004-04-02 Karsten Behrmann <anonymous@sourcemage.org>
+	* usr/sbin/gaze: fixed 'gaze md5sum' for files with spaces
+	* usr/sbin/cast: might fix md5sum check for files with spaces
+
+2004-03-31 Neuron <vlmarek@volny.cz>
+	* Missed one place where new config toys uses "$SPELL_CONFIG.p"
+	  instead of "$SPELL_CONFIG"
+
+2004-03-30 Neuron <vlmarek@volny.cz>
+	* File holding persistent variables is "$SPELL_CONFIG.p" now
+
+2004-03-30 Neuron <vlmarek@volny.cz>
+	* Persistent variables are now automatically (re)stored for:
+	  CONFLICTS CONFIGURE DEPENDS TRIGGERS PRE_BUILD BUILD INSTALL
+	  COMPILE POST_BUILD POST_INSTALL
+
+2004-03-29 hgg <hgreig@bigpond.net.au>
+	* /etc/sorcery/config,libcrossinstall: changing INSTALL_ROOT=* to
+	  INSTALL_ROOT=${INSTALL_ROOT:=*}
+
+2004-03-27 hgg <hgreig@bigpond.net.au>
+	* /etc/sorcery/config: add CROSS_INSTALL=${CROSS_INSTALL:=off}
+	  Sorcery should run correctly without the .../local/config file
+
+2004-03-26 hgg <hgreig@bigpond.net.au>
+	* libsorcery: remove my INSTALL_ROOT paths from LDFLAGS, didn't
+	  mean to submit them.
+
+2004-03-25 hgg <hgreig@bigpond.net.au>
+	* libcrossinstall: add * so it copies the gzipped man pages
+	  and don't copy GRIMOIRE_LIST or the .../depends/*
+	  /var/tmp needed writable permissions
+	* etc/sorcery/config: turn patch and tmpfs off globally, change 
+	  the doc dir to a FHS compliant /usr/share/doc.
+	* libgrimoire: usr/src/deaddir now $INSTALL_ROOT/usr/src/deaddir
+	* libsorcery: /usr/src/ now $INSTALL_ROOT/usr/src,
+	  OMIT now uses $INSTALL_ROOT also
+
+2004-03-18 Eric Schabell <eschabell@sourcemage.org>
+	* libdepends, libstate: rycee patch fixing option_depends, bug #6365.
+
+2004-03-17 Eric Schabell <eschabell@sourcemage.org>
+	* libsecurity: fixed head calls to -n #, mentioned on lists.
+	* libsorcery: fixed to properly deal with tar compression, bug #2054.
+
+2004-03-16 Martin Ruderer <martin@lddd.org>
+	* Documented some of cast's functions.
+	* Fixed some formal mistake in the docs.
+
+2004-03-16 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: fixed check to prevent cast each time for sound spells,
+	  also adjusted spells so that no duplicate config entries made, 
+	  bug #822.
+	* config, libcast, dispel, gaze, sorcery, libsorcery: updated
+	  patch for current sorcery, sorcery menu option for compression
+	  choice for user (bzip/gzip), bug #2045.
+	* Pulling groups and accounts into stable as verified and needed,
+	  will not make new release announcement.
+	* groups, accounts: added mysql:121 to groups, small cleanup
+	  in accounts (too many :'s), bug #5547.
+
+2004-03-15 Andrew Stitt <astitt@sourcemage.org>
+	* Changelog: fix several typos in previous Changelog message.
+	* cast, libcast: pulled code from cast into libcast, added some
+	  documentation.
+
+2004-03-14 Eric Schabell <eschabell@sourcemage.org>
+	* libmisc: arwed's patch to fix sed problem, bug #6350.
+	* libdepends: andrew's patch to fix make depends output, bug #6267.
+
+2004-03-12 Eric Schabell <eschabell@sourcemage.org>
+	* libapi, libgrimoire, cast: applied patches for conflicting dispel 
+	  option to be set with auto 'y', bug #6344.
+	* gaze: small adjustment to optimization patch.
+	* gaze: added optimizations patch for search, thanks Neuron, bug #6335.
+
+2004-03-11 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: fixed a typo, damnit...
+	* sorcery, libsorcery: added two functions and adjusted menu
+	  to deal nicely with sound theme selection, bug #822.
+	* gaze: patch gaze html, now xhmtl/css validated, bug #6301.
+	* libgrimoire: create_account() modified to allow spell writers
+	  to pass home dir and shell options to useradd functions, is
+	  optional so nothing should be affected, bug #6336.
+	* libsorcery: typo fixed for LD_LIBRARY_PATH reference, bug #6332.
+
+2004-03-10 Eric Schabell <eschabell@sourcemage.org>
+	* gaze: applied gaze orphans patch (minus -q flag), bug #6302.
+	* libgrimoire: a bit of a cleanup, added another useradd
+	  return code to the loop, bug #6317.
+
+2004-03-09 Eric Schabell <eschabell@sourcemage.org>
+	* groups, accounts: adjusted clamav uid:guid, bug #6317.
+
+2004-03-08 Eric Schabell <eschabell@sourcemage.org>
+	* cast, summon, dispel, scribe: user allowed to --help now, bug #6291.
+	* cast: added ldconfig after resurrect, bug #6278.
+	* libgrimoire: reversing this fix... not borking sorcery, but seems
+	  not to work either... see bug for comments, #1817.
+	* libgrimoire: install_xinetd_confs() patched to add xinetd to SPELLS
+	  to be cast, bug #1817.
+
+2004-03-06 Paul Mahon <pmahon@sourcemage.org>
+	* Fix sorcery UI install queue locking problem
+	* Fix for select_list and multi-word options
+
+2004-03-04 Eric Schabell <eschabell@sourcemage.org>
+	* libmisc: explode function speedups from Arwed, bug #6296.
+
+2004-02-27 Seth Woolley <seth@tautology.org>
+	* gaze, libsecurity: made sure to put checkmd5s in gaze and fixed 
+	  a cosmetic bug in gaze checkmd5s
+
+2004-02-27 Martin Ruderer <martin@lddd.org>
+	* Documented some of cast's functions.
+	* corrected some mistakes in the docs.
+
+2004-02-26 Eric Schabell <eschabell@sourcemage.org>
+	* config, summon, scribe, sorcery, cast, libsorcery: applied ally_cat
+	  patch for setting nice values for sorcery processes, bug #720.
+	* libsorcery: small fix to bashdoc for set_nice(). 
+	* gaze.1, gaze, libsecurity: added libsecurity, added checkmd5s option
+	  to gaze and updated man page, thanks to swoolley for the work,
+	  bug #1409
+
+2004-02-25 Martin Ruderer <martin@lddd.org>
+	* added http://osdn.dl.sourceforge.net/sourceforge/ to 
+	  /etc/sorcery/mirrors/SOURCEFORGE
+
+2004-02-25 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: added stale depends cleaning to gaze prune, now
+	  provides depends.stale file for removed stale dependencies, bug #6237.
+	* libsorcery: cleaned up ugly tabs.
+	* libsorcery: added LC_ALL=C to optimize setup, bug #2910.
+	* libsorcery: simplified the logic in stale deps cleanup, bug #6237.
+
+2004-02-24 Eric Schabell <eschabell@sourcemage.org>
+	* accounts: mysql and clamav spell accounts added for treeve.
+	* libsorcery: optimize() added "-O" to CXXFLAGS, bug #1514.
+	* libsorcery: optimize() patch adjusted to add to CFLAGS and in 
+	  proper order, bug #1514.
+	* libgrimoire: fixed useradd checks in create_account(), bug #5790.
+
+2004-02-23 Paul Mahon <pmahon@sourcemage.org>
+	* Bug 3765: Full dependency ordering for already cast spells
+
+2004-02-23 Eric Schabell <eschabell@sourcemage.org>
+	* libgrimoire: added some return code checking for useradd function
+	  to try and make less fail sensitive to existing uid/guid's, related 
+	  to bug #5790.
+	* libgrimoire: fixed failing rejected casts, bug #6093.
+	* config: added fallback mirror for Adam Clark's mirror and
+	  LEAPFORWARD_URL default set to empty (can specify default fallback).
+	* libgrimoire: adjusted the useradd fixes, bug #5790.
+
+2004-02-22 Eric Schabell <eschabell@sourcemage.org>
+	* groups: fix bug for firebird, bug #5790.
+	* libgrimoire: added -f option to groupadd command, returns success if
+	  the group already exists, bug #5790.
+
 2004-02-19 Eric Schabell <eschabell@sourcemage.org>
+	* groups: added snort:120 for rycee, bug #4056.
 	* Release Sorcery 1.8!
 
 2004-02-18 Eric Schabell <eschabell@sourcemage.org>
 	* cast: removed a message line that was for personal debugging.
-	* libdepends: patched real_optional_depends() to continue on with missing
-	  optional dependencies, bug #5796.
+	* libdepends: patched real_optional_depends() to continue on with
+	  missing optional dependencies, bug #5796.
 
 2004-02-17 Eric Schabell <eschabell@sourcemage.org>
 	* libgrimoire, cast: fixed xinetd install to perform correctly, bug
@@ -14,7 +344,8 @@
 	* Releasing Sorcery 1.7.7!
 
 2004-02-16 hgg <hgreig@bigpond.net.au>
-	* libgrimoire,libdepends: change usage of head and tail to be posix compliant
+	* libgrimoire,libdepends: change usage of head and tail to be posix
+	  compliant
 	* install: change install to /usr/share/man/* as per FHS bug 5762
 
 2004-02-15 Eric Schabell <eschabell@sourcemage.org>
@@ -35,7 +366,7 @@
 2004-02-06 Eric Schabell <eschabell@sourcemage.org>
 	* excluded, protected: removed global non-tracking of init scripts,
 	  now refined to track them, but not critical ones, including the
-    /etc/sysconfig dir, bug #5649.
+	  /etc/sysconfig dir, bug #5649.
 	* config, sorcery: added sane default value for summon timeouts,
 	  user can override in options menu, bug #5616.
 
@@ -71,7 +402,7 @@
 	  /usr/share/man not /usr/man), only touch /var/state/sorcery* files.
 	* libsorcery: add $INSTALL_ROOT to the prepare_install linking of 
 	  ld-linux.so.2 or it will overwrite your systems linker. :(
-	
+
 2004-02-01 Eric Schabell <eschabell@sourcemage.org>
 	* cast: fixed the reporting to show proper term titles, bug #5439.
 	* libgrimoire: applied patch for bug #5629.
@@ -95,7 +426,7 @@
 	  the loop.
 
 2004-01-28 Unet <unet@sourcemage.org>
-	* arch: Added new optimizations for ppc cpu up to g5-64 
+	* arch: Added new optimizations for ppc cpu up to g5-64
 
 2004-01-28 Eric Schabell <eschabell@sourcemage.org>
 	* cast: last bit of cleanup to get rid of errors, bug #5600.
@@ -127,16 +458,16 @@
 	  all on one line, bug #5588.
 	* cast: small fix to prevent the init script installs only applying
 	  to the last spell cast in a multiple cast. Moves some code around
-		in use_initd(), thanks to arwed again.
+	  in use_initd(), thanks to arwed again.
 	* cast, libsorcery: added removal of successfully installed spells from
-	  the install file, bug #388. New routine libsorcery.pop_install_queue().
+	  the install file, bug #388. New routine
+	  libsorcery.pop_install_queue().
 
 2004-01-22 Eric Schabell <eschabell@sourcemage.org>
 	* libmisc: removed 'fix' from bug #5583, was not broken.
 	* Released Sorcery v1.7.1!
 	* config: added andrews mirror back in.
 	* libmisc: fixed edit_file() with thanks to low, bug #5583.
-	
 
 2004-01-19 Eric Schabell <eschabell@sourcemage.org>
 	* cast: patched to fix prompt color problem, bug #5558.
@@ -147,9 +478,10 @@
 
 2004-01-17 Eric Schabell <eschabell@sourcemage.org>
 	* cast, libdepends, libinitd, libgrimoire: patched by Arwed to fix the 
-	  script install problems from bug#5534. Tracks script installs now, asks
-		questions before build and installs after build. WARNING: you can still
-		dispel init.d for example == disaster on reboot (will mailinglist this).
+	  script install problems from bug#5534. Tracks script installs now,
+	  asks questions before build and installs after build. WARNING: you
+	  can still dispel init.d for example == disaster on reboot (will
+	  mailinglist this).
 
 2004-01-16 Eric Schabell <eschabell@sourcemage.org>
 	* cast, libdepends: moved scripts install to after the build
@@ -163,9 +495,9 @@
 	* groups: added sfs:118:, bug #4150.
 	* cast: patched to fix set_xterm_title, bug #5439.
 	  tried again, forgot some quotes, bug #5439.
-		adjusted redundant quotes.
+	  adjusted redundant quotes.
 	* url_rsync: adjusted checks to sourcemage.org, not www..., bug #5501.
-		patched with sandall's attachment, bug # 5502.
+	  patched with sandall's attachment, bug # 5502.
 
 2004-01-09 Eric Schabell <eschabell@sourcemage.org>
 	* scribe, scribe.8: updated manpage and help functions, missing options.
@@ -232,10 +564,10 @@
 2003-12-22 Eric Schabell <eschabell@sourcemage.org>
 	* sorcery: patched for extra info (Arwed v. Merkatz), bug #5285.
 	  fixed comments for superdebug as 2>/root/debug.out, bug#5301.
-	* libsorcery: patched for quicker compiles  (Arwed v. Merkatz),
+	* libsorcery: patched for quicker compiles (Arwed v. Merkatz),
 	  bug #5286.
 	* libcodex: codex_cache_spell_lookup() grep fixed, bug #5299.
-	* cast: trying to fix the xinetd/initd stuff, bug #5436. 
+	* cast: trying to fix the xinetd/initd stuff, bug #5436.
 
 2003-12-18 Paul Mahon <pmahon@sourcemage.org>
 	* Bug 5288: Someone forgot to quote the variables, tisk tisk.
@@ -246,7 +578,7 @@
 	  path should only be listed if ambiguous.
 
 2003-12-17 Paul Mahon <pmahon@sourcemage.org>
-	* Bug 2805: Non-existand dependancies cause following depends to 
+	* Bug 2805: Non-existand dependencies cause following depends to 
 	  be ignored. Put private_rfemove_dependees function back in
 
 2003-12-17 Eric Schabell <eschabell@sourcemage.org>
@@ -261,7 +593,6 @@
 	  xinetd or initd, bug #1817.
 	* libinitd: patched for rycee, bug #5027.
 	* libgrimoire: patched for rycee, bug #5027.
-	
 
 2003-12-16 Eric Schabell <eschabell@sourcemage.org>
 	* libdepneds: patched to now use cast.determine_xinetd_or_initd(). 
@@ -280,7 +611,7 @@
 
 2003-12-15 Eric Schabell <eschabell@sourcemage.org>
 	* Release Sorcery v1.6!
-	
+
 2003-12-14 Eric Schabell <eschabell@sourcemage.org>
 	* libgrimoire: fixed gather_docs()
 	  to adjust installed docs permissions for all users readable,
@@ -327,7 +658,7 @@
 
 2003-11-21 Seth Woolley <seth@tautology.org>
 	* protected: xititix found some stuff that broke his coreutils 
-	  compile, so added these since they should be protected anyways.  
+	  compile, so added these since they should be protected anyways. 
 	  bootmisc.sh stuff obsoleted by new init removed.
 
 2003-11-20 Arwed v. Merkatz <v.merkatz@gmx.net>
@@ -362,7 +693,7 @@
 
 2003-10-29 Benoit PAPILLAULT <benoit.papillault@free.fr>
 	* patched summon - fixed bug #4596
-	
+
 2003-10-24 Karsten Behrmann <BearPerson@gmx.net>
 	* patched /etc/sorcery/update/DETAILS - fixed Bug 3555
 
@@ -370,7 +701,7 @@
 	* Released Sorcery v1.4
 
 2003-10-12 Martin Ruderer <martin@lddd.org>
-	* I hope that fixed bug #4509 
+	* I hope that fixed bug #4509
 
 2003-10-07 Karsten Behrmann <BearPerson@gmx.net>
 	* patched summon so it doesn't download blanks and does a more 
@@ -424,7 +755,6 @@
 	  optional_depends = optional_depends + "optional_requires"
 	  and changed their output..
 
-
 2003-09-24 Eric D. Schabell <eschabell@sourcemage.org>
 	* Applied patch from benoit to cast.run_summon(), fixes
 	  bug #4235.
@@ -442,7 +772,7 @@
 	* added patch to gaze for 'versions', nice one hgr! Fixes bug #4245.
 	* added bernardo's arm arch_specs, fixes bug #4046.
 	* reversed first patch from bug #4235, was not necessary (thanks 
-	  dufflebunk). 
+	  dufflebunk).
 
 2003-09-23 Arwed v. Merkatz <v.merkatz@gmx.net>
 	* Moved the declaration of the default DOCS for gather_docs to
@@ -455,7 +785,7 @@
 2003-09-19 Eric D. Schabell <eschabell@sourcemage.org>
 	* Alley_cat was faster, applied his patch to summon.download(), 
 	  libsorcery.dl_source() and config file to provide for random 
-		fallbacks that uses all avail fallbacks.
+	  fallbacks that uses all avail fallbacks.
 
 2003-09-18 Paul Mahon <pmahon@sourcemage.org>
 	* Replaced liblock with new version. Faster serial locking, 
@@ -484,7 +814,7 @@
 2003-09-06 Martin Ruderer <martin@lddd.org>
 	* tidied them up a bit..
 	* Changed libgrimoire's docs to work with bashdoc
-	* Changed libcodex'     docs to work with bashdoc
+	* Changed libcodex' docs to work with bashdoc
 
 2003-09-02 Martin Ruderer <martin@lddd.org>
 	* Released sorcery v 1.3
@@ -527,9 +857,9 @@
 
 2003-08-13 Martin Ruderer <martin@lddd.org>
 	* distangled sorcery (update|upgrade|system-update|queue) (Bug #3658)
-	* cast exits cleanly if a source can not be downloaded.   (Bug #1993)
+	* cast exits cleanly if a source can not be downloaded. (Bug #1993)
 	* cast asks before dispelling on CONFLICT. Changed
-	  libgrimoire::conflict and cast::run_conflicts  (Bug #3043)
+	  libgrimoire::conflict and cast::run_conflicts (Bug #3043)
 	  I wonder if a failure at run_conflicts should have more of an impact 
 	  while resurrecting. It doesn't bail out on failure.
 	* sorcery gets some cli features (show-held, hold, unhold).
@@ -619,7 +949,7 @@
 2003-07-28 Eric Schabell <eschabell@sourcemage.org>
 	* Released 1.2.1 Sorcery a pre-release before rycee patches
 	  for our new simpleinit system.
-	
+
 2003-07-25 Eric Schabell <eschabell@sourcemage.org>
 	* Added 'gaze grimoires' which lists installed grimoires
 	  by name only. Updated man page to reflect changes.
@@ -652,7 +982,7 @@
 
 2003-07-11 Eric Schabell <eschabell@sourcemage.org>
 	* Released 1.2 Sorcery.
-	
+
 2003-07-09 Sergey Lipnevich <sergey@sourcemage.org>
 	* url_cvs: for update of existing tarball, include the tag because it
 	  may change to download a newer version from the repository. Also,
@@ -668,10 +998,10 @@
 
 2003-06-28 Martin Ruderer <martin@lddd.org>
 	* show_depends (gaze depends) is recursive again.
-	* removed a bug in find_providers (Bug  3659)
-	* gaze depends tells user if the spell doesn't exist (Bug  3298)
-	* scribe add creates the indexes. (Bug  3633)
-	* gaze search accepts "multi-term search argument" (Bug  2561)
+	* removed a bug in find_providers (Bug 3659)
+	* gaze depends tells user if the spell doesn't exist (Bug 3298)
+	* scribe add creates the indexes. (Bug 3633)
+	* gaze search accepts "multi-term search argument" (Bug 2561)
 
 2003-06-27 Martin Ruderer <martin@lddd.org>
 	* connect checks for bluetooth now. 
@@ -688,7 +1018,7 @@
 	* Released 1.1 Sorcery.
 
 2003-06-25 Martin Ruderer <martin@lddd.org>
-	* gaze html has a -s (source) switch now. (Bug  3557)
+	* gaze html has a -s (source) switch now. (Bug 3557)
 	* updated the inline doku + manual..
 
 2003-06-19 Martin Ruderer <martin@lddd.org>
@@ -699,7 +1029,7 @@
 
 2003-06-18 Martin Ruderer <martin@lddd.org>
 	* gaze (html|grimoire) now take a grimoire as argument.
-	  Still behaves like before without argument. (Bug  3378)
+	  Still behaves like before without argument. (Bug 3378)
 
 2003-06-14 Sergey Lipnevich <sergey@sourcemage.org>
 	* Fixed an issue when CONFIGURE returns `false' and DEPENDS
@@ -725,7 +1055,7 @@
 	  is now available in SMGL section spell 'guru-tools'.
 	  Functions removed from gaze: gaze_spider_check, 
 	  gaze_spider, gaze_spider_sections, gaze_get_spell_urls.
-	
+
 2003-06-02 Eric Schabell <eschabell@sourcemage.org>
 	* Fixed SOURCEFORGE mirror bug #689.
 
@@ -805,7 +1135,7 @@
 
 2003-04-21 Paul Mahon <pmahon@sourcemage.org>
 	* Bug 3180: Have gaze use the libsorcery version of the provides
-          function (patch courtesy of Martin Ruderer)
+	  function (patch courtesy of Martin Ruderer)
 
 2003-04-21 Eric Schabell <eschabell@sourcemage.org>
 	* Bug fix release 1.0.4 as requested by Dufflebunk.
@@ -836,7 +1166,7 @@
 
 2003-04-10 Sergey Lipnevich <sergey@sourcemage.org>
 	* Enabled re-applying of manual ./configure options on re-cast
-          (important in unattended mode). See Bug 2868. Thanks to Mat 
+	  (important in unattended mode). See Bug 2868. Thanks to Mat 
 	  (mlubrano@sourcemage.org) for the patch.
 
 2003-03-31 Sergey Lipnevich <sergeyli@pisem.net>
@@ -1091,7 +1421,6 @@
 	* Fixed problem I introduced that caused CONFIGURE to be run twice
 	* Bug 1466: Fixed triggers
 
-
 2002-10-31 Paul Mahon <pmahon@sourcemage.org>
 	* Bug 1548: Weird bug that broke things when some one letter files
 	  existed in the current dir.
@@ -1242,7 +1571,7 @@
 	* Minor garbage output removal from liblock
 	* Moved cast's summary display into cast_spells
 
-2002-10-07 Nick Jennings
+2002-10-07 Nick Jennings <anonymous@sourcemage.org>
 	* Bug #474: Fixed up spell status results a bit.
 
 2002-10-06 Nick Jennings <njennings@sourcemage.org>
@@ -1459,23 +1788,23 @@
 
 2002-09-04 Nathan Doss <ndoss@mtlaurel.org>
 	* Fixed problem some people were having with gtk+ recasting
-          itself if it was a dependency of some other spell.  Basically
+	  itself if it was a dependency of some other spell. Basically
 	  replaced egrep in various places and used grep instead.
 	* Fixed various places where spell names needed to be escaped
-          but weren't.
+	  but weren't.
 	* Fixed a couple of subtle bugs in the push_queue/pop_queue
-          functions
+	  functions
 	* Removed "old_show_depends" function as it's no longer used.
 
 2002-09-03 Nathan Doss <ndoss@mtlaurel.org>
 	* Bug #844: Added a flag "-g|--grimoire" to summon that allows
-          you to explicitly select a grimoire to summon spells from.
+	  you to explicitly select a grimoire to summon spells from.
 	* Bug #839: Removed sorcery-only and grimoire-only from the
-          sustained file.
+	  sustained file.
 	* Bug #847: Fixed problem where cast -r was not reconfiguring spells.
 	* Fixed address of GNU mirror site
 	* Bug #832: Added header to the dl_source function. Verified
-          that the reported bug is fixed in sorcery.
+	  that the reported bug is fixed in sorcery.
 
 2002-09-02 Paul Mahon <dufflebunk@dufflebunk.homeip.net>
 	* Fixed minor oopses in sorcery
@@ -1483,12 +1812,12 @@
 	* Added failure of summon to activity log
 
 2002-09-02 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug #792: Cleaned up some of the dependency code.  I believe
-          that optional dependencies are working.
+	* Bug #792: Cleaned up some of the dependency code. I believe
+	  that optional dependencies are working.
 	* Bug #758 & others: Fixed one of the problems we're having
 	  with dependencies.
 	* Bug #778: Changed edit_file function so that if it starts up
-          the default editor (nano), it starts it up with the -w option.
+	  the default editor (nano), it starts it up with the -w option.
 
 2002-09-02 Chris Brien <christopher_brien@hotmail.com>
 	* Bug #811: Added -msse and -mfpmath=sse to athlon-4 CFLAGS.
@@ -1497,7 +1826,7 @@
 
 2002-09-01 Nathan Doss <ndoss@mtlaurel.org>
 	* Bug #778: Simplified edit_file function
-	* Bug #778: Cleaned up configure options code:  edit_file function
+	* Bug #778: Cleaned up configure options code: edit_file function
 	  added, configure options cache directory changed,
 	  variable now used to refer to configure options directory rather
 	  than direct access.
@@ -1506,24 +1835,24 @@
 	* Bug #815: Fixed problem where summon was downloading sources
 	  even if they were already in the source cache.
 	* Bug #765: Fixed problem passing $OPTS to configure-scripts
-          due to IFS problem.
+	  due to IFS problem.
 
 2002-08-31 Paul Mahon <dufflebunk@dufflebunk.homeip.net>
 	* Clean src of failed spells (#807), patch by
 	  Peter Schneider-Kamp <peter@schneider-kamp.de>
 
 2002-08-29 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug 271: Added "gaze license" command.  Syntax is:
-          'gaze license spell|section|license [spell|section|license ...]'
-          For each spell listed, shows abbreviation of licenses for each
-          license listed in the details file.  For each section, shows
-          license info for each spell in the section.  For each license,
-          shows the abbreviation, full name, and url of the license.
+	* Bug 271: Added "gaze license" command. Syntax is:
+	  'gaze license spell|section|license [spell|section|license ...]'
+	  For each spell listed, shows abbreviation of licenses for each
+	  license listed in the details file. For each section, shows
+	  license info for each spell in the section. For each license,
+	  shows the abbreviation, full name, and url of the license.
 	* Bug 271: Added text for some of the licenses found in the
-          license list.
+	  license list.
 	* Bug 271: Added license directory and list of licenses
-          (license abbreviation, full name, url) in preparation for
-          supporting feature requested in bug 271.
+	  (license abbreviation, full name, url) in preparation for
+	  supporting feature requested in bug 271.
 
 2002-08-28 Paul Mahon <dufflebunk@dufflebunk.homeip.net>
 	* Removed hard coded limit of 20 SOURCEx fields in DETAILS (#710)
@@ -1531,7 +1860,7 @@
 
 2002-08-28 Nathan Doss <ndoss@mtlaurel.org>
 	* Bug 768: Fixed problem where gaze installed sometimes
-          returned the version number of the wrong spell
+	  returned the version number of the wrong spell
 
 2002-08-27 Paul Mahon <dufflebunk@dufflebunk.homeip.net>
 	* Add of preliminary liblock et al
@@ -1792,7 +2121,7 @@
 	  "gcc2_prepend_path" was called as "prepend_path".
 
 2002-07-07 Nathan Doss <ndoss@mtlaurel.org>
-	* Fixed error in libgcc2.  Function name is gcc2_add_paths,
+	* Fixed error in libgcc2. Function name is gcc2_add_paths,
 	  was called as add_paths.
 
 2002-07-07 Chris Brien <christopher_brien@hotmail.com>
@@ -1813,18 +2142,18 @@
 	  the grimoire being added
 
 2002-07-05 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug #367: New directory, url_handlers, was created.  All url_* files
-	  were moved to this new directory.  "url" was modified to obtain
+	* Bug #367: New directory, url_handlers, was created. All url_* files
+	  were moved to this new directory. "url" was modified to obtain
 	  url handlers from the url_handlers directory.
 	* Bug #333: cvs_add_grimoire now understands a position argument which
 	  allows new grimoires to be added at a specified position within the
 	  list of grimoires.
 	* Bug #366: All files with sorcery bash functions were moved
-	  from /var/lib/sorcery to /var/lib/sorcery/modules.  The subroutines
+	  from /var/lib/sorcery to /var/lib/sorcery/modules. The subroutines
 	  file was left in /var/lib/sorcery to preserve some level of backwards
-	  compatability.  The libsorcery and libgrimoire files were be renamed
-	  to be sorcery and grimoire.  The codexroutines file was renamed to
-	  be codex.  A new variable, SGL_LIBRARY_MODULES was added which
+	  compatability. The libsorcery and libgrimoire files were be renamed
+	  to be sorcery and grimoire. The codexroutines file was renamed to
+	  be codex. A new variable, SGL_LIBRARY_MODULES was added which
 	  now points to /var/lib/sorcery/modules.
 	* Bug #324: Added warning about setting the number of make
 	  jobs to be larger than 1.
@@ -1839,7 +2168,7 @@
 	  libsorcery.
 	* Bug #346: If a spell didn't set VERSION, sorcery
 	  wouldn't display spells in that section when viewing
-	  the sorcery spell->add->(section) menu.  Fixed by
+	  the sorcery spell->add->(section) menu. Fixed by
 	  defaulting the value of VERSION to "-" for display
 	  purposes.
 	* Bug #347: Fixed help message for sourceforge mirrors
@@ -1853,7 +2182,7 @@
 	  variables.
 	* Bug #332: modified get_uid_for_account so that it doesn't
 	  use bash builtin, read-only UID variable
-	* Bug #331: added url_is_valid function.  Returns true if
+	* Bug #331: added url_is_valid function. Returns true if
 	  the given url is a valid url understood by sorcery.
 
 2002-06-28 Nathan Doss <ndoss@mtlaurel.org>
@@ -1861,7 +2190,7 @@
 	  the '.', '-', and '+' special characters.
 	* Bug #322: Added gpl to all scripts that needed it and
 	  added generic copyright notice (Copyright 2002 by the Source
-	  Mage Team).  Modified all headers to be the same bpod format.
+	  Mage Team). Modified all headers to be the same bpod format.
 	* Bug #324: Added support for "-j" option to make (i.e.,
 	  "make -j 3" will use three processes in parallel to build
 	  packages.
@@ -1871,7 +2200,7 @@
 	* Bug #286: When a spell is removed (or renamed) from the
 	  grimoire, the cached depends information in
 	  /var/state/sorcery/depends may still have this removed
-	  spell as a dependency.  Sorcery was modified to remove
+	  spell as a dependency. Sorcery was modified to remove
 	  stale spells from the depends file if the spell no
 	  longer exists.
 	* Bug #309: cast now prepends a statement to compile logs
@@ -1879,12 +2208,12 @@
 	  the build was started.
 
 2002-06-25 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug #274:  Added a /tmp/sorcery.restore script that
+	* Bug #274: Added a /tmp/sorcery.restore script that
 	  can be run if sorcery is interrupted at the wrong time
-	  during a 'sorcery update'.  Added instructions to
-	  sorcery to explain how to use this script.  Instructions
+	  during a 'sorcery update'. Added instructions to
+	  sorcery to explain how to use this script. Instructions
 	  are printed out during 'sorcery update'.
-	* Bug #303:  Added hash data structure to the sorcery
+	* Bug #303: Added hash data structure to the sorcery
 	  library.
 
 2002-06-22 Nicholas K. Jennings <nkj@namodn.com>
@@ -1900,7 +2229,7 @@
 
 2002-06-22 Nathan Doss <ndoss@mtlaurel.org>
 	* Bug #273: "gaze from md5sum" no longer lists all spells
-	  that have an md5sum associated with them.  Added a "$"
+	  that have an md5sum associated with them. Added a "$"
 	  to the end of the grepped for string so that it only
 	  matches end of path strings rather than strings internal
 	  to a path.
@@ -1911,13 +2240,13 @@
 	* Bug #265: wait_flag code was be placed in it's own library
 	  file and separated from subroutines for modularity reasons.
 	* Bug #172: Added more descriptive message when a website cannot
-	  be found when running "gaze website <spell>".  Also prefix'd
+	  be found when running "gaze website <spell>". Also prefix'd
 	  the show_website function with "gaze_".
 	* Bug #259: Support the ability to gaze the spells that provide
-	  a certain feature.  I.e.:  gaze provides <feature>.
+	  a certain feature. I.e.: gaze provides <feature>.
 
 2002-06-20 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug #182: Added gaze spider improvements.  gaze spider now
+	* Bug #182: Added gaze spider improvements. gaze spider now
 	  takes one or more sections and/or spells as arguments,
 	  puts more information in the spider log file, and prints
 	  out failed urls to the terminal.
@@ -1931,22 +2260,22 @@
 	* Bug #225: Added three new functions to codexroutines,
 	  codex_set_current_spell <spell dir>,
 	  codex_set_current_spell_by_name <spell name> and
-          codex_get_spell_description <spell direcotry>.  .
+	  codex_get_spell_description <spell direcotry>. .
 	  Removed code that directly access the DETAILS file and
-	  replaced the code with these functions.  Did this
+	  replaced the code with these functions. Did this
 	  so there could be a single, consistent way to access the
 	  details of a spell and so that certain global variables
-	  would always be set for the current spell.  The main factor
+	  would always be set for the current spell. The main factor
 	  driving this change was the need to set the GRIMOIRE variable
 	  to point to the correct GRIMOIRE when working with
-	  spells (needed since multiple grimoires are supported).  KDE
+	  spells (needed since multiple grimoires are supported). KDE
 	  spells were accessing the GRIMOIRE variable directly so in
 	  order to remain backwards compatible, the devel sorcery
 	  scripts also needed to provide this variable.
 
 2002-06-18 Nathan Doss <ndoss@mtlaurel.org>
-	* Added query to ask if cast --fix should be done.  This is
-	  a global option.  The default for the question is whatever
+	* Added query to ask if cast --fix should be done. This is
+	  a global option. The default for the question is whatever
 	  the global option is set to.
 	* Bug #174: Added patches to make sorcery more verbose
 	  while updating itself.
@@ -1957,8 +2286,8 @@
 	  "-z combreloc".
 
 2002-06-17 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug #213: Added support for directory urls.  Allows
-	  users to specify a local directory.  Summon will
+	* Bug #213: Added support for directory urls. Allows
+	  users to specify a local directory. Summon will
 	  tar/compress the directory, then put it into the sorcery
 	  spool.
 	* Bug #240: Added SOURCEFORGE_URL and CTAN_URL to maintain
@@ -1977,12 +2306,12 @@
 
 2002-06-15 Nathan Doss <ndoss@mtlaurel.org>
 	* Bug #2: New dependency type - auto_depends
-	* Bug #219:  gaze grimoire broken, accesses $GRIMOIRE directly
-	* Bug #218:  codexroutines erroneously lists non-directories
+	* Bug #219: gaze grimoire broken, accesses $GRIMOIRE directly
+	* Bug #218: codexroutines erroneously lists non-directories
 	  as sections
 
 2002-06-14 Nathan Doss <ndoss@mtlaurel.org>
-	* Bug #15:  Added support for cvs urls
+	* Bug #15: Added support for cvs urls
 	* Bug #211: Mispelled entry in GNOME mirrors file
 
 2002-06-08 Anders Bruun Olsen <anders@bruun-olsen.net>
@@ -2002,11 +2331,11 @@
 
 2002-05-05 Nathan Doss <ndoss@mtlaurel.org>
 	* Bugzilla bug 24: Fixed codexroutines support for multiple
-          grimoires.
+	  grimoires.
 
 2002-05-04 Nathan Doss <ndoss@mtlaurel.org>
 	* Bugzilla bug 14: Fixed bug in sorcery with the way the DIALOG
-	  variable was being set.  For some reason, the "dialog" program
+	  variable was being set. For some reason, the "dialog" program
 	  didn't like having extra spaces between the different command
 	  line arguments that were being passed in.
 
@@ -2074,3 +2403,4 @@
 	* Added a ChangeLog
 	* branched 0.1 (branch-0_1)
 	* cut 0.1.0 release (release-0_1_0)
+

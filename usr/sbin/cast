@@ -79,6 +79,8 @@ function set_failed_cast() {     # this is never called... erics (2004-01-28)
 
 }
 
+# this is called from resurrect, but the global variable it sets
+# isn't used anywhere astitt (2004-03-12)
 function set_successful_cast() {
   
   debug "cast" "Function : set_successful_cast"
@@ -93,367 +95,6 @@ function set_successful_cast() {
 
 }
 
-function run_conflicts() {
-    
-     debug "cast" "Starting run_conflicts() on $SPELL"
-    local CONFLICTS
-    if    [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-        CONFLICTS=$( source $SCRIPT_DIRECTORY/CONFLICTS )
-        if [ $CONFLICTS ]; then
-            message "${SPELL_COLOR}${SPELL} ${MESSAGE_COLOR}conflicts with:"
-            message "${SPELL_COLOR}"
-            echo "$CONFLICTS" | column
-            message "${DEFAULT_COLOR}"
-            if  query "Do you want to dispel these?" "n" 
-            then
-              dispel "$CONFLICTS"
-            else
-              echo $SPELL >> $FAILED_LIST
-              return 1
-            fi
-        fi
-     fi
- }
-
-
-# checks for a security file
-# returns 0 if spell should be cast, 1 otherwise
-function run_security() {
-    debug "cast" "Starting run_security() on $SPELL"
-    if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
-      echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
-      tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
-        if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
-          if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
-            return 0
-          fi
-          return 1
-        else
-          if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
-            return 0
-          fi
-          return 1
-        fi
-    fi
-    return 0
-}
-
-
-function prepare_spell_config()  {
-
-  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
-  if  !  [  -x  $SPELL_CONFIG  ];  then
-    touch       $SPELL_CONFIG
-    chmod  a+x  $SPELL_CONFIG
-  fi
-
-  . $SPELL_CONFIG
-
-}
-
-function use_xinetd()  { (
-
-  debug "cast" "In use_xinetd()"
-  
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
-      !  grep  -q  "SERVICES="  $SPELL_CONFIG
-  then
-
-    debug "cast" "use_xinetd: found an xinetd directory - processing"
-    ALL_SERVICES=`cat  $SCRIPT_DIRECTORY/xinetd.d/*  |
-                  grep  "service"                    |
-                  sed   "s/service //"`
-                  
-    debug "cast" "use_xinetd: ALL_SERVICES: '$ALL_SERVICES'"
-
-    # only looking for services to install, non-selected services
-    # will be installed and disabled in install_xinetd_confs().
-    for  SERVICE  in  $ALL_SERVICES;  do
-      if    query  "Invoke $SERVICE via xinetd?"  y
-      then 
-        SERVICES="$SERVICE $SERVICES"
-      else
-        SERVICES_DISABLE="$SERVICE_DISABLE $SERVICES_DISABLE" 
-      fi
-    done
-
-    debug "cast" "use_xinetd: to install SERVICES: '$SERVICES'"
-    debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
-    debug "cast" "setting up depends for services"
-
-    for  SERVICE  in  $SERVICES;  do
-      for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
-
-         if  grep  -q   "service $SERVICE"  $FILE   &&
-             grep  -q   "stunnel"           $FILE;  then
-           add_depends  "$SPELL"  "stunnel"  "on"  "optional"
-         fi
-
-      done
-    done
-
-    if    [  -n  "$SERVICES"  ]
-    then  add_depends  "$SPELL"  "xinetd"  "on"   "optional"
-    else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
-    fi
-
-    echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
-		echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
-
-  fi
-
-) }
-
-function install_xinetd() { (
-
-  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] 
-  then
-		
-    SERVICES=""          # services to be installed.
-		SERVICES_DISABLE=""  # services not to install.
-    . $SPELL_CONFIG
-    debug "cast" "use_xinetd: about to call install_xinetd_confs"
-
-		if  [  -n  "$SERVICES"  ] ; then
-  		# now we install the selected services.
-			install_xinetd_confs $SERVICES
-		fi
-	fi
-) }
-
-# Automagic initscript installation.
-function use_initd()  { (
-
-  debug "cast" "In use_initd()"
-
-  INITDSCRIPTS=""
-  INITDSCRIPTS_DISABLED=""
-
-  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
-    debug "cast" "use_initd: found an init.d directory - processing"
-
-    . $SPELL_CONFIG
-
-    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
-    debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
-
-    for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
-      echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
-          grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
-
-      if  query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
-        INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
-        init_prepare_install  $INITSCRIPT
-      else
-        INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
-      fi
-    done
-  fi
-    
-  tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
-      $SPELL_CONFIG )
-  echo "$tmp" > $SPELL_CONFIG
-  echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
-  echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
-) }
-
-function install_initd() { (
-    debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
-    debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
-    debug "cast" "saving initscripts"
-    
-    INITDSCRIPTS=""
-    INITDSCRIPTS_DISABLED=""
-    . $SPELL_CONFIG
-
-#    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
-    # now we install the selected scripts.
-    if  [  -n  "$INITDSCRIPTS"  ] ; then
-      debug "cast" "use_initd: about to call install_initd_confs"
-      install_initd_confs enabled $INITDSCRIPTS
-    fi
-
-    # and disable the others.
-    if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
-      debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
-      install_initd_confs disabled $INITDSCRIPTS_DISABLED
-    fi
-    
-) }
-
-function run_pre_build() {
-
-  debug "cast" "run_pre_build()"
-  message  "${MESSAGE_COLOR}Building"  \
-           "${SPELL_COLOR}${SPELL}"    \
-           "${DEFAULT_COLOR}"
-
-  cd  $BUILD_DIRECTORY
-
-  verify_sources &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    debug "cast" "run_pre_build() - Prebuild script exists, now sourcing "
-    . $SCRIPT_DIRECTORY/PRE_BUILD
-  else
-    debug "cast" "run_pre_build() - Prebuild script not found, using default"
-    default_pre_build
-  fi
-}
-
-
-function create_compile_log()  {
-
-  message  "${MESSAGE_COLOR}Creating"                        \
-           "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.bz2"  \
-           "${DEFAULT_COLOR}"
-
-  bzip2  -9f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION.bz2
-  rm             $C_LOG
-  rm             $C_FIFO
-
-}
-
-
-function view_compile_log()  {
-
-    sleep   1
-    report              $C_LOG  "Compile log"
-
-}
-
-
-function activate_voyeur()  {
-
-  if  [  -z  "$SILENT"  ];  then
-    case  $VOYEUR  in
-      on)  tee  -a  $C_LOG  <  $C_FIFO              &  ;;
-       *)  tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &  ;;
-    esac
-  else     tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &
-  fi
-
-}
-
-
-function run_build()  {
-
-  debug "cast" "Starting run_build()"
-   C_LOG=/tmp/$SPELL.compile.log
-  C_FIFO=/tmp/$SPELL.compile.fifo
-
-  rm  -f $C_FIFO
-  mkfifo  $C_FIFO
-  rm  -f $C_LOG
-  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
-  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
-
-  activate_voyeur
-
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
-
-  invoke_build_dir
-  invoke_gcc2
-  optimize
-  invoke_installwatch
-
-  message -n "Installing in dir: "
-  pwd
-  message "$SPELL    $VERSION"
-  if  [ -x ./configure ] || [ -x ./src/configure ] ; then
-		
-    if  [[  $CONFIG_LOC  == on  ]]; then
-
-      if  [  !  -d  $SM_CONFIG_OPTION_CACHE  ] ; then
-        mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
-      fi
-
-      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
-        message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
-        message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL | column
-      fi
-
-      if    query  "Do you wish to add -- options to ./configure?"  n ;  then
-				F_TMP=/tmp/cast.$$.configure
-        rm -f $F_TMP
-				
-        if [ -x ./configure ]; then
-          ./configure --help > $F_TMP
-        elif [ -x ./src/configure ]; then
-          ./src/configure --help > $F_TMP
-        fi
-
-        if [ -f $F_TMP ]; then
-          sedit 's/^/# /' $F_TMP
-        fi
-
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL >> $F_TMP 2>/dev/null
-        edit_file $F_TMP
-        rm -f $SM_CONFIG_OPTION_CACHE/$SPELL
-        sedit '/^#.*$/d' $F_TMP
-        mv $F_TMP $SM_CONFIG_OPTION_CACHE/$SPELL
-      fi
-
-      # load custom OPTS
-      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
-        message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
-      fi
-
-    fi
-
-  fi
-
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    .  $SCRIPT_DIRECTORY/BUILD
-  else
-    default_build
-  fi &&
-
-  install_xinetd &&
-  install_initd
-
-  if  [  "$?"  ==  0  ];  then
-    create_compile_log
-  else
-    sound  FAILURE
-    message  "${PROBLEM_COLOR}"      \
-             "! Problem Detected !"  \
-             "${DEFAULT_COLOR}"
-    view_compile_log
-    create_compile_log
-    false
-  fi
-
-}
-
-
-function run_post_build() {
-
-  if  [  -x  $SCRIPT_DIRECTORY/POST_BUILD  ];  then
-           . $SCRIPT_DIRECTORY/POST_BUILD
-  else
-    default_post_build
-  fi
-
-  # Lock made in prepare_install
-  unlock_resources "libgrimoire" "install"
-
-}
-
-
-function run_post_install() {
-
-  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]
-  then       . $SCRIPT_DIRECTORY/POST_INSTALL
-  fi
-
-  if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
-  then       . $SCRIPT_DIRECTORY/TRIGGERS
-  fi
-
-}
 
 
 function lib_dirs()  {
@@ -473,8 +114,8 @@ function lib_dirs()  {
 function export_ld()  {
 
   if    [  -z  "$LD_LIBRARY_PATH"  ] ; 
-  then  export   LD_LIBRARY_PATH="$( lib_dirs  $*  )"
-  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  $*  )"
+  then  export   LD_LIBRARY_PATH="$( lib_dirs  \"$@\"  )"
+  else  export   LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(  lib_dirs  \"$@\"  )"
   fi
   
   export LD_LIBRARY_PATH=`cat /etc/ld.so.conf | tr '[:blank:][:cntrl:]' ':'`$LD_LIBRARY_PATH
@@ -490,7 +131,7 @@ function ldd_check()  {  (
   fi
 
      SPELL=$1
-     VERSION=`installed_version  $SPELL`
+     VERSION=`installed_version  "$SPELL"`
        I_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   LDD_STATUS=0
 
@@ -500,13 +141,10 @@ function ldd_check()  {  (
          grep      "/bin/\|/games/\|/lib/\|/sbin/"  |
          grep  -v  "/doc/\|/fonts/\|/include/\|/locale/\|/man/\|/modules/\|/var/"`
     
-    let size=0
-    for FILE in $LOG ; do
-    	let size++
-    done
+    let size=`grep -c '' <<<"$LOG"`
 
     let count=0
-    for  FILE  in  $LOG;  do
+    echo "$LOG" | while read FILE ; do
 
       if  [  -z  "$QUIET"  ];  then
         progress_bar $DOT_PROGRESS $count $size 50
@@ -559,13 +197,10 @@ function find_check()  { (
          grep      "/bin/\|/games/\|/include/\|/lib/\|/sbin/"  |
          grep  -v  "/doc/\|/etc/\|/fonts/\|/man/\|/var/"`
 
-    let size=0
-    for FILE in $LOG ; do
-    	let size++
-    done
+    let size=`grep -c '' <<<"$LOG"`
 
     let count=0
-    for  ITEM  in  $LOG;  do
+    echo "$LOG" | while read ITEM;  do
 
       if  [  -z  "$QUIET"  ];  then
         progress_bar $DOT_PROGRESS $count $size 50
@@ -573,7 +208,7 @@ function find_check()  { (
       let count++
       
       
-      if  [  -e  "$ITEM"  ];  then
+		if  [ -z "$ITEM" ] || [ -e  "$ITEM"  ];  then
         true
       else
         (
@@ -603,7 +238,7 @@ function find_check()  { (
 
 function show_owner()  {
 
-  OWNER=`grep  $TARGET  $INSTALL_LOGS/*  |
+  OWNER=`grep  "$TARGET"  $INSTALL_LOGS/*  |
          cut  -d :  -f1                  |
          sed  -n  1p`
 
@@ -618,9 +253,9 @@ function remove_line()  {
 
   F_TMP=/tmp/`basename  $I_LOG`.$$.$RANDOM
 
-  cp         $I_LOG  $F_TMP
-  grep  -v   $ITEM   $F_TMP  >  $I_LOG
-  rm    -rf          $F_TMP
+  cp         "$I_LOG"  "$F_TMP"
+  grep  -v   "$ITEM"   "$F_TMP"  >  "$I_LOG"
+  rm    -rf          "$F_TMP"
 
   message  "Symbolic link: ${SYMLINK_COLOR}${ITEM}${DEFAULT_COLOR}"  \
            "is owned by ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
@@ -648,13 +283,10 @@ function sym_check()  { (
 
     LOG=`cat   $I_LOG`
 
-    let size=0
-    for FILE in $LOG ; do
-    	let size++
-    done
+    let size=`grep -c '' <<<"$LOG"`
 
     let count=0
-    for  ITEM  in  $LOG;  do
+    echo "$LOG" | while read ITEM;  do
 
       if  [  -z  "$QUIET"  ];  then
         progress_bar $DOT_PROGRESS $count $size 50 
@@ -665,13 +297,13 @@ function sym_check()  { (
           [  -f  "$ITEM"  ]
       then
 
-      TARGET=$(  basename  $(  ls   -la  "$ITEM"  |
+      TARGET=$(  basename  "$(  ls   -la  "$ITEM"  |
                                cut  -d  '>'  -f2  |
                                cut  -c  2-
-                            )
+                            )"
               )
 
-        if  !  grep  -q  "$TARGET"  $I_LOG
+        if  !  grep  -q  "$TARGET"  "$I_LOG"
         then  (  remove_line  )
         fi
 
@@ -706,13 +338,10 @@ md5sum_check()  { (
 
     if  [  -n  "$OUTPUT"  ];  then
     
-      let size=0
-      for FILE in $LOG ; do
-      	let size++
-      done
+      let size=`grep -c '' <<<"$LOG"`
 
       let count=0
-      for  FILE  in  $OUTPUT;  do
+      echo $OUTPUT | while read FILE;  do
 
         if  [  -z  "$QUIET"  ];  then
           progress_bar $DOT_PROGRESS $count $size 50 
@@ -724,7 +353,7 @@ md5sum_check()  { (
             file  -b  "$FILE"     |
             grep  -q  "ELF"
         then
-          MD5SUM=`md5sum  $FILE`
+          MD5SUM=`md5sum  "$FILE"`
           if  !  grep  -q  "$MD5SUM"  $MD5SUM_LOGS/*;  then
             (
 	       clear_line
@@ -755,23 +384,27 @@ md5sum_check()  { (
 
 function status_okay()  {
 
-  spell_installed  $1  ||
-  spell_held       $1
+  spell_installed  "$1"  ||
+  spell_held       "$1"
 
 }
 
-
+#---------------------------------------------------------------------
+## @Parameters SPELL
+## @Globals QUIET DOT_PROGRESS
+## Runs all different sorts of checks.
+## sym_check find_check ldd_check md5sum_check.
+#---------------------------------------------------------------------
 function run_checks()  {
 
   if  [ -z  "$QUIET"  ]; then
     progress_bar $DOT_PROGRESS 1 1 50 
   fi
 
-  #Note: check to see if these should all be joined by &&
-     sym_check  $1
-    find_check  $1  &&
-     ldd_check  $1  &&
-  md5sum_check  $1
+     sym_check  "$1"  &&
+    find_check  "$1"  &&
+     ldd_check  "$1"  &&
+  md5sum_check  "$1"
 
 }
 
@@ -870,7 +503,7 @@ function run_fix()  { (
 
           if  [  "$LDD_CHECK"  ==  "on"    ] ;  then
             export  LD_LIBRARY_PATH="$LD_LIBRARY_PATH_OLD"
-            export_ld  $(  find  /usr/lib  -type  d  ! -empty  )
+            export_ld  $(  find  /usr/lib  -type  d  ! -empty  ) #This will have an issue with spaces
           fi
 
           if    run_checks     $SPELL  ||
@@ -898,7 +531,17 @@ function run_fix()  { (
 
 ) }
 
-
+#---------------------------------------------------------------------
+## @Aguments Arguments of cast
+## @Globals QUIET DOT_PROGRESS DEPS_ONLY RECONFIGURE COMPILE 
+## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX NOFIX SEPARATE
+## @Globals BASE_URL INSTALL_QUEUE 
+##
+## Sets these globals except INSTALL_QUEUE according to cast's 
+## arguments.
+## Requires some user interaction if --queue is given and starts
+## another cast with INSTALL_QUEUE's content as parameter.
+#---------------------------------------------------------------------
 function process_parameters()  {
 
   while  [  -n  "$1"  ];  do
@@ -965,7 +608,11 @@ function process_parameters()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Arguments cast's arguments
+## Goes through arguments and prints spells or parameters that are no
+## switches rather.
+#---------------------------------------------------------------------
 function strip_parameters()  {
 
   while  [  -n  "$1"  ];  do
@@ -1001,125 +648,13 @@ function strip_parameters()  {
 
 }
 
-function can_resurect()  {
-	debug "cast" "can_resurect - $*"
-	run_details		&&
-	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
-	debug "cast" "I am able to resurect."
-}
-
-
-function resurrect()  {  (  
-
-  debug "cast" "resurect - $*"
-
-  run_prepare   &&
-  can_resurect
-#  run_details  run by can_resurect now
-
-  STATUS=installed
-
-  if  spell_held  $SPELL;  then
-    VERSION=`installed_version  $SPELL`
-     STATUS=held
-    dispel --notriggers $SPELL
-  fi
-
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
-
-  if bzip2  -tf  $CACHE_BZ ; then
-    
-    run_conflicts    &&
-    satisfy_depends  &&
-    bzip2         -cd   $CACHE_BZ  |  tar  -Pkx  1>/dev/null  2>&1
-    run_post_install #bug 199
-    
-    add_spell     "$SPELL"  "$STATUS"  "$VERSION"
-    pop_install_queue "$SPELL"
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    set_successful_cast  "$SPELL"
-    clear_line
-    message  "${RESURRECT_COLOR}Resurrected spell:"  \
-             "${SPELL_COLOR}${SPELL}"                \
-             "${DEFAULT_COLOR}"                      \
-             "version"                               \
-             "${VERSION_COLOR}${VERSION}"            \
-             "${DEFAULT_COLOR}"
-    cast  --fix  $SILENT  $SPELL && echo $SPELL >> $SUCCESS_LIST
-  else
-    echo $SPELL >> $FAILED_LIST
-    false
-  fi
-
-)  }
-
-
-function show_download_progress()  {
-
-  if  [  -f  "$D_LOG"   ]   &&
-      [  -z  "$SILENT"  ];  then
-
-    LC_OLD=${LC_OLD:-0}
-
-    LC=`cat  $D_LOG  2>/dev/null  |  wc  -l  |  tr  -d ' '`
-
-    if  [  "$LC"  !=  "$LC_OLD"  ];  then
-      ((  LC_OLD++  ))
-      sed  -n ${LC_OLD},${LC}p  $D_LOG
-      LC_OLD=$LC
-    fi
-
-  fi
-
-}
-
-
-function show_downloading()  {
-
-#  COMPILE="y"
-  debug "cast" "Started show_downloading() on $SPELL"
-  while ! ( [[ $D_LOG ]] && 
-            [  -f "$D_LOG"  ] ) 
-  do
-    sleep 1
-  done
-
-  #The file is created in run_summon
-  until [  -f "${D_LOG}.done.$SPELL"  ] ;  do
-    show_download_progress
-    sleep 1
-  done
-  
-  rm "${D_LOG}.done.$SPELL"
-  show_download_progress
-
-}
-
-
-function report_install()  {
-
-#  rm  -f  $BOOST_LOCK
-  INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
-  report  $INST_LOG  "Install log"
-
-}
-
-
-
-
-function cast_spell()  { (
-
-  debug "cast" "Casting spell [$SPELL]"
-  set_term_title "Casting spell [$SPELL]"
-  run_details                                 && #run by can_resurect now, but it's a minor expense
-  run_security                                &&
-  run_conflicts                               &&
-  run_spell_config                            &&
-  satisfy_depends             && #needed or optional deps dont get passed??
-  show_downloading            && 
-  verify_sources              ||   return 1
-  
-  #locking - blocks normal spells if a solo cast is running, solo casts if any cast is running
+#---------------------------------------------------------------------
+## Gets the cast lock for us and ensures that we've waited for all
+## solo/non-solo casts to complete
+#---------------------------------------------------------------------
+function acquire_cast_lock() {
+  # locking - blocks normal spells if a solo cast is running,
+  # solo casts if any cast is running
   message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} casts to complete..."
   lock_resources "solo" "cast"
   if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
@@ -1132,43 +667,97 @@ function cast_spell()  { (
     unlock_resources "solo" "cast"
   fi
   message " done."
-                               
-  if    run_pre_build              			&&
-		run_build                   		&&
-		run_post_build              		&&
-		run_post_install            		&&
-		add_spell $SPELL installed $VERSION	&&
-		cd  /                       		&&
-		report_install						;
-  then
-		sound  SUCCESS
-    pop_install_queue "$SPELL"    
-		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-	    rm_source_dir
-		echo $SPELL >> $SUCCESS_LIST
+}
+
+
+#---------------------------------------------------------------------
+## 
+#---------------------------------------------------------------------
+function cast_spell()  { (
+
+  debug "cast" "Casting spell [$SPELL]"
+  set_term_title "Casting spell [$SPELL]"
+
+  run_details || return 1
+  load_build_api
+
+# these both prompt, and prompting should NOT occur at this point
+# someday they will get split to a query and action pair (like use_xinetd
+# and install_xinetd) (afk 4/10/04)
+  run_security  &&
+  run_conflicts &&
+
+  # this is already done by run_details, and should go away (afk 4/10/04)
+  run_spell_config                            &&
+
+  # depends should not be an issue here, the whole point of using make
+  # was to avoid having to care at this point
+  # this line may disappear (afk 4/10/04)
+  satisfy_depends             && #needed or optional deps dont get passed??
+  show_downloading            && 
+  verify_sources              ||   return 1
+  
+  # wait for solo casts, to finish and ensure that others can't
+  acquire_cast_lock
+
+
+  # all this needs to reorganized and stuff...later
+
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+  C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+  TMP_LOG="/tmp/$SPELL-$VERSION"
+  INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
+  MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
+  IW_LOG="/tmp/$SPELL.iw"
+
+
+  #some minor discussion occured about having this, i'll leave it out for now
+  #activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
+  
+  # this will run through the whole build process
+  run_build_spell
+  rc=$?
+
+  # This is the home for anything and everything we do
+  # when a phase4 succeeds or fails, no more spreading things out
+  # into multiple functions.
+  cd /
+
+
+  pop_install_queue "$SPELL"    
+
+  # hooks back out to the build_api to do whatever needs to be done
+  if [ $rc == 0 ] ; then
+    create_compile_log
+    run_spell_success
+    CAST_EXIT_STATUS=0
   else
-    # This may have been locked if there was a failure during the install
-    unlock_resources "libgrimoire" "install"
-	
-    activity_log "cast" "$SPELL"  "$VERSION" "failure"
-	  IW_LOG="$INSTALLWATCHFILE"
-	  INSTALLWATCHFILE=""
-    rm  -f  $IW_LOG  $TMP_LOG  $CASTING
-    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
-    echo $SPELL >> $FAILED_LIST
-    CAST_EXIT_STATUS=1
+    if [ $rc != 1 ] ; then # dont munge the log if pre_build failed
+      create_compile_log
+      view_compile_log
+    fi
+    run_spell_failure
+    CAST_EXIT_STATUS=$rc
   fi
+
 
   unlock_resources "cast" "$SPELL"
   #It's OK to try to release a lock you don't have
   unlock_resources "solo" "cast"
 
-  return ${CAST_EXIT_STATUS:-0}
+  return $CAST_EXIT_STATUS
 
 ) }
 
 ##Removed *_solo functions, Duff 2002/11/01
 
+#---------------------------------------------------------------------
+## @Globals SPELL VERSION
+## @return 0 if SPELL is installed and it's version equals VERSION
+## @return 1 otherwise
+## VERSION should be set by run_details before.
+## Checks if the most recent version of SPELL is installed.
+#---------------------------------------------------------------------
 function current_sources()  {
 
   spell_installed  $SPELL  &&
@@ -1176,7 +765,15 @@ function current_sources()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Globals D_LOG COMPILE FORCE_COMPILE SPELL
+## Downloads the sources by calling summon if it has to.
+## It downloads if COMPILE || FORCE_COMPILE || ! current_sources
+## || ! (spell_installed $SPELL || spell_held $SPELL)
+## It logs the download-process in D_LOG
+## Always touches ${D_LOG}.done.$SPELL at the end to signal that
+## it is done.
+#---------------------------------------------------------------------
 function run_summon()  {
 
   touch $D_LOG
@@ -1197,6 +794,15 @@ function run_summon()  {
 
 }
 
+#---------------------------------------------------------------------
+## @Globals SPELLS
+## @STDOUT User information ("Collating dependencies")
+## @Globals SPELL MAKEFILE DEPS_ONLY 
+##
+## Basically only gathers all dependencies and creates the Makefile
+## (According to pass_zero it ought to take SPELL as parameter, but
+## it doesn't)
+#---------------------------------------------------------------------
 function pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
@@ -1204,10 +810,14 @@ function pass_one()  {
   local i j tempList SPELL_RULES=""
   local numRules=0
 
-  compute_depends "SPELL_RULES" $SPELLS
+  echo -n "Computing previously installed dependencies..."
+  compute_installed_depends "already_cast"
+  echo
+  compute_uninstalled_depends "to_cast" "bad_cast" $SPELLS
 
-  message "${MESSAGE_COLOR}Collating dependancies...${DEFAULT_COLOR}"
-  echo "$SPELL_RULES" | depends_to_Makefile $numRules $SPELLS > $MAKEFILE
+  message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
+  depends_to_Makefile to_cast already_cast > $MAKEFILE
+  SPELLS=$(hash_get_table_fields "to_cast")
 
   if  [  -n  "$DEPS_ONLY"  ] ;  then  
    	for i in $SPELLS ; do
@@ -1216,8 +826,6 @@ function pass_one()  {
 	  mv $MAKEFILE.2 $MAKEFILE
    	done  
   fi
-  
-  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$" | grep -v "^.PHONY$"`
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
@@ -1226,43 +834,46 @@ function pass_one()  {
 function depends_to_Makefile()
 {
 	debug "cast" "depends_to_Makefile - $*"
-	local spell all_spells=""
-	local tmp_list i
-	local LINE=""
-	local args
-	tmp_list=""
 	
-	[[ $COMPILE ]] && args="-c "
-
-	while read LINE ; do
-
-		[[ $LINE ]] || continue		#Remove blank lines
-		spell=${LINE%%:*}
-		all_spells="$all_spells $spell"
-		echo "$LINE"
-		echo -e "\t@$0 $args $spell"
-		echo
-		
-		for (( i=1 ; i <= $# ; i++ )) ; do
-			[[ ${!i} == $spell ]] && tmp_list="$tmp_list $spell"
-		done
-		
+        # This is needed because compute_installed_depends may have
+        # stale dependency information compared with the information
+        # from compute_uninstalled_depends. So we strip off any depends
+        # info from the installed depends hash.
+	for i in $( { hash_get_table_fields $1 ; hash_get_table_fields $2; } | sort | uniq -d ); do
+		hash_unset "$2" "$i"
 	done
 	
-	echo "all: $tmp_list"
+	[[ $COMPILE ]] && args="-c "
+	
+	# Spells that are actualy going to be cast
+	for i in $( hash_get_table_fields $1 ) ; do
+		echo "$i : $(hash_get "$1" "$i")"
+		echo -e "\t@$0 $args $i"
+		echo
+	done
+	
+	#Spells that are already cast
+	#NOTE: For recursive recompile cast, make this loop like loop above
+	for i in $( hash_get_table_fields $2 ) ; do
+		echo "$i : $(hash_get "$2" "$i")"
+		echo
+	done
+	local all_spells=$({ hash_get_table_fields $1 ; hash_get_table_fields $2; } | tr '[:cntrl:]' ' ')
+	echo "all : $all_spells"
 	echo
-
-        # All targets are PHONY
-        # See http://bugs.sourcemage.org/show_bug.cgi?id=2674 for details
-        echo ".PHONY: all $all_spells"
-        echo
+	echo ".PHONY : all $all_spells"
 
 #	export SPELLS="$all_spells"
 	
 }
 
 
-#A bit of a misnomer, eh? Doesn't build anything, just summons it.
+#---------------------------------------------------------------------
+## @Globals SPELLS
+## @Arguments spellname
+## calls run_details and run_summon for every element in SPELLS
+## doesn't actually build anything, just summons it.
+#---------------------------------------------------------------------
 function build_sources()  {
 
   for  SPELL  in  $SPELLS;  do
@@ -1275,7 +886,17 @@ function build_sources()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Arguments Spells to be cast
+## @Stdout the "Spells are to be cast" message.
+## @Stdin User interface, y or n  
+## @Globals SEPARATE
+## Asks whether you want to cast the listed spells or not.
+## Returns if not. 
+## Then it starts pass three and four by calling make.
+## Depending on SEPARATE it starts pass three in the background
+## or not.
+#---------------------------------------------------------------------
 function pass_two()  {
   #  This pass downloads required sources.
   #  And starts the make process
@@ -1305,12 +926,30 @@ function pass_two()  {
 
 }
 
+#---------------------------------------------------------------------
+## @param spellname
+## @Globals SPELL
+## Sets SPELL to the spellname and calls build_sources with spellname
+## as argument.
+## (Is being called by make)
+#---------------------------------------------------------------------
 function pass_three()  {
   debug "cast" "pass_three - $*"
   SPELL=$1
   build_sources $*
 }
 
+#---------------------------------------------------------------------
+## @param spellname
+## @Globals SPELL COMPILE
+## Sets SPELL to spellname.
+## Calls trigger "pre_cast"
+## If COMPILE is not set and it can be resurrected 
+## (can_resurect SPELL) it calls resurrect with SPELL as argument.
+## Otherwise it calls cast_spell.
+## If resurrect or cast_spell returned 0 it calls trigger "cast"
+## (Is being called by make)
+#---------------------------------------------------------------------
 function pass_four()  {
 
   debug "cast" "pass_four - $*"
@@ -1328,7 +967,10 @@ function pass_four()  {
 }
 
 
-# Report generation
+#---------------------------------------------------------------------
+## @Globals SUCCESS_LIST FAILED_LIST 
+## Does report generation.
+#---------------------------------------------------------------------
 function pass_five()  {
 
   debug "cast" "Function : pass_five"
@@ -1385,11 +1027,19 @@ function pass_five()  {
 
 }
 
+#---------------------------------------------------------------------
+## @Arguments Spells to cast
+## @Globals CAST_PASS D_LOG 
+## 
+## Starts the passes and sets CAST_PASS accordingly.
+## D_LOG is being set and the file is being cleared if it does already
+## exists 
+#---------------------------------------------------------------------
 function pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
   PASS_ZERO="y"  #<--- What is this here for? (Duff, 03/02/13)
-  export  D_LOG="/tmp/sorcery.downloading.$$.$RANDOM"
+  export  D_LOG="/tmp/sorcery/cast/$$/downloading.$RANDOM"
   rm -f $D_LOG 2>/dev/null
 
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
@@ -1405,6 +1055,11 @@ function pass_zero()  {
 
 }
 
+#---------------------------------------------------------------------
+## @STDOUT User information ("Cleaning up as well as I can...")
+## That function is being called when the process receives 
+## SIGINT. It then calls cleanup.
+#---------------------------------------------------------------------
 function int_trap()
 {
 	message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
@@ -1412,14 +1067,41 @@ function int_trap()
 	cleanup
 	exit 1
 }
-
+#---------------------------------------------------------------------
+## @Globals RM_AT_END
+## RM_AT_END is being set in main.
+## Used for cleaning up. Deleting some files and /tmp/sorcery/cast/$$
+## basically.
+#---------------------------------------------------------------------
 function cleanup() {
   
   debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+  rm -rf /tmp/sorcery/cast/$$
 
 }
+#---------------------------------------------------------------------
+## Safely creates /tmp/sorcery/cast/$$
+#---------------------------------------------------------------------
+function mk_tmp_dirs() {
+	debug "$FUNCNAME" "Making tmp dirs for $$"
+	if [ -d /tmp/sorcery/cast/$$ ] ; then
+		echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
+		rm -rf /tmp/sorcery/cast/$$
+	fi
+	mkdir -p /tmp/sorcery/cast/$$
+}
 
+#---------------------------------------------------------------------
+## @Arguments arguments of cast
+## @Globals FIX RM_AT_END ENV_CACHE CAST_PASS 
+## @return 0 always
+## Starts prameter processing and either runs run_fix or casts the
+## given spells.
+## The list of given spells is being searched for invalid spells
+## which are then being reported. Then the passes are being started
+## according to CAST_PASS
+#---------------------------------------------------------------------
 function main()	{
   debug "cast" "main() - $*"
   local T_SPELLS=""
@@ -1444,10 +1126,8 @@ function main()	{
 		  return 1
 	  fi
 	
-	  MAKEFILE="/tmp/Makefile.cast.$$"
-	  SUCCESS_LIST="$0.success_list"
-    FAILED_LIST="$0.failed_list"
-	  export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
+	  MAKEFILE="/tmp/sorcery/cast/$$/Makefile"
+	  export ENV_CACHE=${ENV_CACHE:-/tmp/sorcery/cast/$$/envCache}
 	  echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
 	  export RM_AT_END="$RM_AT_END"
 	  BASE_SPELLS=" $SPELLS "
@@ -1471,39 +1151,50 @@ function main()	{
 
 . /etc/sorcery/config
 
-if    [  $#      ==  0  ];  then  help  |  $PAGER
-elif  [  "$UID"  !=  0  ];  then
+if    [  $#      -eq  0  ];  then  help  |  $PAGER
+
+elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
+elif  [  "$UID"  -gt  0  ];  then
 
   echo  "Enter the root password, please."
   su  - -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
 
-elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
+elif  [  ${0:0:5} !=  "/tmp/"  ];  then
+
+  # Make a nice dir structure to put stuff in
+  mk_tmp_dirs
 
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
 	  # and fill it up with stuff the feel the need to delete
-    export RM_AT_END=${RM_AT_END:-"/tmp/cast.$$.tmplist"}
+    export RM_AT_END=${RM_AT_END:-"/tmp/sorcery/cast/$$/tmplist"}
 	  touch $RM_AT_END
 	  chown root:root $RM_AT_END
 	  echo -n '' > $RM_AT_END
   fi
   
-  SAFE_CAST=/tmp/casting.$$
+  export SAFE_CAST=/tmp/sorcery/cast/$$/casting.safe
+  export SUCCESS_LIST="/tmp/sorcery/cast/$$/success_list"
+  export FAILED_LIST="/tmp/sorcery/cast/$$/failed_list"
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
-  echo "$SAFE_CAST" >> $RM_AT_END
+  echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST" >> $RM_AT_END
   exec $SAFE_CAST "$@"
   
 else
 
-  renice +10 -p $$  >/dev/null
+  if  [[  $NICE != "0"  ]] ; then
+    renice $NICE -p $$  >/dev/null
+  fi
   trap int_trap INT
   main  $*
   if [ $SHLVL -eq 2 ] ; then
 	unlock_file $SAFE_CAST
 	cleanup
+  else
+  	rm -rf /tmp/sorcery/cast/$$
   fi
 
 fi

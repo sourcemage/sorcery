@@ -17,7 +17,7 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
        RESTORE_SCRIPT=/tmp/sorcery.restore
 
       BUILD_DIRECTORY=/usr/src
-   DOCUMENT_DIRECTORY=/usr/doc
+   DOCUMENT_DIRECTORY=/usr/share/doc
 
       CABAL_DIRECTORY=/etc/sorcery/cabal
           CABAL_NAMES=$CABAL_DIRECTORY/names
@@ -80,13 +80,13 @@ DEPENDS_STATUS_BACKUP=${STATE_DIRECTORY}/depends.backup
             AUTOPRUNE=${AUTOPRUNE:=off}
                 CABAL=${CABAL:=off}
          MAIL_REPORTS=${MAIL_REPORTS:=off}
-                PATCH=${PATCH:=on}
+                PATCH=${PATCH:=off}
              PRESERVE=${PRESERVE:=on}
                  REAP=${REAP:=on}
              SORCERER=${SORCERER:=root}
                 SOUND=${SOUND:=off}
               SUSTAIN=${SUSTAIN:=on}
-                TMPFS=${TMPFS:=on}
+                TMPFS=${TMPFS:=off}
          VIEW_REPORTS=${VIEW_REPORTS:=on}
                VOYEUR=${VOYEUR:=on}
          PROMPT_DELAY=${PROMPT_DELAY:=150}
@@ -94,7 +94,10 @@ DEPENDS_STATUS_BACKUP=${STATE_DIRECTORY}/depends.backup
            NET_SELECT=${NET_SELECT:=off}
             MD5SUM_DL=${MD5SUM_DL:=off}
          CLEAN_SOURCE=${CLEAN_SOURCE:=off}
+          COMPRESSBIN=${COMPRESSBIN:=bzip2}
+            EXTENSION=${EXTENSION:=.bz2}
        SET_TERM_TITLE=${SET_TERM_TITLE:=off}
+                 NICE=${NICE:=+10}
 
             LDD_CHECK=${LDD_CHECK:=on}
            FIND_CHECK=${FIND_CHECK:=on}
@@ -113,10 +116,14 @@ DEPENDS_STATUS_BACKUP=${STATE_DIRECTORY}/depends.backup
                #
                # Set FURLNUM to nr. of fallback urls.
 			         #
-               FURLNUM=3 
+               FURLNUM=4 
 FALLBACK_URL_MIRROR[0]=http://smgl.positivism.org
 FALLBACK_URL_MIRROR[1]=ftp://thefrayedknot.armory.com/sorcery
 FALLBACK_URL_MIRROR[2]=http://download.sourcemage.org/mirror
+FALLBACK_URL_MIRROR[3]=http://mirror.isurf.ca/source_mirror
+
+      # specify default fallback url.
+      LEAPFORWARD_URL=${LEAPFORWARD_URL:=""}
 
            CODEX_ROOT=${CODEX_ROOT:=/var/lib/sorcery/codex}
             CODEX_URL=${CODEX_URL:=http://codex.sourcemage.org}
@@ -154,7 +161,8 @@ FALLBACK_URL_MIRROR[2]=http://download.sourcemage.org/mirror
 
                 DEBUG=${DEBUG:=/dev/null}
 
-          INSTALL_ROOT="" # was "/"
+          INSTALL_ROOT=${INSTALL_ROOT:=""} # was "/"
+          CROSS_INSTALL=${CROSS_INSTALL:=off}
 
          ARCHITECTURE=${ARCHITECTURE:=i386}
         OPTIMIZATIONS=${OPTIMIZATIONS:=strip}
@@ -167,8 +175,8 @@ PROGRESS_SPINNER_CHARS='-\|/'
           STANDARD_IFS=$WHITESPACE_IFS
 
 . $SUBROUTINES
-. $LOCAL_CONFIG
+. $INSTALL_ROOT$LOCAL_CONFIG
 . $COMPILE_CONFIG
 optimize
-[  -r  $GRIMOIRE_LIST  ]  &&  .  $GRIMOIRE_LIST
+[  -r  $INSTALL_ROOT$GRIMOIRE_LIST  ]  &&  .  $INSTALL_ROOT$GRIMOIRE_LIST
 

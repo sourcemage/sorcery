@@ -191,13 +191,13 @@ for  ((x=0; x <= $i_count-1; x++))
 
  echo "Adding grimoire ${ITEMS[$x]} from $FROM_LOC"
 
- if ! [ -d $CODEX_ROOT ] ; then
-   echo "Main codex directory not present. Createing $CODEX_ROOT."
-   mkdirheir $CODEX_ROOT
+ if ! [ -d $INSTALL_ROOT$CODEX_ROOT ] ; then
+   echo "Main codex directory not present. Creating $INSTALL_ROOT$CODEX_ROOT."
+   mkdir -p $INSTALL_ROOT$CODEX_ROOT
  fi
 
  #switch to and work in the codex
- pushd $CODEX_ROOT > /dev/null
+ pushd $INSTALL_ROOT$CODEX_ROOT > /dev/null
 
  #download the grimoire using subroutines
  NO_FUZZ=on
@@ -222,15 +222,15 @@ for  ((x=0; x <= $i_count-1; x++))
    fi
 
    #make sure that it untarred to the proper dir.
-   if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
+   if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
 
-        GRIMOIRE_TMP="$CODEX_ROOT/${ITEMS[$x]}"
+        GRIMOIRE_TMP="$INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}"
 
    else
 
-     if  [ -d $CODEX_ROOT/grimoire ]; then
-        mv -f $CODEX_ROOT/grimoire $CODEX_ROOT/${ITEMS[$x]}
-        GRIMOIRE_TMP="$CODEX_ROOT/${ITEMS[$x]}"
+     if  [ -d $INSTALL_ROOT$CODEX_ROOT/grimoire ]; then
+        mv -f $INSTALL_ROOT$CODEX_ROOT/grimoire $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}
+        GRIMOIRE_TMP="$INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}"
 
      fi
 
@@ -245,13 +245,13 @@ for  ((x=0; x <= $i_count-1; x++))
        #check if we are dealing with a base grimoire
        if [ -e $GRIMOIRE_TMP/BASE ]; then
               OLD_BASE=`ls -l base-grimoire | awk '{print $NF}'`
-                   rm -f $CODEX_ROOT/base-grimoire
-              ln -s $GRIMOIRE_TMP $CODEX_ROOT/base-grimoire 
+                   rm -f $INSTALL_ROOT$CODEX_ROOT/base-grimoire
+              ln -s $GRIMOIRE_TMP $INSTALL_ROOT$CODEX_ROOT/base-grimoire 
        fi
         
-       codex_add_grimoire $CODEX_ROOT/${ITEMS[$x]} 0
+       codex_add_grimoire \${INSTALL_ROOT}$CODEX_ROOT/${ITEMS[$x]} 0
 
-       codex_create_cache $CODEX_ROOT/${ITEMS[$x]}
+       codex_create_cache ${INSTALL_ROOT}$CODEX_ROOT/${ITEMS[$x]}
        
        echo "Grimoire \"${ITEMS[$x]}\" successfully added to your codex." 
    else
@@ -293,16 +293,16 @@ do
  fi
 
  #if the grimoire exists, remove it
- if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
+ if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
 
   #found. removed.
-  rm -rf $CODEX_ROOT/${ITEMS[$x]}
+  rm -rf $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}
   echo "Removing grimoire ${ITEMS[$x]} from codex"
-  codex_remove_grimoire $CODEX_ROOT/${ITEMS[$x]}
+  codex_remove_grimoire $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}
  else
 
   #not found - print error
-  echo "Grimoire ${ITEMS[$x]} does not exist in $CODEX_ROOT. No action."
+  echo "Grimoire ${ITEMS[$x]} does not exist in $INSTALL_ROOT$CODEX_ROOT. No action."
 
  fi
 
@@ -332,7 +332,7 @@ if  query "Repair Grimoire:$1's Metadata?" n; then
 
     echo "Setting Metadata to: $URL"
     echo "If this is incorrect, run \"scribe fix $1\" and correct"
-    GRIMOIRE_TMP=$CODEX_ROOT/$1
+    GRIMOIRE_TMP=$INSTALL_ROOT$CODEX_ROOT/$1
     echo "FROM_URL=$URL" > $GRIMOIRE_TMP/GRIMOIRE
     chmod +x $GRIMOIRE_TMP/GRIMOIRE
     return 0
@@ -346,7 +346,7 @@ fix() {
 
 for i in "${ITEMS[@]}"; do
 
-  if ! [ -e $CODEX_ROOT/$i/GRIMOIRE ]; then
+  if ! [ -e $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE ]; then
 
     if fix_metadata $i; then
      echo "$i fixed."
@@ -386,7 +386,7 @@ done
 do_update() {
 
           #switch to codex for update
-          pushd $CODEX_ROOT
+          pushd $INSTALL_ROOT$CODEX_ROOT
  
           #download updated grimoire without fuzzy
           NO_FUZZ=on
@@ -414,18 +414,17 @@ do_update() {
             fi
 
               #check for a successful unzip
-              if [ -d $CODEX_ROOT/$1 ]; then
+              if [ -d $INSTALL_ROOT$CODEX_ROOT/$1 ]; then
 
                   #success! create metadata
-                  echo "FROM_URL=$2" > $CODEX_ROOT/$1/GRIMOIRE
-                  chmod +x $CODEX_ROOT/$1/GRIMOIRE
+                  echo "FROM_URL=$2" > $INSTALL_ROOT$CODEX_ROOT/$1/GRIMOIRE
+                  chmod +x $INSTALL_ROOT$CODEX_ROOT/$1/GRIMOIRE
                   
                   #check if base grimoire
-                  if [ -e $CODEX_ROOT/$1/BASE ]; then
+                  if [ -e $INSTALL_ROOT$CODEX_ROOT/$1/BASE ]; then
                       OLD_BASE=`ls -l base-grimoire | awk '{print $NF}'`
-                      rm -f $CODEX_ROOT/base-grimoire
-                      ln -s $CODEX_ROOT/$1 $CODEX_ROOT/base-grimoire 
-
+                      rm -f $INSTALL_ROOT$CODEX_ROOT/base-grimoire
+                      ln -s $INSTALL_ROOT$CODEX_ROOT/$1 $INSTALL_ROOT$CODEX_ROOT/base-grimoire 
                   fi
 
                   #and remove backup version
@@ -435,7 +434,7 @@ do_update() {
                   
                   #Confirm Success!
                   echo "$1 Updated!"
-                  grimoire_history $CODEX_ROOT/$1
+                  grimoire_history $INSTALL_ROOT$CODEX_ROOT/$1
 
               else
 
@@ -453,7 +452,6 @@ do_update() {
           popd >/dev/null
 
 }
-
 
 #####################################
 #update()
@@ -476,13 +474,19 @@ if [ $i_count == 0 ]; then
     
     #for each grimoire
     for j in $grimoires; do
-     i=`basename "$j"`
-        
+        i=`basename "$j"`
+
+        if codex_is_local $i; then
+            message "${SPELL_COLOR}$i${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+            continue
+        fi
+
+
         #if it exists and has metadata
-        if [ -e $CODEX_ROOT/$i/GRIMOIRE ] || fix_metadata $i; then
+        if [ -e $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE ] || fix_metadata $i; then
             
             #include metadata
-            . $CODEX_ROOT/$i/GRIMOIRE
+            . $INSTALL_ROOT$CODEX_ROOT/$i/GRIMOIRE
             FROM_LOC=$FROM_URL
             echo "Updating grimoire $i from $FROM_LOC"
             do_update $i $FROM_LOC
@@ -500,9 +504,15 @@ else
     #for each given grimoire, update
     for ((x=0; x <= $i_count-1; x++))
       do
+
       
       #if the codex exists
-      if [ -d $CODEX_ROOT/${ITEMS[$x]} ]; then
+      if [ -d $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]} ]; then
+
+        if codex_is_local ${ITEMS[$x]}; then
+            message "${SPELL_COLOR}${ITEMS[$x]}${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+            continue
+        fi
           
           #if a FROM is given, check its validity
           if [ -n "${SOURCES[$x]}" ]; then
@@ -515,8 +525,8 @@ else
               else
                   
                   #invalid FROM. Use metadata instead.
-                  if [ -e $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
-                          . $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
+                  if [ -e $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
+                          . $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
                           FROM_LOC=$FROM_URL
                           echo "Error: ${SOURCES[$x]} is not a valid URL. Using: $FROM_LOC"
                   else
@@ -526,8 +536,8 @@ else
           else
 
               #no FROM given. Use metadata.
-                  if [ -e $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
-                          . $CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
+                  if [ -e $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE ] || fix_metadata ${ITEMS[$x]}; then
+                          . $INSTALL_ROOT$CODEX_ROOT/${ITEMS[$x]}/GRIMOIRE
                           FROM_LOC=$FROM_URL
                   else
                           echo "${ITEMS[$x]} has invalid metadata. Not Updated"
@@ -540,7 +550,7 @@ else
       else
 
           #the grimoire doesnt exist to update!
-          echo "Grimoire ${ITEMS[$x]} not found in $CODEX_ROOT"
+          echo "Grimoire ${ITEMS[$x]} not found in $INSTALL_ROOT$CODEX_ROOT"
       
       fi
 
@@ -625,6 +635,32 @@ learn() {
 
 }
 
+function localize() {
+    for (( k=0; k < i_count; k++ )); do 
+        grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
+        if ! [ $grimoire ]; then
+            message "No such grimoire"
+            continue
+        fi
+        modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "yes"
+        echo "Processed $grimoire"
+    done
+}
+
+
+function unlocalize() {
+    for (( k=0; k < i_count; k++ )); do
+        grimoire=$(codex_find_grimoire_by_name ${ITEMS[$k]})
+        if ! [ $grimoire ]; then
+            message "No such grimoire"
+            continue
+        fi
+        modify_config "$grimoire/GRIMOIRE" "CODEX_IS_LOCAL" "no"
+        echo "Processed $grimoire"
+    done
+}
+
+
 ####################################
 #process_parameters()
 #
@@ -652,6 +688,8 @@ process_parameters()  {
                                                       se|set) FUNCTION="set";;
                                          i|in|ind|inde|index) FUNCTION="index";;
 									rei|reind|reinde|reindex) FUNCTION="reindex";;
+                                                    localize) FUNCTION="localize";;
+                                                  unlocalize) FUNCTION="unlocalize";;
                                                            *) #unrecognized function. give help
                                                               help    ;;
  esac
@@ -734,6 +772,8 @@ main()        {
       swap) swap ;;
       index) index ;;
 	  reindex) reindex ;;
+      localize) localize ;;
+      unlocalize) unlocalize ;;
       *) help ;;
     esac
 }
@@ -742,9 +782,12 @@ main()        {
 . /etc/sorcery/config
 
 #check if root. If not, become root
-if    [  "$UID"  ==  0  ]
-then  renice +10 -p $$  >/dev/null
-      main  $*
+if    [  "$UID"  ==  0  ] ; then
+  if  [[  $NICE != "0"  ]] ; then
+    renice $NICE -p $$  >/dev/null
+  fi
+  main  $*
+elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 else  
   echo  "Enter the root password, please."  1>&2
   su  -  -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
