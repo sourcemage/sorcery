@@ -1320,6 +1320,7 @@ feature_menu()  {
   M_HELP="Email reports?"
   P_HELP="Preserve modified files or backup them up and overwrite with defaults?"
   R_HELP="Prompt to view reports?"
+SCL_HELP="Store config.log in compile log?"
 TMP_HELP="Attempt to compile entirely in RAM?"
   T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
   U_HELP="Automatically remove old sources and install caches upon sorcery update?"
@@ -1345,6 +1346,7 @@ TMP_HELP="Attempt to compile entirely in RAM?"
        SUSTAIN=${SUSTAIN:on}
         VOYEUR=${VOYEUR:=on}
           REAP=${REAP:=on}
+STORE_CONF_LOG=${STORE_CONF_LOG:-off}
     NET_SELECT=${NET_SELECT:=off}
   CLEAN_SOURCE=${CLEAN_SOURCE:=off}
  CROSS_INSTALL=${CROSS_INSTALL:=off}
@@ -1372,6 +1374,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "VIEW_REPORTS"   "Toggle"  "$VIEW_REPORTS"   "$R_HELP"   \
       "VOYEUR"         "Toggle"  "$VOYEUR"         "$V_HELP"   \
       "REAP"           "Toggle"  "$REAP"           "$E_HELP"   \
+      "STORE_CONF_LOG" "Toggle"  "$STORE_CONF_LOG" "$SCL_HELP"   \
       "NET_SELECT"     "Toggle"  "$NET_SELECT"     "$NS_HELP"  \
       "CLEAN_SOURCE"   "Toggle"  "$CLEAN_SOURCE"   "$CS_HELP"  \
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
@@ -1401,6 +1404,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
         VIEW_REPORTS)   VIEW_REPORTS=on  ;;
               VOYEUR)         VOYEUR=on  ;;
                 REAP)           REAP=on  ;;
+      STORE_CONF_LOG) STORE_CONF_LOG=on  ;;
           NET_SELECT)     NET_SELECT=on  ;;
         CLEAN_SOURCE)   CLEAN_SOURCE=on  ;;
        CROSS_INSTALL)  CROSS_INSTALL=on  ;;
@@ -1409,7 +1413,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done

@@ -428,7 +428,10 @@ function create_compile_log()  {
   message  "${MESSAGE_COLOR}Creating compile log"                  \
            "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"  \
            "${DEFAULT_COLOR}"
-
+  if [[ "$STORE_CONF_LOG" == on ]] && test -e $SOURCE_DIRECTORY/config.log; then
+    echo "---config.log---" >> $C_LOG
+    cat $SOURCE_DIRECTORY/config.log >> $C_LOG
+  fi
   if [  -z  "$EXTENSION"  ];  then
     cp  $C_LOG  $COMPILE_LOGS/$SPELL-$VERSION
   else
