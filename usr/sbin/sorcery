@@ -32,27 +32,22 @@ Usage:          sorcery [parameters]
 
 Optional Parameters:
 
--h  |  --help		Display this help screen.
-
--u  |  update		Update the sorcery scripts only.  [ sorcery update ]
+-h  |  --help		Display this help screen
 
 -s  |  system-update	Perform a system update (updates sorcery, grimoire,
-			  and spells).  [ sorcery update, scribe update,
-			    sorcery queue, sorcery edit-queue, cast --queue ]
-
+			  and spells).
+			  [ scribe update, sorcery queue, cast --queue ]
+-u  |  update		Update the sorcery scripts only.
 -g  |  upgrade		Do not update grimoire, just any spells that need to
-			  be upgraded.  [ sorcery queue, sorcery edit-queue,
-			    cast --queue ]
+			  be upgraded.  [ sorcery queue, cast --queue ]
 
--r  |  rebuild		Rebuild all spells.
+-r  |  rebuild		rebuild all spells
 
 -q  |  queue		Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
 
 review-queue		Review the install queue for each spell's history 
 			  since each was last installed.
-
-edit-queue		List and then possibly edit the install queue.
 
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
@@ -77,8 +72,8 @@ default add spell PROVIDER on/off	"Spell" is the provder for
 					on/off is off, none is chosen
 					by default instead.
 
-default remove [spell|""] [spell|PROVIDER|""] Remove entry from defaults.
-default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults.
+default remove [spell|""] [spell|PROVIDER|""] Remove entry from defaults
+default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
 
 -v  | --version		Print the sorcery version
 
@@ -493,6 +488,7 @@ update_sorcery () {
 
 update_queue () {
     update_install_queue
+    list_install_queue
 }
 
 rebuild()  {
@@ -1171,36 +1167,6 @@ set_delay()  {
 }
 
 
-set_pager_timeout()  {
-
-  if  PAGER_TIMEOUT=`eval $DIALOG '  --ok-label  "Commit"  \
-                             --inputbox            \
-                             "Please enter the time in seconds to wait for a confirmation when displayed pager and history entries."  \
-                              0 0  "$PAGER_TIMEOUT"'`
-  then
-
-    modify_local_config "PAGER_TIMEOUT" "$PAGER_TIMEOUT"
-
-  fi
-
-}
-
-
-set_history_pager()  {
-
-  if  HISTORY_PAGER=`eval $DIALOG '  --ok-label  "Commit"  \
-                             --inputbox            \
-                             "Please enter the pager to use for history entries."  \
-                              0 0  "$HISTORY_PAGER"'`
-  then
-
-    modify_local_config "HISTORY_PAGER" "$HISTORY_PAGER"
-
-  fi
-
-}
-
-
 set_download_rate()  {
 
   PROMPT="Please enter the maximum bytes per second for summoning"
@@ -1498,8 +1464,6 @@ option_menu()  {
     U_HELP="Enter the permissions mask (umask value) to use for sorcery"
     S_HELP="Sorcery development options (debugging)"
     W_HELP="Enter maximum timeout (seconds) for summoning sources"
-    Y_HELP="Enter pager used when viewing histories"
-    P_HELP="Enter maximum timeout (seconds) for viewing histories"
     Z_HELP="Select sorcery sound scheme"
 
 
@@ -1526,8 +1490,6 @@ option_menu()  {
                       "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
-                      "Y"  "Set History Pager"        "$Y_HELP" \
-                      "P"  "Set Pager Timeout"        "$P_HELP" \
                       "Z"  "Select Sound Scheme"      "$Z_HELP"'`
 
   do
@@ -1550,8 +1512,6 @@ option_menu()  {
       S)  sorcery_devel_settings ;;
       T)  set_compression_type   ;;
       W)  set_http_ftp_timeout   ;;
-      Y)  set_history_pager      ;;
-      P)  set_pager_timeout      ;;
       Z)  sound_schemes_menu     ;;
 
     esac
@@ -1771,7 +1731,6 @@ main() {
            -g|upgrade)  update_pkgs  upgrade                    ;;
              -q|queue)  update_queue                            ;;
          review-queue)  install_queue_history                   ;;
-           edit-queue)  list_install_queue                      ;;
            -r|rebuild)  rebuild                                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
