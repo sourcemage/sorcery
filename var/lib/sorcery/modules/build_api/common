@@ -92,6 +92,9 @@ function run_security() {
 #---------------------------------------------------------------------
 function run_config_loc () {
   debug "build_api/common" "Starting run_config_loc() on $SPELL"
+  pushd . > /dev/null # may have been somewhere else
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY   # we need to be in here for this function to work
   if  [ -x ./configure ] || [ -x ./src/configure ] ; then
 		
     if  [[  $CONFIG_LOC  == on  ]]; then
@@ -136,6 +139,9 @@ function run_config_loc () {
     fi
 
   fi
+
+  popd
+
 }
 
 #---------------------------------------------------------------------

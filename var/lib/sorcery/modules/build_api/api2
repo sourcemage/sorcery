@@ -42,6 +42,12 @@ function run_build_spell() {
                       
   (
   run_pre_build				|| return 1
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) || # see bug 7201
+                                           return $?  # this is needed to pass $? up
+
+  run_config_loc                        || return 2  # don't feel like making up a new number
+
+  (
   run_build                             &&
   run_pre_install			&&
   run_install				|| return 2
@@ -49,6 +55,7 @@ function run_build_spell() {
   run_final				|| return 3
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) || # see bug 7201
                                            return $?  # this is needed to pass $? up
+
   run_triggers				|| return 4
   return 0
 }
@@ -91,7 +98,6 @@ function run_build()  {
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
 
-
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
   cd      $SOURCE_DIRECTORY
 
@@ -103,8 +109,6 @@ function run_build()  {
   message -n "Installing in dir: "
   pwd
   message "$SPELL    $VERSION"
-
-  run_config_loc
 
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
