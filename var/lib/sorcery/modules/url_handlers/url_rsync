@@ -66,11 +66,42 @@ url_rsync_download() {
     return 1;
   fi
 
-  local             URL=`url_rsync_strip_prefix "$1"`
-  local	            DEST=`echo $URL | cut -d':' -f 3-`
+  local  URL=`url_rsync_strip_prefix "$1"`
+  local  DEST=`echo $URL | cut -d':' -f 3-`
 
   [ -z "$FILE" ]  &&  FILE=`basename  $DEST`
 
+
+  if  echo  $URL  |  grep  -q  sourcemage.org;  then
+
+    local  WWW="sourcemage.org::"
+    
+    # check for which url to codex is to be used... based on rsync module given.
+    case  $DEST  in
+    
+      test)       URL="${WWW}sourcemage/codex/test/"
+                  DEST="$CODEX_ROOT/$DEST/"
+                  ;;
+      stable)     URL="${WWW}sourcemage/codex/stable/"
+                  DEST="$CODEX_ROOT/$DEST/"
+                  ;;
+      games)      URL="${WWW}sourcemage/codex/games/"
+                  DEST="$CODEX_ROOT/$DEST/"
+                  ;;
+      z-rejected) URL="${WWW}sourcemage/codex/z-rejected/"
+                  DEST="$CODEX_ROOT/$DEST/"
+                  ;;
+      *)          message "${MESSAGE_COLOR}Not an available rsync package (test | stable | games | z-rejected), try again.${DEFAULT_COLOR}"
+                  return 1
+                  ;;
+    esac
+    
+  else
+    if echo $DEST | grep -q \/;  then
+      DEST=\.
+    fi
+  fi
+	
   S_FILE=`echo $FILE            |
           sed "s/\.tar\.gz$//"  |
           sed "s/\.tgz$//"      |

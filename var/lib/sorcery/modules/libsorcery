@@ -587,9 +587,10 @@ function directories() {
 function files()  {
 
   while  read       ITEM;   do
+ 	
     if  [     -f  "$ITEM"  ]   &&
         !  [  -h  "$ITEM"  ];  then
-      echo        "$ITEM"
+      echo "$ITEM"
     fi
   done
 
@@ -909,6 +910,7 @@ function optimize()  {
   fi
   debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
 
+  CFLAGS="$CFLAGS -pipe"
   for  PARAM  in  $OPTIMIZATIONS;  do
     case  $PARAM  in
       speedy)
@@ -1463,25 +1465,7 @@ function archive()  {
 
   debug  "libsorcery" "Running archive() on $SPELL"
 
-  LINES=`wc  -l  <  $INST_LOG`
-  ((  CHUNKS     =  LINES  /  1024  ))
-  ((  REMAINDER  =  LINES  %  1024  ))
-  if  ((  REMAINDER  !=  0  ));  then
-    ((  CHUNKS++  ))
-  fi
-
-  ((  START  =  1     ))
-  ((  STOP   =  1024  ))
-
-  for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
-
-    md5sum  $(  sed  -n  ${START},${STOP}p  $INST_LOG  |
-                files  )  >> $MD5_LOG
-
-    ((  START   =  STOP  +  1  ))
-    ((  STOP   +=  1024        ))
-
-  done
+  while read LINE ; do md5sum "$LINE"; done < $INST_LOG 2>/dev/null >> $MD5_LOG 
 
   if    [  "$ARCHIVE"  ==  "off"  ]; then
     debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, aborting archival."
@@ -1490,19 +1474,7 @@ function archive()  {
 
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-  ((  START  =  1     ))
-  ((  STOP   =  1024  ))
-
-  for  ((  CX  =  0  ;  CX  !=  CHUNKS  ;  CX++  ));  do
-
-    tar  --no-recursion  \
-         -rPf  $CACHE    \
-         $(  sed  -n ${START},${STOP}p  ${INST_LOG}  )
-
-    ((  START   =  STOP  +  1  ))
-    ((  STOP   +=  1024        ))
-
-  done
+	while read LINE ; do tar  --no-recursion  -rPf  "$CACHE"  "$LINE"; done < $INST_LOG
 
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
   bzip2  -9f  <  $CACHE  >  $CACHE_BZ

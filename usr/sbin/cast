@@ -132,22 +132,35 @@ function prepare_spell_config()  {
 
 }
 
-
 function use_xinetd()  { (
 
+  debug "cast" "In use_xinetd()"
+  
   if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
       !  grep  -q  "SERVICES="  $SPELL_CONFIG
   then
 
+    debug "cast" "use_xinetd: found an xinetd directory - processing"
     ALL_SERVICES=`cat  $SCRIPT_DIRECTORY/xinetd.d/*  |
                   grep  "service"                    |
                   sed   "s/service //"`
+                  
+    debug "cast" "use_xinetd: ALL_SERVICES: '$ALL_SERVICES'"
 
+    # only looking for services to install, non-selected services
+    # will be installed and disabled in install_xinetd_confs().
     for  SERVICE  in  $ALL_SERVICES;  do
       if    query  "Invoke $SERVICE via xinetd?"  y
-      then  SERVICES="$SERVICE $SERVICES"
+      then 
+        SERVICES="$SERVICE $SERVICES"
+      else
+        SERVICES_DISABLE="$SERVICE $SERVICES_DISABLE" 
       fi
     done
+
+    debug "cast" "use_xinetd: to install SERVICES: '$SERVICES'"
+    debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
+    debug "cast" "setting up depends for services"
 
     for  SERVICE  in  $SERVICES;  do
       for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
@@ -165,11 +178,19 @@ function use_xinetd()  { (
     else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
     fi
 
+    # now we install the selected services.
+    # no need to disable any here, in install_xinetd_confs the
+    # files found in xinet.d/ spell dir and not passed here will
+    # be installed and disabled.
+    debug "cast" "use_xinetd: about to call install_xinetd_confs"
+    install_xinetd_confs $SERVICES
+
     echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
 
   fi
 
 ) }
+
 
 # Automagic initscript installation.
 function use_initd()  { (
@@ -190,15 +211,30 @@ function use_initd()  { (
       echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
           grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-      if    query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
+      if  query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
         init_prepare_install  $INITSCRIPT
       else
         INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
       fi
     done
-
+    
+    debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
+    debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
     debug "cast" "saving initscripts"
+    
+    # now we install the selected scripts.
+    if  [  -n  "$INITDSCRIPTS"  ] ; then
+      debug "cast" "use_initd: about to call install_initd_confs"
+      install_initd_confs $ALL_INITSCRIPTS
+    fi
+
+    # and disable the others.
+    if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
+      debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
+      install_initd_confs $INITDSCRIPTS_DISABLED
+    fi
+    
     tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
         $SPELL_CONFIG )
     echo $tmp > $SPELL_CONFIG
@@ -444,6 +480,7 @@ function find_check()  { (
 
   if  [  "$FIND_CHECK"  ==  "off"             ]   ||
       [  "$1"           ==  "xfree86"         ]   ||
+      [  "$1"           ==  "xfree86-devel"         ]   ||
       [  "$1"           ==  "xfree86-custom"  ];  then
     return
   fi
@@ -694,12 +731,14 @@ function run_fix()  { (
     # Because we want to always check them first?
     if    spell_installed  xfree86
     then  SPELLS="glibc xfree86"
+    elif  spell_installed xfree86-devel
+    then  SPELLS="glibc xfree86-devel"
     else  SPELLS="glibc"
     fi
 
     #was $SPELL_STATUS_BACKUP (2002/09/29)
     SPELLS="$SPELLS $(  awk -F : '{print $1; }' $SPELL_STATUS |
-                        grep  -v  'glibc|xfree86|sorcery|j2sdk'   )"
+                        grep  -v  'glibc|xfree86|xfree86-devel|sorcery|j2sdk'   )"
   fi
 
   if  [  -z  "$QUIET"  ];  then
@@ -1000,7 +1039,7 @@ function cast_spell()  { (
   #locking - blocks normal spells if a solo cast is running, solo casts if any cast is running
   message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} casts to complete..."
   lock_resources "solo" "cast"
-  if grep -q "^$SPELL$" $SOLO
+  if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
     message -n "Waiting for ${SPELL_COLOR}all other${DEFAULT_COLOR} spells to complete..."
     excllock_resources "cast" "$SPELL"
@@ -1207,7 +1246,6 @@ function pass_four()  {
 # Report generation
 function pass_five()  {
 
-  local SOME_CAST_FAILED=""
   
   if [ -e $SUCCESS_LIST ] ; then
 
@@ -1215,29 +1253,32 @@ function pass_five()  {
 	  message ""
 	  message "Spells installed successfully:"
 	  message "------------------------------${SPELL_COLOR}"
+
 	  for item in `cat $SUCCESS_LIST`; do
     	message "$item"
 	  done | column
-  fi
-  
-  message "${DEFAULT_COLOR}"
-  message "${MESSAGE_COLOR}Spells that encountered problems:"
-  message "---------------------------------${PROBLEM_COLOR}"
-  for item in $* ; do
-    if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
-	  message "$item"
-	  SOME_CAST_FAILED="1"
-	fi
-  done | column
-  message "${DEFAULT_COLOR}"
-  
-  if [[ $SOME_CAST_FAILED ]];  then
-      set_term_title "Casting successfull."
-  else
-      set_term_title "Casting failed."
-  fi
-  [[ $SOME_CAST_FAILED ]] || return 1
+   
+    set_term_title "Casting successfull."
+    return 0
 
+  else 
+  
+    message "${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spells that encountered problems:"
+    message "---------------------------------${PROBLEM_COLOR}"
+    
+    for item in $* ; do
+      if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
+        message "$item"
+	    fi
+    done | column
+
+    set_term_title "Casting failed."
+    message "${DEFAULT_COLOR}"
+    return 1
+  
+  fi 
+   
 }
 
 function pass_zero()  {
@@ -1378,3 +1419,4 @@ debug "cast" "exiting..."
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
+

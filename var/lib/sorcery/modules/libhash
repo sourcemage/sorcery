@@ -87,8 +87,10 @@ function hash_build_variable_name() {
 #---------------------------------------------------------------------
 function hash_unbuild_field_name() {
   local TABLE="$2"
-  local FIELD=`echo "$1" | sed -n "s/^$2\(.*\)_$/\1/p"`
-
+  local FIELD=${1#$TABLE}
+  FIELD=${FIELD%_*}
+#  `echo "$1" | sed -n "s/^$2\(.*\)_$/\1/p"`
+  
 #  debug "libhash" "hash_unbuild_field_name() - TABLE=$TABLE:FIELD=$FIELD"
 
   FIELD=${FIELD//_P_/\+}

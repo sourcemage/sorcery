@@ -25,9 +25,10 @@
 ##
 #---------------------------------------------------------------------
 function create_account() {
+
   if ! exists_account "$1" ; then
-   debug "libgrimoire" "create_account() - $1 not defined!"
-    return 1
+    debug "libgrimoire" "create_account() - $1 not defined!"
+    return 0  # should return 0 to gracefully continue casting.
   fi
 
   ACCOUNT_UID=`get_uid_for_account $1`
@@ -580,28 +581,53 @@ function install_pam_confs()  {
 #---------------------------------------------------------------------
 ##
 ## Copies xinetd configuration files to /etc/xinetd.d/
-##
+## Accepts list of services to be installed.
 #---------------------------------------------------------------------
 function install_xinetd_confs()  { (
 
   debug  "libgrimoire" "Running install_xinetd_confs() on $SPELL"
 
-  if  [  -d  "$SCRIPT_DIRECTORY/xinetd.d"  ];  then
+  LIST=$@
 
-    cd       "$SCRIPT_DIRECTORY/xinetd.d"
-    mkdir  -p  /etc/xinetd.d
+  if  [  -z  "$LIST"  ] ; then
+    LIST=$( cd $SCRIPT_DIRECTORY/xinetd.d; ls )
+    debug  "libgrimiore" "services from install_xinetd_confs to be deactivated : '$LIST'"
+  else
+    debug  "libgrimiore" "services from install_xinetd_confs to be activated : '$LIST'"
+  fi
+  
+  # Something is seriously wrong if this doesn't already exist.
+  mkdir  -p  /etc/xinetd.d
+  cd       "$SCRIPT_DIRECTORY/xinetd.d"
 
-    for  SERVICE  in  $SERVICES;  do
-      for  FILE  in  `ls`;  do
-        if    grep  -q  "service $SERVICE"   $FILE
-        then  cp  $FILE  /etc/xinetd.d
-        fi
-      done
+  for  SERVICE  in  $LIST;  do
+    for  FILE  in  `ls`;  do
+      if    grep  -q  "service $SERVICE"   $FILE
+      then  
+        debug  "libgrimoire" "Activating service in install_xinetd_confs for '$FILE'"
+        # activate service.
+        cp  $FILE  /etc/xinetd.d
+      else
+        debug  "libgrimoire" "Deactivating service in install_xinetd_confs for '$FILE'"
+        # install but deactivate services.
+        ( 
+          head -2 $FILE 
+          echo "  disable = yes" 
+          tail +3 $FILE 
+        ) > /etc/xinetd.d/$FILE
+      fi
     done
+  done
 
-    if  [  -n  "$SERVICES"  ];  then
-      unset  LD_PRELOAD
-      /sbin/telinit  run  xinetd  restart
+  if  [  -n  "$LIST"  ];  then
+    if  query  "If new services installed, please answer yes to restart xinetd?"  "n"
+    then
+      if  [  -x  /etc/init.d/runlevels/%3/xinetd  ] ; then
+        unset  LD_PRELOAD
+        /sbin/telinit  run  xinetd  restart
+      else
+        message "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}" 
+      fi
     fi
   fi
 
@@ -611,21 +637,22 @@ function install_xinetd_confs()  { (
 ##
 ## Installs init scripts in /etc/init.d, and creates links in
 ## /etc/rc*.d
-##
+## Accepts list of scripts to be installed.
 #---------------------------------------------------------------------
 function install_initd_confs()  { (
 
   debug  "libgrimoire" "Running install_initd_confs() on $SPELL"
 
-  if  [  -d  "$SCRIPT_DIRECTORY/init.d"  ];  then
+  LIST="$@"
+  
+  debug  "libgrimiore" "install_initd_confs LIST: '$LIST'"
+  
+  # Something is seriously wrong if this doesn't already exist.
+  mkdir  -p  $INSTALL_ROOT/etc/init.d
 
-    cd       "$SCRIPT_DIRECTORY/init.d"
-    mkdir  -p  /etc/init.d    # Something is seriously wrong if this doesn't already exist.
-
-    for  INITSCRIPT  in  $INITDSCRIPTS;  do
-      init_install  ${INITSCRIPT}
-    done
-  fi
+  for  INITSCRIPT  in  $LIST;  do
+    init_install  ${INITSCRIPT}
+  done
 
 ) }
 
@@ -640,21 +667,19 @@ function install_services()  { (
 
   debug  "libgrimoire" "Running install_services() on $SPELL"
 
-  lock_file $SCRIPT_DIRECTORY/services
   if  [  -f  $SCRIPT_DIRECTORY/services  ];  then
 
     local t_services=$( lock_start_transaction /etc/services )
     local LINE=''
     cat  $SCRIPT_DIRECTORY/services  |  while  read  LINE;  do
-      IFS=$' \t'
-      tmp=( $LINE )     # tmp[0] is "service name", tmp[1] is "port/protocol"
-      IFS=''
+	    explode "$LINE" '\t| ' tmp
+      # tmp[0] is "service name", tmp[1] is "port/protocol"
       tmp=$( grep  -v  "${tmp[0]}[^/]*/${tmp[1]#*/}"  $t_services )
-      echo $tmp > $t_services
-      echo $LINE >> $t_services
+      echo "$tmp" > $t_services
+      echo "$LINE" >> $t_services
     done
+	lock_commit_transaction /etc/services
   fi
-  unlock_file $SCRIPT_DIRECTORY/services
 
 ) }
 
@@ -669,8 +694,6 @@ function real_default_post_build() {
 
   install_pam_confs
   install_services
-  install_xinetd_confs
-  install_initd_confs
   gather_docs
   devoke_installwatch
   init_post_install

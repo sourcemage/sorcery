@@ -1,13 +1,16 @@
 #!/bin/bash
+#
+# Where is the documentation of this lib??? (erics)
+#
 
+invoke_cross_environment() 
+{
 
-invoke_cross_environment() {
-
-if  [[ $CROSS_INSTALL == on ]]; then
+	if  [[ $CROSS_INSTALL == on ]]; then
 
            # Set directory options.
 
-           INSTALL_ROOT="/opt/cross-install/${HOST}"
+            INSTALL_ROOT="/opt/cross-install/${HOST}"
 
           DEPENDS_CONFIG=${INSTALL_ROOT}/etc/sorcery/local/depends
           LOCAL_EXCLUDED=${INSTALL_ROOT}/etc/sorcery/local/excluded
@@ -34,16 +37,45 @@ if  [[ $CROSS_INSTALL == on ]]; then
          BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
       DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/doc
 
-  debug "libcrossinstall" "Install root is ${INSTALL_ROOT}"
+  	debug "libcrossinstall" "Install root is ${INSTALL_ROOT}"
 
-  # Set environment for cross-compilation.
+  	# Set environment for cross-compilation.
        PATH=${PATH}:/opt/cross-build/bin
          CC=${HOST}-gcc
-    BUILDCC=gcc
+  	BUILDCC=gcc
 
-    export PATH CC BUILDCC
+  	export PATH CC BUILDCC
 
-fi
-
+		# check if sorcery needs to be installed.
+		if  [  !  -d  ${INSTALL_ROOT}/etc/sorcery  ]; then
+			cross_install_sorcery 
+		fi
+	fi
 }
 
+#
+# Will install sorcery in cross-install directories, by copying from
+# the existing sorcery install on the machine using this function.
+#
+cross_install_sorcery()
+{
+	
+	message -n "${MESSAGE_COLOR}Setting up Sorcery for cross-install environment."
+	message -n "${DEFAULT_COLOR}"
+	
+	mkdir -p ${INSTALL_ROOT}/etc
+	mkdir -p ${INSTALL_ROOT}/lib
+	mkdir -p ${INSTALL_ROOT}/bin
+	mkdir -p ${INSTALL_ROOT}/sbin
+	mkdir -p ${INSTALL_ROOT}/var/state
+	mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
+	mkdir -p ${INSTALL_ROOT}/usr/src
+	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/compile/
+	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/install/
+	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/md5sum/
+	mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
+	mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/
+	cp -ruv /etc/sorcery ${INSTALL_ROOT}/etc
+	cp -ruv /var/state/sorcery ${INSTALL_ROOT}/var/state
+	cp -ruv /var/lib/sorcery ${INSTALL_ROOT}/var/lib
+}
