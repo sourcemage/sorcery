@@ -113,10 +113,14 @@ function alter_md5_mend() {
     SPELLS="$(echo "$RESULTS" | cut -d' ' -f1 | sort | uniq)"
     TOTSP="$(echo "$SPELLS" | wc -l)"
     FILES="$(echo "$RESULTS" | cut -d' ' -f2 | sort | uniq)"
-    STORE=$STORE_BASE/$SPELL-$VERSION.$$
-    mkdir -p "$STORE"
-    mkdir -p "$STORE/tmp/sorcery"
-    message "${MESSAGE_COLOR}Cleaning $TOTAL old md5sums from $TOTSP spells and creating $SPELL-undo-$VERSION store.${DEFAULT_COLOR}" > /dev/stderr
+    if [ "$ARCHIVE" != "off" ]; then    
+      STORE=$STORE_BASE/$SPELL-$VERSION.$$
+      mkdir -p "$STORE"
+      mkdir -p "$STORE/tmp/sorcery"
+      message "${MESSAGE_COLOR}Cleaning $TOTAL old md5sums from $TOTSP spells and creating $SPELL-undo-$VERSION store.${DEFAULT_COLOR}" > /dev/stderr
+    else
+      message "${MESSAGE_COLOR}Cleaning $TOTAL old md5sums from $TOTSP spells.${DEFAULT_COLOR}" > /dev/stderr
+    fi
     echo "$SPELLS" |
     (
       COUNT=0
@@ -126,35 +130,39 @@ function alter_md5_mend() {
         sed -e 's/[^a-zA-Z0-9*.+]/\\&/g' |
         sed -e 's/.*/\\:&: d/' |
         sed -i -f - "$MD5SUM_LOGS/$SPVER"    
-        if [ "$COMPRESSBIN" == "tar" ]; then
-          echo "$SPFLS" | 
-            tar -f $INSTALL_CACHE/$SPVER-*.tar \
-            -kx -T /dev/stdin -C "$STORE" 2> /dev/null
-        else
-          echo "$SPFLS" | 
-            tar --"$COMPRESSBIN" -f $INSTALL_CACHE/$SPVER-*.tar$EXTENSION \
-            -kx -T /dev/stdin -C "$STORE" 2> /dev/null
+        if [ "$ARCHIVE" != "off" ]; then
+          if [ "$COMPRESSBIN" == "tar" ]; then
+            echo "$SPFLS" | 
+              tar -f $INSTALL_CACHE/$SPVER-*.tar \
+              -kx -T /dev/stdin -C "$STORE" 2> /dev/null
+          else
+            echo "$SPFLS" | 
+              tar --"$COMPRESSBIN" -f $INSTALL_CACHE/$SPVER-*.tar$EXTENSION \
+              -kx -T /dev/stdin -C "$STORE" 2> /dev/null
+          fi
         fi
         progress_bar $((++COUNT)) $TOTSP 60 > /dev/stderr
       done
       clear_line > /dev/stderr  
     )
-    message "${MESSAGE_COLOR}Creating ${SPELL_COLOR}$SPELL-undo${DEFAULT_COLOR}${MESSAGE_COLOR} spell for ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" > /dev/stderr
-    ORIGSPELL="$SPELL"
-    SPELL="$SPELL-undo"
-    cd "$STORE"
-    INST_LOG="$STORE.log"
-    mkdir -p "$STORE$MD5SUM_LOGS"
-    MD5S_LOG="$STORE$MD5SUM_LOGS/$SPELL-$VERSION"
-    touch "$MD5S_LOG"
-    echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL-$VERSION-backup.md5"
-    find * > "$INST_LOG"
-    md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
-    CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
-    archive # No install log nor compile cache needed or wanted since we are 
-            # only doing md5sum deletions from other spells, the undeleted 
-            # form should only restore the md5sums to the proper location.
-    rm -rf "$STORE"
+    if [ "$ARCHIVE" != "off" ]; then    
+      message "${MESSAGE_COLOR}Creating ${SPELL_COLOR}$SPELL-undo${DEFAULT_COLOR}${MESSAGE_COLOR} spell for ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" > /dev/stderr
+      ORIGSPELL="$SPELL"
+      SPELL="$SPELL-undo"
+      cd "$STORE"
+      INST_LOG="$STORE.log"
+      mkdir -p "$STORE$MD5SUM_LOGS"
+      MD5S_LOG="$STORE$MD5SUM_LOGS/$SPELL-$VERSION"
+      touch "$MD5S_LOG"
+      echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL-$VERSION-backup.md5"
+      find * > "$INST_LOG"
+      md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
+      CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+      archive # No install log nor compile cache needed or wanted since we are 
+              # only doing md5sum deletions from other spells, the undeleted 
+              # form should only restore the md5sums to the proper location.
+      rm -rf "$STORE"
+    fi
     return 1
   else
     message "${MESSAGE_COLOR}No md5sum conflicts with ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR} detected.${DEFAULT_COLOR}" > /dev/stderr
