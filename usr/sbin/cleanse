@@ -453,7 +453,7 @@ function cleanse_fix()
   
   # load our ldd hash with the spells we know we'll care about
   # but no more then necessary
-  cleanse_fix_init_ldd_check $(make -f $MAKEFILE all)
+  cleanse_fix_init_ldd_check $(/usr/bin/make -s -f $MAKEFILE all)
 
   local PASSED FIXED HOPELESS TOTALNR CURNR unused
  
@@ -475,7 +475,7 @@ function cleanse_fix()
   else
     # non-quick mode implies we check from the bottom up, so get all
     # the spells..
-    TOTALNR=$(make -f $MAKEFILE all|wc -l)
+    TOTALNR=$(/usr/bin/make -s -f $MAKEFILE all|wc -l)
     cleanse_fix_depends all
   fi
 
@@ -504,7 +504,7 @@ function cleanse_fix()
 function cleanse_fix_depends() {
   local SPELL=$1
   # run the makefile to get the proper order
-  local FIX_ORDER=$(make -f $MAKEFILE $1 | grep -v "^$SPELL\$")
+  local FIX_ORDER=$(/usr/bin/make -s -f $MAKEFILE $1 | grep -v "^$SPELL\$")
   #for each spell
   for SPELL in ${FIX_ORDER}; do
     # check it
@@ -670,7 +670,7 @@ function cleanse_fix_ldd_check()  { (
   fi
 
   local tmp
-  for each in $(make -f $MAKEFILE $1); do
+  for each in $(/usr/bin/make -s -f $MAKEFILE $1); do
     tmp=$(hash_get ldd_hash $each)
     [[ $tmp ]] && LD_LIBRARY_PATH="$(hash_get ldd_hash $each):${LD_LIBRARY_PATH}"
   done
@@ -765,6 +765,10 @@ function cleanse_fix_md5sum_check() {
   local BROKEN2=/tmp/cleanse.md5sum.broken2.$SPELL.$$
   local A=$'\a' # magic sed seperator, assume files dont have bells in the name
 
+  # Ignore standard paths we know will change, the install log, file log,
+  # compile log, and score files that live in /var/games (bug 7500)
+  local FIX_IGNORE_MD5_PATH="^\(/etc\|/lib/modules\|/home\|/var/log\|${INSTALL_LOGS}\|${MD5SUM_LOGS}\|${COMPILE_LOGS}\|/var/games/.*score.*\)"
+
   message -n "\tChecking md5sums."
 
   if ! [ -f $MD5_LOG ] ; then
@@ -777,15 +781,14 @@ function cleanse_fix_md5sum_check() {
   message -n '.'
 
   # for some reason stuffing the output of this in a variable loses the
-  # newlines and thus files with spaces in them fail
+  # newlines and thus files with spaces in them get lost
   md5sum --check $MD5_LOG 2>/dev/null | grep ': FAILED$' |
             sed "s${A}: FAILED\$${A}${A}" > $BROKEN1
   # cant use awk above with : as a seperator due to files with :'s in their name
 
   message -n '.'
 
-  #The md5sum log is always wrong...
-  grep -v "$FIX_IGNORE_PATHS\|^\(${MD5_LOG}\|${INSTALL_LOGS}\|${COMPILE_LOGS}\)" < $BROKEN1 > $BROKEN2
+  grep -v "$FIX_IGNORE_MD5_PATH" < $BROKEN1 > $BROKEN2
 
   # the files with bad md5s may be owned by another spell (either legitimatly
   # or by spell writer oversight) if so remove the entry from
