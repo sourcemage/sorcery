@@ -95,25 +95,33 @@ function set_successful_cast() {
 
 function run_conflicts() {
     
-     debug "cast" "Starting run_conflicts() on $SPELL"
-    local CONFLICTS
-    if    [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-        CONFLICTS=$( source $SCRIPT_DIRECTORY/CONFLICTS )
-        if [ $CONFLICTS ]; then
-            message "${SPELL_COLOR}${SPELL} ${MESSAGE_COLOR}conflicts with:"
-            message "${SPELL_COLOR}"
-            echo "$CONFLICTS" | column
-            message "${DEFAULT_COLOR}"
-            if  query "Do you want to dispel these?" "n" 
-            then
-              dispel "$CONFLICTS"
-            else
-              echo $SPELL >> $FAILED_LIST
-              return 1
-            fi
-        fi
-     fi
- }
+  debug "cast" "Starting run_conflicts() on $SPELL"
+
+  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
+    local CONFLICTS=$( . $SCRIPT_DIRECTORY/CONFLICTS )
+
+    local tmp to_dispel=""
+    for  tmp  in  $CONFLICTS  ;  do
+      local spell_and_default
+      explode  $tmp  ':'  spell_and_default
+
+      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}."
+      text="$text Dispel"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
+
+      if  query  "$text"  ${spell_and_default[1]}  ;  then
+	to_dispel="$to_dispel ${spell_and_default[0]}"
+      else
+        echo  $SPELL  >>  $FAILED_LIST
+        return  1
+      fi
+
+      dispel  $to_dispel
+    done
+  fi
+
+}
 
 
 # checks for a security file
@@ -1001,13 +1009,17 @@ function strip_parameters()  {
 
 }
 
+#---------------------------------------------------------------------
+## @param spellname
+## calls run_details and returns the returnvalue of
+## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
+#---------------------------------------------------------------------
 function can_resurect()  {
 	debug "cast" "can_resurect - $*"
 	run_details		&&
 	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
 	debug "cast" "I am able to resurect."
 }
-
 
 function resurrect()  {  (  
 
@@ -1050,6 +1062,10 @@ function resurrect()  {  (
     echo $SPELL >> $FAILED_LIST
     false
   fi
+
+  # run ldconfig 
+	message "${MESSAGE_COLOR}Updating the shared libraries ...${DEFAULT_COLOR}"
+  release_saved_libraries
 
 )  }
 
@@ -1176,7 +1192,15 @@ function current_sources()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Globals D_LOG COMPILE FORCE_COMPILE SPELL
+## Downloads the sources by calling summon if it has to.
+## It downloads if COMPILE || FORCE_COMPILE || ! current_sources
+## || ! (spell_installed $SPELL || spell_held $SPELL)
+## It logs the download-process in D_LOG
+## Always touches ${D_LOG}.done.$SPELL at the end to signal that
+## it is done.
+#---------------------------------------------------------------------
 function run_summon()  {
 
   touch $D_LOG
@@ -1197,6 +1221,15 @@ function run_summon()  {
 
 }
 
+#---------------------------------------------------------------------
+## @Globals SPELLS
+## @STDOUT User information ("Collating dependancies")
+## @Globals SPELL MAKEFILE DEPS_ONLY 
+##
+## Basically only gathers all dependancies and creates the Makefile
+## (According to pass_zero it ought to take SPELL as parameter, but
+## it doesn't)
+#---------------------------------------------------------------------
 function pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
@@ -1275,7 +1308,17 @@ function build_sources()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Arguments Spells to be cast
+## @Stdout the "Spells are to be cast" message.
+## @Stdin User interface, y or n  
+## @Globals SEPARATE
+## Asks whether you want to cast the listed spells or not.
+## Returns if not. 
+## Then it starts pass three and four by calling make.
+## Depending on SEPARATE it starts pass three in the background
+## or not.
+#---------------------------------------------------------------------
 function pass_two()  {
   #  This pass downloads required sources.
   #  And starts the make process
@@ -1304,13 +1347,30 @@ function pass_two()  {
   rm $MAKEFILE
 
 }
-
+#---------------------------------------------------------------------
+## @param spellname
+## @Globals SPELL
+## Sets SPELL to the spellname and calls build_sources with spellname
+## as argument.
+## (Is being called by make)
+#---------------------------------------------------------------------
 function pass_three()  {
   debug "cast" "pass_three - $*"
   SPELL=$1
   build_sources $*
 }
 
+#---------------------------------------------------------------------
+## @param spellname
+## @Globals SPELL COMPILE
+## Sets SPELL to spellname.
+## Calls trigger "pre_cast"
+## If COMPILE is not set and it can be resurrected 
+## (can_resurect SPELL) it calls resurrect with SPELL as argument.
+## Otherwise it calls cast_spell.
+## If resurrect or cast_spell returned 0 it calls trigger "cast"
+## (Is being called by make)
+#---------------------------------------------------------------------
 function pass_four()  {
 
   debug "cast" "pass_four - $*"
@@ -1385,11 +1445,19 @@ function pass_five()  {
 
 }
 
+#---------------------------------------------------------------------
+## @Arguments Spells to cast
+## @Globals CAST_PASS D_LOG 
+## 
+## Starts the passes and sets CAST_PASS accordingly.
+## D_LOG is being set and the file is being cleared if it does already
+## exists 
+#---------------------------------------------------------------------
 function pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
   PASS_ZERO="y"  #<--- What is this here for? (Duff, 03/02/13)
-  export  D_LOG="/tmp/sorcery.downloading.$$.$RANDOM"
+  export  D_LOG="/tmp/sorcery/cast/$$/downloading.$RANDOM"
   rm -f $D_LOG 2>/dev/null
 
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
@@ -1417,7 +1485,17 @@ function cleanup() {
   
   debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+  rm -rf /tmp/sorcery/cast/$$
 
+}
+
+function mk_tmp_dirs() {
+	debug "$FUNCNAME" "Making tmp dirs for $$"
+	if [ -d /tmp/sorcery/cast/$$ ] ; then
+		echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
+		rm -rf /tmp/sorcery/cast/$$
+	fi
+	mkdir -p /tmp/sorcery/cast/$$
 }
 
 function main()	{
@@ -1471,39 +1549,50 @@ function main()	{
 
 . /etc/sorcery/config
 
-if    [  $#      ==  0  ];  then  help  |  $PAGER
-elif  [  "$UID"  !=  0  ];  then
+if    [  $#      -eq  0  ];  then  help  |  $PAGER
+
+elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
+elif  [  "$UID"  -gt  0  ];  then
 
   echo  "Enter the root password, please."
   su  - -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
 
-elif  [  "$(  dirname  $0  )"  !=  "/tmp"  ];  then
+elif  [  ${0:0:5} !=  "/tmp/"  ];  then
+
+  # Make a nice dir structure to put stuff in
+  mk_tmp_dirs
 
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
 	  # and fill it up with stuff the feel the need to delete
-    export RM_AT_END=${RM_AT_END:-"/tmp/cast.$$.tmplist"}
+    export RM_AT_END=${RM_AT_END:-"/tmp/sorcery/cast/$$/tmplist"}
 	  touch $RM_AT_END
 	  chown root:root $RM_AT_END
 	  echo -n '' > $RM_AT_END
   fi
   
-  SAFE_CAST=/tmp/casting.$$
+  export SAFE_CAST=/tmp/sorcery/cast/$$/casting.safe
+  export SUCCESS_LIST="/tmp/sorcery/cast/$$/success_list"
+  export FAILED_LIST="/tmp/sorcery/cast/$$/failed_list"
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
-  echo "$SAFE_CAST" >> $RM_AT_END
+  echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST" >> $RM_AT_END
   exec $SAFE_CAST "$@"
   
 else
 
-  renice +10 -p $$  >/dev/null
+  if  [[  $NICE != "0"  ]] ; then
+    renice $NICE -p $$  >/dev/null
+  fi
   trap int_trap INT
   main  $*
   if [ $SHLVL -eq 2 ] ; then
 	unlock_file $SAFE_CAST
 	cleanup
+  else
+  	rm -rf /tmp/sorcery/cast/$$
   fi
 
 fi

@@ -167,6 +167,25 @@ function get() {
 
 }
 
+#---------------------------------------------------------------------
+##
+## Menu query to user asking to set the nice value which sorcery should
+## use to run proccesses at.
+##
+#---------------------------------------------------------------------
+function set_nice()  {
+
+  PROMPT="Please enter the process priority sorcery should run at."
+
+  if  NICE=`eval $DIALOG '  --ok-label  "Commit"  \
+                            --inputbox            \
+                            "$PROMPT"             \
+                            0 0  "$NICE"'`
+  then
+     modify_local_config "NICE" "$NICE"
+  fi
+
+}
 
 #---------------------------------------------------------------------
 ## @param filename
@@ -407,7 +426,7 @@ function save_libraries()  {
 
   if  [  -z   "$LD_LIBRARY_PATH"  ]
   then  export  LD_LIBRARY_PATH="$OLD_LIBS"
-  else  export  LD_LIBRARY_PATH="$OLD_LIBS:LD_LIBRARY_PATH"
+  else  export  LD_LIBRARY_PATH="$OLD_LIBS:$LD_LIBRARY_PATH"
   fi
 
   if  [  "$SPELL"  ==  "glibc"         ]   ||
@@ -792,24 +811,27 @@ function reaper()  { (
 function pop_queue() {  (
 
   local ITEM=`esc_str $2`
+  local exit_code=0
 
-  tQUEUE_FILE=`lock_start_transaction $1`
-  if  !  [  -f  "$1"  ];  then  return  1;  fi
-
-  if  [  -n  "$ITEM"  ];  then
+  tQUEUE_FILE=$( lock_start_transaction $1 )
+  if  !  [  -f  "$1"  ];  then
+    exit_code=1
+  elif  [  -n  "$ITEM"  ];  then
     grep  -v  "^$ITEM\$"  $1 > $tQUEUE_FILE
   else
-
     FOUND=`sed  -n  1p  $1`
 
-    if  [  -z  "$FOUND"  ];  then  return  1;  fi
-
-    FOUND=`esc_str $FOUND`
-    grep  -v  "^$FOUND$"  $1 > tQUEUE_FILE
-    echo  $FOUND
-
+    if  [  -z  "$FOUND"  ];  then
+      exit_code=1
+    else
+      FOUND=`esc_str $FOUND`
+      grep  -v  "^$FOUND$"  $1 > tQUEUE_FILE
+      echo  $FOUND
+    fi
   fi
   lock_commit_transaction $1
+
+  return $exit_code
 
 ) }
 
@@ -839,9 +861,9 @@ function pop_install_queue() {
 ##
 #---------------------------------------------------------------------
 function push_queue()  {
-  lock_file $1
+
   pop_queue  "$1"  "$2";  echo  "$2" >>  $1;
-  unlock_file $1
+
 }
 
 
@@ -909,7 +931,7 @@ function optimize()  {
   debug "libsorcery" "TARGET='${TARGET}'"
   debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
 
-  unset  CFLAGS CXXFLAGS LDFLAGS
+  unset  CFLAGS CXXFLAGS LDFLAGS LC_ALL
   unset  FAST SMALL SPEEDY TINY RISKY STRIP STATIC
 
   local SPECFILE
@@ -963,9 +985,10 @@ function optimize()  {
     esac
   done
 
-  export  CFLAGS
+  export  CFLAGS="-O $CFLAGS"
   export  CXXFLAGS="$CFLAGS"
   export  LDFLAGS
+  export  LC_ALL="C"
 
 }
 
@@ -1754,6 +1777,87 @@ function filename_indicates_compression()  {
   [  -z  "$FILENAME"  ]
 }
 
+
+#---------------------------------------------------------------------
+##
+## Setup sound menu from existing installed sorcery sound spells.
+## Currently no check done for installed sound schemes, just message 
+## to user. 
+##
+## Passes name of chosen scheme to the set_sound_scheme funtion.
+## 
+#---------------------------------------------------------------------
+function sound_schemes_menu() {
+
+		SOUND_HELP="Here you can choose your prefered sound scheme"
+    FER_SOUND="Ferris sound scheme"
+    MIS_SOUND="Misc sound scheme"
+    SIM_SOUND="Simpsons sound scheme"
+		STA_SOUND="Startrek sound scheme"
+		OFF_SOUND="Sound off"
+
+   if  SOUND_CHECKS=`eval $DIALOG '  --title  "Sound Schemes"    \
+                                     --cancel-label  "Exit"      \
+                                     --ok-label      "Select"    \
+                                     --item-help                 \
+                                     --menu                      \
+                                     "$SOUND_HELP"               \
+                                     0 0 0                       \
+                        "OFF"  "$OFF_SOUND"   "$SOUND_HELP"      \
+                        "FER"  "$FER_SOUND"   "$SOUND_HELP"      \
+                        "MIS"  "$MIS_SOUND"   "$SOUND_HELP"      \
+                        "SIM"  "$SIM_SOUND"   "$SOUND_HELP"      \
+                        "STA"  "$STA_SOUND" "$SOUND_HELP"'`
+  then
+
+    for  CHECK  in  $SOUND_CHECKS;  do
+      case  $CHECK  in
+        OFF)  modify_local_config "SOUND" "off"  &&
+              SOUND=off  
+              eval $DIALOG '--msgbox "Sorcery sounds have been turned off." 0 0' 
+							goodbye
+              ;;
+        FER)  set_sound_theme ferris    ;;
+        MIS)  set_sound_theme misc      ;;
+        SIM)  set_sound_theme simpsons  ;;
+        STA)  set_sound_theme startrek  ;;
+      esac
+    done
+
+	fi
+	
+}
+
+
+#---------------------------------------------------------------------
+## @param sound scheme name 
+##
+## Here the passed scheme is set as default sound scheme. 
+## If the sound spell is not installed it will be cast for the user.
+##
+#---------------------------------------------------------------------
+function set_sound_theme()  {
+	
+  modify_local_config "SOUND" "on"        &&
+  modify_local_config "SOUND_THEME" "$1"  &&
+  SOUND=on                                &&
+  SOUND_THEME=$1                          
+
+   
+  if  ! spell_installed $1
+  then 
+    eval $DIALOG '--msgbox "Sorcery has determined that the $SOUND_THEME  \
+                            theme must be installed to work. It will now  \
+														be cast for you!" 0 0' 
+		cast sorcery-sound-$SOUND_THEME
+  else
+    eval $DIALOG '--msgbox "The $SOUND_THEME theme is installed and ready  \
+                            for you to enjoy your new sounds!" 0 0' 
+  fi
+
+  goodbye 
+
+}
 
 #---------------------------------------------------------------------
 ##
