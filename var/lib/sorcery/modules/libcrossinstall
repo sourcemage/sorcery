@@ -17,6 +17,7 @@ function install_root_menu() {
 
   while
 
+    C_HELP="Fill in your own preferred track root location."
     I_HELP="Fill in your own preferred install root location."
     S_HELP="Fill in your own preferred state root location."
     T_HELP="Fill in your own preferred track root location."
@@ -28,6 +29,7 @@ function install_root_menu() {
                              --menu                                          \
                              ""                                              \
                              0 0 0                                           \
+                             "C"  "Set install cache location"     "$C_HELP" \
                              "I"  "Set install root location"      "$I_HELP" \
                              "S"  "Set state root location"        "$S_HELP" \
                              "T"  "Set track root location"        "$T_HELP"'`
@@ -35,13 +37,34 @@ function install_root_menu() {
   do
 
     case $COMMAND in
-      I)  set_install_root_menu     ;;
+      C)  set_install_cache_menu  ;;
+      I)  set_install_root_menu   ;;
       S)  set_state_root_menu     ;;
       T)  set_track_root_menu     ;;
     esac
 
   done
 
+}
+
+#---------------------------------------------------------------------
+#-item set_install_cache_menu
+##
+## This menu function allows the user to fill in an INSTALL_CACHE location.
+##
+#---------------------------------------------------------------------
+function set_install_cache_menu() {
+
+  debug "libcrossinstall" "set_install_cache_menu - is starting..."
+  PROMPT="Please enter the install cache location where cache tarballs will be stored"
+  if  INSTALL_CACHE=`eval $DIALOG '  --ok-label  "Commit"         \
+                                    --inputbox                   \
+                                    "$PROMPT"                    \
+                                    0 0  "$INSTALL_CACHE"'`
+  then
+    INSTALL_CACHE=${INSTALL_CACHE%/}
+    modify_config  $CONFIG_CACHE/roots "INSTALL_CACHE"  "$INSTALL_CACHE" 
+  fi
 }
 
 #---------------------------------------------------------------------
