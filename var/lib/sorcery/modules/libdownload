@@ -1,32 +1,31 @@
 #!/bin/bash
 #-------------------------------------------------------------------------
-# This should be home to everything download related until liburl
-#
-# The basic layout is:
-#
-# spell -> frontend -> <file + url1 url2 ...> ->
-#  download_files
-#  -> local
-#  -> internet
-#    -> leap forward -> url_download
-#    -> < url1 url2 ... > -> url_download
-#    -> fall back -> url_download
-#
-# in other words, you have some frontend, such as get_spell_files_and_urls
-# put lists of a file and urls lists on stdout, then you pass that as
-# the input to download_files. Download_files will first check locally
-# then try to get the file from the internet, possibly in 3 different
-# attempts
-#
+## This should be home to everything download related until liburl
+##
+## The basic layout is:
+##
+## spell -&gt; frontend -&gt; <file + url1 url2 ...&gt; -&gt;
+##  download_files
+##  -&gt; local
+##  -&gt; internet
+##    -&gt; leap forward -&gt; url_download
+##    -&gt; < url1 url2 ... &gt; -&gt; url_download
+##    -&gt; fall back -&gt; url_download
+##
+## in other words, you have some frontend, such as get_spell_files_and_urls
+## put lists of a file and urls lists on stdout, then you pass that as
+## the input to download_files. Download_files will first check locally
+## then try to get the file from the internet, possibly in 3 different
+## attempts
+##
 #-------------------------------------------------------------------------
 
 
 #-------------------------------------------------------------------------
-# Helper routine to dump out the files and urls for a spell given that
-# the caller has run run_details.
-#
-# @stdout multiple lines, one per SOURCE/SOURCEx as
-# "SOURCE SOURCE_URL[0] SOURCE_URL[1]"
+## Helper routine to dump out the files and urls for a spell given that
+## the caller has run run_details.
+##
+## @Stdout multiple lines, one per SOURCE/SOURCEx as "SOURCE SOURCE_URL[0] SOURCE_URL[1]"
 #-------------------------------------------------------------------------
 function get_spell_files_and_urls() {
 
@@ -40,27 +39,26 @@ function get_spell_files_and_urls() {
 }
 
 #-------------------------------------------------------------------------
-# @stdin one or more lines like this: "file url1 url2 ..."
-# @param reason (optional, default "for spell $SPELL")
-# @param check local (optional, default yes)
-# @param final location (optional, default $SOURCE_CACHE)
-# @param use lf or fb (optional, default "both", can be "both" "lf" "fb"
-# or "neither")
-# @param url_options (optional)
+## @Stdin one or more lines like this: "file url1 url2 ..."
+## @param reason (optional, default "for spell $SPELL")
+## @param check local (optional, default yes)
+## @param final location (optional, default $SOURCE_CACHE)
+## @param use lf or fb (optional, default "both", can be "both" "lf" "fb" or "neither")
+## @param url_options (optional)
 #
-# Each line is read from the standard input. for each line try to download
-# the file listed, do checks first on disk, then the leap forward url
-# then the urls given, then the fallbacks before failing.
-#
-# This is the do-it-all-be-it-all of downloading in sorcery
-# If you find yourself needing to use one of the lower level functions
-# please see if this can do it for you, and if it can't see your
-# sorcery lead about making it do what you want, or adapting
-# your application to use it.
-#
-# The reason for this is so the routines beneath this one can remain
-# low level and we can have a single consistant interface.
-#
+## Each line is read from the standard input. for each line try to download
+## the file listed, do checks first on disk, then the leap forward url
+## then the urls given, then the fallbacks before failing.
+##
+## This is the do-it-all-be-it-all of downloading in sorcery
+## If you find yourself needing to use one of the lower level functions
+## please see if this can do it for you, and if it can't see your
+## sorcery lead about making it do what you want, or adapting
+## your application to use it.
+##
+## The reason for this is so the routines beneath this one can remain
+## low level and we can have a single consistant interface.
+##
 #-------------------------------------------------------------------------
 function download_files() {
   local rc=0
@@ -134,10 +132,10 @@ function download_files() {
 
 
 #-------------------------------------------------------------------------
-# The point of this if to look locally, and decide if we need to go out to
-# the network
-#
-# @param file
+## The point of this if to look locally, and decide if we need to go out to
+## the network
+##
+## @param file
 #-------------------------------------------------------------------------
 function download_from_local() {
   if  [  -n  "$1"  ] ;  then
@@ -153,10 +151,10 @@ function download_from_local() {
 
 
 #-------------------------------------------------------------------------
-# @param file
-# @param url list
-# @param use lf, fb, both or neither (see download_files)
-# @param url options
+## @param file
+## @param url list
+## @param use lf, fb, both or neither (see download_files)
+## @param url options
 #-------------------------------------------------------------------------
 function download_from_internet()  {
 
@@ -218,9 +216,9 @@ function download_from_internet()  {
 }
 
 #-------------------------------------------------------------------------
-# this nonsense is to get us connected to the outside world
-# it should eventually be a seperate, userdefinable script, with
-# this as the default of course
+## this nonsense is to get us connected to the outside world
+## it should eventually be a seperate, userdefinable script, with
+## this as the default of course
 #-------------------------------------------------------------------------
 function connect()  {
 
@@ -257,9 +255,9 @@ function connect()  {
 }
 
 #-------------------------------------------------------------------------
-# this clever function disconnects us if we aren't summoning something
-# too bad scribe and sorcery may also download stuff, so really this should
-# be using liblock or something
+## this clever function disconnects us if we aren't summoning something
+## too bad scribe and sorcery may also download stuff, so really this should
+## be using liblock or something
 #-------------------------------------------------------------------------
 function disconnect()  {
 
@@ -285,16 +283,18 @@ chmod  a+x  /tmp/disconnect
 
 
 #-------------------------------------------------------------------------
-# check if the file exists, or one with a similar compression exists
+## check if the file exists, or one with a similar compression exists
+## @param file
 #-------------------------------------------------------------------------
 function file_exists()  {
   guess_filename  $1  >  /dev/null
 }
 
 #-------------------------------------------------------------------------
-# if a file's lifespan is up, remove it
-# currently works only on files in SOURCE_CACHE just to be overly
-# difficult and paranoid
+## if a file's lifespan is up, remove it
+## currently works only on files in SOURCE_CACHE just to be overly
+## difficult and paranoid
+## @param file
 #-------------------------------------------------------------------------
 function remove_old_file()  {
     # This can be pretty dangerous so for /now/ I'll make sure it only
