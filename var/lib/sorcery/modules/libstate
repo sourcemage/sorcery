@@ -276,12 +276,11 @@ function remove_default_depends() {
 
         local file=$1
         shift
+        test -e $file || return
 
 	local a1 a2 a3
 	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3`
 	
-	a1=${a1:-.*}
-	a2=${a2:-.*}
 	a3=${a3:-.*}
 
 	sedit "/^$a1:$a2:$a3$/D" $file
@@ -305,9 +304,6 @@ function search_default_depends() {
 
 	local a1 a2 a3
 	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
-
-	a1=${a1:-.*}
-	a2=${a2:-.*}
 	a3=${a3:-.*}
 
         debug "libstate" "search_default_depends: [$a1:$a2:$a3]"
