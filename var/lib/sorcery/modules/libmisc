@@ -525,7 +525,7 @@ function set_term_title()
 ## are separated by spaces
 ##
 #---------------------------------------------------------------------
-function list_remove () {
+function real_list_remove () {
     local var=$1
     shift
     
@@ -548,7 +548,7 @@ function list_remove () {
 ## separated by spaces
 ##
 #---------------------------------------------------------------------
-function list_add () {
+function real_list_add () {
     local var=$1
     shift
   
@@ -575,7 +575,7 @@ function list_add () {
 ## functions
 ##
 #---------------------------------------------------------------------
-function list_find () {
+function real_list_find () {
     local i
 	 local input="$1"
 	 shift
@@ -593,7 +593,7 @@ function list_find () {
 ## Adds variable names to the list of persistent variables
 ##
 #---------------------------------------------------------------------
-function persistent_add {
+function real_persistent_add () {
     list_add PERSISTENT_VARIABLES $@
 }
 
@@ -604,7 +604,7 @@ function persistent_add {
 ## Removes variable names from the list of persistent variables
 ##
 #---------------------------------------------------------------------
-function persistent_remove {
+function real_persistent_remove () {
     list_remove PERSISTENT_VARIABLES $@
 }
 
@@ -613,7 +613,7 @@ function persistent_remove {
 ## Loads persistent variables stored in file "$SPELL_CONFIG"
 ##
 #---------------------------------------------------------------------
-function persistent_load {
+function real_persistent_load () {
     . "$SPELL_CONFIG"
 	 persistent_add `awk 'BEGIN{FS="="}{print $1}' < "$SPELL_CONFIG"`
 }
@@ -624,7 +624,7 @@ function persistent_load {
 ## File is completely overwritten
 ##
 #---------------------------------------------------------------------
-function persistent_save {
+function real_persistent_save () {
     local VAR
 	 local TMP
 	 > "$SPELL_CONFIG"
@@ -646,7 +646,7 @@ function persistent_save {
 ## Asks user for string, with default answer and timeout (like query)
 ##
 #---------------------------------------------------------------------
-function query_string()  {
+function real_query_string () {
   
     debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
     
@@ -689,7 +689,7 @@ function query_string()  {
 #    [ -z "$REPLY" ] && return 1
 #    return 0
 #}
-function config_get_option {
+function config_get_option () {
     eval "
 	     [ -n \"$2\" ] && $2=\"\$$1\"
 		  [ -n \"\$$1\" ] && return 0
@@ -712,7 +712,7 @@ function config_get_option {
 #function config_set_option {
 #    echo "$1=$2" >> $SPELL_CONFIG
 #}
-function config_set_option {
+function config_set_option () {
     persistent_add $1
     eval "$1=\"$2\""
 }
@@ -727,9 +727,10 @@ function config_set_option {
 ## @return 1 default answer is used
 ##
 ## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistant
 ##
 #---------------------------------------------------------------------
-function config_query {
+function real_config_query () {
     local ANSWER
   
     if config_get_option "$1" ANSWER; then
@@ -762,9 +763,11 @@ function config_query {
 ## @return 1 default answer is used
 ##
 ## Asks user for string, with default answer and timeout (like query)
+## The string is added to the variable
+## Return variable is also marked as persistant
 ##
 #---------------------------------------------------------------------
-function config_query_option {
+function real_config_query_option () {
     local ANSWER
   
     if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
@@ -793,12 +796,12 @@ function config_query_option {
 ## @return 1 default answer is used
 ##
 ## Asks user for string, with default answer and timeout (like query)
+## Return variable is also marked as persistant
 ##
 #---------------------------------------------------------------------
-function config_query_string {
+function real_config_query_string () {
     local ANSWER
     local RET=0
-#    local VARIABLE="$1"
     
     if config_get_option "$1" ANSWER; then
         # option allready answered in config
@@ -821,10 +824,11 @@ function config_query_string {
 ## @return 0 user supplied answer
 ## @return 1 default answer is used
 ##
-## Asks user for string, with default answer and timeout (like query)
+## Asks user for string, with numbered possibilities listed
+## Return variable is also marked as persistant
 ##
 #---------------------------------------------------------------------
-function config_query_list {
+function real_config_query_list () {
   local ANSWER
   local RET=0
   local VARIABLE="$1"
