@@ -533,7 +533,7 @@ function real_list_remove () {
     
     local i
     
-    for i in $@; do
+    for i in "$@"; do
         eval "$var=\`echo \" \$$var \" | sed  \
                -e \"s/[[:space:]]\\+/ /g\"   \
                -e \"s/ $i / /g\"             \
@@ -555,7 +555,7 @@ function real_list_add () {
   local var=$1
   shift
   local i
-  for i in $@; do
+  for i in "$@"; do
     local found=0
     function list_add_sub() {
       if [ "$i" == "$1" ]; then
@@ -588,7 +588,7 @@ function real_list_find () {
     local input="$1"
     shift
 
-    for i in $@; do
+    for i in "$@"; do
         eval "echo \" $input \" | grep -qE -e \"[[:space:]]$i[[:space:]]\" && return 0"
     done
     return 1
@@ -602,7 +602,7 @@ function real_list_find () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_add () {
-    list_add PERSISTENT_VARIABLES $@
+    list_add PERSISTENT_VARIABLES "$@"
 }
 
 
@@ -613,7 +613,7 @@ function real_persistent_add () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_remove () {
-    list_remove PERSISTENT_VARIABLES $@
+    list_remove PERSISTENT_VARIABLES "$@"
 }
 
 
@@ -872,7 +872,7 @@ function real_config_query_list () {
   if config_get_option "$VARIABLE" ANSWER; then
     # option allready ANSWERed in config
     (
-        for foo in $@; do
+        for foo in "$@"; do
             [ "$foo" == "$ANSWER" ] && exit 0
         done
         echo "!!!! WARNING !!!!"
@@ -883,7 +883,7 @@ function real_config_query_list () {
   else
     # we have to ask user
     message "$QUESTION"
-    select_list ANSWER 0 $@
+    select_list ANSWER 0 "$@"
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 
