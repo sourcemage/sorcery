@@ -96,8 +96,13 @@ pam		<empty>		Display installed or held spells that are
 orphans		<empty>		Display installed spells that have no
 				  explicit dependencies on them.
 
-depends		spell		Displays the spells that explicitly
-				  or recursively depend on this spell.
+depends        spell [level]       Displays the spells that explicitly or
+                   recursively depend on this spell, up to $level levels.
+                    $level is kinda infinity if omitted.
+
+dependencies    spell [level]     Displays the spells $spell explicitly or 
+                        recursively depends on, up to $level levels.
+                        $level is kinda infinity if omitted.
 
 \$SPELL_SCRIPT	spell	will print the spell script for that spell.
 
@@ -334,7 +339,15 @@ gaze_catalog_html()  {
         if [[ $COLS -eq 5 ]]; then
             echo "<td>"
             echo "<a href=\"$SOURCE_URL\">$(echo $SOURCE | cut -c-25)</a>"
-            echo "</td>"
+           i=2
+           ii=SOURCE${i}
+           while  [  -n "${!ii}"  ];  do
+               iii="${ii}_URL"
+               echo "<br><a href=\"${!iii}\">$(echo ${!ii} | cut -c-25)</a>"
+               i=$(($i+1))
+               ii=SOURCE${i}
+           done
+           echo "</td>"
         fi
         echo  "</tr>"
       )
@@ -343,7 +356,7 @@ gaze_catalog_html()  {
   done
 
 
-  echo  "<tr><th colspan=4>Total spells:  $COUNT</th></tr>"
+  echo  "<tr><th colspan=${COLS}>Total spells:  $COUNT</th></tr>"
   echo  "</table></body></html>"
 }
 
@@ -1131,10 +1144,69 @@ gaze_show_where() {
 }
 
 gaze_show_depends() {
-    local spell="$@"
+    local spell="$1"
+    local MAX_DEPTH=$2 #as a global for show_depends.
 
-    codex_does_spell_exist "$@" && show_depends "$spell" | sort | uniq
+    codex_does_spell_exist "$spell" && show_depends "$spell" | sort | uniq
 }
+
+
+gaze_show_dependencies() {
+    local SPELL=$1
+    [[ $# == 2 ]] && MAX_DEPTH=$2
+
+    (
+        query() {
+            return 0
+        }
+        depends() {
+                recurse $1 $DEPTH "depends"
+                return 0
+        }
+        optional_depends() {
+                recurse $1 $DEPTH "optional"
+                return 0
+        }
+        requires() {
+                recurse $1 $DEPTH "requires"
+                return 0
+        }
+        repeat () {
+            local CHAR="$1" COUNT="$2"
+    
+            while (( COUNT-- )); do echo -en "$CHAR"; done
+        }
+    
+        recurse () {
+            local name=$1 DEPTH=$2 WHAT=$3
+    
+            [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
+    
+            repeat "\t" $DEPTH
+            echo "$name ($WHAT)"
+    
+            local SPELL=$(codex_find_spell_by_name $name)
+            [[ -e "$SPELL/DEPENDS" ]] &&
+            (
+                    (( DEPTH++ ))
+                    source "$SPELL/DEPENDS" 2>/dev/null
+            )
+        }
+        recurse $SPELL
+    )
+}
+
+gaze_show_size () {
+    local spell
+    for spell in "$@"; do
+        local version=$(installed_version $spell)
+        local file="$INSTALL_LOGS/$spell-$version"
+        cat $file | xargs ls -lgd 2> /dev/null |grep '^[^dl]' | \
+            awk '{ x += $5 } 
+                END { print "'$spell' -> " x " bytes in " NR " files." }'
+    done
+}
+
 
 parse()  {
 
@@ -1185,7 +1257,8 @@ parse()  {
           search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
-         depends)  gaze_show_depends  "$2"               ;;
+         depends)  shift; gaze_show_depends  "$@"        ;;
+    dependencies)  shift; gaze_show_dependencies  "$@"   ;;
          orphans)  show_orphans        |  sort  |  uniq  ;;
          history)  show_history  "$2"                    ;;
      website|url)  shift; gaze_show_website           $@ ;;
@@ -1194,6 +1267,7 @@ parse()  {
            short)  shift; gaze_show_short_description $@ ;;
             what)  shift; gaze_show_long_description  $@ ;;
            where)  shift; gaze_show_where             $@ ;;
+            size)  shift; gaze_show_size              $@ ;;
 
 
     compile)  if  [  -z  "$VERSION"  ];  then
