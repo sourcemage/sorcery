@@ -401,7 +401,12 @@ function status_okay()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Parameters SPELL
+## @GLOBALS QUIET DOT_PROGRESS
+## Runs all different sorts of checks.
+## sym_check find_check ldd_check md5sum_check.
+#---------------------------------------------------------------------
 function run_checks()  {
 
   if  [ -z  "$QUIET"  ]; then
@@ -539,7 +544,17 @@ function run_fix()  { (
 
 ) }
 
-
+#---------------------------------------------------------------------
+## @Aguments Arguments of cast
+## @Globals QUIET DOT_PROGRESS DEPS_ONLY RECONFIGURE COMPILE 
+## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX NOFIX SEPARATE
+## @Globals BASE_URL INSTALL_QUEUE 
+##
+## Sets these globals except INSTALL_QUEUE according to cast's 
+## arguments.
+## Requires some user interaction if --queue is given and starts
+## another cast with INSTALL_QUEUE's content as parameter.
+#---------------------------------------------------------------------
 function process_parameters()  {
 
   while  [  -n  "$1"  ];  do
@@ -606,7 +621,11 @@ function process_parameters()  {
 
 }
 
-
+#---------------------------------------------------------------------
+## @Arguments cast's arguments
+## Goes through arguments and prints spells or parameters that are no
+## switches rather.
+#---------------------------------------------------------------------
 function strip_parameters()  {
 
   while  [  -n  "$1"  ];  do
@@ -643,12 +662,8 @@ function strip_parameters()  {
 }
 
 #---------------------------------------------------------------------
-## @param spellname
-## calls run_details and returns the returnvalue of
-## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
+## That one does a whole lot too much I think..
 #---------------------------------------------------------------------
-
-
 function cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
@@ -719,6 +734,13 @@ echo OKAY
 
 ##Removed *_solo functions, Duff 2002/11/01
 
+#---------------------------------------------------------------------
+## @Globals SPELL VERSION
+## @return 0 if SPELL is installed and it's version equals VERSION
+## @return 1 otherwise
+## VERSION should be set by run_details before.
+## Checks if the most recent version of SPELL is installed.
+#---------------------------------------------------------------------
 function current_sources()  {
 
   spell_installed  $SPELL  &&
@@ -879,6 +901,7 @@ function pass_two()  {
   rm $MAKEFILE
 
 }
+
 #---------------------------------------------------------------------
 ## @param spellname
 ## @Globals SPELL
@@ -920,7 +943,10 @@ function pass_four()  {
 }
 
 
-# Report generation
+#---------------------------------------------------------------------
+## @Globals SUCCESS_LIST FAILED_LIST 
+## Does report generation.
+#---------------------------------------------------------------------
 function pass_five()  {
 
   debug "cast" "Function : pass_five"
@@ -1005,6 +1031,11 @@ function pass_zero()  {
 
 }
 
+#---------------------------------------------------------------------
+## @STDOUT User information ("Cleaning up as well as I can...")
+## That function is being called when the process receives 
+## SIGINT. It then calls cleanup.
+#---------------------------------------------------------------------
 function int_trap()
 {
 	message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
@@ -1012,7 +1043,12 @@ function int_trap()
 	cleanup
 	exit 1
 }
-
+#---------------------------------------------------------------------
+## @Globals RM_AT_END
+## RM_AT_END is being set in main.
+## Used for cleaning up. Deleting some files and /tmp/sorcery/cast/$$
+## basically.
+#---------------------------------------------------------------------
 function cleanup() {
   
   debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
@@ -1020,7 +1056,9 @@ function cleanup() {
   rm -rf /tmp/sorcery/cast/$$
 
 }
-
+#---------------------------------------------------------------------
+## Safely creates /tmp/sorcery/cast/$$
+#---------------------------------------------------------------------
 function mk_tmp_dirs() {
 	debug "$FUNCNAME" "Making tmp dirs for $$"
 	if [ -d /tmp/sorcery/cast/$$ ] ; then
@@ -1030,6 +1068,16 @@ function mk_tmp_dirs() {
 	mkdir -p /tmp/sorcery/cast/$$
 }
 
+#---------------------------------------------------------------------
+## @Arguments arguments of cast
+## @Globals FIX RM_AT_END ENV_CACHE CAST_PASS 
+## @return 0 always
+## Starts prameter processing and either runs run_fix or casts the
+## given spells.
+## The list of given spells is being searched for invalid spells
+## which are then being reported. Then the passes are being started
+## according to CAST_PASS
+#---------------------------------------------------------------------
 function main()	{
   debug "cast" "main() - $*"
   local T_SPELLS=""
