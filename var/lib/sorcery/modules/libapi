@@ -45,7 +45,8 @@
 #    query_string           (libmisc)
 #    requires               (libdepends)
 #    sedit                  (libmisc)       
-#    spell_installed        (libsorcery)
+#    spell_installed        (libstate)
+#    spell_held             (libstate)
 #    unpack                 (libgrimoire)   
 
 
@@ -316,7 +317,7 @@ function mk_source_dir () {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell name
-## @See <@function var.lib.sorcery.modules.libsorcery.html,real_spell_installed> for more details.
+## @See <@function var.lib.sorcery.modules.libstate.html,real_spell_installed> for more details.
 ##
 ## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
@@ -325,6 +326,17 @@ function spell_installed () {
     real_spell_installed "$@"
 }
 
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+## @See <@function var.lib.sorcery.modules.libstate.html,real_spell_installed> for more details.
+##
+## @return 0 if the given spell's status is "held"
+#---------------------------------------------------------------------
+function spell_held() {
+    debug "libapi" "spell_held - $*"
+    real_spell_held "$@"
+}
 
 #---------------------------------------------------------------------
 ## @Type API

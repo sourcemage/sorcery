@@ -302,7 +302,7 @@ function real_spell_installed() {
 ## @return 0 if the given spell's status is "held"
 ##
 #---------------------------------------------------------------------
-function spell_held()      {
+function real_spell_held()      {
   [  "$(  get_status  $1  )"  ==  "held"       ];
 }
 
@@ -477,6 +477,41 @@ function modify_config()  {
   # put new value and justification in
   echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
+  lock_commit_transaction $FILE
+    
+}
+
+#---------------------------------------------------------------------
+## @param Filename
+## @param variable
+## @param command (optional)
+##
+## Modifies (or adds) an entry in the local/config.
+## If "command" is the third argument, a space will separate the 
+## variable and value rather than the equals sign.
+##
+#---------------------------------------------------------------------
+function remove_config()  {
+
+  debug "libstate" "modify_config() - $*"
+  local FILE=$1
+  shift;
+  
+  if ! [[ $1 ]]; then
+    debug "libstate" "modify_config() - Warning: No name given for config option."
+    return 1
+  fi
+  
+  local TEMP separator EQUALS_COL VARIABLE
+  
+  # what to use as separator?
+  if [[ $2 == command ]] 
+  then separator=" " 
+  else separator="=" ; fi
+  
+  # remove previous reference
+  tFILE=`lock_start_transaction $FILE`
+  grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
   lock_commit_transaction $FILE
     
 }
