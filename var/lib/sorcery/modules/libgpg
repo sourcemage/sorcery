@@ -1,3 +1,4 @@
+#!/bin/bash
 #---------------------------------------------------------------------
 ##
 ## @Synopsis Functions that verify gpg signatures
@@ -14,6 +15,16 @@
 ## @param signature of the file
 ## @param file to verify
 ## @param public keyring
+##
+## @return 0 on success, non-zero on failure:
+##    1: verification failure
+##    3: no signature file
+##    4: no file to verify
+##    5: no keyring
+##  200: gpg isnt installed
+##
+## @stdout annoying message instructing user to install gnupg if its
+##         not installed
 #---------------------------------------------------------------------
 function gpg_verify_signature() { # $1 sig $2 file $3 pubring
 
@@ -21,9 +32,9 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring
   local file=$2
   local keyring=$3
 
-  test -e $signature &&
-  test -e $file &&
-  test -e $keyring || return 3
+  test -f $signature || return 3
+  test -f $file || return 4
+  test -f $keyring || return 5
 
   # always trust and supply our own keyring.
   # We provide our own trust for the pubkey validity.
@@ -35,7 +46,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring
     message "${QUERY_COLOR}For full source verification, it is highly" \
             "suggested that you cast gnupg\nas soon as possible. This" \
             "should be done for you on a system update.${DEFAULT_COLOR}"
-    return 2
+    return 200
   else
     gpg --no-default-keyring  \
         --always-trust        \
@@ -59,7 +70,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring
 function gpg_get_sorcery_key() {
   local branch=${1:-$SORCERY_BRANCH}
   local key=$GPG_KEY_DIR/sorcery-$branch.gpg
-  test -e $key || return 1
+  test -f $key || return 1
   echo $key
   return 0
 }
@@ -73,39 +84,127 @@ function gpg_get_sorcery_key() {
 function gpg_get_grimoire_key() {
   local branch=$1
   local key=$GPG_KEY_DIR/grimoire-$branch.gpg
-  test -e $key || return 1
+  test -f $key || return 1
   echo $key
   return 0
 }
 
+#---------------------------------------------------------------------
+## Verify a grimoire tarball's gpg signature
+## @param file on local disk to verify
+## @param url from which to get the signature
+## @param (optional) grimoire branch, if derive it from the filename with
+##                   ${SOURCE%%*.}
+## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT
+##                   from $2
+## @return 0 on success, non-zero on failure:
+##   1: verification failed
+##   2: verification is disabled
+## 254: no keyring found
+## 255: could not download signature
+## anything else see gpg_verify_signature
+##
+## @stdout possibly a failure message depending on what happens (nothing
+##         is output on success)
+#---------------------------------------------------------------------
+function gpg_verify_grimoire() {
+  if [[ "$GPG_VERIFY_GRIMOIRE" != on ]] ; then
+    return 2
+  fi
+
+  local FILENAME=$1
+  local SOURCE_URL=$2
+
+
+  # optional args
+  local BRANCH=$3
+  local SIGNATURE=$4
+
+  local SOURCE=$(basename $FILENAME)
+
+  test -z $BRANCH && BRANCH=${SOURCE%%.*}
+
+  local gpg_pub_key=$(gpg_get_grimoire_key $BRANCH)
+  if test -z $gpg_pub_key && test -f $gpg_pub_key ; then
+    message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
+    return 254
+  fi
+  gpg_verify_common $FILENAME $SOURCE_URL $gpg_pub_key grimoire $SIGNATURE
+}
+
+#---------------------------------------------------------------------
+## Verify a sorcery tarball's gpg signature
+## @param file on local disk to verify
+## @param url from which to get the signature
+## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT
+## from $2
+##
+## @return 0 on success, non-zero on failure:
+##   1: verification failed
+##   2: verification is disabled
+## 254: no keyring found
+## 255: could not download signature
+## anything else see gpg_verify_signature
+##
+## @stdout possibly a failure message depending on what happens (nothing
+##         is output on success)
+#---------------------------------------------------------------------
 function gpg_verify_sorcery() {
   if [[ "$GPG_VERIFY_SORCERY" != on ]] ; then
-    return 0
+    return 2
   fi
 
-  local SOURCE=$1
+  local FILENAME=$1
   local SOURCE_URL=$2
-  local FILENAME=$3
 
-
-  local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
-  local SIG_URL=$SOURCE_URL/$SIG_FILE
+  # optional args
+  local SIGNATURE=$3
 
   local gpg_pub_key=$(gpg_get_sorcery_key)
-  if test -z $gpg_pub_key ; then
+  if test -z $gpg_pub_key && test -f $gpg_pub_key ; then
     message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
-    return 255
+    return 254
   fi
+  gpg_verify_common $FILENAME $SOURCE_URL $gpg_pub_key sorcery $SIGNATURE
+}
 
+#---------------------------------------------------------------------
+## Common code for verifying sorcery/grimoire tarballs
+## @param file on local disk to verify
+## @param url from which to get the signature
+## @param keyring to verify with
+## @param grimoire or sorcery, whatever it is thats being verified (used in
+##        an output message
+## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT
+##                   from $2
+##
+## @return 0 on success, non-zero on failure:
+##   1: verification failed
+## 255: could not download signature
+## anything else see gpg_verify_signature
+##
+## @stdout possibly a failure message depending on what happens (nothing
+##         is output on success)
+#---------------------------------------------------------------------
+function gpg_verify_common() {
   # download the signature
-  if test -z "$4" ; then
+  local FILENAME=$1
+  local SOURCE_URL=$2
+  local KEYRING=$3
+  local REASON=$4
+  local SIGNATURE=$5
+  local SOURCE=$(basename $FILENAME)
+
+  local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
+  if test -z "$SIGNATURE" ; then
+    local SIG_URL=$SOURCE_URL/$SIG_FILE
     echo "$SIG_FILE $SIG_URL" |
-    download_files "for sorcery verification" "$TMP_DIR" "no" "neither" || {
+    download_files "for $REASON verification" "$TMP_DIR" "no" "neither" || {
       message "Failed to get gpg signature! verification is impossible"
       return 255
     }
   else
-    cp $4 $TMP_DIR/$SIG_FILE
+    cp $SIGNATURE $TMP_DIR/$SIG_FILE
   fi
 
   gpg_verify_signature $TMP_DIR/$SIG_FILE $FILENAME $gpg_pub_key
@@ -115,6 +214,40 @@ function gpg_verify_sorcery() {
   return $rc
 }
 
+#---------------------------------------------------------------------
+## Handles interpriting the output of gpg_verify_sorcery or
+## gpg_verify_grimoire.
+##
+## @param return code of gpg_verify_sorcery or gpg_verify_grimoire
+## @return 0 if the program should continue, 1 if not
+##
+## @stdout Some message thats supposed to inform the user of whats
+##         going on, or possibly a query asking the user if they want
+##         to continue even though gpg verification failed.
+#---------------------------------------------------------------------
+function gpg_user_query() {
+  local rc=$1
+  if [[ $rc == 0 ]] ; then
+    message "${MESSAGE_COLOR}gpg signature verified!${DEFAULT_COLOR}"
+  elif [[ $rc == 2 ]] ; then
+    message "${MESSAGE_COLOR}gpg verification is disabled${DEFAULT_COLOR}"
+  else
+    message "${PROBLEM_COLOR}Failure to verify gpg signature${DEFAULT_COLOR}"
+
+    if [[ "$3" == "grimoire" ]] ; then
+      if [[ "$2" == devel ]] || [[ "$2" == test ]] || [[ "$2" == stable ]] ||
+         [[ "$2" == z-rejected ]] || [[ "$2" == games ]] ; then
+        query "Continue anyway?" n || return 1
+      else
+        # if its not one of our grimoires may want the default to be y
+        query "Continue anyway?" y || return 1
+      fi
+    else
+      query "Continue anyway?" n || return 1
+    fi
+  fi
+  return 0
+}
 
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify
@@ -131,4 +264,3 @@ function gpg_verify_sorcery() {
 ## along with this software; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #---------------------------------------------------------------------
-

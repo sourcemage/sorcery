@@ -143,6 +143,11 @@ function scribe_add_worker() {
 
   local tarball=$(basename $from)
 
+  gpg_verify_grimoire $PWD/$tarball $(dirname $from)
+  rc=$?
+
+  gpg_user_query $rc || return 1
+
   #if the grimoire is an archive, untar it
   if [ -e $tarball ] ; then
     #if successfuly downloaded, untar it and remove the zip
@@ -559,6 +564,11 @@ function scribe_do_update() {
     message "Error downloading grimoire..."
     return 1
   fi
+
+  gpg_verify_grimoire $PWD/$(basename $from) $(dirname $from)
+  rc=$?
+
+  gpg_user_query $rc $(basename $from) grimoire || return 1
 
   # for some reason assume all grimoire tarballs as .tar.bz2
   # and named after the name of the grimoire, this is kind of

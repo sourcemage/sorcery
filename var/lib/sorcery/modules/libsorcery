@@ -55,12 +55,10 @@ function update_sorcery_scripts() {
 
   FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
 
-  if ! gpg_verify_sorcery $SOURCE $SORCERY_URL $FILENAME; then
-    message "${PROBLEM_COLOR}Failure to verify gpg signature${DEFAULT_COLOR}"
-    query "Continue anyway?" n || return 1
-  else
-    message "${MESSAGE_COLOR}gpg signature verified!${DEFAULT_COLOR}"
-  fi
+  gpg_verify_sorcery $FILENAME $SORCERY_URL
+  rc=$?
+
+  gpg_user_query $rc $SORCERY_BRANCH sorcery || return 1
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
   cd $BUILD_DIRECTORY
