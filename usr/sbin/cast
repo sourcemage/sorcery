@@ -22,6 +22,14 @@ Usage:		cast  [parameters]  [spell]
 Optional Parameters:
 
 -q  |  --quiet			Do not be verbose, show less info
+
+       --cflags                 Custom CFLAGS
+       --cxxflags               Custom CXXFLAGS
+       --ldflags                Custom LDFLAGS
+       --no-opts                Turn off setting optimization flags, except
+                                for those found in --cflags, --cxxflags and
+                                --ldflags
+
 -t  |  --dot                    Display progress as dots, not percent
 -V [on|off]			Override \$VOYEUR setting
 
@@ -534,7 +542,11 @@ function process_parameters()  {
 
       case  $1  in
 
-          -q|--quiet)  QUIET="yes"                ;      shift 1  ;;
+          -q|--quiet)  QUIET="yes";                      shift 1  ;;
+            --cflags)  export OVERRIDE_CFLAGS="$2";      shift 2  ;;
+          --cxxflags)  export OVERRIDE_CXXFLAGS="$2";    shift 2  ;;
+           --ldflags)  export OVERRIDE_LDFLAGS="$2";     shift 2  ;;
+           --no-opts)  export NO_OPTIMIZATION_FLAGS=1;  shift 1  ;;
 	    -t|--dot)  export DOT_PROGRESS='-dot' ;      shift 1  ;;
 	          -V)  export VOYEUR_OVERRIDE="$2";	 shift 2  ;;
               --deps)  export  DEPS_ONLY="$1";           shift 1  ;;
@@ -609,6 +621,11 @@ function strip_parameters()  {
       case  $1  in
 
                   --deps)  shift 1  ;;
+              -q|--quiet)  shift 1  ;;
+                --cflags)  shift 2  ;;
+              --cxxflags)  shift 2  ;;
+               --ldflags)  shift 2  ;;
+               --no-opts)  shift 1  ;;
 	        -d|--dot)  shift 1  ;;
 		      -V)  shift 2  ;;
         -r|--reconfigure)  shift 1  ;;

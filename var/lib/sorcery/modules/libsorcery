@@ -532,65 +532,72 @@ function optimize()  {
   unset  CFLAGS CXXFLAGS LDFLAGS LC_ALL
   unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STATIC STRIP TINY
 
-  local SPECFILE
-  SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
-  [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+  # if user specified --no-opts then use only the args from the command line
+  # otherwise do the normal stuff
+  if [[ $NO_OPTIMIZATION_FLAGS ]] ; then
+    export CFLAGS="$OVERRIDE_CFLAGS"
+    export CXXFLAGS="$OVERRIDE_CXXFLAGS"
+    export LDFLAGS="$OVERRIDE_LDLAGS"
+  else
+    local SPECFILE
+    SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
+    [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
 
-  BUILD=${HOST}
+    BUILD=${HOST}
 
-  if  [[ $CROSS_INSTALL == on ]]; then
-    if  [[ $TARGET ]]; then
-      SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"`;
-      [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+    if  [[ $CROSS_INSTALL == on ]]; then
+      if  [[ $TARGET ]]; then
+        SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"`;
+        [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+      fi
     fi
+    debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
+
+    CFLAGS="$CFLAGS -pipe"
+    for  PARAM  in  $OPTIMIZATIONS;  do
+      case  $PARAM  in
+        combreloc)
+          LDFLAGS="$LDFLAGS -z combreloc"
+          COMBRELOC="on"
+          ;;
+
+        prelink)
+          CFLAGS="$CFLAGS -DPIC -fPIC"
+          PRELINK="on"
+          ;;
+
+        risky)
+          CFLAGS="$CFLAGS -ffast-math -funroll-loops"
+          RISKY="on"
+          ;;
+
+        speedy)
+          CFLAGS="$CFLAGS $FAST"
+          SPEEDY="on"
+          ;;
+
+        static)
+          LDFLAGS="$LDFLAGS -static"
+          STATIC="on"
+          ;;
+
+        strip)
+          LDFLAGS="$LDFLAGS -s"
+          STRIP="on"
+          ;;
+
+        tiny)
+          CFLAGS="$CFLAGS $SMALL"
+          TINY="on"
+          ;;
+
+      esac
+    done
+    export CFLAGS="-O $CFLAGS $CUSTOM_CFLAGS $OVERRIDE_CFLAGS"
+    export CXXFLAGS="$CFLAGS $CUSTOM_CXXFLAGS $OVERRIDE_CXXFLAGS"
+    export LDFLAGS="$LDFLAGS $CUSTOM_LDFLAGS $OVERRIDE_LDLAGS"
   fi
-  debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
-
-  CFLAGS="$CFLAGS -pipe"
-  for  PARAM  in  $OPTIMIZATIONS;  do
-    case  $PARAM  in
-      combreloc)
-        LDFLAGS="$LDFLAGS -z combreloc"
-        COMBRELOC="on"
-        ;;
-
-      prelink)
-        CFLAGS="$CFLAGS -DPIC -fPIC"
-        PRELINK="on"
-        ;;
-
-      risky)
-        CFLAGS="$CFLAGS -ffast-math -funroll-loops"
-        RISKY="on"
-        ;;
-
-      speedy)
-        CFLAGS="$CFLAGS $FAST"
-        SPEEDY="on"
-        ;;
-
-      static)
-        LDFLAGS="$LDFLAGS -static"
-        STATIC="on"
-        ;;
-
-      strip)
-        LDFLAGS="$LDFLAGS -s"
-        STRIP="on"
-        ;;
-
-      tiny)
-        CFLAGS="$CFLAGS $SMALL"
-        TINY="on"
-        ;;
-
-    esac
-  done
-
-  export  CFLAGS="-O $CFLAGS"
-  export  CXXFLAGS="$CFLAGS"
-  export  LDFLAGS="$LDFLAGS"
-  export  LC_ALL="C"
+  export LC_ALL="C"
 
 }
 

@@ -750,6 +750,7 @@ optimize_architecture()  {
     architecture_menu  TARGET      "Target system selection"
   fi
   optimization_menu
+  custom_optimization_menu
 
 }
 
@@ -791,7 +792,10 @@ architecture_menu() {
 
 optimization_menu(){
 
-  local OPTIMIZATIONS
+  local OPTIMIZATIONS=${OPTIMIZATIONS}
+  # this is here so COMBRELOC, PRELINK, RISKY, etc. are set
+  # and appear in the menu
+  optimize
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
 
@@ -827,6 +831,37 @@ optimization_menu(){
   fi
 }
 
+custom_optimization_menu() {
+  local RESULTS KEY rc
+  while true ; do
+    # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
+    # the ( ) interprits as an array, then using the magic power of set we
+    # get to use shift and $@ to get things done
+    RESULTS=(`eval $DIALOG ' --extra-label Adjust --inputmenu \
+                            "Custom Optimizations Menu" \
+                             17 50 9 \
+                             CFLAGS "$CUSTOM_CFLAGS" \
+                             CXXFLAGS "$CUSTOM_CXXFLAGS" \
+                             LDFLAGS "$CUSTOM_LDFLAGS"'`)
+    rc=$?
+    [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
+    set ${RESULTS[*]}
+    KEY=$2
+    shift 2
+    case "$KEY" in
+      CFLAGS) CUSTOM_CFLAGS="$@"  ;;
+      CXXFLAGS) CUSTOM_CXXFLAGS="$@" ;;
+      LDFLAGS) CUSTOM_LDFLAGS="$@" ;;
+    esac
+  done
+  
+  # only commit values if user selected "OK"
+  if [ $rc == 0 ] ; then
+    modify_local_config CUSTOM_CFLAGS "$CUSTOM_CFLAGS"
+    modify_local_config CUSTOM_CXXFLAGS "$CUSTOM_CXXFLAGS"
+    modify_local_config CUSTOM_LDFLAGS "$CUSTOM_LDFLAGS"
+  fi
+}
 
 integrity_fix_menu()  {
 
