@@ -810,7 +810,10 @@ function pass_one()  {
   local i j tempList SPELL_RULES=""
   local numRules=0
 
-  compute_depends "to_cast" "already_cast" "bad_cast" $SPELLS
+  echo -n "Computing previously installed depends..."
+  compute_installed_depends "already_cast"
+  echo
+  compute_uninstalled_depends "to_cast" "bad_cast" $SPELLS
 
   message "${MESSAGE_COLOR}Collating dependancies...${DEFAULT_COLOR}"
   depends_to_Makefile to_cast already_cast > $MAKEFILE
@@ -832,6 +835,10 @@ function depends_to_Makefile()
 {
 	debug "cast" "depends_to_Makefile - $*"
 	
+        # This is needed because compute_installed_depends may have
+        # stale dependency information compared with the information
+        # from compute_uninstalled_depends. So we strip off any depends
+        # info from the installed depends hash.
 	for i in $( { hash_get_table_fields $1 ; hash_get_table_fields $2; } | sort | uniq -d ); do
 		hash_unset "$2" "$i"
 	done

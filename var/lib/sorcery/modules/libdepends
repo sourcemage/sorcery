@@ -216,24 +216,34 @@ function satisfy_depends()
   debug 'libdepends' "satisfy_depends() - final OPTS=$OPTS"
 }
 
-
-function compute_depends() 
+#-----------------------------------------------------------------------
+# calling this will accomplish several things:
+# 1) most importantly it finds the closure of all spells that need to
+#    be cast
+# 2) it builds a hash table mapping spells to their depends, possibly by
+#    asking the user for input
+# 3) it updates DEPENDS_STATUS, arguably it shouldn't be doing this.
+#
+# What happens: take all the spells we've been asked to resolve
+# for each one of them run its details file
+# the details file will call back to depends/optional_depends
+# at this point we determine/find/query for depends info
+# update the hash table, update DEPENDS_STATUS, and append to the
+# list of spells to resolve
+#-----------------------------------------------------------------------
+function compute_uninstalled_depends() 
 { 
 
-  # $1=table to place spells in, $2=table to put non-casting spells in
-  # $3=table to put problem spells in, $* = root spells
+  # $1=table to place spells in
+  # $2=table to put problem spells in, $* = root spells
 
   debug "libdepends" "compute_depends of $*"
   local CAST_HASH="$1"
-  local DO_NOT_CAST_HASH="$2"
-  local CANNOT_CAST_HASH="$3"
-  shift 3
+  local CANNOT_CAST_HASH="$2"
+  shift 2
   BASE_SPELLS=( $@ )
   
   local i
-  echo -n "Creating tree of already cast spells..."
-  private_compute_installed_depends $DO_NOT_CAST_HASH
-  echo " done"
   
   # All specified spells are assumed to be not installed, or else -c and -r 
   # would have to be specified all the time.
@@ -265,7 +275,6 @@ function compute_depends()
 #---------------------------------------------------------------------
 function real_depends()
 {
-
   if ! codex_does_spell_exist $1 &> /dev/null; then
     work_depends_provider "$@"
   else
@@ -321,7 +330,7 @@ function select_provider()
 
     if [[ $optional == true ]] ; then
       message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR optionally needs some "
-      message "$SPELL_COLOR$1$DEFAULT_COLOR. ($reasontext)"
+      message "$SPELL_COLOR$2$DEFAULT_COLOR. ($reasontext)"
     else
       message -n "$SPELL_COLOR$SPELL$DEFAULT_COLOR needs some "
       message "$SPELL_COLOR$provname$DEFAULT_COLOR as a requirement."
@@ -605,7 +614,6 @@ function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   local i j
-  
   hash_put "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
   
   for (( i=0 ; i<${#SPELLS[*]} ; i++ )) ; do
@@ -648,36 +656,40 @@ function private_remove_dependees()
 
 function private_should_cast()
 {
-	codex_does_spell_exist $1						&&
-  { echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " 		||
-	! { spell_installed $1 || spell_held $1; }
-  }	&& ! spell_exiled $1 
+  codex_does_spell_exist $1				&&
+  {
+    echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 "	||
+    ! { spell_installed $1 || spell_held $1; }
+  }							&&
+  ! spell_exiled $1 
 }
 
+#-----------------------------------------------------------------------
+# Create a map of spells to their dependent spells.
+# Then for all installed or held spells, output a libhash command to
+# join the spell name and dependency info.
+# Then evaluate the output, thus filling a libhash with dependency info.
+#-----------------------------------------------------------------------
+function compute_installed_depends() {
+  #$1==hash table to fill
+  local hash=$1
 
-function private_compute_installed_depends()
-{ #$1==hash table to fill
+  # From here forward $1 and $2 are only used to refer to awk variables
 
-	# Create hashtable for all installed or held spells
-	# We must have all installed spells in the table 
-	#  including ones with no deps, as they are still valid targets
-	eval $(awk -F : '$3=="installed" || $3=="held"{
- 		printf("hash_put \"'$1'\" \"%s\" \" \";\n",$1);
-	}' $SPELL_STATUS )
-
-	# Fill in a temporary hashtable for spells that have dependancies
-	# not all dependencies are installed
-	# gsub(/(.*)/, "", $1) is for removing a possible provider name
-	eval $(awk -F : '$3=="on"{ spells[gsub(/(.*)/, "", $1)]=spells[$1]" "$2" "; }
-	END{
-		for(spell in spells) { 
-			printf("hash_put \"pcid\" \"%s\" \" %s \";\n", spell, spells[spell]); 
-		}
-	}' < $DEPENDS_STATUS )
-	# For everything installed, make sure we know about its dependencies.
-	for spell in `cut -f1 -d: $SPELL_STATUS` ; do
-		hash_put $1 $(hash_get pcid $spell)
-	done
+  # sub(/(.*)/, "", $2) removes a provider name
+  eval $(awk -F : 'BEGIN {
+    while (getline < ARGV[1] ) {
+      if( $3=="on") {
+        sub(/\(.*\)/, "", $2);
+        depmap[$1]=depmap[$1]" "$2" "
+      }
+    }
+    while (getline < ARGV[2] ) {
+      if( $3=="installed" || $3=="held") {
+        printf("hash_put $hash %s \" %s \";\n",$1,depmap[$1]);
+      }
+    }
+  }' $DEPENDS_STATUS $SPELL_STATUS )
 }
 #---------------------------------------------------------------------
 ##=back
