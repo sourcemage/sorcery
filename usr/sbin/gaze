@@ -720,29 +720,29 @@ local spell
 
 specific_voyeur()
 {
-  if ! [ -d "${LOCK_DIR}/cast.$1" ]
+  if ! [ -d "/tmp/liblock-0/cast.$1" ]
   then
     return 1
   fi
   nice -n +20			\
    tail /tmp/$1.compile.log	\
-    --follow=name --pid=`ls "${LOCK_DIR}/cast.$1"` 2>/dev/null
+    --follow=name --pid=`ls "/tmp/liblock-0/cast.$1"` 2>/dev/null
 }
 
 
 any_voyeur()
 {
-  local FILE=`find $LOCK_DIR -maxdepth 1 -mindepth 1 -name "cast.*" |
+  local FILE=`find /tmp/liblock-0 -maxdepth 1 -mindepth 1 -name "cast.*" |
          sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
   [ $FILE ] || return 1
   debug "voyeur" "Looking at spell \"$FILE\""
     nice -n +20				\
        tail /tmp/$FILE.compile.log	\
-           --follow=name --pid=`ls "${LOCK_DIR}/cast.$FILE"` 2>/dev/null
+           --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
 }
 
 
-activate_voyeur()  {
+gaze_activate_voyeur()  {
 
   if  [  -n  "$1"  ]  &&
       !  find_section  $1  >  /dev/null
@@ -1427,7 +1427,7 @@ parse()  {
              md5sum_files  "$INSTALL_LOGS/*"
              ;;
 
-   voyeur)  shift  1;  activate_voyeur  $@  ;;
+   voyeur)  shift  1;  gaze_activate_voyeur  $@  ;;
 
       pam)  find_pam_aware  ;;
 
