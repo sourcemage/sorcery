@@ -79,12 +79,12 @@ function run_configure() {
   SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
-  if  [  -n  "$RECONFIGURE"  ];  then
-    rm  -f  $DEPENDS_CONFIG/$SPELL
-    remove_depends_status  $SPELL
-  fi
+#  if  [  -n  "$RECONFIGURE"  ];  then
+#    rm  -f  $DEPENDS_CONFIG/$SPELL
+#    remove_depends_status  $SPELL
+#  fi
 
-  prepare_spell_config
+#  prepare_spell_config  #This is also run in run_prepare. Shouldn't be needed here too.
   use_xinetd
   use_initd
 
@@ -92,6 +92,18 @@ function run_configure() {
     . $SCRIPT_DIRECTORY/CONFIGURE
   fi
 
+}
+
+function run_spell_config() {
+
+  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+  debug "libdepends" "run_spell_config() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
+    
+  if  [  -x  $SPELL_CONFIG  ];  then
+    debug "libdepends" "satisfy_depends() - found $SPELL_CONFIG"
+	.  $SPELL_CONFIG
+  fi
+  
 }
 
 
@@ -128,13 +140,7 @@ function satisfy_depends()
   local DEP
  
   unset  OPTS  
-  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
-  debug "libdepends" "satisfy_depends() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
-    
-  if  [  -x  $SPELL_CONFIG  ];  then
-    debug "libdepends" "satisfy_depends() - found $SPELL_CONFIG"
-    .  $SPELL_CONFIG
-  fi
+  run_spell_config
 
   local LINE=''
   search_depends_status "$SPELL" | while read LINE; do
@@ -360,10 +366,10 @@ function private_run_depends()
   SPELL="$*"
   NEW_DEPENDS=()
 #  private_mark_spell  &&
-  run_prepare     	  &&
-  run_details     	  &&
-  run_configure   	  &&
-  run_depends $1  	  &&
+  run_prepare     	  && 
+  run_details     	  && 
+  run_configure   	  && 
+  run_depends $1  	  && 
   private_add_depends ||
   private_remove_dependees
   

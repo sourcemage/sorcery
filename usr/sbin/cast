@@ -936,11 +936,13 @@ report_install()  {
 
 
 cast_spell()  { (
+cat $DEPENDS_CONFIG/$SPELL
   debug "cast" "Casting spell [$SPELL]"
-  run_details                 &&
+  run_details				  &&
   run_conflicts               &&
+  run_spell_config			  &&
   debug "DB" "cast_spell run_conflicts done" &&
-  satisfy_depends             &&
+#  satisfy_depends             &&  #Not needed since make dakes care of deps now?
   debug "DB" "cast_spell about to show_d/l" &&
   show_downloading            ||   return 1
   
@@ -1205,7 +1207,8 @@ main()	{
 	
 	MAKEFILE="/tmp/Makefile.cast.$$"
 	SUCCESS_LIST="$0.success_list"
-	RM_AT_END="$RM_AT_END $SUCCESS_LIST $0"
+	export ENV_CACHE=${ENV_CACHE:-/tmp/cast.envCache.$$}
+	export RM_AT_END="$RM_AT_END $SUCCESS_LIST $0 $ENV_CACHE"
 	BASE_SPELLS=" $SPELLS "
 
     case  $CAST_PASS  in
