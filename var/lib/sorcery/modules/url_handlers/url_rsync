@@ -56,6 +56,52 @@ function url_rsync_strip_prefix() {
 
 
 #---------------------------------------------------------------------
+#=item url_rsync_run_rsync <url> <to>
+#
+# Private function.  Calls rsync and beautifies output
+#
+#---------------------------------------------------------------------
+function url_rsync_run_rsync() {
+  local TOTAL line retcode
+  local COUNT=0
+  local subcount=10
+  local position="a"
+  
+  if [ ! -e "$2" ] || [ "$2" -ef / ] || [ "$2" -ef /tmp ] ; then
+    TOTAL=0 #Don't try to count these, takes too long
+  else
+    TOTAL=`find $2 -type f | wc -l`
+  fi
+  
+  message "${MESSAGE_COLOR}Running rsync...${DEFAULT_COLOR}"
+  if [ $TOTAL -lt 10 ] ; then
+    rsync -rz --delete --stats --progress "$1" "$2" #few files - big files
+  else
+    rsync -rz --delete --stats -vv "$1" "$2" | tee /tmp/rsyncout$$ |
+     while read line
+     do
+       if [ "$position" == "c" ] ;then
+         #make the progress bar - as quick as possible
+         progress_bar $((++COUNT)) $TOTAL 50
+       elif [ "$position" == "a" ] ;then
+         echo "$line" | grep -q 'receiving file list ...' && position="b"
+         echo "$line" #print welcome message until filelist almost starts
+       elif [ "$position" == "b" ] ;then
+         echo "$line" | grep -q 'done' && position="c"
+         echo "$line" #only now look for done = only filenames following
+       fi
+     done
+    retcode=$? #save return code - although nobody seems to care
+    echo
+    tail -n 25 /tmp/rsyncout$$ | head -n 12 #stats w/o useless stack stats
+    echo
+    rm -f /tmp/rsyncout$$
+  fi
+  return $retcode
+}
+
+
+#---------------------------------------------------------------------
 ##=item url_rsync_download <url>
 ## 
 ## Fetch the specified rsync url.
@@ -110,14 +156,12 @@ function url_rsync_download() {
   if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
     message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
     tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
-    message "${MESSAGE_COLOR}Running rsync...${DEFAULT_COLOR}"
     if cd $S_FILE ; then
-        rsync -rz --delete --stats $URL .
+        url_rsync_run_rsync "$URL" .
         cd ..
 	fi
   else
-    message "${MESSAGE_COLOR}Running rsync...${DEFAULT_COLOR}"
-	rsync -rz --delete --stats $URL $DEST
+	url_rsync_run_rsync "$URL" "$DEST"
   fi
 
   if [[ $nocache == 1 ]] ; then
