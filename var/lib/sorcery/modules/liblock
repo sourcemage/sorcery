@@ -32,8 +32,10 @@
 ##     file         | file name        | to lock a file
 ##     summon       | spell name       | when downloading a spell
 ##     network      | network          | ?
-##     castSOLO     | cast             | ?
+##     solo         | resource name    | when using a resource exclusively 
 ##     libgrimoire  | install          | ?
+## locking solo will not cause these routines to behave any different.
+## catching it has to be done externally (see cast for an example)
 ##
 ## this function locks the specified resource. this is a blocking
 ## function that can take an indeterminate period of time to acquire
@@ -90,6 +92,33 @@ trylock_resources()
     fi
     ln -sf /proc/$$ "${lockfile}/$$"
     return 0
+}
+
+#---------------------------------------------------------------------
+## excllock_resources
+## @param Type of resource
+## @param Name of resource
+##
+## this function works like lock_resources except that it waits for
+## all resources of the given type to unlock before locking.
+## This will not stop any other lock from being created, that has to
+## be done in the code
+#---------------------------------------------------------------------
+
+excllock_resources()
+{
+  if [ $# -ne 2 ]; then
+    echo "usage: excllock_resources type_of_resource name_of_resource"
+    exit -1
+  fi
+
+  while find $LOCK_DIR -mindepth 1 -maxdepth 1 -name "$1.*" | grep -q '';
+  do    #^^^ look if a lock exists of the given type (ugly code)
+    global_clean_resources
+    local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
+    sleep "$SLEEP"
+  done #theoretically, someone could create a lock now... tiny race
+  trylock_resources "$@"
 }
 
 #---------------------------------------------------------------------
