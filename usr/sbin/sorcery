@@ -34,16 +34,16 @@ Optional Parameters:
 
 -h  |  --help		Display this help screen
 
-update			Update the sorcery scripts only. 
+update			Update the sorcery scripts only.
 
-system-update		Perform a system update (updates sorcery, grimoire, 
-			  and spells).  
+system-update		Perform a system update (updates sorcery, grimoire,
+			  and spells).
 			  [ scribe update, sorcery queue, cast --queue ]
 
-queue			Compare installed grimoire to installed spells, 
+queue			Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
 
-upgrade			Do not update grimoire, just any spells that need to 
+upgrade			Do not update grimoire, just any spells that need to
 			  be upgraded.  [ sorcery queue, cast --queue ]
 
 EOF
@@ -81,7 +81,7 @@ mirror_menu()  {
     C_HELP="Select mirror for downloading CTAN sources."
     K_HELP="Select mirror for downloading KDE sources."
     L_HELP="Select mirror for downloading kernel related sources."
-    N_HELP="Select mirror for downloading GNOME sources." 
+    N_HELP="Select mirror for downloading GNOME sources."
     G_HELP="Select mirror for downloading GNU sources."
     S_HELP="Select mirror for downloading Sorcery itself"
    SF_HELP="Select mirror for downloading Sourceforge"
@@ -118,7 +118,7 @@ mirror_menu()  {
 
       if  [  "$MIRROR_URL" == "Custom"  ];  then
          MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
-      fi  &&  
+      fi  &&
 
       modify_local_config "$MIRROR" "$MIRROR_URL" &&
 
@@ -177,7 +177,7 @@ select_section() {
            --menu                            \
            ""                                \
            0 0 0                             \
-           `show_sections`' 
+           `show_sections`'
 
 }
 
@@ -188,7 +188,7 @@ add_pkgs()  { (
 
     SECTION=`select_section`
 
-  do            
+  do
 
     while
 
@@ -251,7 +251,7 @@ file_list() {
 
   LIST=`ls  $1`
   for  LINE  in  $LIST;  do
-    echo  $LINE 
+    echo  $LINE
     echo  `file  -b  $1/$LINE  |  cut  -d ' ' -f1`
   done
 
@@ -340,7 +340,7 @@ update_pkgs() {
 
   message  "${CHECK_COLOR}Updating ... please wait ... ${DEFAULT_COLOR}"
 
-  wait_flag_up 
+  wait_flag_up
   wait_flag $$ &
 
   cat  << EOF >  $UPDATE_SCRIPT
@@ -362,7 +362,7 @@ message  "running the following script:"
 message  "${FILE_COLOR}"
 message  "            ${RESTORE_SCRIPT}"
 message  "${MESSAGE_COLOR}"
-message  "If for some reason this does not work, see the" 
+message  "If for some reason this does not work, see the"
 message  "Source Mage website at http://www.sourcemage.org/"
 message  "${DEFAULT_COLOR}"
 
@@ -373,14 +373,14 @@ if  [[  $1 != "upgrade"  ]] && [[  $1 != "queue"  ]] ;  then
   message  "${MESSAGE_COLOR}Ensuring sorcery-$SORCERY_BRANCH is at it's latest version...${DEFAULT_COLOR}"
   update_sorcery_scripts $SORCERY_BRANCH
 fi
-    
+
 clean_logs
 update_install_queue         # generate $INSTALL_QUEUE file
 list_install_queue
 
 if [[  $1 != "queue"  ]]; then
   message  "${MESSAGE_COLOR}Casting updated spells...${DEFAULT_COLOR}"
-  cast -q --queue  
+  cast -q --queue
 
   # XXX should this be 'cast --fix' ?
   fix_installed_spells     # check integrity of installed spells
@@ -410,12 +410,12 @@ SORCERY_BRANCH=${SORCERY_BRANCH}
 if [ -n $1 ]; then
   SORCERY_BRANCH=$1
 fi
-    
+
 if  cd /tmp                                                 &&
     bunzip2 -c $SORCERY_SPOOL/sorcery-$SORCERY_BRANCH.tar.bz2 | tar xf - &&
     cd sorcery                                              &&
   ./install;                                              then
-  rm -rf /tmp/sorcery 
+  rm -rf /tmp/sorcery
   echo  "Sorcery was successfully restored."
 else
   echo  "Unable to restore sorcery.  Try running this file with"
@@ -495,7 +495,7 @@ make_checklist()  {
     fi
 
   done
-        
+
 }
 
 
@@ -549,7 +549,7 @@ make_hold_checklist()  {
   array=()
 
   for  LINE in `sort  $SPELL_STATUS`;  do
-  
+
     explode "$LINE" ":" "array"
 
       SPELL="${array[0]}"
@@ -563,7 +563,7 @@ make_hold_checklist()  {
       HELD="on"                    ||
       HELD="off"
 
-      if  codex_set_current_spell_by_name  $SPELL;  then 
+      if  codex_set_current_spell_by_name  $SPELL;  then
 
         echo  -en   "\"${SPELL:="Unknown"}\""
         echo  -en "\t\"${VERSION:="-"}\""
@@ -601,7 +601,7 @@ hold_pkgs()  {
     rm $tSPELL_STATUS 2>/dev/null
 
     for  LINE  in  `cat  $SPELL_STATUS`;  do
-    
+
       explode "$LINE" ":" "array"
 
         SPELL="${array[0]}"
@@ -630,7 +630,7 @@ spell_menu() {
   while
 
     U_HELP="Current software hinders crackers' attempts to infiltrate your box"
-    S_HELP="Install and remove multiple spells from a section using a single 
+    S_HELP="Install and remove multiple spells from a section using a single
 selection"
     A_HELP="Simple safe, verbose way of selecting spells for installation"
     R_HELP="Simple safe, verbose way of selecting spells for removal"
@@ -686,7 +686,7 @@ optimize_architecture()  {
 
   architecture_menu
   optimization_menu
-  
+
 }
 
 architecture_menu() {
@@ -707,7 +707,7 @@ architecture_menu() {
 
   local ARCH_TITLE="Architecture Menu"
   local ARCH_HELP="Please select a microprocessor category"
-  
+
   if   ARCHITECTURE=`eval $DIALOG '  --title  "$ARCH_TITLE"     \
                               --item-help                \
                               --no-cancel                \
@@ -722,21 +722,21 @@ architecture_menu() {
 
   fi
 
-  
+
 }
 
 optimization_menu(){
-	
+
   local OPTIMIZATIONS
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
-  
+
   local    SPEEDY_HELP="Optimize to increase performance of generated code (safe)"
   local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules"
   local      TINY_HELP="Optimize to decrease size of generated code (safe)"
   local     STRIP_HELP="Remove all symbol table and relocation (debugging) information"
   local COMBRELOC_HELP="Speeds up loading libs, also needed for prelink (safe)"
-  
+
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
                               --item-help               \
@@ -753,9 +753,9 @@ optimization_menu(){
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`
     debug "sorcery" "optimization_menu() - OPTIMIZATIONS='${OPTIMIZATIONS}'"
-    
+
     modify_local_config "OPTIMIZATIONS" "$OPTIMIZATIONS"
-    
+
   fi
 }
 
@@ -800,7 +800,7 @@ integrity_fix_menu()  {
     modify_local_config "MD5SUM_CHECK" "$MD5SUM_CHECK"
     modify_local_config "LDD_CHECK" "$LDD_CHECK"
     modify_local_config "SYM_CHECK" "$SYM_CHECK "
-    
+
   fi
 
 }
@@ -814,7 +814,7 @@ integrity_download_menu()  {
    ABORT_ASK_HELP="Ask, but default to abort. SAFE"
   IGNORE_ASK_HELP="Ask, but default to ignore. UNSAFE"
       IGNORE_HELP="Ignore (do not check) integrity of downloads. DANGEROUS!"
-      
+
   if  INT_DL_CHECK=`eval $DIALOG '  --title  "$INT_DL_TITLE"      \
    			     --no-cancel                   \
 			     --ok-label    "Commit"        \
@@ -844,7 +844,7 @@ integrity_menu()  {
    INT_HELP="Options involving integrity checking, including --fix and download options."
    FIX_HELP="Set cast --fix checks"
     DL_HELP="Discover corrupted or modified archives during cast"
-     
+
   while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
                            --cancel-label  "Exit"      \
 			   --ok-label      "Select"    \
@@ -867,7 +867,7 @@ set_email()  {
 
   if  SORCERER=`eval $DIALOG '  --ok-label  "Commit"         \
                          --inputbox                   \
-                "Please enter the email address of the person or role account 
+                "Please enter the email address of the person or role account
 that should receive reports from this box."  \
                 0 0  "$SORCERER"'`
   then
@@ -881,7 +881,7 @@ that should receive reports from this box."  \
 
 #---------------------------------------------------------------------
 ##=item sorcery_set_jobs
-## 
+##
 ## Brings up a dialog that allows administrator to choose the number
 ## of processes that make should use.  If the user selects "Commit",
 ## the MAKE_NJOBS variable is written to the local config file.
@@ -911,7 +911,7 @@ sorcery_set_jobs() {
 
 #---------------------------------------------------------------------
 ##=item sorcery_distcc
-## 
+##
 ## Allows the admin to set which hosts are compile volunteers.
 ##
 #---------------------------------------------------------------------
@@ -972,7 +972,7 @@ set_branch() {
           SORCERY_BRANCH="devel"                        ;;
 
     esac
-      
+
   done
 
 }
@@ -1098,10 +1098,10 @@ log_menu()  {
 sorcery_devel_settings()   {
 
   while
-  
+
     D_HELP="Set the debugging file for normal debugging."
 	S_HELP="Turn on Super Debug. You probably don't want to do this."
-	
+
 	COMMAND=`eval $DIALOG '--title      "Sorcery Development"		\
 						--ok-label      "Select"					\
 						--cancel-label  "Exit"						\
@@ -1114,11 +1114,11 @@ sorcery_devel_settings()   {
 						"S"  "Super debugging toggle"	"$S_HELP"'`
   do
 
-    case $COMMAND in 
-	  
+    case $COMMAND in
+
 	  D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
 	  		FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
-	  		modify_local_config "DEBUG" "$FILE" 
+	  		modify_local_config "DEBUG" "$FILE"
 			read ;;
 	  S) TEXT="Note: You don't want to do this probably. Don't forget to >/root/debug.out.\nDo you want super debugging on?"
 	  		TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
@@ -1126,7 +1126,7 @@ sorcery_devel_settings()   {
 			( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
 
 	esac
-  
+
   done
 
 }
@@ -1153,6 +1153,7 @@ TMP_HELP="Attempt to compile entirely in RAM?"
   X_HELP="Download and apply xdelta patches when available?"
  NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
  CS_HELP="Clean up source directories after failures?"
+ CI_HELP="Non-native installation / cross compilation"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -1173,6 +1174,7 @@ TMP_HELP="Attempt to compile entirely in RAM?"
           REAP=${REAP:=on}
     NET_SELECT=${NET_SELECT:=off}
   CLEAN_SOURCE=${CLEAN_SOURCE:=off}
+ CROSS_INSTALL=${CROSS_INSTALL:=off}
 
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
@@ -1199,9 +1201,10 @@ TMP_HELP="Attempt to compile entirely in RAM?"
       "VOYEUR"        "Toggle"  "$VOYEUR"        "$V_HELP"   \
       "REAP"          "Toggle"  "$REAP"          "$E_HELP"   \
       "NET_SELECT"    "Toggle"  "$NET_SELECT"    "$NS_HELP"  \
-      "CLEAN_SOURCE"  "Toggle"  "$CLEAN_SOURCE"  "$CS_HELP"'`
+      "CLEAN_SOURCE"  "Toggle"  "$CLEAN_SOURCE"  "$CS_HELP"  \
+      "CROSS_INSTALL" "Toggle"  "$CROSS_INSTALL" "$CI_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1229,15 +1232,16 @@ TMP_HELP="Attempt to compile entirely in RAM?"
                 REAP)          REAP=on  ;;
 	  NET_SELECT)    NET_SELECT=on  ;;
         CLEAN_SOURCE)  CLEAN_SOURCE=on  ;;
+       CROSS_INSTALL) CROSS_INSTALL=on  ;;
       esac
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
-    
+
     modify_local_config "color" "$COLOR" "command"
 
     TEMP=`cat       $LOCAL_COMPILE_CONFIG  |
@@ -1265,7 +1269,7 @@ option_menu()  {
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
 	S_HELP="Sorcery development options (debugging)"
-    
+
 
     COMMAND=`eval $DIALOG '  --title "Option Menu"                     \
                       --item-help                               \
@@ -1303,7 +1307,7 @@ option_menu()  {
 	  S)  sorcery_devel_settings ;;
 
     esac
-      
+
   done
 
 }
@@ -1350,8 +1354,8 @@ foreground_execute() {
   goodbye
 
 }
- 
-   
+
+
 main_menu()  {
 
   while
@@ -1425,7 +1429,7 @@ main() {
   if [ -z $1 ]; then
     main_menu
   else
-    case  $1  in  
+    case  $1  in
                update)  update_sorcery_scripts $SORCERY_BRANCH  ;;
         system-update)  update_pkgs  autoupdate                 ;;
               upgrade)  update_pkgs  upgrade                    ;;
