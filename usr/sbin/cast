@@ -1220,6 +1220,7 @@ pass_zero()  {
 main()	{
 
   debug "cast" "main() - $*"
+  local T_SPELLS=""
   process_parameters        $*
   SPELLS=`strip_parameters  $*`
 
@@ -1229,7 +1230,17 @@ main()	{
 
   else
 
-    codex_does_spell_exist $SPELLS || return 1
+	for spell in $SPELLS ; do
+		codex_does_spell_exist $spell
+		if [ $? -eq 0 ] ; then
+			T_SPELLS="$T_SPELLS $spell"
+		fi
+	done
+	SPELLS=$T_SPELLS
+	
+	if ! [[ $SPELLS ]]; then
+		return 1
+	fi
 	
 	MAKEFILE="/tmp/Makefile.cast.$$"
 	SUCCESS_LIST="$0.success_list"
