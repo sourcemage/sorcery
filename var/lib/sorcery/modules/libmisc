@@ -120,7 +120,7 @@ message()    {
 #---------------------------------------------------------------------
 debug()  {
 
-  local debugVar="DEBUG_$1"
+#  local debugVar="DEBUG_${1}"
   if [[ ${!debugVar} != "no" ]] ; then
     echo -n "$1($$): " >>$DEBUG
     shift
@@ -154,7 +154,7 @@ function progress_spinner()  {
 ##
 #---------------------------------------------------------------------
 function progress_bar()  {
-
+debug "libmisc" "progress_bar - $*"
   local percent i len num_dash
 
   if [[ $1 == -dot ]] ; then
@@ -283,11 +283,11 @@ function esc_str()
 {
 
   local OUT
-  if [[ $1 == .* ]] ; then
+  if [[ $* == .* ]] ; then
     OUT="$1"
   else
-    OUT=`echo $1 | sed -e 's:\.:\\\.:' \
-                       -e 's:\*:\\\*:'`
+    OUT=`echo "$@" | sed -e 's:\.:\\\.:' \
+                         -e 's:\*:\\\*:'`
   fi
   echo "$OUT"
 
@@ -362,7 +362,7 @@ function get_dirnames() {
 ##  token will be ignored.
 function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
-  debug "libmisc" "iterate - $@"
+#  debug "libmisc" "iterate - $@"
   
   [ $# -lt 3 ] && return 2
   

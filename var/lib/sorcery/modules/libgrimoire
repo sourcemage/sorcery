@@ -38,7 +38,7 @@ create_account() {
   ACCOUNT_UID=`get_uid_for_account $1`
   PRIMARY_GID=`get_primary_gid_for_account $1`
   PRIMARY_GNAME=`get_group_name $PRIMARY_GID`
-  PRIMARY_GNAME=$1
+  # PRIMARY_GNAME=$1  the previous line and this one kinda conflict... commenting this one (Duff 03/01/24)
 
   debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME"
 
@@ -159,7 +159,7 @@ guess_compressor()  {
 ##
 #---------------------------------------------------------------------
 uncompress() {
-
+  debug "libgrimoire" "uncompress - $*"
   # Outer subshell is necessary to redirect stderr to stdout
   (
     #Inner subshell decompresses archive to stdout
@@ -204,6 +204,9 @@ unpack() {
   FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
   COMPRESSOR=`guess_compressor $FILENAME`
 #  UNCOMPRESSED=""
+
+  set +x  #This is here so Duff's super debugging info doesn't screw the next step up
+
   uncompress $FILENAME $COMPRESSOR $2 | \
   {
 

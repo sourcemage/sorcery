@@ -30,15 +30,15 @@
 #---------------------------------------------------------------------
 function add_depends()
 { # $1=spell, $2=depends, $3=on/off, $4=optional/required, $5=on arg, $6=off arg
-
+	debug "libstate" "add_depends() - $*"
 	#Locking the file at the start to avoid multiple casts adding the same thing
 	#lock_file $DEPENDS_STATUS  Locking done in run_depends now
 
 	#already here for some reason
-	search_depends_status_exact $* >/dev/null  && return 0
+	search_depends_status_exact "$@" >/dev/null  && return 0
 	
 	#remove stale depends info
-	search_depends_status $* >/dev/null && remove_depends_status $*
+	search_depends_status "$@" >/dev/null && remove_depends_status "$@"
 	
 	#ensure the info is valid (perhaps add check that spells exist?)
 	if ( [[ $3 != on ]]       && [[ $3 != off ]]       )   ||
@@ -71,8 +71,8 @@ function search_depends_status_exact()
 { # $1=spell, $2=depends, $3=on/off, $4=optional/required, $5=on arg, $6=off arg
 
 	local a1 a2 a3 a4 a5 a6
-	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3` ; a4=`esc_str $4`; a5=`esc_str $5`; a6=`esc_str $6`
-	
+	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
+debug "DB" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 	grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $DEPENDS_STATUS
 
 }
