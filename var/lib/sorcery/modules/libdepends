@@ -392,10 +392,81 @@ function private_upward_depends() {
 ## @param  spell or provider name
 ## @param  addition to OPTS
 ## @param  description
+## @param  grimoires to look in
 ## Delegates provider and spell cases to different worker functions.
+## and gets grimoires if necessary for cross grimoire depends
 #---------------------------------------------------------------------
 function real_depends()
 {
+  # see if theres another grimoire
+  if [[ "$4" ]] ; then
+    local grimoire here nothere current
+
+    for grimoire in $4; do
+      if [[ "$grimoire" == "current" ]] ; then
+        current=yes
+      elif codex_find_grimoire "$grimoire" > /dev/null; then
+        list_add here $grimoire
+      else
+        list_add nothere $grimoire
+      fi
+    done
+    if [[ "$here" ]] || [[ "$current" ]] ; then
+      if [[ "$nothere" ]] ; then
+        message "${SPELL_COLOR}$1${DEFAULT_COLOR}${CHECK_COLOR}" \
+                "exists in the following grimoires${DEFAULT_COLOR}" \
+                "${SPELL_COLOR}${4}${DEFAULT_COLOR}${CHECK_COLOR}"
+        message "You dont have ${SPELL_COLOR}$nothere${DEFAULT_COLOR}" \
+                "${CHECK_COLOR}but you have ${SPELL_COLOR}$here${DEFAULT_COLOR}"
+        for grimoire in $nothere ; do
+          if query "Get $grimoire grimoire?" n; then
+            scribe add "$grimoire"
+            unset GRIMOIRE_DIR[*]
+            source $GRIMOIRE_LIST
+            if codex_find_grimoire "$grimoire" > /dev/null; then
+              list_add here $grimoire
+            else
+              message "${PROBLEM_COLOR}Failed to get grimoire${DEFAULT_COLOR}"
+            fi
+          fi
+        done
+    # else
+    #   have all the grimoires, nothing to do, this is probably the case most
+    #   of the time
+      fi
+    else
+      if [[ "$nothere" ]] ; then
+        message "${CHECK_COLOR}You dont have any of the grimoires" \
+                "${SPELL_COLOR}$4${DEFAULT_COLOR}${CHECK_COLOR}."
+        message "You must add at least one grimoire to satisfy the" \
+                "dependency.${DEFAULT_COLOR}"
+        for grimoire in $nothere ; do
+          if query "Get $grimoire grimoire?" n; then
+            scribe add "$grimoire"
+            unset GRIMOIRE_DIR[*]
+            source $GRIMOIRE_LIST
+            if codex_find_grimoire "$grimoire" > /dev/null; then
+              list_add here $grimoire
+            else
+              message "${PROBLEM_COLOR}Failed to get grimoire${DEFAULT_COLOR}"
+            fi
+          fi
+        done
+      else
+        # this is a bug, most likely with list_add in order for this
+        # to happen, there has to be some grimoires to look in, and the
+        # grimoires are neither installed nor uninstalled
+        message "This is a bug, probably with list_add, please contact the" \
+                "sorcery team, thanks."
+        return 1
+      fi
+    fi
+    if [[ ! $here ]] && [[ ! $current ]] ; then
+      message "${PROBLEM_COLOR}no grimoire for $1 was retrieved${DEFAULT_COLOR}"
+      return 1
+    fi
+  fi
+
   if ! codex_does_spell_exist $1 &> /dev/null; then
     work_depends_provider "$@"
   else
@@ -409,10 +480,78 @@ function real_depends()
 ## @param  addition to OPTS if enabled
 ## @param  addition to OPTS if disabled
 ## @param  description
+## @param  grimoires to look in
 ## Delegates provider and spell cases to different worker functions.
 #---------------------------------------------------------------------
 function real_optional_depends()
 {
+
+  # see if theres another grimoire
+  if [[ "$5" ]] ; then
+    local grimoire here nothere current
+    for grimoire in $5; do
+      if [[ "$grimoire" == "current" ]] ; then
+        current=yes
+      elif codex_find_grimoire "$grimoire" > /dev/null; then
+        list_add here $grimoire
+      else
+        list_add nothere $grimoire
+      fi
+    done
+    if [[ "$here" ]] || [[ "$current" ]] ; then
+      if [[ "$nothere" ]] ; then
+        message "${SPELL_COLOR}$1${DEFAULT_COLOR}${CHECK_COLOR}" \
+                "exists in the following grimoires${DEFAULT_COLOR}" \
+                "${SPELL_COLOR}${5}${DEFAULT_COLOR}${CHECK_COLOR}"
+        message "You dont have ${SPELL_COLOR}$nothere${DEFAULT_COLOR}" \
+                "${CHECK_COLOR}but you have ${SPELL_COLOR}$here${DEFAULT_COLOR}"
+        for grimoire in $nothere ; do
+          if query "Get $grimoire grimoire?" n; then
+            scribe add "$grimoire"
+            unset GRIMOIRE_DIR[*]
+            source $GRIMOIRE_LIST
+            if codex_find_grimoire "$grimoire" > /dev/null; then
+              list_add here $grimoire
+            else
+              message "${PROBLEM_COLOR}Failed to get grimoire${DEFAULT_COLOR}"
+            fi
+          fi
+        done
+    # else
+    #   have all the grimoires, nothing to do, this is probably the case most
+    #   of the time
+      fi
+    else
+      if [[ "$nothere" ]] ; then
+        message "${CHECK_COLOR}You dont have any of the grimoires" \
+                "${SPELL_COLOR}${5}${DEFAULT_COLOR}${CHECK_COLOR}."
+        for grimoire in $nothere ; do
+          if query "Get $grimoire grimoire?" n; then
+            scribe add "$grimoire"
+            unset GRIMOIRE_DIR[*]
+            source $GRIMOIRE_LIST
+            if codex_find_grimoire "$grimoire" > /dev/null; then
+              list_add here $grimoire
+            else
+              message "${PROBLEM_COLOR}Failed to get grimoire${DEFAULT_COLOR}"
+            fi
+          fi
+        done
+      else
+        # this is a bug, most likely with list_add in order for this
+        # to happen, there has to be some grimoires to look in, and the
+        # grimoires are neither installed nor uninstalled
+        message "This is a bug, probably with list_add, please contact the" \
+                "sorcery team, thanks."
+        return 1
+      fi
+    fi
+    if [[ ! $here ]] && [[ ! $current ]] ; then
+      message "${PROBLEM_COLOR}no grimoire for $1 was retrieved${DEFAULT_COLOR}"
+      message "Assuming dependency is off because it could not be met"
+      private_common_depends "$1" "off" "optional" "$2" "$3"
+    fi
+  fi
 
   if ! codex_does_spell_exist $1 &> /dev/null; then
     work_optional_depends_provider "$@"
@@ -437,7 +576,7 @@ function work_depends_provider()
   if [[ $4 ]] ; then
     message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
             "${CHECK_COLOR}requires some${DEFAULT_COLOR}" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR} (for $4)."
+            "${SPELL_COLOR}${1}${DEFAULT_COLOR} (for $3)."
   else
     message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
             "${CHECK_COLOR}requires some${DEFAULT_COLOR}" \
@@ -496,17 +635,19 @@ function work_depends_provider()
 
   select_provider "provider" "$default" 0 $CANDIDATES
 
-  private_common_depends "$provider($1)" "on" "required" "$2" "$3"
+  private_common_depends "$provider($1)" "on" "required" "$2" ""
 }
 
 #---------------------------------------------------------------------
 ## One of the worker functions. Checks for exiled spell and passes
 ## on to the common dependency function, <@function private_common_depends>
 ## @param Spell
+## @param enabled options
+## @param disabled options (useless, but included for some reason)
+## @param grimoire the spell is in, if its different than the current one
 #---------------------------------------------------------------------
 function work_depends_spell()
 {
-
   debug "libdepends" "$FUNCNAME - $@"
 
   message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
@@ -518,7 +659,7 @@ function work_depends_spell()
     message "${SPELL_COLOR}${1}${DEFAULT_COLOR} has been exiled!"
     return 1
   fi
-  private_common_depends "$1" "on" "required" "$2" "$3"
+  private_common_depends "$1" "on" "required" "$2" ""
 
 }
 
