@@ -43,13 +43,16 @@ function usage()
 {
 	local s=$(basename $0)
 cat << EOF
-$s < --delint [full] | --prune [doit] | --packages | --fix [nofix] | --sweep>
+$s [ --delint [full] | --prune [doit] | --packages | 
+  --fix [spell [spell ...] ] | --nofix [spell [spell ...] ] | --sweep]
 	--delint: Finds stale dependency entries
 		full will delint dependencies that are off
 	--prune: Finds dispeled spells that should be cast
 		doit will cause it to actualy cast and dispel
 	--packages: find bad entries in the installed spells file
 	--fix: attempts to detect problems in cast spells and tries to fix them
+	--nofix: attempts to detect problems in cast spells but does not try 
+		to fix them.
 	--sweep: clean out old compile/install/md5 log files
 It is suggested that you try the following order the first time:
 	1) $s --packages
@@ -93,7 +96,10 @@ function args()
 					prune_depends
 				fi
 				;;
-			--fix)		fix 				;;
+			--fix) fix "$@"
+				shift $#					;;
+			--nofix) fix nofix "$@"
+				shift $#					;;
 			--sweep)	prune 				;;
 			--packages)	packages 			;;
 			*)	usage $arg $* ; return 1	;;
@@ -353,7 +359,6 @@ function fix()
   fi
 
   if  [  -z  "$SPELLS"  ];  then
-
 
     # Why are these special cases? (duff, 09/29)
     # Because we want to always check them first?
@@ -778,6 +783,7 @@ function lib_dirs()  {
 source /etc/sorcery/config
 
 if [ $UID -eq 0 ] ; then
+
 	# Make sure root is running this
 	if [ $# -eq 0 ] ; then
 		# IF there are no args, assume the full treatment is desired
@@ -798,7 +804,11 @@ if [ $UID -eq 0 ] ; then
 	rm -rf $TMPDIR
 	message "Removed information is backed up to $BACKUPDIR."
 else
+	if [[ $1 == --help ]] ; then
+		usage
+		exit 0
+	fi
 	message "You must be root to run this command."
 	message "Switching to root user..."
-	exec su -c $0 "$@"
+	exec su -c "$0 $*" root
 fi
