@@ -1,16 +1,12 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
-## 
-## Set of functions for dealing with the problem (hopefully a 
-## temporary problem) of having to use both the gcc2 and gcc3
-## compilers.
-##
-##=head1 DESCRIPTION
+## @Synopsis Set of functions for dealing with the problem (hopefully a 
+## @Synopsis temporary problem) of having to use both the gcc2 and gcc3
+## @Synopsis compilers.
 ##
 ## The migration to gcc3 will take place in the following steps:
-##
+## <pre>
 ## - The gcc spell will be updated to gcc 3
 ## - gcc2 will be a new spell that installs gcc2 in /opt/gcc2.
 ## - The gcc spell will have gcc2 as a dependency.
@@ -19,32 +15,24 @@
 ## - Sorcery will test for the existance of the USEGCC2 flag in a 
 ##   spell's directory.  If it's there, it will alter the environment
 ##   so that gcc2 is used for building the spell.
+## </pre>
 ##
-##=head1 IMPLEMENTATION NOTE
+## @Implementation These functions were added to allow the use of both the gcc2 and 
+## @Implementation gcc3 compiler at the same time within sorcery.  The code can be 
+## @Implementation removed once only one compiler is supported.
 ##
-## These functions were added to allow the use of both the gcc2 and 
-## gcc3 compiler at the same time within sorcery.  The code can be 
-## removed once only one compiler is supported.
 ##
-##=head1 COPYRIGHT
+##  @Copyright Copyright 2002 by the Source Mage Team
 ##
-## Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
 ##
 #---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-##=item use_gcc2
-##
-## Returns true if gcc2 is being used to compile.  Returns false 
-## otherwise.  
-##
+## @return 0 if gcc is being used to compile
+## @return 1 otherwise
 #---------------------------------------------------------------------
-use_gcc2()  {
+function use_gcc2()  {
 
   gcc  -dumpversion  |  grep  -q  '2\.95\.'  >  /dev/null
 
@@ -52,12 +40,12 @@ use_gcc2()  {
 
 
 #---------------------------------------------------------------------
-##=item gcc2_prepend_path  <new path to add>  <old path>
-##
+## @param new path to add
+## @param old path
+## @Stdout new path
 ## Echos the old path with new path prepended, separated with a ':'
-##
 #---------------------------------------------------------------------
-gcc2_prepend_path()  {
+function gcc2_prepend_path()  {
 
   if    test  -z  $2
   then  echo $1
@@ -68,13 +56,13 @@ gcc2_prepend_path()  {
 
 
 #---------------------------------------------------------------------
-##=item gcc2_add_paths <path>
+## @param path
 ##
 ## Alters the environment so that gcc2 will be used for compiling and
 ## building spells when the "gcc" command is used.
 ##
 #---------------------------------------------------------------------
-gcc2_add_paths()  {
+function gcc2_add_paths()  {
 
   export  PATH=$(  gcc2_prepend_path  $1/bin  $PATH  )
   export  LD_LIBRARY_PATH=$(  gcc2_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
@@ -86,13 +74,12 @@ gcc2_add_paths()  {
 
 
 #---------------------------------------------------------------------
-##=item invoke_gcc2
 ##
 ## Determines if gcc2 should be used for a spell.  If so, it alters
 ## the environment so that gcc2 is used for compilation.  
 ##
 #---------------------------------------------------------------------
-invoke_gcc2()  {
+function invoke_gcc2()  {
 
   USEGCC2=$(  ls  $SCRIPT_DIRECTORY/USEGCC2  2>/dev/null  )
 
@@ -100,18 +87,12 @@ invoke_gcc2()  {
   then  gcc2_add_paths  /opt/gcc2
   fi
 
-  . $LOCAL_CONFIG
-
   echo  "Using gcc version: `gcc  -dumpversion`"
-  
 
 }
 
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by

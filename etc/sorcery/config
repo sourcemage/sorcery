@@ -41,9 +41,9 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
           SOUND_THEME=startrek
 
            BOOST_LOCK=/var/lock/boost
-             LOCKLIST="/tmp/locklist"
-       LOCKLIST_CLEAN="/tmp/locklist.clean"
-    LOCK_TRANSACTIONS="/tmp/locklist.transactions"
+             LOCK_DIR=/tmp/liblock-$UID
+     LOCK_TRANSACTIONS="$LOCK_DIR/liblock.locklist"
+            MAX_SLEEP=5
 
         LOG_DIRECTORY=/var/log/sorcery
          ACTIVITY_LOG=${LOG_DIRECTORY}/activity
@@ -108,21 +108,20 @@ DEPENDS_STATUS_BACKUP=${STATE_DIRECTORY}/depends.backup
           XFREE86_URL=ftp://ftp.xfree86.org/pub/XFree86
           SORCERY_URL=http://download.sourcemage.org/sorcery/
       SOURCEFORGE_URL=http://unc.dl.sourceforge.net/sourceforge
-
+			     APACHE_URL=http://www.ibiblio.org/pub/mirrors/apache
+               #
                # Set FURLNUM to nr. of fallback urls.
-			   #
-               FURLNUM=4 
+			         #
+               FURLNUM=3 
 FALLBACK_URL_MIRROR[0]=http://smgl.positivism.org
 FALLBACK_URL_MIRROR[1]=ftp://thefrayedknot.armory.com/sorcery
-FALLBACK_URL_MIRROR[2]=http://warlocks.damnserver.com/smgl-mirror/devel
-FALLBACK_URL_MIRROR[3]=http://download.sourcemage.com/smgl-mirror/devel
-#FALLBACK_URL_MIRROR[4]=http://download.sourcemage.org/mirror/devel
-FALLBACK_URL=${FALLBACK_URL_MIRROR[$((${RANDOM} * ${FURLNUM} / 32768))]}
+FALLBACK_URL_MIRROR[2]=http://download.sourcemage.org/mirror
 
            CODEX_ROOT=${CODEX_ROOT:=/var/lib/sorcery/codex}
             CODEX_URL=${CODEX_URL:=http://codex.sourcemage.org}
 
               TRACKED="/bin /boot /etc /lib /sbin /usr /var"
+                 DOCS="README* FAQ* CHAN* doc* DOC* conf SETUP LICENSE COPYING NEWS"
 
               DEFAULT="\e[0m"
                  BOLD="\e[1m"

@@ -427,7 +427,7 @@ show_spell_component()  {
   local        COMPONENT=$1
   local       SPELL_NAME=$2
   local  SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL_NAME`
-  if  [  -x  $SPELL_DIRECTORY/$COMPONENT  ];  then
+  if  [  -e  $SPELL_DIRECTORY/$COMPONENT  ];  then
     cat      $SPELL_DIRECTORY/$COMPONENT
   fi
 
@@ -856,14 +856,14 @@ gaze_show_section_version_table()  {
 
    (
 
-     echo  "Section|Spell|Grimoire Version|Installed Version"
-     echo  "-------|-----|----------------|-----------------"
+     echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+     echo  "--------|-------|-----|----------------|-----------------"
 
      for  spell  in  $SPELLS;  do 
 
        codex_set_current_spell  $spell                            &&
        local  INSTALLED=`installed_version  $SPELL`               && 
-       echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+       echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
      done 
 
@@ -882,14 +882,14 @@ gaze_show_section_version_table()  {
 gaze_show_spell_version_table()  {
 
   (
-    echo  "Section|Spell|Grimoire Version|Installed Version"
-    echo  "-------|-----|----------------|-----------------"
+	echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+    echo  "--------|-------|-----|----------------|-----------------"
  
    for  SPELL  in  $@; do 
 
       codex_set_current_spell  $SPELL                        &&
       local  INSTALLED=`installed_version  $SPELL`           &&
-      echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+	  echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
     done 
 
@@ -939,6 +939,54 @@ gaze_show_version()  {
   message "$UNKNOWN"
 
 }
+
+#---------------------------------------------------------------------
+##=item gaze_show_versions <spell>
+##
+## Shows the all versions of spell:
+## - the version in the actual grimoire and the version installed on the system
+## - the all versions in all grimoires
+##
+#---------------------------------------------------------------------
+gaze_show_versions()  {
+
+  local SPELL=$1
+  local SPELL_DIRECTORY=
+  local GRIMOIRE=
+  local GRIMOIRES=
+
+  if ! codex_does_spell_exist $SPELL
+  then return 1
+  fi
+
+  message "${SPELL_COLOR}Actual version:${DEFAULT_COLOR}"
+  echo
+  gaze_show_version $SPELL
+
+  message "${SPELL_COLOR}All versions:${DEFAULT_COLOR}"
+  echo
+  GRIMOIRES=$(codex_get_all_grimoires)
+
+  (
+
+  echo "Version|Grimoire|Section"
+  echo "-------|--------|-------"
+
+  for GRIMOIRE in $GRIMOIRES
+  do
+    if SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $GRIMOIRE)
+    then
+      codex_set_current_spell $SPELL_DIRECTORY
+      echo  "$VERSION|$(echo $GRIMOIRE | get_basenames)|$SECTION"
+    else
+      echo "---|$(echo $GRIMOIRE | get_basenames)|---"
+    fi
+  done
+
+  ) | column -t -s "|"
+
+}
+
 
 
 #---------------------------------------------------------------------
@@ -1250,6 +1298,7 @@ parse()  {
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
+		 versions)  shift; gaze_show_versions $@         ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
             from)  show_from         $2                  ;;

@@ -3,11 +3,7 @@
 # vim:set ts=2 sw=2 et:
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
-##
-## Functions for automatic init-script installation.
-##
-##=head1 DESCRIPTION
+## @Synopsis Functions for automatic init-script installation.
 ##
 ## Installation steps performed by this script:
 ##
@@ -30,25 +26,21 @@
 ##    /etc/sysconfig/facilities-file if the user wanted the script to be a
 ##    default provider.
 ##
-##=head1 COPYRIGHT
+## @Copyright Copyright (C) 2003 The Source Mage Team <http://www.sourcemage.org>
 ##
-## Copyright (C) 2003 The Source Mage Team <http://www.sourcemage.org>
 ##
-##=head1 CONTRIBUTORS
+## @Contributors Robert Helgesson <rycee@home.se>
 ##
-## Robert Helgesson <rycee@home.se>
-##
-##=head1 FUNCTIONS
 #---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-#=item _init_make_backup <new file> <old file>
-##
+## @param new file
+## @param old file
 ## Makes a backup of "old file" if it differs from "new file"
 ##
 #---------------------------------------------------------------------
-_init_make_backup()
+function _init_make_backup()
 {
 
   # Don't bother if the old file doesn't exist
@@ -68,13 +60,13 @@ _init_make_backup()
 
 
 #---------------------------------------------------------------------
-#=item _init_get_conf_files <init script>
-##
+## @param init script
+## @Stdout filelist
 ## Extracts the files in /etc/sysconfig which are sourced by the script and
 ## prints them to stdout separated by newlines.
 ##
 #---------------------------------------------------------------------
-_init_get_conf_files()
+function _init_get_conf_files()
 {
 
   sed -n -f - $1 <<EOF
@@ -86,12 +78,12 @@ EOF
 
 
 #---------------------------------------------------------------------
-#=item _init_merge_config_file <new config file> <old config file>
-##
+## @param new config file
+## @param old config file
 ## Inserts new options from the new file into the old, existing, file
 ##
 #---------------------------------------------------------------------
-_init_merge_config_file()
+function _init_merge_config_file()
 {
 
   # Get newly added options
@@ -126,12 +118,12 @@ EOF
 
 
 #---------------------------------------------------------------------
-#=item _init_install_conf_files <configuration file...>
+## @param configuration file...
 ##
 ## Installs or merges a list of init-script configuration-files.
 ##
 #---------------------------------------------------------------------
-_init_install_conf_files()
+function _init_install_conf_files()
 {
 
   for file in "$@" ; do
@@ -155,15 +147,14 @@ _init_install_conf_files()
 
 
 #---------------------------------------------------------------------
-#=item init_prepare_install <init script>
-##
+## @param init script
 ## Prepares installation of an init-script.
-##
+## @Global INITPROVIDES 
 ## Creates the variable $INITPROVIDES which contains facility provided by the
 ##   script (if any)
 ##
 #---------------------------------------------------------------------
-init_prepare_install()
+function init_prepare_install()
 {
 
   local script_name="$1"
@@ -193,14 +184,13 @@ init_prepare_install()
 
 
 #---------------------------------------------------------------------
-#=item init_install <init script>
-##
+## @param init script
 ## * Makes a backup of an existing script.
 ## * Installs the new script into the correct runlevel.
 ## * Installs any config file used by the script.
 ##
 #---------------------------------------------------------------------
-init_install()
+function init_install()
 {
 
   local script_name="$1"
@@ -256,12 +246,11 @@ init_install()
 
 
 #---------------------------------------------------------------------
-#=item init_post_install
 ##
 ## Does cleanup if necessary. Must be run _after_ installwatch has stopped.
 ##
 #---------------------------------------------------------------------
-init_post_install()
+function init_post_install()
 {
   (
     IFS="$WHITESPACE_IFS"
@@ -281,9 +270,6 @@ init_post_install()
 }
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by

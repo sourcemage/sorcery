@@ -67,13 +67,13 @@ print_cabal_numbers_names()  {
 
 select_cabal()  {
 
-  $DIALOG  --title         "Cabal Selection Menu"  \
+  eval $DIALOG  '--title         "Cabal Selection Menu"  \
            --ok-label      "Select"                \
            --cancel-label  "Exit"                  \
            --menu                                  \
            "Please Select a Cabal"                 \
            0 0 0                                   \
-           $( print_cabal_numbers_names )
+           $( print_cabal_numbers_names )'
 
 }
 
@@ -134,7 +134,7 @@ distribute_cabal_key()  {
     chmod  600  $CABAL_KEYS
 
     if  !  [  -e  $CABAL_KEYS/$SELECTED.pub  ];  then
-      $DIALOG  --msgbox  "Generate the key first!"
+      eval $DIALOG  --msgbox  "Generate the key first!"
       return
     fi
 
@@ -163,7 +163,7 @@ revoke_cabal_key()  {
     chmod  600  $CABAL_KEYS
 
     if  !  [  -e  $CABAL_KEYS/$SELECTED.pub  ];  then
-      $DIALOG  --msgbox  "No key to revoke!"
+      eval $DIALOG  --msgbox  "No key to revoke!"
       return
     fi
 
@@ -210,10 +210,10 @@ set_max_cabals()  {
 
   PROMPT="Please enter the maximum number of cabals"
 
-  if  NEW_MAX=`$DIALOG  --ok-label  "Commit"  \
+  if  NEW_MAX=`eval $DIALOG  '--ok-label  "Commit"  \
                         --inputbox            \
                         "$PROMPT"             \
-                        0 0  "$MAX_CABALS"`
+                        0 0  "$MAX_CABALS"'`
   then
 
     MAX_CABALS=$NEW_MAX
@@ -235,7 +235,7 @@ cabal_name_menu()  {
     E_HELP="Edit the names of the cabals"
      TITLE="Cabal Name Menu"
 
-    COMMAND=`$DIALOG --title         "$TITLE"            \
+    COMMAND=`eval $DIALOG '--title         "$TITLE"            \
                      --item-help                         \
                      --ok-label      "Select"            \
                      --cancel-label  "Exit"              \
@@ -243,7 +243,7 @@ cabal_name_menu()  {
                      "$HELP"                             \
                      0 0 0                               \
                      "S"  "Show Cabal Names"  "$S_HELP"  \
-                     "E"  "Edit Cabal Names"  "$E_HELP"`
+                     "E"  "Edit Cabal Names"  "$E_HELP"'`
   do
 
     case  $COMMAND in
@@ -267,7 +267,7 @@ enable root login without password prompts"
     R_HELP="Remove a previously installed cabal key"
      TITLE="Cabal Key Menu"
 
-    COMMAND=`$DIALOG --title         "$TITLE"                 \
+    COMMAND=`eval $DIALOG '--title         "$TITLE"                 \
                      --item-help                              \
                      --ok-label      "Select"                 \
                      --cancel-label  "Exit"                   \
@@ -276,7 +276,7 @@ enable root login without password prompts"
                      0 0 0                                    \
                      "G"  "Generate    Cabal Key"  "$G_HELP"  \
                      "D"  "Distribute  Cabal Key"  "$D_HELP"  \
-                     "R"  "Revoke      Cabal Key"  "$R_HELP"`
+                     "R"  "Revoke      Cabal Key"  "$R_HELP"'`
   do
 
     case  $COMMAND in
@@ -299,7 +299,7 @@ cabal_content_menu()  {
     E_HELP="Edit the computers which belong to a cabal"
      TITLE="Cabal Content Menu"
 
-    COMMAND=`$DIALOG --title         "$TITLE"       \
+    COMMAND=`eval $DIALOG '--title         "$TITLE"       \
                      --item-help                    \
                      --ok-label      "Select"       \
                      --cancel-label  "Exit"         \
@@ -307,7 +307,7 @@ cabal_content_menu()  {
                      "$HELP"                        \
                      0 0 0                          \
                      "S"  "Show  Cabal"  "$S_HELP"  \
-                     "E"  "Edit  Cabal"  "$E_HELP"`
+                     "E"  "Edit  Cabal"  "$E_HELP"'`
   do
 
     case  $COMMAND in
@@ -322,10 +322,10 @@ cabal_content_menu()  {
 
 select_order()  {
 
-  $DIALOG  --title  "Order Selection Menu"  \
+  eval $DIALOG  '--title  "Order Selection Menu"  \
            --menu  ""  0 0 0                \
            "S"  "Sequentially"              \
-           "C"  "Concurrently"
+           "C"  "Concurrently"'
 
 }
 
@@ -341,7 +341,7 @@ cabal_admin_menu()  {
     K_HELP="Generate and distribute keys for cabals"
      TITLE="Cabal Admin Menu"
 
-    COMMAND=`$DIALOG --title         "$TITLE"                 \
+    COMMAND=`eval $DIALOG '--title         "$TITLE"                 \
                      --item-help                              \
                      --ok-label      "Select"                 \
                      --cancel-label  "Exit"                   \
@@ -351,7 +351,7 @@ cabal_admin_menu()  {
                      "N"  "Cabal Name       Menu"  "$N_HELP"  \
                      "C"  "Cabal Content    Menu"  "$C_HELP"  \
                      "K"  "Cabal Key        Menu"  "$K_HELP"  \
-                     "M"  "Maximum Cabals:  $MAX_CABALS"   "$M_HELP"`
+                     "M"  "Maximum Cabals:  $MAX_CABALS"   "$M_HELP"'`
 
   do
 
@@ -374,8 +374,8 @@ cabal_copy()  {
 
   mkdir  -p  $CABAL_OUTPUT
 
-       SOURCE=`$DIALOG  --inputbox  "$SOURCE_MESSAGE"  0 0`  &&
-  DESTINATION=`$DIALOG  --inputbox  "$DEST_MESSAGE"    0 0`  &&
+       SOURCE=`eval $DIALOG  --inputbox  "$SOURCE_MESSAGE"  0 0`  &&
+  DESTINATION=`eval $DIALOG  --inputbox  "$DEST_MESSAGE"    0 0`  &&
         CABAL=`select_cabal`                                 &&
         ORDER=`select_order`                                 &&
 
@@ -407,7 +407,7 @@ cabal_execute()  {
 
   mkdir  -p  $CABAL_OUTPUT
 
-  COMMAND=`$DIALOG  --inputbox  "$COMMAND_MESSAGE"  0 0`  &&
+  COMMAND=`eval $DIALOG  '--inputbox  "$COMMAND_MESSAGE"  0 0'`  &&
     CABAL=`select_cabal`                                  &&
     ORDER=`select_order`                                  &&
 
@@ -459,7 +459,7 @@ cabal_enchantment_menu()  {
 copies"
      TITLE="Enchantment Menu"
 
-    COMMAND=`$DIALOG --title         "$TITLE"   \
+    COMMAND=`eval $DIALOG '--title         "$TITLE"   \
                      --item-help                \
                      --ok-label      "Select"   \
                      --cancel-label  "Exit"     \
@@ -468,7 +468,7 @@ copies"
                      0 0 0                      \
                      "C"  "Copy"     "$A_HELP"  \
                      "E"  "Execute"  "$E_HELP"  \
-                     "S"  "Show"     "$S_HELP"`
+                     "S"  "Show"     "$S_HELP"'`
 
   do
 
@@ -494,7 +494,7 @@ cabal_menu()  {
     E_HELP="Execute scripts and copy files."
      TITLE="Cabal Menu"
 
-    COMMAND=`$DIALOG --title         "$TITLE"          \
+    COMMAND=`eval $DIALOG '--title         "$TITLE"          \
                      --item-help                       \
                      --ok-label      "Select"          \
                      --cancel-label  "Exit"            \
@@ -502,7 +502,7 @@ cabal_menu()  {
                      "$HELP"                           \
                      0 0 0                             \
                      "A"  "Administration"  "$A_HELP"  \
-                     "E"  "Enchantment"     "$E_HELP"`
+                     "E"  "Enchantment"     "$E_HELP"'`
 
   do
 

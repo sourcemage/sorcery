@@ -87,6 +87,7 @@ mirror_menu()  {
 
   while
 
+	A_HELP="Select mirror for downloading APACHE sources."
     C_HELP="Select mirror for downloading CTAN sources."
     K_HELP="Select mirror for downloading KDE sources."
     L_HELP="Select mirror for downloading kernel related sources."
@@ -102,6 +103,7 @@ mirror_menu()  {
                       --cancel-label  "Exit"       \
                       --item-help                  \
                       --menu        ""  0 0 0      \
+					  "APACHE"      ""  "$A_HELP"  \
                       "CTAN"        ""  "$C_HELP"  \
                       "KDE"         ""  "$K_HELP"  \
                       "KERNEL"      ""  "$L_HELP"  \
@@ -113,6 +115,7 @@ mirror_menu()  {
   do
 
     case  $COMMAND in
+      APACHE)       MIRROR="      APACHE_URL"  ;;
       CTAN)         MIRROR="        CTAN_URL"  ;;
       KDE)          MIRROR="         KDE_URL"  ;;
       KERNEL)       MIRROR="      KERNEL_URL"  ;;
@@ -441,6 +444,40 @@ EOF
 
 
 update_sorcery () {
+
+  cat  << EOF >  $RESTORE_SCRIPT
+#!/bin/bash
+############################################################
+# This helper script /tmp/sorcery.restore can              #
+# be run to restore the sorcery scripts if they            #
+# are lost during a sorcery update.                        #
+############################################################
+
+echo  "Restoring the sorcery scripts, please wait ..."
+
+SORCERY_SPOOL=${SOURCE_CACHE}
+SORCERY_BRANCH=${SORCERY_BRANCH}
+
+if [ -n $1 ]; then
+  SORCERY_BRANCH=$1
+fi
+
+if  cd /tmp                                                 &&
+    bunzip2 -c $SORCERY_SPOOL/sorcery-$SORCERY_BRANCH.tar.bz2 | tar xf - &&
+    cd sorcery                                              &&
+  ./install;                                              then
+  rm -rf /tmp/sorcery
+  echo  "Sorcery was successfully restored."
+else
+  echo  "Unable to restore sorcery.  Try running this file with"
+  echo  "the name of the branch you had previously installed as"
+  echo  "the command-line parameter: (e.g. stable, or devel)."
+  echo
+  echo  "For more help, see the Source Mage website "
+  echo  "(http://www.sourcemage.org/)."
+fi
+
+EOF
 
     message  "${MESSAGE_COLOR}"
     message  "Interrupting while upgrading the sorcery scripts may"
@@ -809,7 +846,7 @@ integrity_fix_menu()  {
     modify_local_config "FIND_CHECK" "$FIND_CHECK"
     modify_local_config "MD5SUM_CHECK" "$MD5SUM_CHECK"
     modify_local_config "LDD_CHECK" "$LDD_CHECK"
-    modify_local_config "SYM_CHECK" "$SYM_CHECK "
+    modify_local_config "SYM_CHECK" "$SYM_CHECK"
 
   fi
 
@@ -1231,7 +1268,7 @@ TMP_HELP="Attempt to compile entirely in RAM?"
       "CLEAN_SOURCE"  "Toggle"  "$CLEAN_SOURCE"  "$CS_HELP"  \
       "CROSS_INSTALL" "Toggle"  "$CROSS_INSTALL" "$CI_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL)
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
