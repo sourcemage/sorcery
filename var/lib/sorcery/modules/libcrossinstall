@@ -3,6 +3,91 @@
 # Where is the documentation of this lib??? (erics)
 #
 
+#---------------------------------------------------------------------
+#-item cross_install_menu
+##
+## This menu function is called only if the CROSS_INSTALL is turned on,
+## it provides the user with a choice of the default INSTALL_ROOT (see
+## invoke_cross_environment() for default location) or fill in his/her
+## desired INSTALL_ROOT location.
+##
+## sorcery menu function
+#---------------------------------------------------------------------
+function cross_install_menu() {
+
+  debug "libcrossinstall" "cross_install_menu is being built now..."
+
+  while
+
+    D_HELP="Select the default install root (/opt/cross-install/\$HOST)."
+    C_HELP="Fill in your own preferred install root location."
+
+    COMMAND=`eval $DIALOG '  --title "Cross Install Menu"                     \
+                             --item-help                                      \
+                             --ok-label      "Select"                         \
+                             --cancel-label  "Exit"                           \
+                             --menu                                           \
+                             ""                                               \
+                             0 0 0                                            \
+                             "D"  "Default install root location"  "$D_HELP"  \
+                             "C"  "Set install root location"      "$C_HELP"'`
+
+  do
+
+    case $COMMAND in
+      D)  modify_local_config "INSTALL_ROOT" "/opt/cross-install/${HOST}"  &&
+          msg_set_install_root  ;;
+      C)  set_install_root_menu     ;;
+    esac
+
+  done
+
+}
+
+
+#---------------------------------------------------------------------
+#-item msg_set_install_root_menu
+##
+## This menu function shows the user that the INSTALL_ROOT location
+## has been set and then exits sorcery.
+##
+#---------------------------------------------------------------------
+function msg_set_install_root() {
+
+  eval $DIALOG '  --msgbox "Your install root has been set to the following \
+	                          value, happy compiling:  $INSTALL_ROOT"  0 0'
+	goodbye
+
+}
+		
+			
+#---------------------------------------------------------------------
+#-item set_install_root_menu
+##
+## This menu function allows the user to fill in an INSTALL_ROOT location.
+##
+#---------------------------------------------------------------------
+function set_install_root_menu() {
+
+  PROMPT="Please enter the install root location where you want to compile."
+
+  debug "libcrossinstall" "set_install_root_menu - is starting..."
+	
+  if  INSTALL_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
+                                    --inputbox                   \
+                                    "$PROMPT"                    \
+                                    0 0  "$INSTALL_ROOT"'`
+
+  then
+
+    modify_local_config  "INSTALL_ROOT"  "$INSTALL_ROOT"  &&
+    msg_set_install_root
+
+  fi
+
+}
+
+
 invoke_cross_environment() 
 {
 
