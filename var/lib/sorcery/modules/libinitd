@@ -226,8 +226,25 @@ init_install()
       message -n ${DEFAULT_COLOR}
       exit 1
     else
+      ENABLE_SCRIPT=n
+      if ! grep -Fq 'ESSENTIAL=yes' $script_path ; then
+        if [ -x $runlevel_dir/$script_name -o true ] ; then # -o true is in there until dispel doesn't delete the old init scripts
+          query "Shall the $script_name init script be enabled on install?" y && ENABLE_SCRIPT=y || ENABLE_SCRIPT=n
+        else
+          query "Shall the $script_name init script be enabled on install?" n && ENABLE_SCRIPT=y || ENABLE_SCRIPT=n
+        fi
+      else
+        message "  script $script_name is ESSENTIAL, intalling enabled."
+        ENABLE_SCRIPT=y
+      fi
       _init_make_backup $script_path $runlevel_dir/$script_name
-      install -m 754 $script_path $runlevel_dir
+      if [ "$ENABLE_SCRIPT" == y ] ; then
+        install -m 754 $script_path $runlevel_dir
+        message "  script $script_name installed and enabled.  Disable with 'telinit disable $script_name'."
+      else
+        install -m 644 $script_path $runlevel_dir
+        message "  script $script_name installed and disabled.  Enable with 'telinit enable $script_name'."
+      fi
       _init_install_conf_files $( _init_get_conf_files $script_path )
     fi
   )
