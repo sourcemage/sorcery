@@ -1626,7 +1626,9 @@ invoke_build_dir()  {
 find_providers()  {
 
   for  GRIMOIRENAME  in  `codex_get_all_grimoires`;  do
-    for  PROVIDER  in  $(  find  $GRIMOIRENAME  -follow  -name  provides  );  do
+    # FIXME: Remove lowercase "provides" in a few days.
+    for  PROVIDER  in  $(  find  $GRIMOIRENAME  -follow  -name  provides \
+                           -or name PROVIDES);  do
       if    grep  -q  $1  $PROVIDER
       then  basename  $( dirname  $PROVIDER  )
       fi
