@@ -1076,7 +1076,7 @@ function cast_spell()  { (
   #locking - blocks normal spells if a solo cast is running, solo casts if any cast is running
   message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} casts to complete..."
   lock_resources "solo" "cast"
-  if grep -q "^$SPELL$" $SOLO
+  if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
     message -n "Waiting for ${SPELL_COLOR}all other${DEFAULT_COLOR} spells to complete..."
     excllock_resources "cast" "$SPELL"
