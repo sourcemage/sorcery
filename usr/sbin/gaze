@@ -73,8 +73,10 @@ section		[section]	List grimoire sections.
 maintainer	[section]	See who is the maintainer for a section
 grimoire	[grimoire]	View a text listing of all grimoires.
                         Or of the specified grimoire.
-html		[grimoire]	View a html listing of all grimoires.
+html	[-s]	[grimoire]	View a html listing of all grimoires.
                         Or of the specified grimoire.
+                        Additionally displays links to the source files 
+                        when -s is given.
 
 newer		20020521	Show available spells newer than May 21, 2002.
 older		20010521	Show spells installed before May 21, 2001.
@@ -235,14 +237,19 @@ gaze_catalog()  {
 
 gaze_catalog_html()  {
 
-  local grimoire
-  
+  local grimoire COLS=4
+
+  if [[ $1 == "-s" ]]; then
+        shift;
+        (( COLS++ ))
+  fi
+    
   if [[ $# -gt 0 ]]; then
         grimoire=$(codex_find_grimoire_by_name $1)
         if [[ $? != 0 ]]; then
             echo "No such grimoire $1"
             exit 1;
-        fi  
+        fi
   fi
 
   echo  "<html><head><title>Sorcery Grimoires for `date  -u`</title></head>"
@@ -252,7 +259,7 @@ gaze_catalog_html()  {
   echo  "        background=\"media/whitemarble.jpg\""
   echo  "        border=5>"
 
-  echo  "<tr><th colspan=4><font color=green  size=+1>"
+  echo  "<tr><th colspan=${COLS}><font color=green  size=+1>"
   echo  "Sorcery Grimoires<br>"
   echo  $(date -u) "<br>"
 
@@ -269,12 +276,13 @@ gaze_catalog_html()  {
   echo  "<th>Version</th>"
   echo  "<th>Updated</th>"
   echo  "<th>Website</th>"
+  [[ $COLS -eq 5 ]] && echo "<th>Source</th>"
   echo  "</tr>"
 
   ((  COUNT=0  ))
 
   for  SECTION  in  `codex_get_all_sections $grimoire`;  do
-    echo  "<tr><th colspan=4><font color="green">$( basename  $SECTION )</font></th></tr>"
+    echo  "<tr><th colspan=${COLS}><font color="green">$( basename  $SECTION )</font></th></tr>"
     for  SPELL  in  `codex_get_spells  $SECTION`;  do
       (
         codex_set_current_spell  $SPELL
@@ -317,6 +325,11 @@ gaze_catalog_html()  {
           echo  "$UNSHRINK </td>"
         else
           echo  "<td></td>"
+        fi
+        if [[ $COLS -eq 5 ]]; then
+            echo "<td>"
+            echo "<a href=\"$SOURCE_URL\">$(echo $SOURCE | cut -c-25)</a>"
+            echo "</td>"
         fi
         echo  "</tr>"
       )
