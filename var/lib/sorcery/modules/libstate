@@ -416,7 +416,7 @@ function modify_config()  {
     return 1
   fi
   
-  local TEMP separator EQUALS_COL
+  local TEMP separator EQUALS_COL VARIABLE
   
   # what to use as separator?
   if [[ $3 == command ]] 
@@ -435,9 +435,13 @@ function modify_config()  {
     TEMP="$TEMP "
   done
   
-  debug "libstate" "modify_local_config() - entering new value into $tFILE"
+	# Removing VARIABLE to be set from list of args.
+	VARIABLE=$1
+	shift;
+
+  debug "libstate" "modify_config() - entering new value $VARIABLE $seperator $@ into $tFILE"
   # put new value and justification in
-  echo  "${TEMP}${1}${separator}\"${2}\""  >>  $tFILE
+  echo  "${TEMP}${VARIABLE}${separator}\"$@\""  >>  $tFILE
 
   lock_commit_transaction $FILE
     
