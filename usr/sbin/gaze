@@ -856,14 +856,14 @@ gaze_show_section_version_table()  {
 
    (
 
-     echo  "Section|Spell|Grimoire Version|Installed Version"
-     echo  "-------|-----|----------------|-----------------"
+     echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+     echo  "--------|-------|-----|----------------|-----------------"
 
      for  spell  in  $SPELLS;  do 
 
        codex_set_current_spell  $spell                            &&
        local  INSTALLED=`installed_version  $SPELL`               && 
-       echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+       echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
      done 
 
@@ -875,21 +875,21 @@ gaze_show_section_version_table()  {
 #---------------------------------------------------------------------
 ##=item gaze_show_spell_version_table <spell> [<spell> ...]
 ##
-## Shows the xersions of spells, both the version in the grimoire and
+## Shows the versions of spells, both the version in the grimoire and
 ## the version installed on the system.  
 ##
 #---------------------------------------------------------------------
 gaze_show_spell_version_table()  {
 
   (
-    echo  "Section|Spell|Grimoire Version|Installed Version"
-    echo  "-------|-----|----------------|-----------------"
+	echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
+    echo  "--------|-------|-----|----------------|-----------------"
  
    for  SPELL  in  $@; do 
 
       codex_set_current_spell  $SPELL                        &&
       local  INSTALLED=`installed_version  $SPELL`           &&
-      echo  "$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+	  echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
     done 
 
