@@ -38,12 +38,12 @@ function create_account() {
 
   debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME"
 
-  groupadd -g $PRIMARY_GID $PRIMARY_GNAME
+  groupadd -g $PRIMARY_GID -f $PRIMARY_GNAME
 
   for GROUP_ID in `get_gids_for_account $1`; do
     GNAME=`get_group_name $GROUP_ID`
     SECONDARY_GIDS="$SECONDARY_GIDS $GROUP_ID"
-    groupadd -g $GROUP_ID $GNAME
+    groupadd -g $GROUP_ID -f $GNAME
   done
 
   useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1
