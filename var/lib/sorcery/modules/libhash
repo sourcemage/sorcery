@@ -171,6 +171,8 @@ function hash_append() {
 function hash_export() {
   local VARIABLE_NAME
   hash_build_variable_name $1 "" VARIABLE_NAME
+  # make sure the hash has something in it before trying to export it
+  [[ $(eval '${!'$VARIABLE_NAME'*}') ]] &&
   eval 'export ${!'$VARIABLE_NAME'*}'
 }
 

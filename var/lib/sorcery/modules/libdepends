@@ -280,6 +280,14 @@ function private_run_depends()
   # It only needs to be added to the casting hash table if we are
   # really casting it
   if private_should_cast $SPELL ; then
+    # this cant go in private_should_cast because then the dependee wont
+    # have a chance at being fixed, ideally we should check in 
+    # depends/optional_depends and fail there
+    if spell_exiled $1; then
+      message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+               "${CHECK_COLOR}is exiled and will not be cast.${DEFAULT_COLOR}"
+      return 1
+    fi
     get_uncommitted_depends_file $SPELL spell_depends
     if  [  -n  "$RECONFIGURE"  ];  then
       rm  -f  $DEPENDS_CONFIG/$SPELL
@@ -314,8 +322,6 @@ function private_should_cast()
   local decision
   # order is important here...
   if ! codex_does_spell_exist $1; then
-    return 1
-  elif spell_exiled $1; then
     return 1
   elif echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " ; then
     # always look at stuff on the command line unless its exiled
