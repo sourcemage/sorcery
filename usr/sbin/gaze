@@ -73,6 +73,7 @@ section		[section]	List grimoire sections.
 maintainer	[section]	See who is the maintainer for a section
 grimoire	[grimoire]	View a text listing of all grimoires.
                         Or of the specified grimoire.
+grimoires				View list of installed grimoires (Grimoire names only).
 html	[-s]	[grimoire]	View a html listing of all grimoires.
                         Or of the specified grimoire.
                         Additionally displays links to the source files 
@@ -999,6 +1000,23 @@ gaze_show_license_table()  {
 }
 
 
+#---------------------------------------------------------------------
+##=item gaze_show_grimories 
+##
+## Shows lising of installed grmoires by grimoire name only.
+##
+#---------------------------------------------------------------------
+gaze_show_grimoires()  {
+
+	echo  ""
+	echo  ""
+	echo  "Installed Grimoires: " $(codex_get_all_grimoires | get_basenames)
+	echo  ""
+	echo  ""
+	exit
+	
+}
+
 
 #---------------------------------------------------------------------
 ##=item gaze_show_license <spell, section, or license> [<spell, section, or license> ...]
@@ -1159,6 +1177,7 @@ parse()  {
            prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
         grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
+       grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;

@@ -111,18 +111,21 @@ function run_spell_config() {
 function show_depends()  {
   debug "libdepends" "show_depends() - $@"
   local DEP_SPELL=`esc_str $1`
+  local DEPTH=$2
 
   if  !  echo  "$DONE"  |  grep  -q  "$DEP_SPELL";  then
     DONE="$DONE  $1"
 
     function ld99()  {
-      
+
+     [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
+ 
       SPELL=`echo  $1 |  cut  -d :  -f1`
       STATUS=`echo  $1  |  cut  -d :  -f3`
 
       if    [  "$STATUS"  ==  "on"  ]; then
-        echo          $1
-        show_depends  $SPELL
+        echo          $1 
+        show_depends  $SPELL $(( DEPTH + 1 ))
       fi
       
     }
