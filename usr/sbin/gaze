@@ -60,14 +60,17 @@ license		spell [spell]	View the license of the given spell(s)
 license		section [section]	View the licenses of spells in the given
 					section(s)
 license		license [license]	View information about the given license(s).
-compile		spell		View a compile log.
+compile		spell [version]	View a compile log. If no optional version
+				was given, try the installed version,
+				if the spell is not installed use the
+				version in the grimoire.
 sources		spell		List the source files for a spell.
 source_urls	spell		List the source urls for a spell.
 history		spell		Show history for a spell.
 
-sum			[spell]		Prints checksums.
+sum		[spell]		Prints checksums.
 md5sum		[spell]		Prints md5sums.
-export					Make snapshot of box's configuration.
+export				Make snapshot of box's configuration.
 import		snapshot	Restore snapshot.
 
 section		[section]	List grimoire sections.
@@ -1407,11 +1410,13 @@ parse()  {
        checkmd5s)  shift; gaze_md5check               $@ ;;
 
 
-    compile)  if  [  -z  "$VERSION"  ];  then
+    compile)  if  [  -n  "$3"        ];  then
+                  VERSION=$3
+              elif  [  -z  "$VERSION"  ];  then
                   codex_set_current_spell_by_name  $2
               fi
               display  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION   \
-                       "Compile log for $SPELL does not exist"
+                       "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
     install)  display  $INSTALL_LOGS/$SPELL-$VERSION   \
