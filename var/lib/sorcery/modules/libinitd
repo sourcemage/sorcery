@@ -127,7 +127,7 @@ function _init_install_conf_files()
 {
 
   for file in "$@" ; do
-    local target_file=/etc/sysconfig/$file
+    local target_file=$INSTALL_ROOT/etc/sysconfig/$file
     local file=$SCRIPT_DIRECTORY/init.d/$file.conf
 
     if [ ! -f "$file" ] ; then
@@ -208,9 +208,9 @@ function init_install()
   message "Installing $script_name to runlevel $script_runlevel..."
 
   (
-    . /etc/sysconfig/init
+    . ${INSTALL_ROOT}/etc/sysconfig/init
     
-    local runlevel_dir="$RUNLEVELS_DIR/%$script_runlevel"
+    local runlevel_dir="${INSTALL_ROOT}$RUNLEVELS_DIR/%$script_runlevel"
 
     if [ ! -d "$runlevel_dir" ] ; then
       message -n "${PROBLEM_COLOR}"
@@ -259,7 +259,7 @@ function init_post_install()
       set $sp   # $1 - script name, $2 - facility
 
       if ! sedit "s/^\([:space:]*$2\)=.*/\1=$1/" \
-            /etc/sysconfig/facilities ; then
+            $INSTALL_ROOT/etc/sysconfig/facilities ; then
         message -n "${PROBLEM_COLOR}Unable to modify facilities file to make "
         message "$1 provider of $2.${DEFAULT_COLOR}"
       else
