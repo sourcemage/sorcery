@@ -592,7 +592,11 @@ function work_optional_depends_provider()
 
   select_provider "provider" "$default" 1 $CANDIDATES
 
-  private_common_depends "$provider($1)" "on" "optional" "$2" "$3"
+  if [ $provider == "none" ] ; then
+    private_common_depends "($1)" "off" "optional" "$2" "$3"
+  else
+    private_common_depends "$provider($1)" "on" "optional" "$2" "$3"
+  fi
 
 }
 
