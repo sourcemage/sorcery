@@ -38,7 +38,10 @@ else
   CCACHE=""
 fi
 
-COMPILER=/usr/bin/$( basename $0 )
+COMPILER=$( basename $0 )
+
+# Remove this directory from $PATH - we don't want to re-exec this script!
+export PATH=${PATH#*:}
 
 exec $CCACHE $DISTCC $COMPILER "$@"
 
