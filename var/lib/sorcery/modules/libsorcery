@@ -204,7 +204,10 @@ dl_source()  {
                "for spell"                                \
                "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
-      if  get  $*;  then
+      if [ -n "$LEAPFORWARD_URL" ] ; then
+        LFURLFILE="$LEAPFORWARD_URL/$FILE"
+      fi
+      if  get  "$LFURLFILE" $*;  then
         activity_log  "summon"  "$SPELL"  "$VERSION"  "success"  "$URL downloaded"
       else
         message  "${PROBLEM_COLOR}Download of"            \
