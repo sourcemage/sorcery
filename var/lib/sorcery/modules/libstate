@@ -607,14 +607,19 @@ function set_exiled () {
                 message "Spell '$TO_EXILE' exiled."
                 ;;
             "exiled" )
-                message "${MESSAGE_COLOR}Spell '$TO_EXILE' is allready exiled.${DEFAULT_COLOR}"
+                message "${MESSAGE_COLOR}Spell ${DEFAULT_COLOR}'$TO_EXILE'" \
+                    "${MESSAGE_COLOR}is allready exiled.${DEFAULT_COLOR}"
                 ;;
             "installed" )
-                query "'$TO_EXILE' is installed. Do you want to dispel and exile it ?" &&
+                local ask="'$TO_EXILE' is installed."
+                ask="${ask} Do you want to dispel and exile it ?"
+                query "$ask" &&
                 TO_DISPELL="$TO_DISPELL $TO_EXILE"
                 ;;
             * )
-                message "${PROBLEM_COLOR}Can't exile spell '$TO_EXILE' which has status '$MY_STATUS'${DEFAULT_COLOR}"
+                message "${PROBLEM_COLOR}Can't exile spell" \
+                    "${DEFAULT_COLOR}'$TO_EXILE'${PROBLEM_COLOR}" \
+                    "which has status '$MY_STATUS'${DEFAULT_COLOR}"
                 ;;
         esac
     done
@@ -637,7 +642,8 @@ function set_unexiled () {
         if [ x"$MY_STATUS" == x"exiled" ]; then
             remove_spell $TO_UNEXILE
         else
-            message "${MESSAGE_COLOR}Can't unexile spell '$TO_UNEXILE' - it's not exiled${DEFAULT_COLOR}"
+            message "${MESSAGE_COLOR}Can't unexile spell${DEFAULT_COLOR}" \
+                "'$TO_UNEXILE'${MESSAGE_COLOR}, it's not exiled${DEFAULT_COLOR}"
         fi
     done
 }
