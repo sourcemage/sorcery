@@ -868,33 +868,25 @@ function clean_logs()  {
   LOGS=`log_list`
 
   for  FILE  in  `ls  $INSTALL_LOGS`;  do
-    if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
+    if  !  echo  -e  "$LOGS"  |  grep  -q  "^$FILE$";  then
       message  "Removing stale log  :  $INSTALL_LOGS/$FILE "
       rm                               $INSTALL_LOGS/$FILE
     fi
   done
 
   for  FILE  in  `ls  $COMPILE_LOGS`;  do
-    if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
+    if  !  echo  -e  "$LOGS"  |  grep  -q  "^$FILE$";  then
       message  "Removing stale log  :  $COMPILE_LOGS/$FILE "
       rm                               $COMPILE_LOGS/$FILE
     fi
   done
 
   for  FILE  in  `ls  $MD5SUM_LOGS`;  do
-    if  !  echo  -e  "$LOGS"  |  grep  -q  $FILE;  then
+    if  !  echo  -e  "$LOGS"  |  grep  -q  "^$FILE$";  then
       message  "Removing stale log  :  $MD5SUM_LOGS/$FILE "
       rm                               $MD5SUM_LOGS/$FILE
     fi
   done
-
-  for  GRIMOIRENAME  in  `codex_get_all_grimoires`;  do
-    EMPTY=$(  find  $GRIMOIRENAME  -type d  -empty  |  grep  -v  "pam.d"  )
-    if    [  -n  "$EMPTY"  ];  then
-      rmdir   $EMPTY
-    fi
-  done
-
 }
 
 
