@@ -553,10 +553,9 @@ function real_list_add () {
   shift
   local i
   for i in $@; do
-    local j
     local found=0
     function list_add_sub() {
-      if [ "$i" = "$j" ]; then
+      if [ "$i" == "$1" ]; then
         found=1
       fi
     }
@@ -880,6 +879,7 @@ function real_config_query_list () {
     echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
   else
     # we have to ask user
+    message "$QUESTION"
     select_list ANSWER $@
     config_set_option "$VARIABLE" "$ANSWER"
   fi
