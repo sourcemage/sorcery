@@ -995,14 +995,16 @@ update_install_queue()  { (
           [[     -z ${INFO[1]}      ]]	||
 	  	  (( UPDATED  >  ${INFO[1]} ))
 	  then
-
-          push_queue  $INSTALL_QUEUE  $SPELL
-
+            QUEUE="$QUEUE\n$SPELL"
       fi
 
     fi
 
   done
+
+  lock_file $INSTALL_QUEUE
+  echo -e "$QUEUE" | sort | uniq > $INSTALL_QUEUE
+  unlock_file $INSTALL_QUEUE
 
   wait_flag_down
 
