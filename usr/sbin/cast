@@ -104,7 +104,13 @@ function run_conflicts() {
             message "${SPELL_COLOR}"
             echo "$CONFLICTS" | column
             message "${DEFAULT_COLOR}"
-            query "Do you want to dispel these?" "n" && dispel "$CONFLICTS"
+            if  query "Do you want to dispel these?" "n" 
+            then
+              dispel "$CONFLICTS"
+            else
+              echo $SPELL >> $FAILED_LIST
+              return 1
+            fi
         fi
      fi
  }
