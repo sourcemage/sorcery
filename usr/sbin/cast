@@ -173,24 +173,30 @@ use_initd()  { (
     debug "cast" "use_initd: found an init.d directory - processing"
 
     INITDSCRIPTS=""
+    INITDSCRIPTS_DISABLED=""
     . $SPELL_CONFIG
 
     local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
     debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
 
     for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
-      echo  "$INITDSCRIPTS"  |  grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
+      echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
+          grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
       if    query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
         init_prepare_install  $INITSCRIPT
+      else
+        INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
       fi
     done
 
     debug "cast" "saving initscripts"
-    tmp=$( grep -v "^INITDSCRIPTS=" $SPELL_CONFIG )
+    tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
+        $SPELL_CONFIG )
     echo $tmp > $SPELL_CONFIG
     echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
+    echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
   fi
 
 ) }
