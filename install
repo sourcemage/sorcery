@@ -11,16 +11,20 @@ WARNING: You don't appear to have lockexec installed. I'm going to create a
 
 EOS
     echo '#!/bin/sh
+echo ""
+echo "This is a filthy hack used to smooth a difficult upgrade process and"
+echo "it is not the real lockexec. You should cast lockexec as soon as"
+echo "possible."
+echo ""
+read junk
 lockfile=$1
 touch $lockfile
 shift
-"\$@"
+"$@"
 rm $lockfile
 ' > /usr/sbin/lockexec && chmod 755 /usr/sbin/lockexec
 
 fi
-
-exit
 
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
