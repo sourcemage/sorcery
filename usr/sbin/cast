@@ -997,6 +997,7 @@ function resurrect()  {  (
     run_post_install #bug 199
     
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"
+    pop_install_queue "$SPELL"
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     set_successful_cast  "$SPELL"
     clear_line
@@ -1102,6 +1103,7 @@ function cast_spell()  { (
 		report_install						;
   then
 		sound  SUCCESS
+    pop_install_queue "$SPELL"    
 		activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
 	    rm_source_dir
 		echo $SPELL >> $SUCCESS_LIST
