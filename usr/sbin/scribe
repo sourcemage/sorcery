@@ -539,9 +539,21 @@ reindex
 #####################################
 reindex() {
 
-	message -n "Reindexing spell list... "
-	codex_create_cache ${ITEMS[@]}
-	message "done."
+  local paths=""
+  if [ $i_count != 0 ]; then
+    grimoires=`codex_get_all_grimoires`
+	
+    for (( i=0  ; i<i_count ; i++ )) ; do
+		for j in $grimoires; do
+			[[ ${ITEMS[$i]} == `basename "$j"` ]] || continue
+	 		paths="$paths $j"
+		done
+	done
+  fi
+  
+  message -n "Reindexing spell list... "
+  codex_create_cache $paths
+  message "done."
 
 }
 
@@ -697,7 +709,7 @@ main()        {
       f) fix ;;
       t) transcribe ;;
       a) add ;;
-      rm) remove ;;
+      r) remove ;;
       u) update ;;
       set) scribe_set ;;
       swap) swap ;;
