@@ -318,6 +318,27 @@ function make() {
 }
 
 #---------------------------------------------------------------------
+## Install files in a spells "desktop" subdirectory for .desktop
+## @param Spell 
+## @Stdout file name
+#---------------------------------------------------------------------
+function install_desktop_files() { 
+  debug "libgrimoire" "Running install_desktop_files() on $SPELL"
+  local each file
+  local target_dir="/usr/share/applications"
+  local desktop_dir "$SCRIPT_DIRECTORY/desktop"
+
+  mkdir -p $target_dir
+  for each in $desktop_dir/*; do
+    file=$(basename $each)
+    if test -f $FILE && ! test -f $target_dir/$file ; then
+      debug "libgrimoire" "Installing $file in $target_dir as a desktop file"
+      cp $each $target_dir
+    fi
+  done
+}
+
+#---------------------------------------------------------------------
 ## @Type API
 ## @param spell
 ## Returns the current version of the given spell
