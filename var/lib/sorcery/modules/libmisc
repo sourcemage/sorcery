@@ -490,7 +490,7 @@ function select_list()
     let i=0
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR($i)  $SPELL_COLOR$foo$DEFAULT_COLOR"
-        temp[$i]=$foo
+        temp[$i]="$foo"
         let i++
     done
 
@@ -501,9 +501,10 @@ function select_list()
         read number
     done
 
-    echo
+    echo "[${temp[$number]}]"
 
-    eval ''$returnvar'='${temp[$number]}''
+    eval $returnvar=\"${temp[$number]}\"
+	echo done
 }
 
 #---------------------------------------------------------------------
