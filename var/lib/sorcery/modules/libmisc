@@ -532,7 +532,7 @@ function real_list_remove () {
     local i
     
     for i in $@; do
-        eval "$var=\`echo \"\$$var \" | sed  \
+        eval "$var=\`echo \" \$$var \" | sed  \
                -e \"s/[[:space:]]\\+/ /g\"   \
                -e \"s/ $i / /g\"             \
                -r -e \"s/^ (.+) $/\\1/\"\`"
@@ -788,9 +788,20 @@ function real_config_query () {
 function real_config_query_option () {
     local ANSWER
   
-    if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
-        # option allready ANSWERed in config
-        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
+    # If the option exists
+    # If the option contains option_yes or option_no
+    # If RECONFIGURE is not defined
+    if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5 && [ -z "$RECONFIGURE" ]; then
+        # Then option allready ANSWERed in config
+
+        # Find out if the option was 'y' or 'n'
+        list_find "$ANSWER" $4 && key=y
+        list_find "$ANSWER" $5 && key=n
+
+        if [ $key != error ]; then
+            echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
+            return
+        fi
     fi
   
     if query "$2" $3; then
@@ -817,7 +828,6 @@ function real_config_query_option () {
 #---------------------------------------------------------------------
 function real_config_query_string () {
     local ANSWER
-    local RET=0
     
     if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER; then
         # option allready answered in config
