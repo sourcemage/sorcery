@@ -19,10 +19,10 @@
 #    conflicts              (libgrimoire)  
 #    default_build          (libgrimoire)   
 #    default_install        (libgrimoire)   (BUILD_API==2 only)
-#    default_pre_build      (libgrimoire)   
-#    default_pre_install    (libgrimoire)   (BUILD_API==2 only)
 #    default_post_build     (libgrimoire)   (BUILD_API==1 only)
 #    default_post_install   (libgrimoire)   (BUILD_API==2 only)
+#    default_pre_build      (libgrimoire)   
+#    default_pre_install    (libgrimoire)   (BUILD_API==2 only)
 #    depends                (libdepends)
 #    get_spell_provider     (libstate)
 #    installed_version      (libgrimoire)   
@@ -42,15 +42,16 @@
 #    persistent_remove      (libmisc)
 #    persistent_save        (libmisc)
 #    prepare_install        (libgrimoire)   
-#    provider_ok            (libstate)
+#    provider_okay          (libstate)
 #    query                  (libmisc)       
 #    query_string           (libmisc)
 #    requires               (libdepends)
 #    sedit                  (libmisc)       
-#    spell_installed        (libstate)
+#    spell_exiled           (libstate)
 #    spell_held             (libstate)
+#    spell_installed        (libstate)
+#    spell_ok               (libstate)
 #    unpack                 (libgrimoire)   
-
 
 # troublemakers SOURCE_CACHE, OPTS, CFLAGS, CXXFLAGS, CPPFLAGS, CC and LDFLAGS
 
@@ -357,6 +358,18 @@ function spell_held() {
 function spell_ok() {
     debug "libapi" "spell_ok - $*"
     real_spell_ok "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+## @See <@function var.lib.sorcery.modules.libstate.html,real_spell_exiled> for more details.
+##
+## @return 0 if the given spell's status is "exiled"
+#---------------------------------------------------------------------
+function spell_exiled() {
+    debug "libapi" "spell_ok - $*"
+    real_spell_exiled "$@"
 }
 
 #---------------------------------------------------------------------
