@@ -40,10 +40,7 @@ function run_build_spell() {
     VOYEUR_STDERR=/dev/null
   fi
                       
-  (
   run_pre_build				|| return 1
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) > >(tee -a $C_LOG > $VOYEUR_STDOUT) || # see bug 7201
-                                           return $?  # this is needed to pass $? up
 
   run_config_loc                        || return 2  # don't feel like making up a new number
 
