@@ -92,6 +92,8 @@ EOF
 #---------------------
 function args()
 {
+  local rc
+  let rc=0
   while [ $# -gt 0 ] ; do
     arg=$1
     shift
@@ -101,33 +103,49 @@ function args()
       --delint)  
         if [[ $1 == full ]] ; then
           delint full
+          let rc+=$?
           shift
         else
           delint
+          let rc+=$?
         fi
         ;;
       --prune)
         if [[ $1 == doit ]] ; then
           prune_depends doit
+          let rc+=$?
           shift
         else
           prune_depends
+          let rc+=$?
         fi
         ;;
-      --logs)  clean_logs
+      --logs) clean_logs
+        let rc+=$?
         shift
         ;;
-      --fix)  cleanse_fix fix "$*"
-        shift $#          ;;
+      --fix) cleanse_fix fix "$*"
+        let rc+=$?
+        shift $#
+        ;;
       --nofix) cleanse_fix nofix "$*"
-        shift $#          ;;
+        let rc+=$?
+        shift $#
+        ;;
       --nofix_quick) cleanse_fix quick "$*"
-        shift $#          ;;
-      --sweep)  prune         ;;
-      --packages)  packages       ;;
+        let rc+=$?
+        shift $#
+        ;;
+      --sweep) prune
+        let rc+=$?
+        ;;
+      --packages) packages
+        let rc+=$?
+        ;;
       *)  usage $arg $* ; return 1  ;;
     esac
   done
+  return ${rc:-0}
 }
 
 #-------------------
@@ -467,7 +485,6 @@ function cleanse_fix()
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
                  "is broken${DEFAULT_COLOR} and not being fixed\n"
         HOPELESS="${HOPELESS}${SPELL}"$'\n'
-        return 1
       fi
     done
   else
@@ -968,8 +985,10 @@ if [ $UID -eq 0 ] ; then
     exit 1
   fi
   args "$@"
+  rc=$?
   rm -rf $TMP_DIR
   message "Removed information is backed up to $BACKUPDIR."
+  exit $rc
 else
   if [[ $1 == --help ]] ; then
     usage
