@@ -932,13 +932,13 @@ function process_parameters()  {
                        if  [  -s $INSTALL_QUEUE  ]; then
                          message -n "${MESSAGE_COLOR}Casting install queue..."
                          message    "${DEFAULT_COLOR}"
-                         cast -c `cat $INSTALL_QUEUE`
+                         cast -c `cat $INSTALL_QUEUE 2>/dev/null`
                          #rm $INSTALL_QUEUE
                          if  [  -s  $INSTALL_QUEUE  ] ; then
                            message "${MESSAGE_COLOR}The install queue is not empty, "
                            message "it still contains the following spells: "
                            message "---------------------------------${PROBLEM_COLOR}"
-                           message "`cat $INSTALL_QUEUE`"
+                           message "`cat $INSTALL_QUEUE 2>/dev/null`"
                            message "${DEFAULT_COLOR}"
                          fi
                        fi;                               
@@ -1328,8 +1328,8 @@ function pass_five()  {
   touch $SUCCESS_LIST
   touch $FAILED_LIST
   
-  debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST`"
-  debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST`"
+  debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
+  debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
 
   if [ -e $SUCCESS_LIST ] ; then
 
@@ -1338,7 +1338,7 @@ function pass_five()  {
 	  message "Spells installed successfully:"
 	  message "------------------------------${SPELL_COLOR}"
 
-	  for item in `cat $SUCCESS_LIST`; do
+	  for item in `cat $SUCCESS_LIST 2>/dev/null`; do
     	message "$item"
 	  done | column
    
@@ -1362,7 +1362,7 @@ function pass_five()  {
     #    message "$item"
 	  #  fi
 
-    for item in `cat $FAILED_LIST`; do
+    for item in `cat $FAILED_LIST 2>/dev/null`; do
       message "$item"
     done | column
 
@@ -1406,7 +1406,7 @@ function int_trap()
 
 function cleanup() {
   
-  debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END`"
+  debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
 
 }
