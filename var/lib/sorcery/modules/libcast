@@ -1,0 +1,666 @@
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Functions for dealing with the actual compiling/installation of spells
+## and walking through casts 'pass 4' pipeline.
+##
+##=head1 DESCRIPTION
+##
+## A spell follows the following path during its installation:
+## PREPARE -> DETAILS -> PRE_BUILD -> BUILD, or COMPILE/INSTALL ->
+## POST_BUILD -> POST_INSTALL -> TRIGGERS
+## Each of these steps, along with some interim steps of dealing with
+## conflicts and security are handled here as weell.
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2002 The Source Mage Team <http://www.sourcemage.org>
+##
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## Prompts the user about spells that are in conflict with the current
+## spell and allows them to dispel them. If the user chooses not to
+## dispel the conflicting spell, the function returns 1
+## @return nothing if the user dispels the conflicting spell
+## @return 1 if the user chooses not to dispel the conflicting spell
+#---------------------------------------------------------------------
+function run_conflicts() {
+    
+  debug "cast" "Starting run_conflicts() on $SPELL"
+
+  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
+    local CONFLICTS=$( . $SCRIPT_DIRECTORY/CONFLICTS )
+
+    local tmp to_dispel=""
+    for  tmp  in  $CONFLICTS  ;  do
+      local spell_and_default
+      explode  $tmp  ':'  spell_and_default
+
+      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}."
+      text="$text Dispel"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
+
+      if  query  "$text"  ${spell_and_default[1]}  ;  then
+	to_dispel="$to_dispel ${spell_and_default[0]}"
+      else
+        echo  $SPELL  >>  $FAILED_LIST
+        return  1
+      fi
+
+      dispel  $to_dispel
+    done
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+## Prompts the user about possible security problems with the current
+## spell. Allows a safe way of failing a spell due to security problems.
+## @return 0 if there are no security problem or the user acknowledges them.
+## @return 1 if the user decides not to accept the security concerns
+#---------------------------------------------------------------------
+# checks for a security file
+# returns 0 if spell should be cast, 1 otherwise
+function run_security() {
+    debug "cast" "Starting run_security() on $SPELL"
+    if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
+      echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
+      tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
+        if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
+          if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
+            return 0
+          fi
+          return 1
+        else
+          if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
+            return 0
+          fi
+          return 1
+        fi
+    fi
+    return 0
+}
+
+
+#---------------------------------------------------------------------
+## Loads up this environment with the special configuration values
+## that the spell needs. Typically the mode of communication between
+## CONFIGURE/DEPENDS to PRE_BUILD, BUILD, COMPILE, INSTALL, etc.
+#---------------------------------------------------------------------
+function prepare_spell_config()  {
+
+  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+  if  !  [  -x  $SPELL_CONFIG  ];  then
+    touch       $SPELL_CONFIG
+    chmod  a+x  $SPELL_CONFIG
+  fi
+
+  . $SPELL_CONFIG
+
+}
+
+#---------------------------------------------------------------------
+## Prompts the user if they want to invoke the services in
+## SCRIPT_DIRECTORY/xinetd.d/* via xinetd.
+## An optional depends is set on or off depending on whether or not
+## the user wants to invoke a spell via xinetd
+#---------------------------------------------------------------------
+function use_xinetd()  { (
+
+  debug "cast" "In use_xinetd()"
+  
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ]  &&
+      !  grep  -q  "SERVICES="  $SPELL_CONFIG
+  then
+
+    debug "cast" "use_xinetd: found an xinetd directory - processing"
+    ALL_SERVICES=`cat  $SCRIPT_DIRECTORY/xinetd.d/*  |
+                  grep  "service"                    |
+                  sed   "s/service //"`
+                  
+    debug "cast" "use_xinetd: ALL_SERVICES: '$ALL_SERVICES'"
+
+    # only looking for services to install, non-selected services
+    # will be installed and disabled in install_xinetd_confs().
+    for  SERVICE  in  $ALL_SERVICES;  do
+      if    query  "Invoke $SERVICE via xinetd?"  y
+      then 
+        SERVICES="$SERVICE $SERVICES"
+      else
+        SERVICES_DISABLE="$SERVICE_DISABLE $SERVICES_DISABLE" 
+      fi
+    done
+
+    debug "cast" "use_xinetd: to install SERVICES: '$SERVICES'"
+    debug "cast" "use_xinetd: to disable SERVICES_DISABLE: '$SERVICES_DISABLE'"
+    debug "cast" "setting up depends for services"
+
+    for  SERVICE  in  $SERVICES;  do
+      for  FILE  in  `ls  $SCRIPT_DIRECTORY/xinetd.d/*`;  do
+
+         if  grep  -q   "service $SERVICE"  $FILE   &&
+             grep  -q   "stunnel"           $FILE;  then
+           add_depends  "$SPELL"  "stunnel"  "on"  "optional"
+         fi
+
+      done
+    done
+
+    if    [  -n  "$SERVICES"  ]
+    then  add_depends  "$SPELL"  "xinetd"  "on"   "optional"
+    else  add_depends  "$SPELL"  "xinetd"  "off"  "optional"
+    fi
+
+    echo  "SERVICES=\"$SERVICES\""  >>  $SPELL_CONFIG
+		echo  "SERVICES_DISABLE=\"$SERVICES_DISABLE\""  >> $SPELL_CONFIG
+
+  fi
+
+) }
+
+#---------------------------------------------------------------------
+## Installs the services selected from use_xinetd
+#---------------------------------------------------------------------
+function install_xinetd() { (
+
+  if  [  -d  $SCRIPT_DIRECTORY/xinetd.d  ] 
+  then
+		
+    SERVICES=""          # services to be installed.
+		SERVICES_DISABLE=""  # services not to install.
+    . $SPELL_CONFIG
+    debug "cast" "use_xinetd: about to call install_xinetd_confs"
+
+		if  [  -n  "$SERVICES"  ] ; then
+  		# now we install the selected services.
+			install_xinetd_confs $SERVICES
+		fi
+	fi
+) }
+
+#---------------------------------------------------------------------
+## Prompts the user if they want the init.d scripts the current spell
+## has to be installed.
+#---------------------------------------------------------------------
+# Automagic initscript installation.
+function use_initd()  { (
+
+  debug "cast" "In use_initd()"
+
+  INITDSCRIPTS=""
+  INITDSCRIPTS_DISABLED=""
+
+  if  [  -d  $SCRIPT_DIRECTORY/init.d  ]  ; then
+    debug "cast" "use_initd: found an init.d directory - processing"
+
+    . $SPELL_CONFIG
+
+    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+    debug "cast" "use_initd: ALL_INITSCRIPTS: '$ALL_INITSCRIPTS'"
+
+    for  INITSCRIPT  in  $ALL_INITSCRIPTS  ;  do
+      echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
+          grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
+
+      if  query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
+        INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
+        init_prepare_install  $INITSCRIPT
+      else
+        INITDSCRIPTS_DISABLED="$INITSCRIPT $INITDSCRIPTS_DISABLED"
+      fi
+    done
+  fi
+    
+  tmp=$(  grep  -v  -e '^INITDSCRIPTS='  -e '^INITDSCRIPTS_DISABLED='  \
+      $SPELL_CONFIG )
+  echo "$tmp" > $SPELL_CONFIG
+  echo  "INITDSCRIPTS=\"$INITDSCRIPTS\""  >>  $SPELL_CONFIG
+  echo  "INITDSCRIPTS_DISABLED=\"$INITDSCRIPTS_DISABLED\"" >> $SPELL_CONFIG
+) }
+
+#---------------------------------------------------------------------
+## Copies any init.d files from the SCRIPT_DIRECTORY to the /etc/init.d.
+## Hopefully saving the old one if it exists and only setting the
+## executable bit if the user specified that the init.d script should be
+## started at bootup.
+#---------------------------------------------------------------------
+function install_initd() { (
+    debug "cast" "use_initd: to install INITDSCRIPTS: '$INITDSCRIPTS'"
+    debug "cast" "use_initd: to disable INITDSCRIPTS_DISABLED: '$INITDSCRIPTS_DISABLED'"
+    debug "cast" "saving initscripts"
+    
+    INITDSCRIPTS=""
+    INITDSCRIPTS_DISABLED=""
+    . $SPELL_CONFIG
+
+#    local ALL_INITSCRIPTS=`ls  $SCRIPT_DIRECTORY/init.d/ | grep  -v  '\.conf$'`
+    # now we install the selected scripts.
+    if  [  -n  "$INITDSCRIPTS"  ] ; then
+      debug "cast" "use_initd: about to call install_initd_confs"
+      install_initd_confs enabled $INITDSCRIPTS
+    fi
+
+    # and disable the others.
+    if  [  -n  "$INITDSCRIPTS_DISABLED"  ] ; then
+      debug "cast" "use_initd: about to disable : '$INITDSCRIPTS_DISABLED'"
+      install_initd_confs disabled $INITDSCRIPTS_DISABLED
+    fi
+    
+) }
+
+#---------------------------------------------------------------------
+## This phase of casting involves unpacking the source into the
+## source directories. If a PRE_BUILD file exists in SCRIPT_DIRECTORY
+## and is executable it is run in preference to the default_pre_build.
+#---------------------------------------------------------------------
+function run_pre_build() {
+
+  debug "cast" "run_pre_build()"
+  message  "${MESSAGE_COLOR}Building"  \
+           "${SPELL_COLOR}${SPELL}"    \
+           "${DEFAULT_COLOR}"
+
+  cd  $BUILD_DIRECTORY
+
+  verify_sources &&
+  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
+    debug "cast" "run_pre_build() - Prebuild script exists, now sourcing "
+    . $SCRIPT_DIRECTORY/PRE_BUILD
+  else
+    debug "cast" "run_pre_build() - Prebuild script not found, using default"
+    default_pre_build
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## Takes the compile log, created by activate_voyeur and stuffs it into
+## our compile log directory.
+#---------------------------------------------------------------------
+function create_compile_log()  {
+
+  message  "${MESSAGE_COLOR}Creating"                        \
+           "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.bz2"  \
+           "${DEFAULT_COLOR}"
+
+  bzip2  -9f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION.bz2
+  rm             $C_LOG
+  rm             $C_FIFO
+
+}
+
+
+#---------------------------------------------------------------------
+## Prompts the user to view the compile log
+#---------------------------------------------------------------------
+function view_compile_log()  {
+
+    sleep   1
+    report              $C_LOG  "Compile log"
+
+}
+
+
+#---------------------------------------------------------------------
+## Turns on logging of the output from BUILD/COMPILE/INSTALL
+## Needs to be run after each script finishes because tee stops writing
+## upon EOF.
+#---------------------------------------------------------------------
+function activate_voyeur()  {
+
+  if  [  -z  "$SILENT"  ];  then
+    case  $VOYEUR  in
+      on)  tee  -a  $C_LOG  <  $C_FIFO              &  ;;
+       *)  tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &  ;;
+    esac
+  else     tee  -a  $C_LOG  <  $C_FIFO  >/dev/null  &
+  fi
+
+}
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function run_config_loc () {
+  if  [ -x ./configure ] || [ -x ./src/configure ] ; then
+		
+    if  [[  $CONFIG_LOC  == on  ]]; then
+
+      if  [  !  -d  $SM_CONFIG_OPTION_CACHE  ] ; then
+        mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
+      fi
+
+      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
+        message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
+        message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
+        cat $SM_CONFIG_OPTION_CACHE/$SPELL | column
+      fi
+
+      if    query  "Do you wish to add -- options to ./configure?"  n ;  then
+				F_TMP=/tmp/cast.$$.configure
+        rm -f $F_TMP
+				
+        if [ -x ./configure ]; then
+          ./configure --help > $F_TMP
+        elif [ -x ./src/configure ]; then
+          ./src/configure --help > $F_TMP
+        fi
+
+        if [ -f $F_TMP ]; then
+          sedit 's/^/# /' $F_TMP
+        fi
+
+        cat $SM_CONFIG_OPTION_CACHE/$SPELL >> $F_TMP 2>/dev/null
+        edit_file $F_TMP
+        rm -f $SM_CONFIG_OPTION_CACHE/$SPELL
+        sedit '/^#.*$/d' $F_TMP
+        mv $F_TMP $SM_CONFIG_OPTION_CACHE/$SPELL
+      fi
+
+      # load custom OPTS
+      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
+        OPTS="$OPTS $(cat $SM_CONFIG_OPTION_CACHE/$SPELL)"
+        message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
+      fi
+
+    fi
+
+  fi
+}
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function run_build()  {
+
+  debug "cast" "Starting run_build()"
+   C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  rm  -f $C_FIFO
+  mkfifo  $C_FIFO
+  rm  -f $C_LOG
+  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+
+  activate_voyeur
+
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY
+
+  invoke_build_dir
+  invoke_gcc2
+  optimize
+  invoke_installwatch
+
+  message -n "Installing in dir: "
+  pwd
+  message "$SPELL    $VERSION"
+
+  run_config_loc
+
+  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
+    .  $SCRIPT_DIRECTORY/BUILD
+  else
+    default_build
+  fi &&
+
+  install_xinetd &&
+  install_initd
+
+  if  [  "$?"  ==  0  ];  then
+    create_compile_log
+  else
+    sound  FAILURE
+    message  "${PROBLEM_COLOR}"      \
+             "! Problem Detected !"  \
+             "${DEFAULT_COLOR}"
+    view_compile_log
+    create_compile_log
+    false
+  fi
+
+}
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function run_compile()  {
+
+  debug "cast" "Starting run_compile()"
+   C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  rm  -f $C_FIFO
+  mkfifo  $C_FIFO
+  rm  -f $C_LOG
+  echo  "Compile log for $SPELL  $VERSION  Built on `date  -u`"  >  $C_LOG
+  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+
+  activate_voyeur
+
+  [  -d  "$SOURCE_DIRECTORY"  ]  &&
+  cd      $SOURCE_DIRECTORY
+
+  invoke_build_dir
+  invoke_gcc2
+  optimize
+  invoke_installwatch
+
+  message -n "Installing in dir: "
+  pwd
+  message "$SPELL    $VERSION"
+
+  run_config_loc
+
+  if  [  -x  $SCRIPT_DIRECTORY/COMPILE  ];  then
+    .  $SCRIPT_DIRECTORY/COMPILE
+  else
+    default_compile
+  fi
+}
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function run_install() {
+  debug "cast" "Starting run_install()"
+  #turn voyeur back on, very important, INSTALL will hang otherwise
+
+   C_LOG=/tmp/$SPELL.compile.log
+  C_FIFO=/tmp/$SPELL.compile.fifo
+
+  [ -w $C_FIFO ] || mkfifo $C_FIFO
+
+  activate_voyeur
+
+  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
+    .  $SCRIPT_DIRECTORY/INSTALL 
+  else
+    default_install
+  fi &&
+  install_xinetd &&
+  install_initd
+
+  if  [  "$?"  ==  0  ];  then
+    create_compile_log
+  else
+    sound  FAILURE
+    message  "${PROBLEM_COLOR}"      \
+             "! Problem Detected !"  \
+             "${DEFAULT_COLOR}"
+    view_compile_log
+    create_compile_log
+    false
+  fi
+}
+
+#---------------------------------------------------------------------
+## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
+## executable, runs it. This file is run after BUILD/INSTALL and before
+## POST_INSTALL. Its purpose is to bookend INSTALL and shutoff installwatch.
+#---------------------------------------------------------------------
+function run_post_build() {
+
+  if  [  -x  $SCRIPT_DIRECTORY/POST_BUILD  ];  then
+           . $SCRIPT_DIRECTORY/POST_BUILD
+  else
+    default_post_build
+  fi
+
+  # Lock made in prepare_install
+  unlock_resources "libgrimoire" "install"
+
+}
+
+
+#---------------------------------------------------------------------
+## Checks for a POST_INSTALL file in SCRIPT_DIRECTORY, and if it is
+## executable, runs it. This file is used for extra files that need
+## to be installed, but not tracked by installwatch.
+#---------------------------------------------------------------------
+function run_post_install() {
+
+  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]
+  then       . $SCRIPT_DIRECTORY/POST_INSTALL
+  fi
+}
+
+#---------------------------------------------------------------------
+## Checks for a TRIGGERS file in SCRIPT_DIRECTORY, and if it is
+## executable, runs it.
+#---------------------------------------------------------------------
+function run_triggers() {
+
+  if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
+  then       . $SCRIPT_DIRECTORY/TRIGGERS
+  fi
+
+}
+
+
+
+
+
+
+#---------------------------------------------------------------------
+## @param spellname
+## calls run_details and returns the returnvalue of
+## [ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ]
+#---------------------------------------------------------------------
+function can_resurect()  {
+	debug "cast" "can_resurect - $*"
+	run_details		&&
+	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
+	debug "cast" "I am able to resurect."
+}
+
+function resurrect()  {  (  
+
+  debug "cast" "resurect - $*"
+
+  run_prepare   &&
+  can_resurect
+#  run_details  run by can_resurect now
+
+  STATUS=installed
+
+  if  spell_held  $SPELL;  then
+    VERSION=`installed_version  $SPELL`
+     STATUS=held
+    dispel --notriggers $SPELL
+  fi
+
+  CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
+
+  if bzip2  -tf  $CACHE_BZ ; then
+    
+    run_conflicts    &&
+    satisfy_depends  &&
+    bzip2         -cd   $CACHE_BZ  |  tar  -Pkx  1>/dev/null  2>&1
+    run_post_install #bug 199
+    run_triggers
+    
+    add_spell     "$SPELL"  "$STATUS"  "$VERSION"
+    pop_install_queue "$SPELL"
+    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
+    set_successful_cast  "$SPELL"
+    clear_line
+    message  "${RESURRECT_COLOR}Resurrected spell:"  \
+             "${SPELL_COLOR}${SPELL}"                \
+             "${DEFAULT_COLOR}"                      \
+             "version"                               \
+             "${VERSION_COLOR}${VERSION}"            \
+             "${DEFAULT_COLOR}"
+    cast  --fix  $SILENT  $SPELL && echo $SPELL >> $SUCCESS_LIST
+  else
+    echo $SPELL >> $FAILED_LIST
+    false
+  fi
+
+  # run ldconfig 
+	message "${MESSAGE_COLOR}Updating the shared libraries ...${DEFAULT_COLOR}"
+  release_saved_libraries
+
+)  }
+
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function show_download_progress()  {
+
+  if  [  -f  "$D_LOG"   ]   &&
+      [  -z  "$SILENT"  ];  then
+
+    LC_OLD=${LC_OLD:-0}
+
+    LC=`cat  $D_LOG  2>/dev/null  |  wc  -l  |  tr  -d ' '`
+
+    if  [  "$LC"  !=  "$LC_OLD"  ];  then
+      ((  LC_OLD++  ))
+      sed  -n ${LC_OLD},${LC}p  $D_LOG
+      LC_OLD=$LC
+    fi
+
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function show_downloading()  {
+
+#  COMPILE="y"
+  debug "cast" "Started show_downloading() on $SPELL"
+  while ! ( [[ $D_LOG ]] && 
+            [  -f "$D_LOG"  ] ) 
+  do
+    sleep 1
+  done
+
+  #The file is created in run_summon
+  until [  -f "${D_LOG}.done.$SPELL"  ] ;  do
+    show_download_progress
+    sleep 1
+  done
+  
+  rm "${D_LOG}.done.$SPELL"
+  show_download_progress
+
+}
+
+
+#---------------------------------------------------------------------
+#---------------------------------------------------------------------
+function report_install()  {
+
+#  rm  -f  $BOOST_LOCK
+  INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
+  report  $INST_LOG  "Install log"
+
+}
+
+
+
+
