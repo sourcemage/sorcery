@@ -1035,7 +1035,8 @@ function parallel_compilation_menu() {
                           23 70 9 \
                           DISTCC_HOSTS "$DISTCC_HOSTS" \
                           JOBS_PER_HOST "$JOBS_PER_HOST" \
-                          EXTRA_JOBS "$MAKE_NJOBS"'`)
+                          EXTRA_JOBS "$MAKE_NJOBS" \
+                          CCACHE_DIR "$CCACHE_DIR"'`)
     rc=$?
     [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
     set ${RESULTS[*]}
@@ -1045,6 +1046,7 @@ function parallel_compilation_menu() {
       DISTCC_HOSTS) DISTCC_HOSTS="$@"  ;;
       JOBS_PER_HOST) JOBS_PER_HOST="$@" ;;
       EXTRA_JOBS) MAKE_NJOBS="$@" ;;
+      CCACHE_DIR) CCACHE_DIR="$@" ;;
     esac
   done
 
@@ -1053,9 +1055,9 @@ function parallel_compilation_menu() {
     modify_config $LOCAL_COMPILE_CONFIG DISTCC_HOSTS "$DISTCC_HOSTS"
     modify_config $LOCAL_COMPILE_CONFIG JOBS_PER_HOST "$JOBS_PER_HOST"
     modify_config $LOCAL_COMPILE_CONFIG MAKE_NJOBS "$MAKE_NJOBS"
+    modify_config $LOCAL_COMPILE_CONFIG CCACHE_DIR "$CCACHE_DIR"
   fi
 }
-
 
 set_branch() {
 
@@ -1456,7 +1458,7 @@ option_menu()  {
                       "E"  "Email of Sorcerer"        "$E_HELP" \
                       "F"  "Feature Menu"             "$F_HELP" \
                       "I"  "Integrity Checking"       "$I_HELP" \
-                      "C"  "parallel/distribute compilation"  "$C_HELP" \
+                      "C"  "Parallel/Cached/Distributed Compiling"  "$C_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
                       "T"  "Compression Type"         "$T_HELP" \
