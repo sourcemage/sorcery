@@ -34,29 +34,22 @@ function create_account() {
   ACCOUNT_UID=`get_uid_for_account $1`
   PRIMARY_GID=`get_primary_gid_for_account $1`
   PRIMARY_GNAME=`get_group_name $PRIMARY_GID`
-  # PRIMARY_GNAME=$1  the previous line and this one kinda conflict... commenting this one (Duff 03/01/24)
 
   debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME"
 
   groupadd -g $PRIMARY_GID -f $PRIMARY_GNAME
 
-  for GROUP_ID in `get_gids_for_account $1`; do
-    GNAME=`get_group_name $GROUP_ID`
-    SECONDARY_GIDS="$SECONDARY_GIDS $GROUP_ID"
-    groupadd -g $GROUP_ID -f $GNAME
-  done
-
 	# check for adding user problems and try to notify user.
 	useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME -G "$SECONDARY_GIDS" -d /var -s /bin/sh $1
-	USERADD_RETURN=$(echo $?)
+	USERADD_RETURN=$?
 	debug "libgrimoire.create_account()" "useradd return code was: $USERADD_RETURN"
 	
-	if  [  $USERADD_RETURN  ==  4  ]
-	then 
+  if    [  $USERADD_RETURN  ==  0  ] ; then 
+		message "${MESAGE_COLOR}The user id $ACCOUNT_UID created!${DEFAULT_COLOR}"
+	elif  [  $USERADD_RETURN  ==  4  ] ; then 
 		message "${MESAGE_COLOR}The user id $ACCOUNT_UID already exists, so continuing...${DEFAULT_COLOR}"
 		return 0
-	elif  [  $USERADD_RETURN  ==  9  ]
-	then
+	elif  [  $USERADD_RETURN  ==  9  ] ; then
 		message "${MESAGE_COLOR}The user name $1 already exists, so continuing...${DEFAULT_COLOR}"
 		return 0
 	else
