@@ -38,11 +38,7 @@
 ##      
 ##=head1 COPYRIGHT
 ##
-## Copyright 2005 by Maurizio Boriani for the Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
+## Copyright 2005 the SourceMage Team
 ##
 ## ----------------------------------------------------------------------------
 
@@ -65,8 +61,9 @@ url_tla_strip_prefix() {
 ##
 # -----------------------------------------------------------------------------
 url_tla_download() { 
-    if ! spell_installed tla; then
-	return 1;
+    if test -x /usr/bin/tla ; then
+        message "${PROBLEM_COLOR}Missing tla command${DEFAULT_COLOR}"
+        return 1;
     fi
     
     local               URL=`url_tla_strip_prefix "$1"`
@@ -74,61 +71,59 @@ url_tla_download() {
     local       TLA_ARCHIVE=`echo $URL|cut -d"%" -f2`
     local      TLA_REVISION=`echo $URL|cut -d"%" -f3`
 
-    if [ -z "$TLA_LOCATION" -o -z "TLA_ARCHIVE" -o -z "TLA_REVISION" ];
-    then 
-	message "${PROBLEM_COLOR}Missing required url args...${DEFAULT_COLOR}"
-	return 1;
+    if [ -z "$TLA_LOCATION" -o -z "$TLA_ARCHIVE" -o -z "$TLA_REVISION" ]; then 
+        message "${PROBLEM_COLOR}Missing required url args...${DEFAULT_COLOR}"
+        return 1;
     fi
 
-    S_FILE=`message $FILE         |
+    S_FILE=`echo $FILE         |
             sed "s/\.tar\.gz$//"  |
             sed "s/\.tgz$//"      |
             sed "s/\.tar\.bz2$//"`
 
     if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
-	message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
-	tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
-	message "${MESSAGE_COLOR}Running tla update...${DEFAULT_COLOR}"
-	if ! [ -d $S_FILE ];
-        then
-	    message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
-	    return 1
+        message "${MESSAGE_COLOR}Previous source found." \
+                "Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
+        tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
+        message "${MESSAGE_COLOR}Running tla update...${DEFAULT_COLOR}"
+        if ! [ -d $S_FILE ]; then
+            message "${PROBLEM_COLOR}Tarball unpacked to unknown" \
+                    "location...${DEFAULT_COLOR}"
+            return 1
         fi
-	if cd $S_FILE ; then
-	    tla register-archive $$TLA_ARCHIVE $TLA_LOCATION
-	    tla update $TLA_ARCHIVE/$TLA_REVISION
-	    tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION
-	    cd ..
-	fi
+        pushd $S_FILE &>/dev/null &&
+        tla register-archive $$TLA_ARCHIVE $TLA_LOCATION &&
+        tla update $TLA_ARCHIVE/$TLA_REVISION &&
+        tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION &&
+        popd || {
+            message "${PROBLEM_COLOR}Error updating cached archive" \
+                    "${DEFAULT_COLOR}"
+            return 1
+        }
     else
-	message "${MESSAGE_COLOR}Running tla get...${DEFAULT_COLOR}"
-	tla register-archive $TLA_ARCHIVE $TLA_LOCATION
-	tla get -A $TLA_ARCHIVE $TLA_REVISION $S_FILE
-	tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION
-	if ! [ -d $S_FILE ];
-        then
-	    message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
-	    return 1
+        message "${MESSAGE_COLOR}Running tla get...${DEFAULT_COLOR}"
+        tla register-archive $TLA_ARCHIVE $TLA_LOCATION &&
+        tla get -A $TLA_ARCHIVE $TLA_REVISION $S_FILE &&
+        tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION || {
+            message "${PROBLEM_COLOR}Error checking out archive" \
+                    "${DEFAULT_COLOR}"
+            return 1
+        }
+        if ! [ -d $S_FILE ]; then
+            message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
+            return 1
         fi
     fi
 
     if [[ $nocache == 1 ]] ; then
-      return $?
+      return 0
     fi
 
-    if [ $? == 0 ]; then
-	message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
-	if ! [ -d $S_FILE ];
-        then
-	    message "${PROBLEM_COLOR}Revision not found...${DEFAULT_COLOR}"
-	    return 1
-        fi
-	tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/
-	rm -fr $S_FILE/
-	FILE=$S_FILE.tar.bz2
-    else
-	false;
-    fi
+    message "${MESSAGE_COLOR}Creating package" \
+            "$S_FILE.tar.bz2...${DEFAULT_COLOR}"
+    tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/ &&
+    rm -fr $S_FILE/ &&
+    FILE=$S_FILE.tar.bz2
 
 }
 
@@ -136,8 +131,7 @@ url_tla_download() {
 # -----------------------------------------------------------------------------
 ##=item url_tla_verify <url>
 ## 
-## Verifies the specified tla url exists.  Returns true for now until
-## I get around to implementing it.
+## Verifies the specified tla url exists.  Returns true for now...
 ##
 # ----------------------------------------------------------------------------
 url_tla_verify() {
@@ -155,30 +149,54 @@ url_tla_set_options() {
   eval "$1=1"
 }
 
+#---------------------------------------------------------------------
+##=item url_tla_hostname <url>
+##
+## Get the hostname of the url
+##
+#---------------------------------------------------------------------
+function url_tla_hostname() {
+  local P1=$(echo $1|cut -d"%" -f1)
+  echo $P1|sed 's#^.*://\([^/:]*\)[/:].*$#\1#'
+}
 
-# -----------------------------------------------------------------------------
+#---------------------------------------------------------------------
+##=item url_svn_netselect <url>
+##
+## Gets a netselect type output for the url
+##
+#---------------------------------------------------------------------
+function url_tla_netselect() {
+  local tmp_hostname url_speed each
+
+  for each in $@ ; do
+    tmp_hostname=$(url_tla_hostname $each)
+    # since we had to pull the url appart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
+}
+
+
+#---------------------------------------------------------------------
 ##=back
 ##
 ##=head1 LICENSE
 ##
-## URL handler for tla archive downloads
-## Copyright (C) 2004 Free Software Foundation, Inc.
-## Written by Maurizio Boriani <baux@member.fsf.org>
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
 ##
-## This file is part of the GNU sorcery.
-##
-## The GNU url_tla is free software; you can redistribute it and/or
-## modify it under the terms of the GNU Lesser General Public
-## License as published by the Free Software Foundation; either
-## version 2.1 of the License, or (at your option) any later version.
-##
-## The url_tla is distributed in the hope that it will be useful,
+## This software is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-## Lesser General Public License for more details.
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
 ##
-## You should have received a copy of the GNU Lesser General Public
-## License along with the GNU C Library; if not, write to the Free
-## Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-## 02111-1307 USA.
-## ---------------------------------------------------------------------------
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
