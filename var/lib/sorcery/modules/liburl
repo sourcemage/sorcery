@@ -1,11 +1,8 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
-## 
-## Functions that download and verify urls.
+## @Synopsis Functions that download and verify urls.
 ##
-##=head1 DESCRIPTION
 ##
 ## This file contains functions for downloading and verifying urls.
 ## It does this by fowarding url download and verification requests to
@@ -30,25 +27,25 @@
 ## The following section describes how to add new url handlers in
 ## a little more detail.
 ##
-##=head1 WRITING NEW URL HANDLERS
+## <p>WRITING NEW URL HANDLERS</p>
 ##
 ## This section describes the steps needed to write new url handlers.
 ##
-##=head2 Decide on the Url Format
+## <p>Decide on the Url Format</p>
 ##
 ## Urls must be of the form <prefix>://<address>.  The prefix should
 ## be something unique.  Only the prefix is used by this script,
 ## the address is not parsed or used, simply passed to the appropriate
 ## url handler.
 ##
-##=head2 Create a File to Hold the New Url Handling Functions
+## <p>Create a File to Hold the New Url Handling Functions</p>
 ##
 ## In the SGL library directory (i.e., the directory pointed to by the
 ## SGL_LIBRARY variable), create a new file called url_<prefix>.  For
 ## example, if your new url prefix is I<xyz>, you should create a new
 ## file called F<url_xyz>.  The file should be executable.
 ##
-##=head2 Implement Url Handlers
+## <p>Implement Url Handlers</p>
 ##
 ## The next (and final) step is to write the actual functions that
 ## will handle url requests and put them in the new file you just
@@ -62,19 +59,14 @@
 ## The easiest way to figure out what to do is to look at
 ## one of the existing files (e.g., url_http handles http requests).
 ##
-##=head2 Handling Multiple Url Types in a Single File
+## <p>Handling Multiple Url Types in a Single File</p>
 ##
 ## It's perfectly valid for a file to handle mutlple types of urls.
 ## The F<url_http> file actually handles ftp, http, and https urls.
 ## Take a look at the file to see how it's done.
 ##
-##=head1 COPYRIGHT
 ##
-## Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
+## @Copyright Copyright 2002 by the Source Mage Team
 ##
 #---------------------------------------------------------------------
 
@@ -98,26 +90,32 @@ fi
 
 
 #---------------------------------------------------------------------
-# url_name_is_function <function name>
-# 
-# Private Function.  Returns true if input argument is the name of an
-# existing function, false otherwise.
-#
+## url_name_is_function <function name>
+## @param function name
+## @Type Private
+## @return 0 if argument is a valid function
+## @return 1 otherwise
+## Returns true if input argument is the name of an
+## existing function, false otherwise.
+##
 #---------------------------------------------------------------------
-url_is_function()  {
+function url_is_function()  {
   local  FUNCTION_NAME=$1
   [  "`type -t $FUNCTION_NAME`"  =  "function"  ]
 }
 
 
 #---------------------------------------------------------------------
-# url_get_prefix <url>
-# 
-# Private Function.  Takes a url and echos the url prefix.  Returns
-# true if a valid url could be found, returns false otherwise.
-#
+## @Type Private
+## @param url 
+## @Stdout url prefix
+## @return 0 valid url
+## @return 1 otherwise
+##Takes a url and echos the url prefix.  Returns
+## true if a valid url could be found, returns false otherwise.
+##
 #---------------------------------------------------------------------
-url_get_prefix()  {
+function url_get_prefix()  {
   local  URL_PREFIX=`echo $URL | sed "s/[\:\/\/].*$//"` 
   [  -n  "$URL_PREFIX"  ]  &&
   echo    $URL_PREFIX
@@ -125,13 +123,12 @@ url_get_prefix()  {
 
 
 #---------------------------------------------------------------------
-# url_change_base
-# 
-# Private Function.  If BASE_URL is set, then change URL to 
-# use BASE_URL as the download location.  Also sets FILE variable.
-#
+## @Type Private 
+## @Global BASE_URL FILE
+## If BASE_URL is set, then change URL to 
+## use BASE_URL as the download location.  Also sets FILE variable.
 #---------------------------------------------------------------------
-url_change_base()  {
+function url_change_base()  {
   if  [  -n  "$BASE_URL"  ]  &&  [  -n  "$FILE"  ];  then  
     URL="$BASE_URL/`basename $FILE`"
   fi
@@ -139,13 +136,14 @@ url_change_base()  {
 
 
 #---------------------------------------------------------------------
-##=item url_is_valid <url>
-## 
+## @param url
+## @return 0 valid url
+## @return 1 otherwise
 ## Returns true if the given url is a valid url understood by the url
 ## library, returns false otherwise.
 ##
 #---------------------------------------------------------------------
-url_is_valid()  {
+function url_is_valid()  {
   [ "$1" == " " ] && return 1 #If it's only a space, it's not valid
   local  URL_PREFIX=`echo $1 | sed "s/[\:\/\/].*$//"` 
   [  -n  "$URL_PREFIX"  ]  &&
@@ -154,12 +152,12 @@ url_is_valid()  {
 
 
 #---------------------------------------------------------------------
-##=item url_rank <url list>
-## 
+## @param urllist
+## @Stdout new list
 ## Ranks the urls in order of speed from fastest to slowest
 ##
 #---------------------------------------------------------------------
-url_rank() {
+function url_rank() {
 
  local urlList shortedList urlCounter netSelectedList
 
@@ -193,14 +191,16 @@ url_rank() {
 
 
 #---------------------------------------------------------------------
-##=item url_download <url>
-## 
+## @param url
+## @return 0 if file could be downloaded
+## @return 1 otherwise
+## @Global FILE
 ## Downloads the specified url.  Returns true if file could be 
 ## downloaded, false otherwise.  The name of the downloaded file
 ## is left in the FILE variable.
 ##
 #---------------------------------------------------------------------
-url_download() {
+function url_download() {
   local URL_LIST=$*
   local SUCCESS=false
 
@@ -231,13 +231,14 @@ url_download() {
 
 
 #---------------------------------------------------------------------
-##=item url_verify <url>
-## 
+## @param url
+## @return 0 url could be verified
+## @return 1 otherwise
 ## Verifies the specified url.  Returns true if file could be 
 ## verified, false otherwise.
 ##
 #---------------------------------------------------------------------
-url_verify() {
+function url_verify() {
   local URL=$1
   
   url_change_base
@@ -248,12 +249,11 @@ url_verify() {
 
 
 #---------------------------------------------------------------------
-##=item url_set_options <option>
-## 
+## @param option 
 ## Set options for url handling
 ##
 #---------------------------------------------------------------------
-url_set_options() {
+function url_set_options() {
   for URL_TYPE in ${URL_TYPES[@]}; do
     url_is_function url_${URL_TYPE}_set_options &&
     url_${URL_TYPE}_set_options $@
@@ -262,12 +262,11 @@ url_set_options() {
 
 
 #---------------------------------------------------------------------
-##=item url_help
-## 
+## @Stdout help message 
 ## Prints help message regarding url handling
 ##
 #---------------------------------------------------------------------
-url_help() {
+function url_help() {
   for URL_TYPE in ${URL_TYPES[@]}; do
     url_is_function url_${URL_TYPE}_help &&
     url_${URL_TYPE}_help
@@ -276,10 +275,6 @@ url_help() {
 
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
-##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
 ## the Free Software Foundation; either version 2 of the License, or
@@ -293,6 +288,5 @@ url_help() {
 ## You should have received a copy of the GNU General Public License
 ## along with this software; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-##
 #---------------------------------------------------------------------
 

@@ -1,34 +1,26 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
 ## 
-## Set of functions for printing out dots (...) while waiting for
-## actions to complete.
+## @Synopsis Set of functions for printing out dots (...) while waiting for
+## @Synopsis actions to complete.
 ##
-##=head1 DESCRIPTION
 ##
 ## These functions are used to give the user an indication that 
 ## a sorcery command that is being run is still active.
 ##
-##=head1 COPYRIGHT
 ##
-## Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
+## @Copyright Copyright 2002 by the Source Mage Team
 ##
 #---------------------------------------------------------------------
 
 
 #---------------------------------------------------------------------
-##=item wait_flag_up
 ##
 ## Activate wait flag (used for printing dots until a job is done)
 ##
 #---------------------------------------------------------------------
-wait_flag_up()  {
+function wait_flag_up()  {
 
   touch  /tmp/.$$.wait_flag
   chmod  000  /tmp/.$$.wait_flag
@@ -37,12 +29,11 @@ wait_flag_up()  {
 
 
 #---------------------------------------------------------------------
-##=item wait_flag_down
 ##
 ## Deactivate wait flag (used for printing dots until a job is done)
 ##
 #---------------------------------------------------------------------
-wait_flag_down()  {
+function wait_flag_down()  {
 
   rm  -f  /tmp/.$$.wait_flag
 
@@ -50,11 +41,10 @@ wait_flag_down()  {
 
 
 #---------------------------------------------------------------------
-##=item ping_pid <pid>
-##
+## @param pid
 ## UNUSED!! IF YOU USE THIS, REMOVE THIS COMMENT (2002/09/29)
 #---------------------------------------------------------------------
-ping_pid() {
+function ping_pid() {
 
   renice  10  $1  1>/dev/null 2>&1
 
@@ -62,13 +52,13 @@ ping_pid() {
 
 
 #---------------------------------------------------------------------
-##=item wait_flag <pid>
-##
+## @param pid
+## @Stdout dots
 ## Prints out dots as long as wait_flag is set
 ## To be started in the background
 ##
 #---------------------------------------------------------------------
-wait_flag()  {
+function wait_flag()  {
 
   while  [  -e  /tmp/.$$.wait_flag  ];  do
     progress_spinner
@@ -80,9 +70,6 @@ wait_flag()  {
 
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
