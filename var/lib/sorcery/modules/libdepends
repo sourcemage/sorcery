@@ -598,14 +598,18 @@ function private_compute_installed_depends()
  		printf("hash_put \"'$1'\" \"%s\" \" \";\n",$1);
 	}' $SPELL_STATUS )
 
-	# Fill in hashtable for spells that have dependancies
+	# Fill in a temporary hashtable for spells that have dependancies
+	# not all dependencies are installed
 	eval $(awk -F : '$3=="on"{ spells[$1]=spells[$1]" "$2" "; }
 	END{
 		for(spell in spells) { 
-			printf("hash_put \"'$1'\" \"%s\" \" %s \";\n", spell, spells[spell]); 
+			printf("hash_put \"pcid\" \"%s\" \" %s \";\n", spell, spells[spell]); 
 		}
 	}' < $DEPENDS_STATUS )
-	
+	# For everything installed, make sure we know about its dependencies.
+	for spell in `cut -f1 -d: $SPELL_STATUS` ; do
+		hash_put $1 $(hash_get pcid $spell)
+	done
 }
 #---------------------------------------------------------------------
 ##=back
