@@ -381,7 +381,7 @@ update_pkgs() {
 
 . /etc/sorcery/config
 
-if [[ $1 == "autoupdate" ]]; then
+if [[ \$1 == "autoupdate" ]]; then
     message  "${MESSAGE_COLOR}"
     message  "Interrupting while upgrading the sorcery scripts may"
     message  "cause the sorcery scripts to be lost.  If the sorcery,"
@@ -412,50 +412,21 @@ fix_installed_spells     # check integrity of installed spells
 rm   -f  /tmp/cast
 
 EOF
-
-
-  cat  << EOF >  $RESTORE_SCRIPT
-#!/bin/bash
-############################################################
-# This helper script /tmp/sorcery.restore can              #
-# be run to restore the sorcery scripts if they            #
-# are lost during a sorcery update.                        #
-############################################################
-
-echo  "Restoring the sorcery scripts, please wait ..."
-
-SORCERY_SPOOL=${SOURCE_CACHE}
-SORCERY_BRANCH=${SORCERY_BRANCH}
-
-if [ -n $1 ]; then
-  SORCERY_BRANCH=$1
-fi
-
-if  cd /tmp                                                 &&
-    bunzip2 -c $SORCERY_SPOOL/sorcery-$SORCERY_BRANCH.tar.bz2 | tar xf - &&
-    cd sorcery                                              &&
-  ./install;                                              then
-  rm -rf /tmp/sorcery
-  echo  "Sorcery was successfully restored."
-else
-  echo  "Unable to restore sorcery.  Try running this file with"
-  echo  "the name of the branch you had previously installed as"
-  echo  "the command-line parameter: (e.g. stable, or devel)."
-  echo
-  echo  "For more help, see the Source Mage website "
-  echo  "(http://www.sourcemage.org/)."
-fi
-
-EOF
+  make_restore_script
 
   chmod  100     $RESTORE_SCRIPT
   chmod  100     $UPDATE_SCRIPT
   exec           $UPDATE_SCRIPT  $1
 
+
 }
 
-
-update_sorcery () {
+function make_restore_script() {
+# note the lines:
+#SORCERY_SPOOL=${SOURCE_CACHE}
+#SORCERY_BRANCH=${SORCERY_BRANCH}
+# actually have their values filed in at script generation time
+# everything else must be back-quoted to work properly
 
   cat  << EOF >  $RESTORE_SCRIPT
 #!/bin/bash
@@ -466,16 +437,15 @@ update_sorcery () {
 ############################################################
 
 echo  "Restoring the sorcery scripts, please wait ..."
-
 SORCERY_SPOOL=${SOURCE_CACHE}
 SORCERY_BRANCH=${SORCERY_BRANCH}
 
-if [ -n $1 ]; then
-  SORCERY_BRANCH=$1
+if [[ \$1 ]]; then
+  SORCERY_BRANCH=\$1
 fi
 
 if  cd /tmp                                                 &&
-    bunzip2 -c $SORCERY_SPOOL/sorcery-$SORCERY_BRANCH.tar.bz2 | tar xf - &&
+    bunzip2 -c \$SORCERY_SPOOL/sorcery-\$SORCERY_BRANCH.tar.bz2 | tar xf - &&
     cd sorcery                                              &&
   ./install;                                              then
   rm -rf /tmp/sorcery
@@ -490,6 +460,12 @@ else
 fi
 
 EOF
+}
+
+
+update_sorcery () {
+
+    make_restore_script
 
     message  "${MESSAGE_COLOR}"
     message  "Interrupting while upgrading the sorcery scripts may"
