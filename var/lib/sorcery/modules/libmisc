@@ -887,6 +887,73 @@ function real_config_query_list () {
 }
 
 #---------------------------------------------------------------------
+## Safely creates $TMP_DIR and exports the variable so we can use it
+## even in subprocesses called through make.
+## @param name of the script needing the tmp dir 
+#---------------------------------------------------------------------
+function mk_tmp_dirs() {
+  debug "$FUNCNAME" "Making tmp dirs for $$"
+  local SCRIPT_NAME=$1 STATS tmp
+  SCRIPT_NAME=${SCRIPT_NAME:-misc}
+
+  local BASE_DIR=/tmp/sorcery
+  local SCRIPT_DIR=$BASE_DIR/$SCRIPT_NAME
+  local FULL_DIR=/tmp/sorcery/$SCRIPT_NAME/$$
+
+
+
+  tmp=$(ls -ld $BASE_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    message "$BASE_DIR has unknown permissions and ownership, replacing it"
+    rm -rf $BASE_DIR
+    install -d -o root -g root -m 755 "$BASE_DIR"
+  fi || mk_tmp_dir_error $BASE_DIR
+
+  # double check
+  tmp=$(ls -ld $BASE_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    mk_tmp_dir_error $BASE_DIR
+  fi
+
+
+  tmp=$(ls -ld $SCRIPT_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    rm -rf $SCRIPT_DIR
+    install -d -o root -g root -m 755 "$SCRIPT_DIR"
+  fi || mk_tmp_dir_error $SCRIPT_DIR
+
+  # double check
+  tmp=$(ls -ld $SCRIPT_DIR|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    mk_tmp_dir_error $SCRIPT_DIR
+  fi
+
+
+  if [ -e $FULL_DIR ] ; then
+    echo "Looks like you had an old $SCRIPT_NAME on PID $$. Cleaning it out..."
+    rm -rf $FULL_DIR
+  fi
+
+  install -d -o root -g root -m 755 "$FULL_DIR" || mk_tmp_dir_error $FULL_DIR
+  tmp=$(ls -ld $SCRIPT_DIR|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    mk_tmp_dir_error $FULL_DIR
+  fi
+
+  # in order for TMP_DIR to make it through make and into pass_three/four
+  # we must export
+  export TMP_DIR=$FULL_DIR
+}
+
+# emergency exit function if we fail to make a TMP_DIR
+function mk_tmp_dir_error() {
+    message "Failed to make temporary dir, this" \
+            "might be due to a security attack,\nplease" \
+            "check the permissions of $1. Bailing out..."
+    exit 1
+}
+
+#---------------------------------------------------------------------
 ## @License
 ##
 ## This software is free software; you can redistribute it and/or modify

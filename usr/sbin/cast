@@ -233,7 +233,7 @@ function show_owner()  {
 
 function remove_line()  {
 
-  F_TMP=/tmp/`basename  $I_LOG`.$$.$RANDOM
+  F_TMP=$TMP_DIR/`basename  $I_LOG`.$$.$RANDOM
 
   cp         "$I_LOG"  "$F_TMP"
   grep  -v   "$ITEM"   "$F_TMP"  >  "$I_LOG"
@@ -707,7 +707,7 @@ function cast_spell()  { (
 
   # all this needs to reorganized and stuff...later
 
-  IW_LOG="/tmp/$SPELL.iw"
+  IW_LOG="$TMP_DIR/$SPELL.iw"
 
   #some minor discussion occured about having this, i'll leave it out for now
   activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
@@ -1046,22 +1046,6 @@ function cleanup() {
 }
 
 #---------------------------------------------------------------------
-## Safely creates $TMP_DIR and exports the variable so we can use it
-## even in subprocesses called through make.
-#---------------------------------------------------------------------
-function mk_tmp_dirs() {
-  debug "$FUNCNAME" "Making tmp dirs for $$"
-  # in order for TMP_DIR to make it through make and into pass_three/four
-  # we must export
-  export TMP_DIR=/tmp/sorcery/cast/$$
-  if [ -e $TMP_DIR ] ; then
-    echo "Looks like you had an old cast on PID $$. I'm cleaning it out."
-    rm -rf $TMP_DIR
-  fi
-  mkdir -p $TMP_DIR
-}
-
-#---------------------------------------------------------------------
 ## @Arguments arguments of cast
 ## @Globals FIX RM_AT_END ENV_CACHE CAST_PASS 
 ## @return 0 always
@@ -1133,13 +1117,9 @@ elif  [  "$UID"  -gt  0  ];  then
 
 elif  [  ${0:0:5} !=  "/tmp/"  ];  then
 
-  # Make a nice dir structure to put stuff in
-  if ! mk_tmp_dirs ; then
-    message "Failed to make temporary dir, this" \
-             "might be due to a security attack,\nplease" \
-             "check the permissions of /tmp/sorcery. Bailing out..."
-    exit 1
-  fi
+  # Make a nice dir structure to put stuff in, this exits if it fails
+  mk_tmp_dirs cast
+
   if ! [[ $RM_AT_END ]] ; then
     #This stuff is here to make sure a user can't make the file
     # and fill it up with stuff we feel the need to delete

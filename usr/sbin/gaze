@@ -71,11 +71,6 @@ html	[-s]	[grimoire]	Views a html listing of all grimoires.
 newer		20020521	Shows available spells newer than May 21, 2002.
 older		20010521	Shows spells installed before May 21, 2001.
 
-prune		<empty>		Removes all old sources from $SOURCE_CACHE
-				  and removes all old backups from 
-				  $INSTALL_CACHE.
-				  (deprecated: use cleanse --sweep)
-
 voyeur		[delay or spell]  
 				Peeks into spell compilation.
 
@@ -1449,6 +1444,10 @@ function gaze_show_held_spells () {
 
 parse()  {
 
+  # since this wont run as root mk_tmp_dirs wont work, but to maintain the
+  # "TMP_DIR is always set as a global" invariant set it to something...
+  # a future goal is to make mk_tmp_dirs work for regular users too...
+  export TMP_DIR=/tmp
   if [ $1 == "-q" ]; then
         shift;
         GAZE_VERBOSE=0
@@ -1494,7 +1493,6 @@ parse()  {
             from)  show_from         $2                  ;;
            newer)  newer             $2                  ;;
            older)  older             $2                  ;;
-           prune)  prune                                 ;;
          sources)  sources           $SPELL              ;;
      source_urls)  source_urls       $SPELL              ;;
         grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
