@@ -529,6 +529,19 @@ function pass_five()  {
     message "${DEFAULT_COLOR}"
 
   fi 
+
+  local NOT_CAST
+  NOT_CAST=$( { echo "$SPELLS"
+    cat $SUCCESS_LIST
+    cat $FAILED_LIST
+    } | sort | uniq -u ) # all not caught otherwise
+  if [[ "$NOT_CAST" ]] ;then
+    message "${DEFAULT_COLOR}" #being paranoid
+    message "${MESSAGE_COLOR}Spells that have been dropped:"
+    message "------------------------------${QUERY_COLOR}"
+    message "$NOT_CAST" | column
+    message "${DEFAULT_COLOR}"
+  fi
   
   #
   # To check for failed spells, we only need to see what is remaining in the 
