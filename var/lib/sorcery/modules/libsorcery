@@ -1495,11 +1495,8 @@ function archive()  {
 
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-	while read LINE ; do tar  --no-recursion  -rPf  "$CACHE"  "$LINE"; done < $INST_LOG
-
   message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
-  bzip2  -9f  <  $CACHE  >  $CACHE_BZ
-  rm     -f      $CACHE
+  tar --no-recursion --bzip -cPf "$CACHE_BZ" -T $INST_LOG
 
 }
 
