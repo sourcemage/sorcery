@@ -1060,7 +1060,7 @@ pass_one()  {
    	done  
   fi
   
-  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$"`
+  SPELLS=`sed -n 's/^\([^:]*\):.*$/\1/p' $MAKEFILE | grep -v "^all$" | grep -v "^.PHONY$"`
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
@@ -1094,7 +1094,12 @@ function depends_to_Makefile()
 	
 	echo "all: $tmp_list"
 	echo
-	
+
+        # All targets are PHONY
+        # See http://bugs.sourcemage.org/show_bug.cgi?id=2674 for details
+        echo ".PHONY: $tmp_list"
+        echo
+
 #	export SPELLS="$all_spells"
 	
 }
