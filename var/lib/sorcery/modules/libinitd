@@ -193,7 +193,8 @@ function init_prepare_install()
 function init_install()
 {
 
-  local script_name="$1"
+  local enable_script="$1"
+  local script_name="$2"
   local script_path="$SCRIPT_DIRECTORY/init.d/$script_name"
   local script_runlevel=$( grep '^[:space:]*RUNLEVEL' $script_path )
   script_runlevel=$( eval "( $script_runlevel ; echo \$RUNLEVEL )" )
@@ -219,19 +220,12 @@ function init_install()
       message -n ${DEFAULT_COLOR}
       exit 1
     else
-      ENABLE_SCRIPT=n
-      if ! grep -Fq 'ESSENTIAL=yes' $script_path ; then
-        if [ -x $runlevel_dir/$script_name -o true ] ; then # -o true is in there until dispel doesn't delete the old init scripts
-          query "Shall the $script_name init script be enabled on install?" y && ENABLE_SCRIPT=y || ENABLE_SCRIPT=n
-        else
-          query "Shall the $script_name init script be enabled on install?" n && ENABLE_SCRIPT=y || ENABLE_SCRIPT=n
-        fi
-      else
+      if grep -Fq 'ESSENTIAL=yes' $script_path ; then
         message "  script $script_name is ESSENTIAL, installing enabled."
-        ENABLE_SCRIPT=y
+        enable_script="enabled"
       fi
       _init_make_backup $script_path $runlevel_dir/$script_name
-      if [ "$ENABLE_SCRIPT" == y ] ; then
+      if [ "$enable_script" == "enabled" ] ; then
         install -m 754 $script_path $runlevel_dir
         message "  script $script_name installed and enabled.  Disable with 'telinit disable $script_name'."
       else
