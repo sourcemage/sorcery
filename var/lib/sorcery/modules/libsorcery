@@ -1412,9 +1412,11 @@ function prune()  { (
 				if(!Installed[$NF]) 
 					print $0;
 			}' )
-  NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
-  if query "Remove $NUM_NO_KEEP files from $SOURCE_CACHE?" "y" ; then
-  	rm $NO_KEEP
+  if [[ ${NO_KEEP} ]] ; then
+    NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
+    if query "Remove $NUM_NO_KEEP files from $SOURCE_CACHE?" "y" ; then
+      rm $NO_KEEP
+    fi
   fi
   
   message "${MESSAGE_COLOR}Cleaning up install cache (${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
@@ -1426,9 +1428,11 @@ function prune()  { (
 				if(!Installed[$NF]) 
 					print $0;
 			}' )
-  NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
-  if query "Remove $NUM_NO_KEEP files from $INSTALL_CACHE?" "y" ; then
-  	rm $NO_KEEP
+  if [[ ${NO_KEEP} ]] ; then
+    NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
+    if query "Remove $NUM_NO_KEEP files from $INSTALL_CACHE?" "y" ; then
+  	  rm $NO_KEEP
+    fi
   fi
   
   rm  -f  $KEEP
