@@ -130,7 +130,9 @@ function download_files() {
              "${REASON}"
     # slight bug with connect if we aren't using summon...
     connect                                                                 &&
+    pushd /tmp &>/dev/null
     download_from_internet "$REAL_FILE" "$URLS" "$USE_LF_FB" "$URL_OPTIONS" &&
+    popd &>/dev/null
     # make sure some filename exists...probably not needed
     { [ -z "$FILE" ] && FILE=$REAL_FILE || true;}                           &&
     # if the final dir is /tmp we dont need to mv the file
