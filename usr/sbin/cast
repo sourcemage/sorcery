@@ -684,8 +684,8 @@ function cast_spell()  { (
 # these both prompt, and prompting should NOT occur at this point
 # someday they will get split to a query and action pair (like use_xinetd
 # and install_xinetd) (afk 4/10/04)
-  run_security                                &&
-  run_conflicts                               &&
+  run_security  &&
+  run_conflicts &&
 
   # this is already done by run_details, and should go away (afk 4/10/04)
   run_spell_config                            &&
@@ -723,18 +723,20 @@ function cast_spell()  { (
   # into multiple functions.
   cd /
 
-  # make the compile log _no_matter_what_
-  create_compile_log
 
   pop_install_queue "$SPELL"    
 
   # hooks back out to the build_api to do whatever needs to be done
   if [ $rc == 0 ] ; then
+    create_compile_log
     run_spell_success
     CAST_EXIT_STATUS=0
   else
+    if [ $rc != 1 ] ; then # dont munge the log if pre_build failed
+      create_compile_log
+    fi
     run_spell_failure
-    CAST_EXIT_STATUS=1
+    CAST_EXIT_STATUS=$rc
   fi
 
 
