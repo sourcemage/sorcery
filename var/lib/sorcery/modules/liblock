@@ -5,7 +5,7 @@
 ##	free, and clean up locks after processes that had locks die without
 ##	unlocking the files. It uses the directory /tmp/liblock-$UID.
 ##
-##	@Globals LOCK_DIR LOCK_TRANSACTION MAX_SLEEP
+##	@Globals LOCK_DIR LOCK_TRANSACTIONS MAX_SLEEP
 #---------------------------------------------------------------------
 [ -d $LOCK_DIR ] || mkdir $LOCK_DIR
 
@@ -346,12 +346,12 @@ function lock_clean_locklist()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
   
   # If this file doesn't exist, then the locklist will never be cleaned 
   # automatiacly of dead locks
-  [ -e $LOCK_TRANSACTION ] || touch $LOCK_TRANSACTION
+  [ -e $LOCK_TRANSACTIONS ] || touch $LOCK_TRANSACTIONS
   [ -e $locklist_clean ] || touch $locklist_clean
   
   #Obtain a lock, do this manualy as we don't want an infinite loop 
   # by using lock_file ;)
-  while  touch $LOCK_TRANSACTION.$$.lock
+  while  touch $LOCK_TRANSACTIONS.$$.lock
     A=$( locked_resources $LOCK_DIR liblock locklist )
     B=${A// /}
     [ $(( ${#A}-${#B}+1 )) -gt 1 ]
@@ -364,7 +364,7 @@ function lock_clean_locklist()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
 			rm $i 2>/dev/null
 		fi			
 	done
-    rm $LOCK_TRANSACTION.$$.lock
+    rm $LOCK_TRANSACTIONS.$$.lock
 	
     sleep $(( RANDOM % MAX_SLEEP ))
   done
@@ -376,15 +376,15 @@ function lock_clean_locklist()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
   filen=`basename $locklist_clean`
   if [[ `find "$LOCK_DIR" -name "$filen" -maxdepth 1 -mindepth 1 -mmin +1` ]] ; then
   
-    echo "" > ${LOCK_TRANSACTION}.1
+    echo "" > ${LOCK_TRANSACTIONS}.1
 
-    for i in `cat $LOCK_TRANSACTION` ; do
+    for i in `cat $LOCK_TRANSACTIONS` ; do
       debug "liblock" "aftualy looking at locks to clean" 
       if ! [[ $i ]] ; then continue; fi
       PID=`echo $i | cut -d : -f 3`
 
       if [ -d $( echo /proc/$PID) ] ; then
-        echo "$i" >> ${LOCK_TRANSACTION}.1
+        echo "$i" >> ${LOCK_TRANSACTIONS}.1
       else
         debug "liblock" "lock_clean_locklist() - Removing $i from list" 
       fi
@@ -399,10 +399,10 @@ function lock_clean_locklist()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
 		fi
 	done
 
-    mv ${LOCK_TRANSACTION}.1 $LOCK_TRANSACTION
+    mv ${LOCK_TRANSACTIONS}.1 $LOCK_TRANSACTIONS
     date > $locklist_clean
   fi
-  rm $LOCK_TRANSACTION.$$.lock
+  rm $LOCK_TRANSACTIONS.$$.lock
 
 }
 
