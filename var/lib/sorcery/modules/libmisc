@@ -25,9 +25,20 @@ function explode ()
 { # $1==string to explode, $2==delimiter, $3==name of array to put it in
 
   [[ "$3" ]] || return 1
-  local ASSIGN=`echo "$1" | awk -F "$2" "{ for(i=1; i<=NF; i++) print \"${3}[\" i-1 \"]='\" \\\$i \"';\"; }"`
-  debug "libmisc" "explode() - $ASSIGN"
-  eval "$ASSIGN"
+  local l=$1
+  local i=0
+  while [[ $l ]]; do
+    local result=${l%%$2*}
+    l=${l#"$result"}
+    l=${l#$2}
+    eval "$3[$i]=\"$result\""
+    ((i++))
+  done
+  # this adds an empty array element at the end if the line ended in $2
+  local lc=${1//\*$2/true}
+  if [ "$lc" = "true" ]; then
+    eval "$3[$i]=\"\""
+  fi
 }
 
 
