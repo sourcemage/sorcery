@@ -779,15 +779,12 @@ gaze_activate_voyeur()  {
 
 
 show_orphans()  {
-
-  for  SPELL  in  `grep -v exiled  $SPELL_STATUS  |  cut  -d :  -f1`;  do
-    if    !  cut  -d :  -f2-  $DEPENDS_STATUS  |
-             grep             "^`esc_str $SPELL`:"       |
-             grep  -q         ":on:"
-    then     echo   $SPELL
-    fi
-  done
-
+  compute_reverse_installed_depends my_hash
+  for each in $(get_all_spells_with_status 'installed';get_all_spells_with_status 'held'); do
+  if [[ ! $(hash_get my_hash $each) ]] ; then
+    echo "$each"
+  fi
+  done|sort
 }
 
 
@@ -1397,7 +1394,7 @@ parse()  {
         provides)  shift; gaze_provides $@               ;;
          depends)  shift; gaze_show_depends  "$@"        ;;
     dependencies)  shift; gaze_show_dependencies  "$@"   ;;
-         orphans)  show_orphans        |  sort  |  uniq  ;;
+         orphans)  show_orphans                          ;;
          history)  show_history  "$2"                    ;;
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
