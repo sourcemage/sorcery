@@ -80,14 +80,21 @@ set_successful_cast() {
   fi
 }
 
-run_conflicts() {
-
-    debug "cast" "Starting run_conflicts() on $SPELL"
-    if    [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]
-    then       . $SCRIPT_DIRECTORY/CONFLICTS
-    fi
-
-}
+ run_conflicts() {
+    
+     debug "cast" "Starting run_conflicts() on $SPELL"
+    local CONFLICTS
+    if    [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
+        CONFLICTS=$( source $SCRIPT_DIRECTORY/CONFLICTS )
+        if [ $CONFLICTS ]; then
+            message "${SPELL_COLOR}${SPELL} ${MESSAGE_COLOR}conflicts with:"
+            message "${SPELL_COLOR}"
+            echo "$CONFLICTS" | column
+            message "${DEFAULT_COLOR}"
+            query "Do you want to dispel these?" "y" && dispel "$CONFLICTS"
+        fi
+     fi
+ }
 
 
 # checks for a security file
