@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SORCERY_VERSION=`/usr/sbin/gaze installed sorcery`
+SORCERY_LIBS=${INSTALL_ROOT}/var/lib/sorcery/modules
 
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
@@ -8,6 +9,10 @@ SORCERY_VERSION=`/usr/sbin/gaze installed sorcery`
 function install__find_non_volatile() {
   find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~'
 }
+
+# First clean out all libraries.
+echo "Cleaning out all old sorcery libraries..."
+rm -rf $SORCERY_LIBS
 
 # Install the executables
 install__find_non_volatile etc usr/sbin var/lib | (
