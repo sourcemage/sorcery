@@ -85,6 +85,7 @@ function run_prepare()
   message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
            "${CHECK_COLOR}preparing environment...${DEFAULT_COLOR}"
 
+  local PROTECT_SORCERY=yes
   if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
     # we need &&'s to preserve the proper return code (persistant_save
     # will probably succeed even if PREPARE fails)
@@ -92,7 +93,6 @@ function run_prepare()
     . $SCRIPT_DIRECTORY/PREPARE &&
     persistent_save
   fi
-  
 }
 
 #---------------------------------------------------------------------
@@ -123,6 +123,7 @@ function run_configure()
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
  
+  local PROTECT_SORCERY=yes
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
              "${CHECK_COLOR}running configuration...${DEFAULT_COLOR}"
@@ -143,6 +144,7 @@ function run_depends()
   local SPELL=$1
   debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
+  local PROTECT_SORCERY=yes
   if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
              "${CHECK_COLOR}checking dependencies...${DEFAULT_COLOR}"

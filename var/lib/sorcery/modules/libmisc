@@ -602,7 +602,17 @@ function real_list_find () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_add () {
+  if [[ $PROTECT_SORCERY ]] ; then
+    for each in "$@" ; do
+      if is_sorcery_var $each; then
+        complain_sorcery_var $each
+      else
+        list_add PERSISTENT_VARIABLES $each
+      fi
+    done
+  else
     list_add PERSISTENT_VARIABLES "$@"
+  fi
 }
 
 
@@ -719,6 +729,11 @@ function real_query_string () {
 #    return 0
 #}
 function config_get_option () {
+  if is_sorcery_var $1; then
+    complain_sorcery_var $1
+    return 1
+  fi
+
   # afrayedknot hates variable leakage
   if real_list_find $1 $PERSISTENT_VARIABLES; then
     # variable is known and valid
@@ -956,6 +971,57 @@ function mk_tmp_dir_error() {
             "might be due to a security attack,\nplease" \
             "check the permissions of $1. Bailing out..."
     exit 1
+}
+
+#---------------------------------------------------------------------
+## @param Variable to check if its a known sorcery variable
+## @return Success if its a sorcery variable, false if not
+##
+## This function will probably need to be updated as sorcery variables
+## come in and out of flux, the variables listed are roughly defined as
+## things defined at the point in which a spell file is run, and when it
+## is not run in a seperate subshell, note that the build phase of cast
+## is seperate from the frontend, so a spell could technically modify
+## something like "SPELLS" and not have a major problem. However the
+## philosophy is to not discriminate about what sorcery variables
+## are technically okay to use in what files and ones that arent,
+## instead we'll treat all usages of sorcery variables equally.  The rules
+## are of course subject to change without warning and its just easier
+## to be consistent, also theres a good chance that if a variable is safe
+## in some circumstances and not others, and one uses it where its safe,
+## someone will forget and start using it in places that arent safe...
+#---------------------------------------------------------------------
+function is_sorcery_var() {
+  local vars="TOP_LEVEL DISPLAY PATH RM_AT_END TMP_DIR SAFE_CAST \
+  FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY \
+  CAST_PASS download_log IW_LOG OPTS SOLO QUIET INSTALL_QUEUE \
+  OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS \
+  DOT_PROGRESS VOYEUR_OVERRIDE RECONFIGURE RECAST_DOWN COMPILE RECAST_UP \
+  FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX DEBUG SEPARATE BASE_URL \
+  CAST_HASH BACK_CAST_HASH CANNOT_CAST_HASH uncommitted_hash NEW_DEPENDS \
+  spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR \
+  SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION \
+  BUILD_API VOYEUR_STDOUT VOYEUR_STDERR C_LOG C_FIFO INSTALL_ROOT HOST \
+  BUILD INST_LOG MD5_LOG INSTALLWATCHFILE CAST_EXIT_STATUS"
+
+  # the \\< \\> matches word boundaries
+  echo $vars|grep -q "\\<$1\\>"
+}
+
+
+#---------------------------------------------------------------------
+## @param Variable name used in complaint
+## @stdout Complain vehemently that a variable name is used by sorcery
+## and the user should file a bug because a spell is using the variable
+#---------------------------------------------------------------------
+function complain_sorcery_var() {
+  message "${PROBLEM_COLOR}WARNING: ATTEMPTING TO USE" \
+          "${DEFAULT_COLOR}${SPELL_COLOR}\"$1\"" \
+           "${DEFAULT_COLOR}${PROBLEM_COLOR}AS A SPELL VARIABLE."
+  message "THIS VARIABLE IS A USED BY SORCERY, THIS IS PROBABLY" \
+          "A SPELL BUG\nAND SORCERY MAY BEHAVE IN UNDEFINED WAYS IF" \
+          "YOU CONTINUE."
+  message "\n\nPLEASE REPORT A BUG IMMEDIATLY!!${DEFAULT_COLOR}\n\n"
 }
 
 #---------------------------------------------------------------------

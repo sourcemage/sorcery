@@ -98,7 +98,7 @@ function process_parameters()  {
             -f|--fix)  export  FIX="$1";                 shift 1  ;;
           -n|--nofix)  export  FIX="--fix"
                        export  NOFIX="$1";               shift 1  ;;
-                  -s)  SEPARATE="$1";                    shift 1  ;;
+                  -s)  export  SEPARATE="$1";            shift 1  ;;
                --url)  export  BASE_URL="$2";            shift 2  ;;
                --pam)  cast  -c  `find_pam_aware` ;      shift 1  ;;
              --queue)  
@@ -235,7 +235,15 @@ function cast_spell()  { (
   run_security  &&
   run_conflicts || return 1
 
-  show_downloading $SPELL
+  # show_downloading tail -f's (essentially) the download log as it
+  # comes in, or if downloading is complete, cats the download log, in
+  # either case it blocks until downloading is complete by the presence of
+  # a ${download_log}.done file. If SEPARATE is set, then all downloading
+  # is done first, so there is no need to wait for it to complete.
+  if [[ ! $SEPARATE ]] ; then
+    show_downloading $SPELL
+  fi
+
   verify_sources ||   return 1
   
   # wait for solo casts, to finish and ensure that others can't
@@ -293,42 +301,87 @@ function cast_spell()  { (
 ## @Globals SPELL MAKEFILE DEPS_ONLY 
 ##
 ## Basically only gathers all dependencies and creates the Makefile
-## (According to pass_zero it ought to take SPELL as parameter, but
+## (According to pass_zero it ought to take SPELLS as parameter, but
 ## it doesn't)
+## SPELLS is changed to the dependencies of SPELLS if DEPS_ONLY is specified
+## this might effect pass_five
 #---------------------------------------------------------------------
 function pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
 
-  local i j tempList SPELL_RULES=""
-  local numRules=0
+  local SPELLS_TO_CAST
 
   echo -n "Computing previously installed dependencies..."
   compute_installed_depends "already_cast"
   echo
   compute_uninstalled_depends "to_cast" "back_hash" "bad_spells" $SPELLS
 
+  local SPELLS_TO_CAST=$(hash_get_table_fields "to_cast")
+
   # special case of no spell making it through dependency resolution
-  SPELLS=$(hash_get_table_fields "to_cast")
-  if [ -z "$SPELLS" ] ; then 
+  # or if DEPS_ONLY is set, there arent any dependent spells to cast
+  if [ -z "$SPELLS_TO_CAST" ] ; then 
     local cannot_cast=$(hash_get_table_fields "bad_spells")
     message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Cannot cast these spells:${DEFAULT_COLOR}"
     message "---------------------------"
-    message "${SPELL_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column 
+    message "${PROBLEM_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column 
     message "${DEFAULT_COLOR}"
     exit 1
   fi
 
-  message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
-  depends_to_Makefile to_cast already_cast > $MAKEFILE
+  # if only doing the deps, find the dependencies
+  #
+  # there are two cases, and its not clear which is the case
+  # a) cast ALL depends of the spells
+  # b) cast the depends which need to be cast (are in the to_cast hash)
+  #
+  # I think the behavior was intended to be case "b", the extra code for
+  # case "a" is below and commented out
+  # note: dependency information for all spells if it exists will be in
+  # either the to_cast hash or the already_cast hash
+  #
+  # note: SPELLS is not empty due to the check above
+  #
+  if  [[ "$DEPS_ONLY" ]] ;  then
+    local dep_spell
+    local TMP_SPELLS=$(
+      for spell in $SPELLS_TO_CAST; do
+        for dep_spell in $(hash_get to_cast $spell); do
+          echo $dep_spell
+        done
+      done|sort|uniq)
+    for spell in $TMP_SPELLS ; do
+      if echo $SPELLS_TO_CAST|grep -q $spell; then
+        hash_put new_to_cast $spell $(hash_get to_cast $spell)
+      # note, if case "a" (describe above) was intended, uncomment the
+      # following two lines of code
+      # else
+      #   hash_put new_to_cast $spell $(hash_get already_cast $spell)
+      fi
+    done
+    SPELLS=$(hash_get_table_fields new_to_cast)
+    if [ -z "$SPELLS" ] ; then 
+      local parents=$(hash_get_table_fields "to_cast")
+      message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}None of the spells have dependencies" \
+              "to cast:${DEFAULT_COLOR}"
+      message "---------------------------"
+      message "${PROBLEM_COLOR}${parents}" | tr '[:blank:]' '\n' | column 
+      message "${DEFAULT_COLOR}"
+      exit 1
+    fi
+  fi
 
-  if  [  -n  "$DEPS_ONLY"  ] ;  then  
-    for i in $SPELLS ; do
-    #BUG: $i=="foo" and "foobar" is also to be built it will remove foobar too"
-      sed -e 's/cast .* $i.*/true/' $MAKEFILE > $MAKEFILE.2
-      mv $MAKEFILE.2 $MAKEFILE
-    done  
+
+  message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
+
+  if  [[ "$DEPS_ONLY" ]] ;  then  
+    local spell dep_spell
+    depends_to_Makefile new_to_cast already_cast "$SPELLS" > $MAKEFILE
+  else
+    depends_to_Makefile to_cast already_cast "$SPELLS" > $MAKEFILE
   fi
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
@@ -339,6 +392,9 @@ function pass_one()  {
 ## Take the depends hashtable and turn it into the Makefile used later
 ## @param Dependencies of spells to cast
 ## @param Dependencies of spells not to cast
+## @param list of spells to use for the all target. There should be info in
+## the first param for all of these. If not things will act strangely,
+## but thats not a bug in this function.
 #-----
 function depends_to_Makefile()
 {
@@ -367,10 +423,11 @@ function depends_to_Makefile()
     echo "$i : $(hash_get "$2" "$i")"
     echo
   done
-  local all_spells=$({ hash_get_table_fields $1 ; hash_get_table_fields $2; } | tr '[:cntrl:]' ' ')
+
   # make will run the all target, which would be the spells we care about
-  echo "all : $all_spells"
+  echo "all : $3"
   echo
+
   # if dependency rules fail us, match here after everything else
   # has had the chance, and do nothing, instead of exit early...
   echo %:
@@ -380,6 +437,7 @@ function depends_to_Makefile()
   # this caused a rather nasty bug where a file in the current directory
   # had the same name as a spell, and make thought it had already "made"
   # that spell
+  local all_spells=$( { hash_get_table_fields $1 ; hash_get_table_fields $2 ; } | tr '[:cntrl:]' ' ')
   echo ".PHONY : all $all_spells"
 }
 
@@ -455,12 +513,17 @@ function pass_three()  {
   unset CAST_PASS
   local SPELL=$1
   local download_log=$(get_spell_dl_log $SPELL)
-  touch $download_log
-  lock_file   $download_log
-  summon_spells "$SPELL" &>  $download_log
-  unlock_file   $download_log
+  if  [[  $SEPARATE   ]] ; then
+    summon_spells "$SPELL"
+  else
+    touch $download_log
+    lock_file   $download_log
+    summon_spells "$SPELL" &>  $download_log
+    unlock_file   $download_log
+  fi
   
-  # This is to notify show_downloading that it is done with this source
+  # This is to notify show_downloading/cast_spell that it is done with
+  # this source
   touch "${download_log}.done"
 }
 
@@ -526,7 +589,7 @@ function pass_five()  {
   fi 
 
   local NOT_CAST
-  NOT_CAST=$( { echo "$SPELLS"
+  NOT_CAST=$( { hash_get_table_fields to_cast 
     cat $SUCCESS_LIST
     cat $FAILED_LIST
     } | sort | uniq -u ) # all not caught otherwise
