@@ -483,7 +483,7 @@ function cleanse_fix()
         PASSED="${PASSED}${SPELL}"$'\n'
       else
         message  "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}" \
-                 "is broken${DEFAULT_COLOR} and not being fixed\n"
+                 "is broken${DEFAULT_COLOR}\n"
         HOPELESS="${HOPELESS}${SPELL}"$'\n'
       fi
     done
@@ -507,8 +507,13 @@ function cleanse_fix()
     message "${DEFAULT_COLOR}"
   fi
   if [[ $HOPELESS ]] ; then
-    message "${MESSAGE_COLOR}The following spells were broken and" \
-            "could not be fixed:${PROBLEM_COLOR}"
+    if [[ "$FIX" == quick ]]; then
+      message "${MESSAGE_COLOR}The following spells were broken:" \
+              "${PROBLEM_COLOR}"
+    else
+      message "${MESSAGE_COLOR}The following spells were broken and" \
+              "could not be fixed:${PROBLEM_COLOR}"
+    fi
     echo "$HOPELESS"|sort|uniq|column
     message "${DEFAULT_COLOR}"
     return 1
