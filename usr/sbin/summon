@@ -232,10 +232,10 @@ summon_grimoire()  {
 
   for  SPELLNAME  in  `codex_get_all_spells`;  do
     local  SPELL=$( basename  $SPELLNAME )
-    (  lock_resources "summon" "$$"
+    (  lock_resources "summon" "$SPELL"
        run_details  &&
        download
-       unlock_resources "summon" "$$"
+       unlock_resources "summon" "$SPELL"
     )
   done
 
@@ -261,7 +261,7 @@ main()	{
     for  SPELL  in  $SPELLS;  do
       (  
          debug "summon" "Checking to see if $SPELL is locked"
-         is_locked $SPELL >>$DEBUG && return 1
+         is_locked "summon" "$SPELL" >>$DEBUG && return 1
 	 debug "summon" "Nope."
 	 lock_resources "summon" "$SPELL"
       
