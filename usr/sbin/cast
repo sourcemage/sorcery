@@ -668,7 +668,12 @@ function int_trap()
 function cleanup() {
   debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
   rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
-  rm -rf $TMP_DIR
+  if  [  ${TMP_DIR:0:13} ==  "/tmp/sorcery/"  ];  then
+    rm -rf $TMP_DIR
+  else
+    message "Cowardly refusing to remove $TMP_DIR, this may be a bug," \
+            "please alert the sorcery team."
+  fi
 }
 
 #---------------------------------------------------------------------
