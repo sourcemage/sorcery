@@ -11,6 +11,7 @@
 ## --nofix_quick	spell integrity check (w/o fixing or dependent
 ##                      spell checks)
 ## --sweep		unneeded spool and cache
+## --logs		unneeded spool and cache
 ## --prune		fix dependency shrub
 ## --delint		fix depends
 ## --packages	fix packages format
@@ -46,7 +47,7 @@ function usage()
 {
 	local s=$(basename $0)
 cat << EOF
-$s [ --delint [full] | --prune [doit] | --packages | 
+$s [ --delint [full] | --prune [doit] | --packages | --logs
      --fix [spell [spell ...] ] | --nofix [spell [spell ...] ] |
      --nofix_quick [spell [spell ...] ] | --sweep]
 	--delint: Finds stale dependency entries
@@ -54,6 +55,7 @@ $s [ --delint [full] | --prune [doit] | --packages |
 	--prune: Finds dispeled spells that should be cast
 		doit will cause it to actualy cast and dispel
 	--packages: find bad entries in the installed spells file
+	--logs: cleans old logs in the same way a system-update does
 	--fix: attempts to detect problems in cast spells and tries to fix them
 	--nofix: attempts to detect problems in cast spells but does not try 
 		to fix them.
@@ -62,9 +64,10 @@ $s [ --delint [full] | --prune [doit] | --packages |
 It is suggested that you try the following order the first time:
 	1) $s --packages
 	2) $s --delint
-	3) $s --prune
-	4) $s --sweep
-	5) $s --fix
+	3) $s --logs
+	4) $s --prune
+	5) $s --sweep
+	6) $s --fix
 EOF
 	[[ $# -gt 0 ]] && echo "Unknown $*"
 }
@@ -79,6 +82,7 @@ EOF
 ##                          specified
 ## @Args  --packages        Find packages entries that are corrupted, or
 ##                          non-existant
+## @Args  --logs            Remove stale logs
 ## @Args  --sweep           Remove uneeded spool and cache files
 ## @Args  --fix             Find binaries that are missing libs and files,
 ##                          and recast broken spells
@@ -108,6 +112,9 @@ function args()
         else
           prune_depends
         fi
+        ;;
+      --logs)  clean_logs
+        shift
         ;;
       --fix)  cleanse_fix fix "$*"
         shift $#          ;;
@@ -755,7 +762,7 @@ if [ $UID -eq 0 ] ; then
   # Make sure root is running this
   if [ $# -eq 0 ] ; then
     # IF there are no args, assume the full treatment is desired
-    exec $0 --packages --delint --prune --sweep --fix
+    exec $0 --packages --delint --logs --prune --sweep --fix
   fi
   TMPDIR=/tmp/sorcery/cleanse/$$
   BACKUPDIR=/tmp/cleanse
