@@ -389,8 +389,8 @@ function get_held () {
 ##
 #---------------------------------------------------------------------
 function modify_local_config() {
-  debug "libstate" "modify_local_config() - $*"
-    modify_config $LOCAL_CONFIG $@
+    debug "libstate" "modify_local_config() - $*"
+    modify_config $LOCAL_CONFIG "$@"
 }
 
 
@@ -435,13 +435,9 @@ function modify_config()  {
     TEMP="$TEMP "
   done
   
-	# Removing VARIABLE to be set from list of args.
-	VARIABLE=$1
-	shift;
-
   debug "libstate" "modify_config() - entering new value $VARIABLE $seperator $@ into $tFILE"
   # put new value and justification in
-  echo  "${TEMP}${VARIABLE}${separator}\"$@\""  >>  $tFILE
+  echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
   lock_commit_transaction $FILE
     
