@@ -533,7 +533,7 @@ function real_list_remove () {
     
     local i
     
-    for i in "$@"; do
+    for i in $@; do
         eval "$var=\`echo \" \$$var \" | sed  \
                -e \"s/[[:space:]]\\+/ /g\"   \
                -e \"s/ $i / /g\"             \
@@ -555,7 +555,7 @@ function real_list_add () {
   local var=$1
   shift
   local i
-  for i in "$@"; do
+  for i in $@; do
     local found=0
     function list_add_sub() {
       if [ "$i" == "$1" ]; then
@@ -588,7 +588,7 @@ function real_list_find () {
     local input="$1"
     shift
 
-    for i in "$@"; do
+    for i in $@; do
         eval "echo \" $input \" | grep -qE -e \"[[:space:]]$i[[:space:]]\" && return 0"
     done
     return 1
