@@ -34,7 +34,9 @@ what		spell		Prints the spell's description.
 short           spell           Prints the spell's short description.
 where		spell		Prints the spell's section.
 website | url	spell		Prints the spell's website.
-install		spell		Views an install log.
+install		spell		Views an install log, and sorcery log files for to the spell.
+install-full		spell		Views an install log including all sorcery state files.
+install-spell		spell		Views an install log without any sorcery files included.
 installed	[spell]		Views installed spells.
 version		spell		Views version of spell installed,
 				 and version in the grimoire.
@@ -1475,6 +1477,40 @@ function gaze_show_size () {
 
 #---------------------------------------------------------------------
 ##
+## displays a spell's install log
+##
+## @param spell - the spell name
+## @param version - version for that spell
+## @param type - If empty show the log without state files, if "spell"
+##        show log without sorcery log files eitther, if "full" show the entire
+##        log including sorcery state files
+##
+#---------------------------------------------------------------------
+function gaze_install() {
+  local SPELL=$1
+  local VERSION=$2
+  local TYPE=$3
+
+  local log=$INSTALL_LOGS/$SPELL-$VERSION
+  test -f $log || {
+    message "Install log for $SPELL does not exist"
+    return 1
+  }
+
+  if [[ "$TYPE" == full ]] ; then
+    sort $log | $PAGER
+  elif [[ "$TYPE" == spell ]] ; then
+    seperate_state_files $log /dev/stdout /dev/null | sort | $PAGER
+  else
+    {
+      seperate_state_files $log /dev/stderr /dev/stdout | grep $LOG_DIRECTORY
+    } 2>&1 | sort | $PAGER
+  fi
+
+}
+
+#---------------------------------------------------------------------
+##
 ## prints all spells of a given status.
 ## @param status - what are we looking for
 ## @param describe - how is that staus described in english
@@ -1576,9 +1612,9 @@ parse()  {
                        "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
-    install)  display  $INSTALL_LOGS/$SPELL-$VERSION   \
-              "Install log for $SPELL does not exist"
-              ;;
+        install) gaze_install $SPELL $VERSION ;;
+   install-full) gaze_install $SPELL $VERSION full ;;
+  install-spell) gaze_install $SPELL $VERSION spell ;;
 
     sum)  [  -n  "$SPELL"  ]                         &&
           checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
