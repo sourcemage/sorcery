@@ -1,39 +1,74 @@
-#!/bin/sh
-############################################################
-# Copyright 2001 by Kyle Sallee                            #
-############################################################
-# sorcery is a spell management utility                  #
-############################################################
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+##  Sorcery is a spell management utility
+##
+##=head1 DESCRIPTION
+##
+## ...
+##
+##=head1 COPYRIGHT
+##
+## Original version Copyright 2001 by Kyle Sallee
+## Additions/corrections Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
 
+help() {
 
-reverse()  {
+  cat << EOF
 
-  while  [  -n  "$1"  ];  do
-    LOCATION=$1
-    URL=$2
-    echo  "$URL"
-    echo  "$LOCATION"
-    shift 2
-  done
+Sorcery is the menu interface for changing system settings, and used
+for updating the system.
+
+Example:        sorcery
+Usage:          sorcery [parameters]
+
+Optional Parameters:
+
+-h  |  --help		Display this help screen
+
+update			Update the sorcery scripts only. 
+
+system-update		Perform a system update (updates sorcery, grimoire, 
+			  and spells).  
+			  [ scribe update, sorcery queue, cast --queue ]
+
+queue			Compare installed grimoire to installed spells, 
+			  generate queue of spells needing to be updated.
+
+upgrade			Do not update grimoire, just any spells that need to 
+			  be upgraded.  [ sorcery queue, cast --queue ]
+
+EOF
+
+  exit 1
 
 }
 
-
 mirror_list()  {
 
-  reverse  `sort  $MIRRORS/$1`
+  sort  $MIRRORS/$1 | awk '{print "\""$NF"\""; NF-- ; print $0; }'
 
 }
 
 
 select_mirror()  {
 
-  $DIALOG  --title "Select Mirror Please"  \
+  local MIRROR_LIST=`mirror_list  $1`
+
+  eval $DIALOG '  --title "Select Mirror Please"  \
            --ok-label  "Select"            \
            --menu                          \
            ""                              \
-           0 70 10                         \
-           `mirror_list  $1`
+           0 0 0                           \
+           '$MIRROR_LIST
 
 }
 
@@ -53,7 +88,7 @@ mirror_menu()  {
     X_HELP="Select mirror for downloading XFree86 related sources."
       HELP="Selecting a mirror site can speed your downloads."
 
-    COMMAND=`$DIALOG  --title "Mirror Menu"        \
+    COMMAND=`eval $DIALOG '  --title "Mirror Menu"        \
                       --ok-label      "Select"     \
                       --cancel-label  "Exit"       \
                       --item-help                  \
@@ -63,9 +98,9 @@ mirror_menu()  {
                       "KERNEL"      ""  "$L_HELP"  \
                       "GNOME"       ""  "$N_HELP"  \
                       "GNU"         ""  "$G_HELP"  \
-		      "SOURCEFORGE" ""  "$S_HELP"  \
+		      "SOURCEFORGE" "" "$SF_HELP"  \
 		      "SORCERY"     ""  "$S_HELP"  \
-                      "XFREE86"     ""  "$X_HELP"`
+                      "XFREE86"     ""  "$X_HELP"'`
   do
 
     case  $COMMAND in
@@ -82,14 +117,12 @@ mirror_menu()  {
     if  MIRROR_URL=`select_mirror  $COMMAND`;  then
 
       if  [  "$MIRROR_URL" == "Custom"  ];  then
-         MIRROR_URL=`$DIALOG  --inputbox  "Please enter the URL."  0 0`
+         MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
       fi  &&  
 
-      TEMP=`grep  -v  "$MIRROR="       $LOCAL_CONFIG`  &&
-      echo      "$TEMP"            >   $LOCAL_CONFIG   &&
-      echo  "$MIRROR=$MIRROR_URL"  >>  $LOCAL_CONFIG   &&
+      modify_local_config "$MIRROR" "$MIRROR_URL" &&
 
-      $DIALOG  --msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 8 60
+      eval $DIALOG  '--msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 0 0'
 
     fi
 
@@ -100,26 +133,21 @@ mirror_menu()  {
 
 show_spells()	{ (
 
-        SECTION=$1
-  SECTION_LIST=`ls   $GRIMOIRE/$SECTION`
+  local  SECTION=`codex_find_section_by_name $1`
+  local  SPELLS=`codex_get_spells  $SECTION`
 
-  for  SPELL in $SECTION_LIST;  do
+  for  SPELL  in  $SPELLS;  do
 
-    if  !  spell_installed  $SPELL  &&
-        !  spell_held       $SPELL  &&
-        !  spell_exiled     $SPELL
+    SPELLNAME=$( basename  $SPELL )
+    if  !  spell_installed  $SPELLNAME  &&
+        !  spell_held       $SPELLNAME  &&
+        !  spell_exiled     $SPELLNAME
     then
 
-      SHORT="Short Description Unavailable"
-
-      if  [  -x $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
-             .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
-
-        echo  $SPELL
-        echo  $VERSION
-        echo  $SHORT
-
-      fi
+      codex_set_current_spell  $SPELL
+      echo  -en   '"'${SPELL:="Unknown"}'"'
+      echo  -en '\t"'${VERSION:="-"}'"'
+      echo  -e  '\t"'${SHORT:="Description Unavailable"}'"'
 
     fi
 
@@ -130,7 +158,7 @@ show_spells()	{ (
 
 show_sections()  {
 
-  LIST=`ls $GRIMOIRE`
+  LIST=`codex_get_all_section_names | sort | uniq`
 
   for  LINE in $LIST;  do
     echo  $LINE
@@ -142,14 +170,14 @@ show_sections()  {
 
 select_section() {
 
-  $DIALOG  --title "Section Selection Menu"  \
+  eval $DIALOG  '--title "Section Selection Menu"  \
            --default-item  "$SECTION"        \
            --ok-label      "Select"          \
            --cancel-label  "Exit"            \
            --menu                            \
            ""                                \
-           0 0 10                            \
-           `show_sections`
+           0 0 0                             \
+           `show_sections`' 
 
 }
 
@@ -165,28 +193,29 @@ add_pkgs()  { (
     while
 
       SPELLS=`show_spells $SECTION`  &&
-       SPELL=`$DIALOG  --title "Select spell to install please"  \
+       SPELL=`eval $DIALOG '  --title "Select spell to install please"  \
                        --item-help                               \
                        --menu                                    \
                        "$SECTION"                                \
-                       0 60 10                                   \
-                       $SPELLS`
+                       0 0 0                                     \
+                       '$SPELLS`
 
     do
 
-      DESCRIPTION=`$GRIMOIRE/$SECTION/$SPELL/DETAILS`
+      codex_set_current_spell_by_name  $SPELL
+      SPELL_DESCRIPTION=`codex_get_spell_description $SPELL_DIRECTORY`
 
-      if  $DIALOG  --title      "Install $SPELL"  \
-                   --yesno      "$DESCRIPTION"    \
-                   0 0
+      if  eval $DIALOG  '--title      "Install $SPELL"  \
+                   --yesno      "$SPELL_DESCRIPTION"    \
+                   0 0'
       then
 
         push_install_queue  $SPELL
-        $DIALOG  --msgbox  "$SPELL added to the install queue."  0 0
+        eval $DIALOG  '--msgbox  "$SPELL added to the install queue."  0 0'
 
       else
 
-        $DIALOG  --msgbox  "$SPELL will not be installed."  0 0
+        eval '$DIALOG  --msgbox  "$SPELL will not be installed."  0 0'
 
       fi
     done
@@ -204,12 +233,12 @@ show_file()	{
 
     else
 
-      $DIALOG  --textbox  $1  10  0
+      eval $DIALOG  '--textbox  $1  0  0'
 
     fi
   else
 
-    $DIALOG  --msgbox  "File not found."  0  0
+    eval $DIALOG  '--msgbox  "File not found."  0  0'
 
     return  1
 
@@ -232,16 +261,16 @@ file_list() {
 file_menu() {
 
   FILE_LIST=`file_list $1`
-  echo  $1/`$DIALOG  --title  "Please select a file."  \
+  echo  $1/`eval $DIALOG '  --title  "Please select a file."  \
                      --menu  "" 0 0 0                  \
-                     $FILE_LIST`
+                     $FILE_LIST'`
 
 }
 
 
 show_installed_spells()  {
 
-  for  LINE  in  `sort  $SPELL_STATUS_BACKUP`;  do
+  for  LINE  in  `sort  $SPELL_STATUS`;  do
 
       SPELL=`echo  "$LINE"    |  cut  -d : -f1`
      STATUS=`echo  "$LINE"    |  cut  -d : -f3`
@@ -250,15 +279,12 @@ show_installed_spells()  {
     if  [  "$STATUS"  ==  "installed"  ]  ||
         [  "$STATUS"  ==  "held"       ];  then
 
-        SHORT="Short Description Unavailable"
-      SECTION=`find_section  $SPELL`
+      if  codex_set_current_spell_by_name  $SPELL;  then
+        echo -en   '"'${SPELL:="Unknown"}'"'
+        echo -en '\t"'${VERSION:="-"}'"'
+        echo  -e '\t"'${SHORT:="Description Unavailable"}'"'
+      fi
 
-      [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ]  &&
-           . $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
-
-      echo  "$SPELL"
-      echo  "$VERSION"
-      echo  "$SHORT"
     fi
   done
 
@@ -274,22 +300,21 @@ remove_pkgs()	{
       INSTALLED_SPELLS=`show_installed_spells`
     fi
 
-    SPELL=`$DIALOG  --title "Select spell to remove please."  \
+    SPELL=`eval $DIALOG '  --title "Select spell to remove please."  \
                     --item-help                               \
                     --ok-label      "Select"                  \
                     --cancel-label  "Exit"                    \
-                    --menu  "" 0 60 10                        \
-                    $INSTALLED_SPELLS`
+                    --menu  "" 0 0 0                          \
+                    '$INSTALLED_SPELLS`
 
   do
 
-    DESCRIPTION="Description unavailable"
-    SECTION=`find_section  $SPELL`  &&
-    if  [  -x      $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
-      DESCRIPTION=`$GRIMOIRE/$SECTION/$SPELL/DETAILS`
-    fi
+    local  DESCRIPTION="Description unavailable"
 
-    if  $DIALOG  --title      "Removal $SPELL"  \
+    codex_set_current_spell_by_name  $SPELL
+    DESCRIPTION=`codex_get_spell_description  $SPELL_DIRECTORY`
+
+    if  $DIALOG  --title      "Remove $SPELL?"  \
                  --yesno      "$DESCRIPTION"    \
                  0 0
     then
@@ -313,11 +338,13 @@ update_pkgs() {
     return  1
   fi
 
-  message  "${CHECK_COLOR}Updating, do not interrupt..."
-  message  "${CHECK_COLOR}Please wait... ${DEFAULT_COLOR}"
+  message  "${CHECK_COLOR}Updating ... please wait ... ${DEFAULT_COLOR}"
+
+  wait_flag_up 
+  wait_flag $$ &
 
   cat  << EOF >  $UPDATE_SCRIPT
-#!/bin/sh
+#!/bin/bash
 ############################################################
 # Copyright 2001 by Kyle Sallee                            #
 ############################################################
@@ -327,22 +354,81 @@ update_pkgs() {
 
 . /etc/sorcery/config
 
-if  cast  -c  sorcery;  then
+message  "${MESSAGE_COLOR}"
+message  "Interrupting while upgrading the sorcery scripts may"
+message  "cause the sorcery scripts to be lost.  If the sorcery,"
+message  "scripts are lost, Source Mage can be restored by"
+message  "running the following script:"
+message  "${FILE_COLOR}"
+message  "            ${RESTORE_SCRIPT}"
+message  "${MESSAGE_COLOR}"
+message  "If for some reason this does not work, see the" 
+message  "Source Mage website at http://www.sourcemage.org/"
+message  "${DEFAULT_COLOR}"
 
-  # note to self remove dispel linux and apprentice_off in a few days.
-  # apprentice_off
-  # dispel  linux  1>/dev/null  2>/dev/null
 
-  clean_logs
-  update_installed
-  upgrade_install_queue
-
+if  [[  $1 != "upgrade"  ]] && [[  $1 != "queue"  ]] ;  then
+  message  "${MESSAGE_COLOR}Updating grimoire...${DEFAULT_COLOR}"
+  scribe update
+  message  "${MESSAGE_COLOR}Ensuring sorcery-$SORCERY_BRANCH is at it's latest version...${DEFAULT_COLOR}"
+  update_sorcery_scripts $SORCERY_BRANCH
 fi
+    
+clean_logs
+update_install_queue         # generate $INSTALL_QUEUE file
+list_install_queue
+
+if [[  $1 != "queue"  ]]; then
+  message  "${MESSAGE_COLOR}Casting updated spells...${DEFAULT_COLOR}"
+  cast -q --queue  
+
+  # XXX should this be 'cast --fix' ?
+  fix_installed_spells     # check integrity of installed spells
+fi
+
+
+wait_flag_down
 
 rm   -f  /tmp/cast
 
 EOF
 
+
+  cat  << EOF >  $RESTORE_SCRIPT
+#!/bin/bash
+############################################################
+# This helper script /tmp/sorcery.restore can              #
+# be run to restore the sorcery scripts if they            #
+# are lost during a sorcery update.                        #
+############################################################
+
+echo  "Restoring the sorcery scripts, please wait ..."
+
+SORCERY_SPOOL=${SOURCE_CACHE}
+SORCERY_BRANCH=${SORCERY_BRANCH}
+
+if [ -n $1 ]; then
+  SORCERY_BRANCH=$1
+fi
+    
+if  cd /tmp                                                 &&
+    bunzip2 -c $SORCERY_SPOOL/sorcery-$SORCERY_BRANCH.tar.bz2 | tar xf - &&
+    cd sorcery                                              &&
+  ./install;                                              then
+  rm -rf /tmp/sorcery 
+  echo  "Sorcery was successfully restored."
+else
+  echo  "Unable to restore sorcery.  Try running this file with"
+  echo  "the name of the branch you had previously installed as"
+  echo  "the command-line parameter: (e.g. stable, or devel)."
+  echo
+  echo  "For more help, see the Source Mage website "
+  echo  "(http://www.sourcemage.org/)."
+fi
+
+EOF
+
+  chmod  100     $RESTORE_SCRIPT
   chmod  100     $UPDATE_SCRIPT
   exec           $UPDATE_SCRIPT  $1
 
@@ -358,24 +444,27 @@ rebuild()  {
   sleep  3
   $CAST  --fix
 
-  for  LINE  in  `cat  $SPELL_STATUS_BACKUP`;  do
+  for  LINE  in  `cat  $SPELL_STATUS`;  do
       SPELL=`echo  "$LINE"  |  cut  -d : -f1`
      STATUS=`echo  "$LINE"  |  cut  -d : -f3`
     SECTION=`find_section  $SPELL`
     if  [  "$STATUS"   ==  "installed"  ]   &&
         [  "$SECTION"  !=  "sgl"        ]   &&
-        [  "$SECTION"  !=  "sections"   ];  then
+        [  "$SECTION"  !=  "sections"   ]   &&
+	! spell_exiled $SPELL           ;  then
       echo  $SPELL  >>  $INSTALL_QUEUE
     fi
   done
 
   unset  SPELL
-  if    query  "Edit Rebuild/Install Queue?" n
-  then  edit_file  $INSTALL_QUEUE
-  fi
+  $CAST --queue
 
-  $CAST  --compile  `cat  $INSTALL_QUEUE`
-  rm                      $INSTALL_QUEUE
+#Taken care of cast --queue now:
+#  if    query  "Edit Rebuild/Install Queue?" n
+#  then  edit_file  $INSTALL_QUEUE
+#  fi
+#  $CAST  --compile  `cat  $INSTALL_QUEUE`
+#  rm                      $INSTALL_QUEUE
 
 }
 
@@ -383,15 +472,12 @@ rebuild()  {
 make_checklist()  {
 
 
-        SECTION=$1
-  SECTION_LIST=`ls   $GRIMOIRE/$SECTION`
+  local  SECTION=`codex_find_section_by_name  $1`
+  local   SPELLS=`codex_get_spells  $SECTION`
 
-  for  SPELL in $SECTION_LIST;  do
+  for  SPELL in $SPELLS;  do
 
-    SHORT="Short Description Unavailable"
-
-    if  [  -x  $GRIMOIRE/$SECTION/$SPELL/DETAILS  ];  then
-            .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
+    if  codex_set_current_spell  $SPELL;  then
 
       STATUS="OFF"
 
@@ -401,10 +487,10 @@ make_checklist()  {
       else  STATUS="off"
       fi
 
-      echo  $SPELL
-      echo  $VERSION
-      echo  $STATUS
-      echo  $SHORT
+      echo -en   '"'${SPELL:="Unknown"}'"'
+      echo -en '\t"'${VERSION:="-"}'"'
+      echo -en '\t"'$STATUS'"'
+      echo -e  '\t"'${SHORT:="Description Unavailable"}'"'
 
     fi
 
@@ -415,12 +501,13 @@ make_checklist()  {
 
 process_section()  {
 
-       SECTION=$1
-     KEEP_LIST=$2
-  SECTION_LIST=`ls  $GRIMOIRE/$SECTION`
+  local    SECTION=`codex_find_section_by_name $1`
+  local  KEEP_LIST=$2
+  local     SPELLS=`ls  $GRIMOIRE/$SECTION`
 
-  for  LINE in $SECTION_LIST;  do
+  for  SPELL  in  $SPELLS;  do
 
+    LINE=$( basename  $SPELL )
     if  echo  -e  "$KEEP_LIST"  |
         grep  -q  "^$LINE\$"
     then  push_install_queue  $LINE
@@ -441,14 +528,14 @@ select_pkgs()  {
 
     CHECKLIST=`make_checklist  $SECTION`
 
-    if  OUTLIST=`$DIALOG  --title "$SELECT_TITLE"   \
+    if  OUTLIST=`eval $DIALOG '  --title "$SELECT_TITLE"   \
                           --ok-label  "Commit"      \
                           --item-help               \
                           --separate-output         \
                           --checklist               \
                           "$SELECT_HELP  $SECTION"  \
-                          0 0 10                    \
-                          $CHECKLIST`
+                          0 0 0                     \
+                          '$CHECKLIST`
 
     then  process_section  "$SECTION"  "$OUTLIST"
     fi
@@ -459,11 +546,15 @@ select_pkgs()  {
 
 make_hold_checklist()  {
 
-  for  LINE in `sort  $SPELL_STATUS_BACKUP`;  do
+  array=()
 
-      SPELL=`echo  "$LINE"  |  cut  -d : -f1`
-     STATUS=`echo  "$LINE"  |  cut  -d : -f3`
-    VERSION=`echo  "$LINE"  |  cut  -d : -f4`
+  for  LINE in `sort  $SPELL_STATUS`;  do
+  
+    explode "$LINE" ":" "array"
+
+      SPELL="${array[0]}"
+     STATUS="${array[2]}"
+    VERSION="${array[3]}"
 
     if  [  "$STATUS"  ==  "installed"  ]   ||
         [  "$STATUS"  ==  "held"       ];  then
@@ -472,15 +563,12 @@ make_hold_checklist()  {
       HELD="on"                    ||
       HELD="off"
 
-      if  SECTION=`find_section  $SPELL`;  then
+      if  codex_set_current_spell_by_name  $SPELL;  then 
 
-        SHORT="Short Description Unavailable"
-        .  $GRIMOIRE/$SECTION/$SPELL/DETAILS  >  /dev/null
-
-        echo  $SPELL
-        echo  $VERSION
-        echo  $HELD
-        echo  $SHORT
+        echo  -en   "\"${SPELL:="Unknown"}\""
+        echo  -en "\t\"${VERSION:="-"}\""
+        echo  -en "\t\"$HELD\""
+        echo  -e  "\t\"${SHORT:="Description Unavailable"}\""
 
       fi
     fi
@@ -491,40 +579,46 @@ make_hold_checklist()  {
 
 hold_pkgs()  {
 
+  local array=()
+  local tSPELL_STATUS
+
   CHECKLIST=`make_hold_checklist`
 
   HOLD_TITLE="Select spells to hold or unhold"
    HOLD_HELP="[X]=held  [ ]=installed"
 
-  if  OUTLIST=`$DIALOG  --title "$HOLD_TITLE"  \
+  if  OUTLIST=`eval $DIALOG '  --title "$HOLD_TITLE"  \
                         --item-help            \
                         --ok-label  "Commit"   \
                         --separate-output      \
                         --checklist            \
                         "$HOLD_HELP"           \
-                        0 0 10                 \
-                        $CHECKLIST`
+                        0 0 0                  \
+                        '$CHECKLIST`
   then
 
-    rm  -f  $SPELL_STATUS
+    tSPELL_STATUS=`lock_start_transaction $SPELL_STATUS`
+    rm $tSPELL_STATUS 2>/dev/null
 
-    for  LINE  in  `cat  $SPELL_STATUS_BACKUP`;  do
+    for  LINE  in  `cat  $SPELL_STATUS`;  do
+    
+      explode "$LINE" ":" "array"
 
-        SPELL=`echo  "$LINE"  |  cut  -d : -f1`
-         DATE=`echo  "$LINE"  |  cut  -d : -f2`
-       STATUS=`echo  "$LINE"  |  cut  -d : -f3`
-      VERSION=`echo  "$LINE"  |  cut  -d : -f4`
+        SPELL="${array[0]}"
+         DATE="${array[1]}"
+       STATUS="${array[2]}"
+      VERSION="${array[3]}"
 
-      if    echo  -e  "$OUTLIST"  |  grep  -q  "^$SPELL\$";  then
+      if    echo  -e  "$OUTLIST"  |  grep  -q  "^`esc_str $SPELL`$";  then
         STATUS="held";
       else
         STATUS=${STATUS/held/installed}
       fi
 
-      echo  "$SPELL:$DATE:$STATUS:$VERSION"  >>  $SPELL_STATUS
+      echo  "$SPELL:$DATE:$STATUS:$VERSION"  >>  $tSPELL_STATUS
 
     done
-    cp  $SPELL_STATUS  $SPELL_STATUS_BACKUP
+    lock_commit_transaction "$SPELL_STATUS"
 
   fi
 
@@ -536,7 +630,8 @@ spell_menu() {
   while
 
     U_HELP="Current software hinders crackers' attempts to infiltrate your box"
-    S_HELP="Install and remove multiple spells from a section using a single selection"
+    S_HELP="Install and remove multiple spells from a section using a single 
+selection"
     A_HELP="Simple safe, verbose way of selecting spells for installation"
     R_HELP="Simple safe, verbose way of selecting spells for removal"
     B_HELP="Rebuild all installed spells"
@@ -546,7 +641,7 @@ spell_menu() {
         OK="Select"
     CANCEL="Exit"
 
-    COMMAND=`$DIALOG  --title "$TITLE"           \
+    COMMAND=`eval $DIALOG '  --title "$TITLE"           \
                       --item-help                \
                       --ok-label      "$OK"      \
                       --cancel-label  "$CANCEL"  \
@@ -556,11 +651,11 @@ spell_menu() {
                       "H"  "Hold"     "$H_HELP"  \
                       "R"  "Remove"   "$R_HELP"  \
                       "S"  "Select"   "$S_HELP"  \
-                      "U"  "Update"   "$U_HELP"`
+                      "U"  "Update"   "$U_HELP"'`
   do
 
     case  $COMMAND in
-      U)  update_pkgs  ;;
+      U)  ( sorcery    system-update; ) ;;
       S)  select_pkgs  ;;
       A)  add_pkgs     ;;
       R)  remove_pkgs  ;;
@@ -576,9 +671,9 @@ spell_menu() {
 
 grep_install_logs() {
 
-  if  WHAT=`$DIALOG  --inputbox                                \
+  if  WHAT=`eval $DIALOG '  --inputbox                                \
                     "Please enter full path and name of file"  \
-                    0 0`
+                    0 0'`
   then
     cd  $INSTALL_LOGS
     grep  "$WHAT\$"  *  | $PAGER
@@ -589,75 +684,83 @@ grep_install_logs() {
 
 optimize_architecture()  {
 
-     I586_HELP="I586, Pentium, Pentium MMX, Cyrix"
-     I686_HELP="Pentium Pro, Celeron, P2, P3, P4"
-       K6_HELP="K6, K6-2, K6-3"
-   ATHLON_HELP="Athlon, Duron, Thunderbird"
-  POWERPC_HELP="Apple G3, G4"
-   SPEEDY_HELP="Optimize to increase performance of generated code"
-    RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules"
-     TINY_HELP="Optimize to decrease size of generated code"
-    STRIP_HELP="Remove all symbol table and relocation information"
+  architecture_menu
+  optimization_menu
+  
+}
 
-   ARCH_HELP="Please select a microprocessor category"
-  ARCH_TITLE="Architecture Menu"
+architecture_menu() {
 
-  OPT_HELP="Please select optimizations"
-  OPT_TITLE="Optimization Menu"
+  debug "sorcery" "architecture_menu()"
+  local  SPECFILE
+  local  LIST
+  for  SPECFILE  in  `find  $ARCH_SPECS  -not  -name '*~' | sort`; do
+    if  [[  -x  $SPECFILE  ]]  &&
+        grep  -q  "CPUNAME"  $SPECFILE; then
+      local CPUNAME=""
+      CPUNAME=$( .  $SPECFILE  &&  echo $CPUNAME )  &&
+      LIST="$LIST
+\"`basename $SPECFILE`\"	\"$CPUNAME\"	\"$CPUNAME\""
+    fi
+  done
+  debug  "sorcery" "architecture_menu() - Dialog options are $LIST"
 
-     I586=${I586:=off}
-     I686=${I686:=off}
-       K6=${K6:=off}
-   ATHLON=${ATHLON:=off}
-  POWERPC=${POWERPC:=off}
-   SPEEDY=${SPEEDY:=off}
-     TINY=${TINY:=off}
-    RISKY=${RISKY:=off}
-    STRIP=${STRIP:=off}
-
-  if   ARCHITECTURE=`$DIALOG  --title  "$ARCH_TITLE"     \
+  local ARCH_TITLE="Architecture Menu"
+  local ARCH_HELP="Please select a microprocessor category"
+  
+  if   ARCHITECTURE=`eval $DIALOG '  --title  "$ARCH_TITLE"     \
                               --item-help                \
                               --no-cancel                \
                               --menu                     \
                               "$ARCH_HELP"               \
                                0 0 0                     \
-                         "i586"    ""  "$I586_HELP"      \
-                         "i686"    ""  "$I686_HELP"      \
-                         "k6"      ""  "$K6_HELP"        \
-                         "athlon"  ""  "$ATHLON_HELP"    \
-                         "powerpc" ""  "$POWERPC_HELP"`  &&
+			       '$LIST              `; then
 
-      OPTIMIZATIONS=`$DIALOG  --title  "$OPT_TITLE"     \
+    debug "sorcery" "architecture_menu() - ARCHITECTURE='$ARCHITECTURE'"
+
+    modify_local_config "ARCHITECTURE" "$ARCHITECTURE"
+
+  fi
+
+  
+}
+
+optimization_menu(){
+	
+  local OPTIMIZATIONS
+  local      OPT_TITLE="Optimization Menu"
+  local       OPT_HELP="Please select optimizations"
+  
+  local    SPEEDY_HELP="Optimize to increase performance of generated code"
+  local     RISKY_HELP="Optimize to increase performance ... by violating ANSI or IEEE rules"
+  local      TINY_HELP="Optimize to decrease size of generated code"
+  local     STRIP_HELP="Remove all symbol table and relocation information"
+  local COMBRELOC_HELP="speeds up loading libs, also needed for prelink"
+  
+  if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
                               --item-help               \
                               --separate-output         \
                               --checklist               \
                               "$OPT_HELP"               \
                                0 0 0                    \
-           "speedy"  " +size  ++speed"  "$SPEEDY"  "$SPEEDY_HELP"  \
-           "risky"   "         +speed"  "$RISKY"   "$RISKY_HELP"   \
-           "tiny"    " -size"           "$TINY"    "$TINY_HELP"    \
-           "strip"   "--size"           "$STRIP"   "$STRIP_HELP"`
+        "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
+        "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
+        "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
+        "tiny"      "  -size"           "$TINY"      "$TINY_HELP"      \
+        "strip"     " --size"           "$STRIP"     "$STRIP_HELP"'`
   then
 
-    optimize  $ARCHITECTURE  $OPTIMIZATIONS
-
-    OPTIMIZATIONS=`echo     "$OPTIMIZATIONS"  |  tr '\n' ' '`
-    OPTIMIZE="$ARCHITECTURE  $OPTIMIZATIONS"
-
-    TEMP=`cat  $LOCAL_CONFIG  |  grep  -v  "optimize "`
-    echo  "$TEMP"                >   $LOCAL_CONFIG
-    echo  "optimize  $OPTIMIZE"  >>  $LOCAL_CONFIG
-
-    $DIALOG  --msgbox  \
-            "\"optimize $OPTIMIZE\" saved to $LOCAL_CONFIG" 8 40
-
+    OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`
+    debug "sorcery" "optimization_menu() - OPTIMIZATIONS='${OPTIMIZATIONS}'"
+    
+    modify_local_config "OPTIMIZATIONS" "$OPTIMIZATIONS"
+    
   fi
-
 }
 
 
-integrity_menu()  {
+integrity_fix_menu()  {
 
     INT_TITLE="Integrity Checking Selection Menu"
      INT_HELP="Please select the tests which cast --fix should execute."
@@ -666,7 +769,7 @@ integrity_menu()  {
      SYM_HELP="Discover misowned symbolic links to files"
   MD5SUM_HELP="Discover modified binary executables, and libraries"
 
-  if  INT_CHECKS=`$DIALOG  --title  "$INT_TITLE"  \
+  if  INT_FIX_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"  \
                            --no-cancel            \
                            --item-help            \
                            --separate-output      \
@@ -676,7 +779,7 @@ integrity_menu()  {
         "FIND_CHECK"    ""  "$FIND_CHECK"    "$FIND_HELP"    \
         "MD5SUM_CHECK"  ""  "$MD5SUM_CHECK"  "$MD5SUM_HELP"  \
         "LDD_CHECK"     ""  "$LDD_CHECK"     "$LDD_HELP"     \
-        "SYM_CHECK"     ""  "$SYM_CHECK"     "$SYM_HELP"`
+        "SYM_CHECK"     ""  "$SYM_CHECK"     "$SYM_HELP"'`
   then
 
         FIND_CHECK=off
@@ -684,7 +787,7 @@ integrity_menu()  {
          LDD_CHECK=off
          SYM_CHECK=off
 
-    for  CHECK  in  $INT_CHECKS;  do
+    for  CHECK  in  $INT_FIX_CHECKS;  do
       case  $CHECK  in
           FIND_CHECK)    FIND_CHECK=on  ;;
         MD5SUM_CHECK)  MD5SUM_CHECK=on  ;;
@@ -693,47 +796,198 @@ integrity_menu()  {
       esac
     done
 
-    TEMP=`cat   $LOCAL_CONFIG  |
-          grep  -v  "FIND_CHECK\|MD5SUM_CHECK\|LDD_CHECK\|SYM_CHECK"`
-
-    echo      "$TEMP"                       >   $LOCAL_CONFIG
-    echo      "  FIND_CHECK=$FIND_CHECK"    >>  $LOCAL_CONFIG
-    echo      "MD5SUM_CHECK=$MD5SUM_CHECK"  >>  $LOCAL_CONFIG
-    echo      "   LDD_CHECK=$LDD_CHECK"     >>  $LOCAL_CONFIG
-    echo      "   SYM_CHECK=$SYM_CHECK"     >>  $LOCAL_CONFIG
+    modify_local_config "FIND_CHECK" "$FIND_CHECK"
+    modify_local_config "MD5SUM_CHECK" "$MD5SUM_CHECK"
+    modify_local_config "LDD_CHECK" "$LDD_CHECK"
+    modify_local_config "SYM_CHECK" "$SYM_CHECK "
+    
   fi
 
 }
 
+
+integrity_download_menu()  {
+
+     INT_DL_TITLE="Archive Integrity Checking Level Menu"
+      INT_DL_HELP="Set your preference for reactions to bad archive integrity checks"
+       ABORT_HELP="Abort the use if the file. Do not prompt. SAFEST"
+   ABORT_ASK_HELP="Ask, but default to abort. SAFE"
+  IGNORE_ASK_HELP="Ask, but default to ignore. UNSAFE"
+      IGNORE_HELP="Ignore (do not check) integrity of downloads. DANGEROUS!"
+      
+  if  INT_DL_CHECK=`eval $DIALOG '  --title  "$INT_DL_TITLE"      \
+   			     --no-cancel                   \
+			     --ok-label    "Commit"        \
+			     --item-help                   \
+			     --menu                        \
+			     "$INT_DL_HELP"                \
+			     0 0 0                         \
+	"A"  "Abort unpack"           "$ABORT_HELP"        \
+	"B"  "Ask (default abort)"    "$ABORT_ASK_HELP"    \
+	"G"  "Ask (default ignore)"   "$IGNORE_ASK_HELP" \
+	"I"  "Ignore (do not check)"  "$IGNORE_HELP"'`
+  then
+    case $INT_DL_CHECK in
+      A) modify_local_config "MD5SUM_DL" "on" ;;
+      B) modify_local_config "MD5SUM_DL" "ask_abort" ;;
+      G) modify_local_config "MD5SUM_DL" "ask_ignore" ;;
+      I) modify_local_config "MD5SUM_DL" "off" ;;
+    esac
+  fi
+
+}
+
+
+integrity_menu()  {
+
+  INT_TITLE="Integrity Checking Selection Menu"
+   INT_HELP="Options involving integrity checking, including --fix and download options."
+   FIX_HELP="Set cast --fix checks"
+    DL_HELP="Discover corrupted or modified archives during cast"
+     
+  while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
+                           --cancel-label  "Exit"      \
+			   --ok-label      "Select"    \
+                           --item-help                 \
+                           --menu                      \
+                           "$INT_HELP"                 \
+                           0 0 0                       \
+        "F"  "System integrity"   "$FIX_HELP"          \
+        "D"  "Download integrity" "$DL_HELP"'`
+  do
+    case $INT_CHECKS in
+      F)  integrity_fix_menu       ;;
+      D)  integrity_download_menu  ;;
+    esac
+  done
+
+}
 
 set_email()  {
 
-  if  SORCERER=`$DIALOG  --ok-label  "Commit"         \
+  if  SORCERER=`eval $DIALOG '  --ok-label  "Commit"         \
                          --inputbox                   \
-                "Please enter the email address of the person or role account that should receive reports from this box."  \
-                0 0  "$SORCERER"`
+                "Please enter the email address of the person or role account 
+that should receive reports from this box."  \
+                0 0  "$SORCERER"'`
   then
 
-    TEMP=`grep  -v  "SORCERER="         $LOCAL_CONFIG`
-    echo      "$TEMP"               >   $LOCAL_CONFIG
-    echo  "    SORCERER=$SORCERER"  >>  $LOCAL_CONFIG
+    modify_local_config "SORCERER" "$SORCERER"
 
   fi
 
 }
+
+
+#---------------------------------------------------------------------
+##=item sorcery_set_jobs
+## 
+## Brings up a dialog that allows administrator to choose the number
+## of processes that make should use.  If the user selects "Commit",
+## the MAKE_NJOBS variable is written to the local config file.
+##
+#  Created by Eric Sandall <sandalle@yahoo.com>  2002-06-28@00:08 PST
+#---------------------------------------------------------------------
+sorcery_set_jobs() {
+  [  -z  "$MAKE_NJOBS"  ]  &&  MAKE_NJOBS=1
+
+  local MAKE_NJOBS_HELP="Enter the number of jobs 'make' should run at the     \
+                         same time.  WARNING: Anything greater than 1 is risky \
+                         as not all makefiles support concurrent builds."
+
+  if  MAKE_NJOBS=`eval $DIALOG '  --ok-label  "Commit"  \
+                           --inputbox            \
+                           "$MAKE_NJOBS_HELP"      \
+                           0 0  "$MAKE_NJOBS"'`
+  then
+
+    TEMP=`cat       $LOCAL_COMPILE_CONFIG  |
+          grep -v   "MAKE_NJOBS="`
+    echo  "$TEMP"                   >       $LOCAL_COMPILE_CONFIG
+    echo  "MAKE_NJOBS=$MAKE_NJOBS"  >>      $LOCAL_COMPILE_CONFIG
+  fi
+}
+
+
+#---------------------------------------------------------------------
+##=item sorcery_distcc
+## 
+## Allows the admin to set which hosts are compile volunteers.
+##
+#---------------------------------------------------------------------
+
+sorcery_distcc() {
+
+  [  -z  "$DISTCC_HOSTS"  ]  &&  DISTCC_HOSTS=""
+
+  local DISTCC_HELP="Enter space separated list of volunteers. Leave empty to \
+                     disable distributed compilation. Number of make jobs is  \
+                     automatically altered to the number of volunteers plus one"
+
+  if  DISTCC_HOSTS=`eval $DIALOG '  --ok-label  "Commit"  \
+                             --inputbox                   \
+                             "$DISTCC_HELP"               \
+                             0 0 "$DISTCC_HOSTS"'`
+  then
+    TEMP=`cat       $LOCAL_COMPILE_CONFIG  |
+          grep  -v  "DISTCC_HOSTS="        |
+          grep  -v  "MAKE_NJOBS="`
+
+    echo  "$TEMP"                               >   $LOCAL_COMPILE_CONFIG
+    echo  "DISTCC_HOSTS=\"$DISTCC_HOSTS\""      >>  $LOCAL_COMPILE_CONFIG
+
+    explode "$DISTCC_HOSTS" " " "hosts"
+    echo  "MAKE_NJOBS=$(( ${#hosts[@]} + 1 ))"  >>  $LOCAL_COMPILE_CONFIG
+    unset hosts
+  fi
+
+}
+
+
+set_branch() {
+
+
+  while
+
+    D_HELP="Nightly CVS snapshots"
+    S_HELP="Current stable version"
+
+    COMMAND=`eval $DIALOG '  --title "Currently tracking : $SORCERY_BRANCH "  \
+                      --item-help                               \
+                      --ok-label      "Select"                  \
+                      --cancel-label  "Exit"                    \
+                      --menu                                    \
+                      ""                                        \
+                      0 0 0                                     \
+                      "S"  "Stable Branch"            "$S_HELP" \
+                      "D"  "Devel Branch"            "$D_HELP"'`
+
+  do
+
+    case  $COMMAND in
+
+      S)  modify_local_config "SORCERY_BRANCH" "stable"  &&
+          SORCERY_BRANCH="stable"                        ;;
+      D)  modify_local_config "SORCERY_BRANCH" "devel"   &&
+          SORCERY_BRANCH="devel"                        ;;
+
+    esac
+      
+  done
+
+}
+
 
 
 set_delay()  {
 
-  if  PROMPT_DELAY=`$DIALOG  --ok-label  "Commit"  \
+  if  PROMPT_DELAY=`eval $DIALOG '  --ok-label  "Commit"  \
                              --inputbox            \
                              "Please enter the time in seconds to wait for a response when prompted with a question."  \
-                              0 0  "$PROMPT_DELAY"`
+                              0 0  "$PROMPT_DELAY"'`
   then
 
-    TEMP=`grep  -v  "PROMPT_DELAY="         $LOCAL_CONFIG`
-    echo      "$TEMP"                   >   $LOCAL_CONFIG
-    echo  "PROMPT_DELAY=$PROMPT_DELAY"  >>  $LOCAL_CONFIG
+    modify_local_config "PROMPT_DELAY" "$PROMPT_DELAY"
 
   fi
 
@@ -744,17 +998,13 @@ set_download_rate()  {
 
   PROMPT="Please enter the maximum bytes per second for summoning"
 
-  if  DOWNLOAD_RATE=`$DIALOG  --ok-label  "Commit"  \
+  if  DOWNLOAD_RATE=`eval $DIALOG '  --ok-label  "Commit"  \
                               --inputbox            \
                               "$PROMPT"             \
-                               0 0  "$DOWNLOAD_RATE"`
+                               0 0  "$DOWNLOAD_RATE"'`
   then
 
-    TEMP=`grep  -v  "DOWNLOAD_RATE="          $LOCAL_CONFIG`
-    echo      "$TEMP"                     >   $LOCAL_CONFIG
-    [  -z  "$DOWNLOAD_RATE"          ]  ||
-    [      "$DOWNLOAD_RATE" ==  "0"  ]  ||
-    echo  "DOWNLOAD_RATE=$DOWNLOAD_RATE"  >>  $LOCAL_CONFIG
+    modify_local_config "DOWNLOAD_RATE" "$DOWNLOAD_RATE"
 
   fi
 
@@ -772,29 +1022,27 @@ queue_menu()  {
     S_HELP="View the datafile of installed spells"
     s_HELP="Edit the datafile of installed spell"
 
-    COMMAND=`$DIALOG  --title "Queue Menu"                           \
+    COMMAND=`eval $DIALOG '  --title "Queue Menu"                           \
                       --ok-label      "Select"                       \
                       --cancel-label  "Exit"                         \
                       --default-item  $COMMAND                       \
                       --item-help                                    \
                       --menu                                         \
                       ""                                             \
-                      0 40 6                                         \
+                      0 0 0                                          \
                       "I"     "View     install  queue"   "$I_HELP"  \
                       "i"     "Edit     install  queue"   "$i_HELP"  \
                       "R"     "View     removal  queue"   "$R_HELP"  \
                       "r"     "Edit     removal  queue"   "$r_HELP"  \
                       "S"     "View     spell    status"  "$S_HELP"  \
-                      "s"     "Edit     spell    status"  "$s_HELP"`
+                      "s"     "Edit     spell    status"  "$s_HELP"'`
 
   do
 
     case  $COMMAND in
 
       S)  show_file  $SPELL_STATUS         ;;
-      s)  edit_file  $SPELL_STATUS
-          cp         $SPELL_STATUS         \
-                     $SPELL_STATUS_BACKUP  ;;
+      s)  edit_file  $SPELL_STATUS         ;;
       I)  show_file  $INSTALL_QUEUE        ;;
       i)  edit_file  $INSTALL_QUEUE        ;;
       R)  show_file  $REMOVE_QUEUE         ;;
@@ -817,19 +1065,19 @@ log_menu()  {
     c_HELP="Remove a compile log"
     i_HELP="Edit a log of files previously installed"
 
-    COMMAND=`$DIALOG  --title "Log Menu"                          \
+    COMMAND=`eval $DIALOG '  --title "Log Menu"                          \
                       --ok-label      "Select"                    \
                       --cancel-label  "Exit"                      \
                       --default-item  $COMMAND                    \
                       --item-help                                 \
                       --menu                                      \
                       ""                                          \
-                      0 40 5                                      \
+                      0 0 0                                       \
                       "G"     "Grep    install logs"  "$G_HELP"   \
                       "I"     "View    install log"   "$I_HELP"   \
                       "i"     "Edit    install log"   "$i_HELP"   \
                       "C"     "View    compile log"   "$C_HELP"   \
-                      "c"     "Remove  compile log"   "$c_HELP"`
+                      "c"     "Remove  compile log"   "$c_HELP"'`
 
   do
 
@@ -852,18 +1100,23 @@ feature_menu()  {
 
   B_HELP="Administrate groups of Unix/Linux boxes?"
   C_HELP="Colorized messages on cast and dispel?"
+  D_HELP="Automatically gather miscellaneous documentation from spells"
   E_HELP="Remove files when dispelling?"
   F_HELP="Check for and repair broken programs after updating sorcery?"
-  G_HELP="Slower initial compilation, acclerated upgrade compilation?"
+  G_HELP="Slower initial compilation, accelerated upgrade compilation?"
   I_HELP="Create archives of installed software?"
+  L_HELP="Locally customize SPELL configuration?"
   M_HELP="Email reports?"
   P_HELP="Preserve modified files or backup them up and overwrite with defaults?"
   R_HELP="Prompt to view reports?"
   S_HELP="Play audio with prompts?"
+TMP_HELP="Attempt to compile entirely in RAM?"
   T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
   U_HELP="Automatically remove old sources and install caches upon sorcery update?"
   V_HELP="View compilation as it happens?"
   X_HELP="Download and apply xdelta patches when available?"
+ NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
+ CS_HELP="Clean up source directories after failures?"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -871,7 +1124,10 @@ feature_menu()  {
          CABAL=${CABAL:=off}
         CCACHE=${CCACHE:=off}
          COLOR=${COLOR:=on}
+    CONFIG_LOC=${CONFIG_LOC:=on}
+   GATHER_DOCS=${GATHER_DOCS:=on}
   MAIL_REPORTS=${MAIL_REPORTS:=off}
+         TMPFS=${TMPFS:=on}
   VIEW_REPORTS=${VIEW_REPORTS:=off}
          PATCH=${PATCH:=on}
       PRESERVE=${PRESERVE:=on}
@@ -879,44 +1135,40 @@ feature_menu()  {
        SUSTAIN=${SUSTAIN:on}
         VOYEUR=${VOYEUR:=on}
           REAP=${REAP:=on}
+    NET_SELECT=${NET_SELECT:=off}
+  CLEAN_SOURCE=${CLEAN_SOURCE:=off}
 
-  if  TOGGLES=`$DIALOG  --title "Feature Menu"  \
+  if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
                         --item-help             \
                         --separate-output       \
                         --checklist             \
                         ""                      \
-                        0 40 15                 \
+                        0 0 0                   \
       "ARCHIVE"       "Toggle"  "$ARCHIVE"       "$I_HELP"   \
       "AUTOFIX"       "Toggle"  "$AUTOFIX"       "$F_HELP"   \
       "AUTOPRUNE"     "Toggle"  "$AUTOPRUNE"     "$U_HELP"   \
       "CABAL"         "Toggle"  "$CABAL"         "$B_HELP"   \
       "CCACHE"        "Toggle"  "$CCACHE"        "$G_HELP"   \
       "COLOR"         "Toggle"  "$COLOR"         "$C_HELP"   \
+      "CONFIG_LOC"    "Toggle"  "$CONFIG_LOC"    "$L_HELP"   \
+      "GATHER_DOCS"   "Toggle"  "$GATHER_DOCS"   "$D_HELP"   \
       "MAIL_REPORTS"  "Toggle"  "$MAIL_REPORTS"  "$M_HELP"   \
       "PATCH"         "Toggle"  "$PATCH"         "$X_HELP"   \
       "PRESERVE"      "Toggle"  "$PRESERVE"      "$P_HELP"   \
       "SOUND"         "Toggle"  "$SOUND"         "$S_HELP"   \
       "SUSTAIN"       "Toggle"  "$SUSTAIN"       "$T_HELP"   \
+      "TMPFS"         "Toggle"  "$TMPFS"         "$TMP_HELP" \
       "VIEW_REPORTS"  "Toggle"  "$VIEW_REPORTS"  "$R_HELP"   \
       "VOYEUR"        "Toggle"  "$VOYEUR"        "$V_HELP"   \
-      "REAP"          "Toggle"  "$REAP"          "$E_HELP"`
+      "REAP"          "Toggle"  "$REAP"          "$E_HELP"   \
+      "NET_SELECT"    "Toggle"  "$NET_SELECT"    "$NS_HELP"  \
+      "CLEAN_SOURCE"  "Toggle"  "$CLEAN_SOURCE"  "$CS_HELP"'`
   then
-
-         ARCHIVE=off
-         AUTOFIX=off
-       AUTOPRUNE=off
-           CABAL=off
-          CCACHE=off
-           COLOR=off
-    MAIL_REPORTS=off
-           PATCH=off
-        PRESERVE=off
-           SOUND=off
-         SUSTAIN=off
-    VIEW_REPORTS=off
-          VOYEUR=off
-            REAP=off
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE)
+    for i in ${TEMP[*]} ; do
+      eval $i=off
+    done
 
     for  TOGGLE  in  $TOGGLES;  do
 
@@ -928,49 +1180,35 @@ feature_menu()  {
                CABAL)         CABAL=on  ;;
               CCACHE)        CCACHE=on  ;;
                COLOR)         COLOR=on  ;;
+          CONFIG_LOC)    CONFIG_LOC=on  ;;
+         GATHER_DOCS)   GATHER_DOCS=on  ;;
         MAIL_REPORTS)  MAIL_REPORTS=on  ;;
                PATCH)         PATCH=on  ;;
             PRESERVE)      PRESERVE=on  ;;
                SOUND)         SOUND=on  ;;
              SUSTAIN)       SUSTAIN=on  ;;
+               TMPFS)         TMPFS=on  ;;
         VIEW_REPORTS)  VIEW_REPORTS=on  ;;
               VOYEUR)        VOYEUR=on  ;;
                 REAP)          REAP=on  ;;
+	  NET_SELECT)    NET_SELECT=on  ;;
+        CLEAN_SOURCE)  CLEAN_SOURCE=on  ;;
       esac
 
     done
 
-    TEMP=`cat       $LOCAL_CONFIG    |
-          grep  -v  "ARCHIVE="       |
-          grep  -v  "AUTOFIX="       |
-          grep  -v  "AUTOPRUNE="     |
-          grep  -v  "CABAL="         |
-          grep  -v  "CCACHE="        |
-          grep  -v  "MAIL_REPORTS="  |
-          grep  -v  "VIEW_REPORTS="  |
-          grep  -v  "PATCH="         |
-          grep  -v  "PRESERVE="      |
-          grep  -v  "SOUND="         |
-          grep  -v  "SUSTAIN="       |
-          grep  -v  "VOYEUR="        |
-          grep  -v  "REAP="          |
-          grep  -v  "color"`
+    TEMP=(ARCHIVE AUTOFIX AUTOPRUNE CABAL GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PATCH PRESERVE SOUND SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE)
+    for i in ${TEMP[*]} ; do
+      modify_local_config "$i" "${!i}"
+    done
+    
+    modify_local_config "color" "$COLOR" "command"
 
-    echo  "$TEMP"                       >   $LOCAL_CONFIG
-    echo  "     ARCHIVE=$ARCHIVE"       >>  $LOCAL_CONFIG
-    echo  "     AUTOFIX=$AUTOFIX"       >>  $LOCAL_CONFIG
-    echo  "   AUTOPRUNE=$AUTOPRUNE"     >>  $LOCAL_CONFIG
-    echo  "       CABAL=$CABAL"         >>  $LOCAL_CONFIG
-    echo  "      CCACHE=$CCACHE"        >>  $LOCAL_CONFIG
-    echo  "MAIL_REPORTS=$MAIL_REPORTS"  >>  $LOCAL_CONFIG
-    echo  "       PATCH=$PATCH"         >>  $LOCAL_CONFIG
-    echo  "    PRESERVE=$PRESERVE"      >>  $LOCAL_CONFIG
-    echo  "       SOUND=$SOUND"         >>  $LOCAL_CONFIG
-    echo  "     SUSTAIN=$SUSTAIN"       >>  $LOCAL_CONFIG
-    echo  "VIEW_REPORTS=$VIEW_REPORTS"  >>  $LOCAL_CONFIG
-    echo  "      VOYEUR=$VOYEUR"        >>  $LOCAL_CONFIG
-    echo  "        REAP=$REAP"          >>  $LOCAL_CONFIG
-    echo  "color  $COLOR"               >>  $LOCAL_CONFIG
+    TEMP=`cat       $LOCAL_COMPILE_CONFIG  |
+          grep  -v  "CCACHE="`
+
+    echo  "$TEMP"           >   $LOCAL_COMPILE_CONFIG
+    echo  "CCACHE=$CCACHE"  >>  $LOCAL_COMPILE_CONFIG
   fi
 
 }
@@ -980,38 +1218,48 @@ option_menu()  {
 
   while
 
+    B_HELP="Specify the sorcery branch you would like to track"
     D_HELP="Enter the default delay time for prompts"
     E_HELP="Enter the email address for this box's sorcerer"
     F_HELP="Select many options on or off at once"
     M_HELP="Select ftp and http mirrors for faster downloads"
     O_HELP="Select architecture optimizations"
     I_HELP="Select the test that cast --fix, and AUTOFIX execute"
+    J_HELP="Enter the number of jobs 'make' should run at the same time"
+    C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
+    
 
-    COMMAND=`$DIALOG  --title "Option Menu"                    \
-                      --item-help                              \
-                      --ok-label      "Select"                 \
-                      --cancel-label  "Exit"                   \
-                      --menu                                   \
-                      ""                                       \
-                      0 40 7                                   \
-                      "D"  "Prompt Delay"           "$D_HELP"  \
-                      "R"  "Download Rate"          "$R_HELP"  \
-                      "E"  "Sorcerer's Email"       "$E_HELP"  \
-                      "F"  "Feature Menu"           "$F_HELP"  \
-                      "I"  "Integrity Checking"     "$I_HELP"  \
-                      "M"  "Software Mirrors"       "$M_HELP"  \
-                      "O"  "Optimize Architecture"  "$O_HELP"`
+    COMMAND=`eval $DIALOG '  --title "Option Menu"                     \
+                      --item-help                               \
+                      --ok-label      "Select"                  \
+                      --cancel-label  "Exit"                    \
+                      --menu                                    \
+                      ""                                        \
+                      0 0 0                                     \
+                      "B"  "Sorcery Branch"           "$B_HELP" \
+                      "D"  "Prompt Delay"             "$D_HELP" \
+                      "R"  "Download Rate"            "$R_HELP" \
+                      "E"  "Email of Sorcerer"        "$E_HELP" \
+                      "F"  "Feature Menu"             "$F_HELP" \
+                      "I"  "Integrity Checking"       "$I_HELP" \
+                      "J"  "Number of \"make\" Jobs"  "$J_HELP" \
+                      "C"  "Distributed compilation"  "$C_HELP" \
+                      "M"  "Software Mirrors"         "$M_HELP" \
+                      "O"  "Optimize Architecture"    "$O_HELP"'`
 
   do
 
     case  $COMMAND in
 
+      B)  set_branch             ;;
       D)  set_delay              ;;
       R)  set_download_rate      ;;
       E)  set_email              ;;
       F)  feature_menu           ;;
       I)  integrity_menu         ;;
+      J)  sorcery_set_jobs       ;;
+      C)  sorcery_distcc         ;;
       M)  mirror_menu            ;;
       O)  optimize_architecture  ;;
 
@@ -1063,526 +1311,25 @@ foreground_execute() {
   goodbye
 
 }
-
-
-read_cabal_names()  {
-
-  mkdir  -p  $CABAL_DIRECTORY
-
-  OLD_IFS="$IFS"
-      IFS="$ENTER_IFS"
-
-  COUNT=0;
-  if  [  -f  $CABAL_NAMES  ];  then
-    for  NAME  in  `cat  $CABAL_NAMES`;  do
-      CABALS[$COUNT]="$NAME"
-      ((  COUNT++  ))
-    done
-  fi
-
-  export  IFS="$OLD_IFS"
-
-}
-
-
-write_cabal_names()  {
-
-  rm  -f  $CABAL_NAMES
-  for  ((  COUNT=0;  COUNT != MAX_CABALS;  COUNT++  ));   do
-    echo  "${CABALS[$COUNT]}"  >>  $CABAL_NAMES
-  done
-
-}
-
-
-print_cabal_names()  {
-
-  for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
-    echo  "${CABALS[$COUNT]}"
-  done
-
-}
-
-
-print_cabal_numbers_names()  {
-
-  for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
-    echo  "$COUNT"
-    if    [  -n  "${CABALS[$COUNT]}"  ]
-    then  echo   "${CABALS[$COUNT]}"
-    else  echo   "Undefined"
-    fi
-  done
-
-}
-
-
-select_cabal()  {
-
-  $DIALOG  --title         "Cabal Selection Menu"  \
-           --ok-label      "Select"                \
-           --cancel-label  "Exit"                  \
-           --menu                                  \
-           "Please Select a Cabal"                 \
-           0 0 0                                   \
-           $( print_cabal_numbers_names )
-
-}
-
-
-edit_cabals()  {
-
-  while  SELECTED=`select_cabal`
-  do     edit_file  "$CABAL_DIRECTORY/$SELECTED"
-  done
-
-}
-
-
-show_cabals()  {
-
-  while  SELECTED=`select_cabal`
-  do     show_file  "$CABAL_DIRECTORY/$SELECTED"
-  done
-
-}
-
-
-generate_cabal_key()  {
-
-  while  SELECTED=`select_cabal`
-  do
-
-    mkdir  -p   $CABAL_KEYS
-    chmod  600  $CABAL_KEYS
-
-    ssh-keygen  -t  dsa  \
-                -b  1024 \
-                -N  ""   \
-                -f  $CABAL_KEYS/$SELECTED
-
-  done
-
-}
-
-
-all_cabal_keys()  {
-
-  for  KEY  in  `ls  $CABAL_KEYS/*  |
-                 grep  -v  "\.pub"`
-  do  echo  "-i"
-      echo  "$KEY"
-  done
-
-}
-
-
-distribute_cabal_key()  {
-
-  while  SELECTED=`select_cabal`
-  do
-
-    mkdir  -p   $CABAL_KEYS
-    chmod  600  $CABAL_KEYS
-
-    if  !  [  -e  $CABAL_KEYS/$SELECTED.pub  ];  then
-      $DIALOG  --msgbox  "Generate the key first!"
-      return
-    fi
-
-    AK2="/root/.ssh/authorized_keys2"
-
-    cat    $CABAL_DIRECTORY/$SELECTED  |
-    while  read  BOX
-    do     cat  $CABAL_KEYS/$SELECTED.pub  |
-           ssh  `all_cabal_keys`           \
-                root@$BOX                  \
-                "cat   >>  $AK2;           \
-                 sort      $AK2  |         \
-                 uniq  >   $AK2"
-    done
-  done
-
-}
-
-
-revoke_cabal_key()  {
-
-  while  SELECTED=`select_cabal`
-  do
-
-    mkdir  -p   $CABAL_KEYS
-    chmod  600  $CABAL_KEYS
-
-    if  !  [  -e  $CABAL_KEYS/$SELECTED.pub  ];  then
-      $DIALOG  --msgbox  "No key to revoke!"
-      return
-    fi
-
-    AK2="/root/.ssh/authorized_keys2"
-
-    cat    $CABAL_DIRECTORY/$SELECTED  |
-    while  read  BOX
-    do     REVOKE=KEY="`cat  $CABAL_KEYS/$SELECTED.pub`"
-           ssh  `all_cabal_keys`                   \
-                root@$BOX                          \
-                "grep  -v  "$REVOKE_KEY"  $AK2  |  \
-                 sort                  >  $AK2"
-    done
-  done
-
-}
-
-
-name_cabals()  {
-
-   TITLE="Name Cabals Menu"
-    HELP="Please enter cabal's name"
-
-  while  SELECTED=`select_cabal`
-  do
-
-    if  NAME=`$DIALOG  --title         "$TITLE"  \
-                       --ok-label      "Enter"   \
-                       --cancel-label  "Cancel"  \
-                       --inputbox                \
-                       "$HELP"                   \
-                       0 0 ${CABALS[$SELECTED]}`
-    then
-      CABALS[$SELECTED]="$NAME"
-    fi
-  done
-
-  write_cabal_names
-
-}
-
-
-set_max_cabals()  {
-
-  PROMPT="Please enter the maximum number of cabals"
-
-  if  NEW_MAX=`$DIALOG  --ok-label  "Commit"  \
-                        --inputbox            \
-                        "$PROMPT"             \
-                        0 0  "$MAX_CABALS"`
-  then
-
-    MAX_CABALS=$NEW_MAX
-    TEMP=`grep  -v  "MAX_CABALS="       $LOCAL_CONFIG`
-    echo  "$TEMP"                   >   $LOCAL_CONFIG
-    echo  "MAX_CABALS=$MAX_CABALS"  >>  $LOCAL_CONFIG
-
-  fi
-
-}
-
-
-cabal_name_menu()  {
-
-  while
-
-      HELP=""
-    S_HELP="Show the names of the cabals"
-    E_HELP="Edit the names of the cabals"
-     TITLE="Cabal Name Menu"
-
-    COMMAND=`$DIALOG --title         "$TITLE"            \
-                     --item-help                         \
-                     --ok-label      "Select"            \
-                     --cancel-label  "Exit"              \
-                     --menu                              \
-                     "$HELP"                             \
-                     0 0 0                               \
-                     "S"  "Show Cabal Names"  "$S_HELP"  \
-                     "E"  "Edit Cabal Names"  "$E_HELP"`
-  do
-
-    case  $COMMAND in
-      S)  print_cabal_names  |  $PAGER  ;;
-      E)  name_cabals                   ;;
-    esac
-
-  done
-
-}
-
-
-cabal_key_menu()  {
-
-  while
-
-      HELP="Generate, distribute, and revoke ssh2 keys to cabal computers to enable root login without password prompts"
-    G_HELP="Create 2048 bit ssh2 dsa public/private keys for a cabal."
-    D_HELP="Install the public key on all computer members of cabal."
-    R_HELP="Remove a previously installed cabal key"
-     TITLE="Cabal Key Menu"
-
-    COMMAND=`$DIALOG --title         "$TITLE"                 \
-                     --item-help                              \
-                     --ok-label      "Select"                 \
-                     --cancel-label  "Exit"                   \
-                     --menu                                   \
-                     "$HELP"                                  \
-                     0 0 0                                    \
-                     "G"  "Generate    Cabal Key"  "$G_HELP"  \
-                     "D"  "Distribute  Cabal Key"  "$D_HELP"  \
-                     "R"  "Revoke      Cabal Key"  "$R_HELP"`
-  do
-
-    case  $COMMAND in
-      G)  generate_cabal_key    ;;
-      D)  distribute_cabal_key  ;;
-      R)  revoke_cabal_key      ;;
-    esac
-
-  done
-
-}
-
-
-cabal_content_menu()  {
-
-  while
-
-      HELP=""
-    S_HELP="Show the computers which belong to a cabal"
-    E_HELP="Edit the computers which belong to a cabal"
-     TITLE="Cabal Content Menu"
-
-    COMMAND=`$DIALOG --title         "$TITLE"       \
-                     --item-help                    \
-                     --ok-label      "Select"       \
-                     --cancel-label  "Exit"         \
-                     --menu                         \
-                     "$HELP"                        \
-                     0 0 0                          \
-                     "S"  "Show  Cabal"  "$S_HELP"  \
-                     "E"  "Edit  Cabal"  "$E_HELP"`
-  do
-
-    case  $COMMAND in
-      S)  show_cabals  ;;
-      E)  edit_cabals  ;;
-    esac
-
-  done
-
-}
-
-
-cabal_admin_menu()  {
-
-  while
-
-      HELP=""
-    M_HELP="Define maximum amount of cabals."
-    N_HELP="Define and display the names of cabals"
-    C_HELP="Define and display the computers belong to a cabal"
-    K_HELP="Generate and distribute keys for cabals"
-     TITLE="Cabal Admin Menu"
-
-    COMMAND=`$DIALOG --title         "$TITLE"                 \
-                     --item-help                              \
-                     --ok-label      "Select"                 \
-                     --cancel-label  "Exit"                   \
-                     --menu                                   \
-                     "$HELP"                                  \
-                     0 0 0                                    \
-                     "N"  "Cabal Name       Menu"  "$N_HELP"  \
-                     "C"  "Cabal Content    Menu"  "$C_HELP"  \
-                     "K"  "Cabal Key        Menu"  "$K_HELP"  \
-                     "M"  "Maximum Cabals:  $MAX_CABALS"   "$M_HELP"`
-
-  do
-
-    case  $COMMAND in
-      N)  cabal_name_menu     ;;
-      C)  cabal_content_menu  ;;
-      K)  cabal_key_menu      ;;
-      M)  set_max_cabals      ;;
-    esac
-
-  done
-
-}
-
-
-select_order()  {
-
-  $DIALOG  --title  "Order Selection Menu"  \
-           --menu  ""  0 0 0                \
-           "S"  "Sequentially"              \
-           "C"  "Concurrently"
-
-}
-
-
-cabal_copy()  {
-
-  SOURCE_MESSAGE="Please enter source files and directories."
-    DEST_MESSAGE="Please enter destination directory."
-
-  mkdir  -p  $CABAL_OUTPUT
-
-       SOURCE=`$DIALOG  --inputbox  "$SOURCE_MESSAGE"  0 0`  &&
-  DESTINATION=`$DIALOG  --inputbox  "$DEST_MESSAGE"    0 0`  &&
-        CABAL=`select_cabal`                                 &&
-        ORDER=`select_order`                                 &&
-
-  case  $ORDER  in
-    C)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
-          scp  -i  $CABAL_KEYS/$CABAL    \
-               -r  $SOURCE               \
-               root@${BOX}:$DESTINATION  \
-          >  $CABAL_OUTPUT/$BOX          &
-        done
-        ;;
-    S)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
-          scp  -i  $CABAL_KEYS/$CABAL    \
-               -r  $SOURCE               \
-               root@${BOX}:$DESTINATION
-        done
-        read  -n 1  -p  "Press any key to continue"
-        ;;
-  esac
-
-}
-
-
-cabal_execute()  {
-
-  COMMAND_MESSAGE="Please enter command to be execute remotely on cabal."
-
-  mkdir  -p  $CABAL_OUTPUT
-
-  COMMAND=`$DIALOG  --inputbox  "$COMMAND_MESSAGE"  0 0`  &&
-    CABAL=`select_cabal`                                  &&
-    ORDER=`select_order`                                  &&
-
-  case  $ORDER  in
-    C)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
-          ssh  -i  $CABAL_KEYS/$CABAL  \
-                   root@${BOX}         \
-                   "$COMMAND"          \
-          >  $CABAL_OUTPUT/$BOX        &
-        done
-        ;;
-
-    S)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
-          ssh  -i  $CABAL_KEYS/$CABAL  \
-                   root@${BOX}         \
-                   "$COMMAND"
-        done
-        read  -n 1  -p  "Press any key to continue"
-        ;;
-  esac
-
-  sleep  10
-
-}
-
-
-cabal_output()  {
-
-  if  [  -d  $CABAL_OUTPUT  ];  then
-    for  FILE  in  `ls  $CABAL_OUTPUT`;  do
-      echo  "$FILE  Beginning Output"
-      cat   $CABAL_OUTPUT/$FILE
-      echo  "$FILE  Ending Output"
-    done
-  fi
-}
-
-
-cabal_enchantment_menu()  {
-
-  while
-
-      HELP=""
-    C_HELP="Copy files and directories to cabals via scp"
-    E_HELP="Execute commands on cabals"
-    S_HELP="Show the output of previously execute concurrent commands and copies"
-     TITLE="Enchantment Menu"
-
-    COMMAND=`$DIALOG --title         "$TITLE"   \
-                     --item-help                \
-                     --ok-label      "Select"   \
-                     --cancel-label  "Exit"     \
-                     --menu                     \
-                     "$HELP"                    \
-                     0 0 0                      \
-                     "C"  "Copy"     "$A_HELP"  \
-                     "E"  "Execute"  "$E_HELP"  \
-                     "S"  "Show"     "$S_HELP"`
-
-  do
-
-    case  $COMMAND in
-      C)  cabal_copy               ;;
-      E)  cabal_execute            ;;
-      S)  cabal_output  |  $PAGER  ;;
-    esac
-
-  done
-
-}
-
-
-cabal_menu()  {
-
-  while
-
-    read_cabal_names
-
-      HELP="Administrate Multiple Boxes Simultaneously With Cabal"
-    A_HELP="Set up Cabals"
-    E_HELP="Execute scripts and copy files."
-     TITLE="Cabal Menu"
-
-    COMMAND=`$DIALOG --title         "$TITLE"          \
-                     --item-help                       \
-                     --ok-label      "Select"          \
-                     --cancel-label  "Exit"            \
-                     --menu                            \
-                     "$HELP"                           \
-                     0 0 0                             \
-                     "A"  "Administration"  "$A_HELP"  \
-                     "E"  "Enchantment"     "$E_HELP"`
-
-  do
-
-    case  $COMMAND in
-      A)  cabal_admin_menu        ;;
-      E)  cabal_enchantment_menu  ;;
-    esac
-
-  done
-
-}
-
-    
+ 
+   
 main_menu()  {
 
   while
 
-    S_HELP="Easy spell management"
-    O_HELP="Change sorcery options and features"
-    L_HELP="View and edit sorcery genreated log files."
+    S_HELP="Easy spell management."
+    O_HELP="Change sorcery options and features."
+    L_HELP="View and edit sorcery generated log files."
     Q_HELP="View and edit sorcery queues."
-    F_HELP="Process queues while you watch and wait"
-    B_HELP="Process queues in the background"
-    E_HELP="Exit without processing queues"
-    C_HELP="Administrate groups of Unix/Linux boxes"
+    F_HELP="Process queues while you watch and wait."
+    B_HELP="Process queues in the background."
+    E_HELP="Exit without processing queues."
+    C_HELP="Administrate groups of Unix/Linux boxes."
         OK="Select"
     CANCEL="Exit"
 
     if  [  "$CABAL"  ==  "on"  ];  then
-      COMMAND=`$DIALOG --title "Main Menu"                   \
+      COMMAND=`eval $DIALOG ' --title "Main Menu"                   \
                        --item-help                           \
                        --ok-label      "$OK"                 \
                        --cancel-label  "$CANCEL"             \
@@ -1595,11 +1342,11 @@ main_menu()  {
                        "Q"  "Queue      Menu"     "$Q_HELP"  \
                        "F"  "Foreground Execute"  "$F_HELP"  \
                        "B"  "Background Execute"  "$B_HELP"  \
-                       "C"  "Cabal      Menu"     "$C_HELP"`
+                       "C"  "Cabal      Menu"     "$C_HELP"'`
 
     else
 
-      COMMAND=`$DIALOG --title "Main Menu"                   \
+      COMMAND=`eval $DIALOG ' --title "Main Menu"                   \
                        --item-help                           \
                        --ok-label      "$OK"                 \
                        --cancel-label  "$CANCEL"             \
@@ -1611,7 +1358,7 @@ main_menu()  {
                        "L"  "Log        Menu"     "$L_HELP"  \
                        "Q"  "Queue      Menu"     "$Q_HELP"  \
                        "F"  "Foreground Execute"  "$F_HELP"  \
-                       "B"  "Background Execute"  "$B_HELP"`
+                       "B"  "Background Execute"  "$B_HELP"'`
     fi
   do
 
@@ -1636,29 +1383,54 @@ main() {
 
   rm  -f  $UPDATE_SCRIPT
 
-  case  $1  in  
-     update)  update_pkgs  autoupdate  ;;
-    rebuild)  rebuild                  ;;
-          *)  main_menu                ;;
-  esac
+  if [ -z $1 ]; then
+    main_menu
+  else
+    case  $1  in  
+               update)  update_sorcery_scripts $SORCERY_BRANCH  ;;
+        system-update)  update_pkgs  autoupdate                 ;;
+              upgrade)  update_pkgs  upgrade                    ;;
+                queue)  update_pkgs  queue                      ;;
+              rebuild)  rebuild                                 ;;
+            -h|--help)  help                                    ;;
+                    *)  help                                    ;;
+    esac
+  fi
 
 }
 
-DIALOG="dialog
---backtitle
-Sorcery Spell Management Utility
---stdout"
 
 if  [  "$UID"  ==  0  ];  then
   . /etc/sorcery/config
-  export  IFS="$TAB_ENTER_IFS"
-  # SORCERY_VERSION=`installed_version sorcery`
-  SORCERY_SECTION=`find_section  sorcery`
-  SORCERY_DETAILS="$GRIMOIRE/$SORCERY_SECTION/sorcery/DETAILS"
-  SORCERY_VERSION=`grep  "UPDATED="  $SORCERY_DETAILS  |
-                   sed   "s/UPDATED=//"`
+  DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
+
+  SORCERY_VERSION=`cat /etc/sorcery/version`
+  SORCERY_DIR=`codex_find_spell_by_name  sorcery-$SORCERY_BRANCH`
+  #SORCERY_DETAILS="$SORCERY_DIR/DETAILS"
   main  $*
 else
   echo  "Enter the root password, please."
   su  - -c  "DISPLAY=$DISPLAY PATH=$PATH  $0  $*"
 fi
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

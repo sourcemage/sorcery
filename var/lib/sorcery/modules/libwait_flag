@@ -1,0 +1,101 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Set of functions for printing out dots (...) while waiting for
+## actions to complete.
+##
+##=head1 DESCRIPTION
+##
+## These functions are used to give the user an indication that 
+## a sorcery command that is being run is still active.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------
+##=item wait_flag_up
+##
+## Activate wait flag (used for printing dots until a job is done)
+##
+#---------------------------------------------------------------------
+wait_flag_up()  {
+
+  touch  /tmp/.$$.wait_flag
+  chmod  000  /tmp/.$$.wait_flag
+
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag_down
+##
+## Deactivate wait flag (used for printing dots until a job is done)
+##
+#---------------------------------------------------------------------
+wait_flag_down()  {
+
+  rm  -f  /tmp/.$$.wait_flag
+
+}
+
+
+#---------------------------------------------------------------------
+##=item ping_pid <pid>
+##
+## UNUSED!! IF YOU USE THIS, REMOVE THIS COMMENT (2002/09/29)
+#---------------------------------------------------------------------
+ping_pid() {
+
+  renice  10  $1  1>/dev/null 2>&1
+
+}
+
+
+#---------------------------------------------------------------------
+##=item wait_flag <pid>
+##
+## Prints out dots as long as wait_flag is set
+## To be started in the background
+##
+#---------------------------------------------------------------------
+wait_flag()  {
+
+  while  [  -e  /tmp/.$$.wait_flag  ];  do
+    progress_spinner
+    sleep  2
+    ping_pid  $1  ||  wait_flag_down
+  done
+
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -1,0 +1,69 @@
+# lib_runlevel v0.9
+# Installs selected scripts and set run levels and priorities
+# scripts to be installed require the following:
+# SGL-script-version=<date in yearmonthday format>
+# if SGL-script-version=custom it will be left alone.
+# this sets the run levels and priority for links
+# SGL-START:<runlevels separated by space>:S<priority>
+# SGL-STOP:<runlevels separated by space>:K<priority>
+
+initdir=/etc/init.d
+savetime=$(date +%Y%m%d%H%M)
+
+# function to generate proper symlinks for runlevels
+# called by installscript
+
+linkscript ()
+{
+    truncname=$(echo $init_script | cut -d. -f1)
+    for action in SGL-START SGL-STOP
+      do
+# this pulls the second field to get runlevel
+      for level in $(grep "# $action" $initdir/$init_script | cut -d: -f2)
+	do
+# this pulls the third field to get priority
+	pri=$(grep "# $action" $initdir/$init_script | cut -d: -f3)
+	if [ ! -f /etc/rc$level.d/*$truncname* ]; then
+	    ln -s $initdir/$init_script /etc/rc$level.d/$pri$truncname
+	else
+# this checks if priority is correct if there is an existing symlink 
+	    pri2=$(ls /etc/rc$level.d/*$truncname* | sed s/$truncname// | sed s/\.sh// | cut  -d/ -f4)
+	    if [ ! $pri = $pri2 ]; then
+		rm -f /etc/rc$level.d/*$truncname*
+		ln -s $initdir/$init_script /etc/rc$level.d/$pri$truncname
+	    fi
+	fi
+      done
+    done
+}
+
+# Function to backup existing scripts and install updated ones
+# usage is "installscript <scriptname>"
+installscript ()
+{
+
+# check for syntax
+    if [ -n "$1" ] && [ -e $SCRIPT_DIRECTORY/init.d/$1 ]; then
+# set init_script to script name
+	init_script=$1
+	sglver=$(grep "# SGL-script-version=" $SCRIPT_DIRECTORY/init.d/$init_script | cut -d= -f2)
+	if [ -e $initdir/$init_script ]; then
+	    installedver=$(grep "# SGL-script-version=" $initdir/$init_script | cut -d= -f2)
+	    if [ ! -n "$installedver" ]; then
+		installedver=$((0))
+	    fi
+	    if [ ! $installedver = custom ] && [ $sglver -gt $installedver ]; then
+		mv $initdir/$init_script $initdir/$init_script.$savetime
+		install  -m  755  $SCRIPT_DIRECTORY/init.d/$init_script  $initdir
+		linkscript $init_script
+	    fi
+	else
+	    install  -m  755  $SCRIPT_DIRECTORY/init.d/$init_script  $initdir
+	    linkscript $init_script
+	fi
+    else
+	echo "Usage: installscript <scriptname>"
+    fi
+
+}
+# end lib_runlevel

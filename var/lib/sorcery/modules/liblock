@@ -1,0 +1,499 @@
+#!/bin/bash
+
+# This script is run by lockexec without the environment set. We need some of the
+# environment.
+[[ $SGL_LIBRARY_MODULES ]] || . /etc/sorcery/config
+[ -e $LOCKLIST ]           ||   touch $LOCKLIST
+
+#---------------------------------------------------------------------
+##=item lock_file <file> [<file>] ...
+##
+## Locks files for access to only this PID. Will cause attempts by 
+## other processes that want to lock the file(s) to block until this
+## PID unlocks the file, or this PID dies.
+## It cannot prevent bad programs from modifying the file w/o 
+## permission.
+## Note: Files with funky chars may break things. No colons or stuff.
+## (Blocking)
+##
+#---------------------------------------------------------------------
+function lock_file()
+{
+
+  [[ $1 ]] || return 1
+  #debug "liblock" "lock_file - $*"
+  local oldArg newArgs
+  
+  # Create an array of arguments for the resources to lock
+  newArgs=()
+  for (( i=0 ; i<$#*2 ; i+=2 )) ; do
+    oldArg=$((i+1))
+    newArgs[$i]="file"
+    newArgs[$(($i+1))]=${!oldArg}
+  done  
+
+  lock_resources ${newArgs[*]}
+  
+}
+
+
+#---------------------------------------------------------------------
+##=item unlock_file <file> [<file>] ...
+##
+## Unlocks a file so that another process can lock and modify it.
+##
+#---------------------------------------------------------------------
+function unlock_file()
+{
+
+  [[ $1 ]] || return 1
+  
+  local oldArg newArgs
+
+  # Create an array of arguments for the resources to lock
+  newArgs=()
+  for (( i=0 ; i<$#*2 ; i+=2 )) ; do
+    oldArg=$(($i+1))
+    newArgs[$i]="file"
+    newArgs[$(($i+1))]=${!oldArg}
+  done   
+  
+  unlock_resources ${newArgs[*]}
+  
+}
+
+
+#---------------------------------------------------------------------
+##=item SYNCHRONIZE
+## 
+## Prevents more than one process from entering a section of code 
+## at a time
+## NOTE: This assumes that two functions of the same name will
+## not havethe SYNCHRONIZE command on the same line in different
+## files.
+##
+## Example:
+## #!/bin/bash
+## echo "Script started with PID=$$
+## eval "$SYNCHRONIZE" && {
+## echo "PID $$ is in the synched section of code."
+## sleep 10
+## } && eval "$UNSYNCHRONIZE"
+## echo "PID $$ done."
+##
+## Note: SYNCHRONIZE and UNSYNCHRONIZE must be in the same local 
+## scope. Nested SYNCHs are not allowed in the same local scopes.
+## Local scope usualy being a function.
+## (Blocking)
+##
+#---------------------------------------------------------------------
+SYNCHRONIZE='
+  __llSYNCH_LINE=$LINENO
+  debug "liblock" "+++ in synch code"
+  lock_resources "lockfunction" "${FUNCNAME}/${__llSYNCH_LINE}"'
+
+#---------------------------------------------------------------------
+##=item UNSYNCHRONIZE
+##
+## Terminates a section of SYNCHRONIZED code
+##
+#---------------------------------------------------------------------
+UNSYNCHRONIZE='
+  debug "liblock" "+++ in unsynch code"
+  unlock_resources "lockfunction" "${FUNCNAME}/${__llSYNCH_LINE}"
+  unset __llSYNCH_LINE'
+
+
+#---------------------------------------------------------------------
+##=item lock_resources resource-type resource-name [<type> <name>]...
+##
+## The generalized locking mechanism. Every resource to be locked
+## is accompanied by a type. Currently used types are "lockfunction"
+## and "file".
+## This is the function that makes use of lockexec to make the 
+## resource tracking safe in a multiprocess environment.
+## (Blocking)
+##
+#---------------------------------------------------------------------
+function lock_resources()
+{  # $1=type, $2=name, $3=type, $4=name, ...
+
+  [[ $1 ]] && [[ $2 ]] || return 1
+  debug "liblock" "lock_resources - Locking $*" 
+  	
+  until \
+    lockexec /var/lock/sourcemage.file.lock bash -c ". $SGL_LIBRARY_MODULES/liblock; lock_resources_proc $$ $*" && \
+    [ -s /tmp/smLockResource.success.$$ ] 
+  do
+    sleep 2
+  done
+  rm /tmp/smLockResource.success.$$
+
+}
+
+
+#---------------------------------------------------------------------
+##item=unlock_resources <type> <name> [<type> <name] ...
+##
+## Unlocks exclusive access to the resource so other processes can
+## use it.
+##
+#---------------------------------------------------------------------
+function unlock_resources()
+{  # $1=type, $2=name, $3=type, $4=name, ...
+  debug "liblock" "unlock_resources - Unlocking $*" 
+
+  [[ $1 ]] && [[ $2  ]] || return 1
+  
+  until lockexec /var/lock/sourcemage.file.lock bash -c ". $SGL_LIBRARY_MODULES/liblock; unlock_resources_proc $$ $*" ; do
+    sleep 2
+  done
+
+}
+
+
+#---------------------------------------------------------------------
+##=item is_locked <type> <name>
+##
+## Prints the PID of the process owning a lock on the file
+## Returns 0 if a lock exists
+## Returns 1 if the file is not locked
+## Note this is slower that lock_owned_by, but obtains a lock and
+## cleans losck list
+##
+#---------------------------------------------------------------------
+function is_locked()
+{ # $1=type, $2=name
+
+  #debug "liblock" "is_locked - Checking $*" 
+
+  local returnValue
+
+
+  [[ $1 ]] && [[ $2  ]] || return 1
+  
+  returnValue=$( lockexec /var/lock/sourcemage.file.lock bash -c ". $SGL_LIBRARY_MODULES/liblock; is_locked_proc $*" )
+
+  [[ $returnValue ]]
+
+}
+
+
+#---------------------------------------------------------------------
+##=item lock_owned_by <type> <name>
+##
+## Prints the PID of the process owning a lock on the file
+## Returns 0 if a lock exists
+## Returns 1 if the file is not locked
+## Note: This function does not obtain a lock on the lock list. It
+## only reads and it checks that each line conforms to the format.
+##
+#---------------------------------------------------------------------
+function lock_owned_by()
+{
+
+  [[ $2 ]] || return 1
+  local TYPE="$1"
+  local NAME="$2"
+  
+  # Files are treated specialy because /a/../a/b is the same file as /a/b.
+  if [ $1 == "file" ] ; then
+    for i in `cat $LOCKLIST | grep '.*:file:.*:'` ; do
+
+      #Format for the lines: "resource:type:PID:"
+      local FILE=`echo "$i" | cut -d : -f 1`
+      local PID=`echo "$i" | cut -d : -f 3`
+      if [ $NAME -ef $FILE ] ; then 
+        echo $PID
+        return 0
+      fi
+    done
+  else
+    cat $LOCKLIST | grep "$NAME:$TYPE:.*:" | cut -d : -f 3 &&
+      return 0
+  fi
+
+  
+  return 1
+
+}
+
+
+#---------------------------------------------------------------------
+##=lock_start_transaction <file> [<file>] ...
+##
+## A transaction locks a file and ensures that changes made to the
+## file are all made at once. No changes are made to the file until
+## the transaction is commited. Furthermore, a transaction can be 
+## killed before it is commited, ending the transaction and not 
+## making any changes to the files.
+## This function returns the name of a temporary file that should 
+## be written to instead of the real file.
+##
+#---------------------------------------------------------------------
+function lock_start_transaction()
+{
+
+  local i TRANSNAME NUMTRANS RET=""
+  
+  #debug liblock lock_start_transaction - $*
+  
+  if lock_file $* ; then
+  
+    lock_file $LOCK_TRANSACTIONS
+    [ -s $LOCK_TRANSACTIONS ] || echo "0:::" > $LOCK_TRANSACTIONS
+    
+    NUMTRANS=`tail -n 1 $LOCK_TRANSACTIONS | cut -d : -f 1`
+    NUMTRANS=${NUMTRANS:-1}
+    RET=()
+    
+    for i in $* ; do
+      let NUMTRANS++
+      # copy the file to the temp file, if it doesn't exist then create an empty file.
+      if [ -e "$i" ]   ; then
+        cp "$i" "$LOCK_TRANSACTIONS.$NUMTRANS" 
+      else
+        echo -n "" > $LOCK_TRANSACTIONS.$NUMTRANS
+      fi
+      echo "$NUMTRANS:$i:$$" >$LOCK_TRANSACTIONS
+      RET[$NUMTRANS]="${LOCK_TRANSACTIONS}.${NUMTRANS}"
+    done
+    
+    unlock_file $LOCK_TRANSACTIONS
+    echo ${RET[*]}
+    return 0
+  
+  else
+    return 1
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+##=item lock_commit_transaction <file> [<file>]...
+##
+## Commits the changes made to the files as atomicaly as possible
+## Before this func is called, the files remain unchanged.
+##
+#---------------------------------------------------------------------
+function lock_commit_transaction()
+{
+
+  local TMP_FILE unlockList=""
+  
+  lock_file $LOCK_TRANSACTIONS
+  for i in $* ; do
+    TMP_FILE=${LOCK_TRANSACTIONS}.$(grep ".*:$i:$$" $LOCK_TRANSACTIONS | cut -d : -f 1)
+    [ -e $TMP_FILE ] && cp $TMP_FILE $i && rm $TMP_FILE
+    unlock_file $i
+    cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.new
+    grep -v ".*:$i:$$" $LOCK_TRANSACTIONS.new >$LOCK_TRANSACTIONS
+    rm $LOCK_TRANSACTIONS.new
+  done
+  unlock_file $LOCK_TRANSACTIONS  
+
+}
+
+
+#---------------------------------------------------------------------
+##=item lock_kill_transaction
+##
+## Stops a transaction. Causes the changes to the file(s) to be
+## ignored/undone.
+##
+#---------------------------------------------------------------------
+function lock_kill_transaction()
+{
+
+  local TMP_FILE
+  
+  lock_file $LOCK_TRANSACTIONS
+  for i in $* ; do
+    TMP_FILE=$(grep `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS | cut -d : -f 1)
+    ##  [ -e $TMP_FILE ] && cp $TMP_FILE $i && rm $TMP_FILE  <-- this is the only diff between commit and kill
+    unlock_file $i
+    cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.1
+    grep -v `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
+  done
+  unlock_file $LOCK_TRANSACTIONS  
+
+}
+
+
+######################################################################
+##
+## LOCK STUFF _PRIVATE_!
+##
+## THESE MUST BE RUN FROM
+##  lockexec TO ENSURE
+## INTEGRITY OF LOCK!
+##
+######################################################################
+
+
+#---------------------------------------------------------------------
+##=item lock_clean_locklist
+##
+## Removes locks owned by PIDs that don't exist anymore.
+##
+#---------------------------------------------------------------------
+function lock_clean_locklist()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
+{
+  debug "liblock" "clean_locklist() - Cleaning lock list" 
+
+  # If this file doesn't exist, then the locklist will never be cleaned 
+  # automatiacly od dead locks
+  [ -e $LOCKLIST_CLEAN ] || touch $LOCKLIST_CLEAN
+  
+  #Clean the lock list only if necessary (clean every minute)
+  dirn=`dirname $LOCKLIST_CLEAN`
+  dirn=${dirn:-"/"}
+  filen=`basename $LOCKLIST_CLEAN`
+  if [[ `find "$dirn" -name "$filen" -maxdepth 1 -mindepth 1 -mmin +1` ]] ; then
+  
+    echo "" > ${LOCKLIST}.1
+
+    for i in `cat $LOCKLIST` ; do
+      debug "liblock" "aftualy looking at locks to clean" 
+      if ! [[ $i ]] ; then continue; fi
+      PID=`echo $i | cut -d : -f 3`
+
+      if [[ `ps --no-headers --pid $PID` ]] ; then
+        echo "$i" >> ${LOCKLIST}.1
+      else
+        debug "liblock" "lock_clean_locklist() - Removing $i from list" 
+      fi
+    done
+
+    mv ${LOCKLIST}.1 $LOCKLIST
+    date > $LOCKLIST_CLEAN
+  fi
+
+}
+
+#---------------------------------------------------------------------
+##=item lock_add_resource <resource> <type> <PID>
+## 
+## Sets the reource of type dor exclusive access to PID.
+##
+#---------------------------------------------------------------------
+function lock_add_resource()	#IF YOU CALL THIS I WILL HUNT YOU DOWN
+{
+  echo "$1:$2:$3:" >> $LOCKLIST_NEW
+}
+  
+
+#Useless for now.
+function lock_renew_lock()	#IF YOU CALL THIS I WILL HUNT YOU DOWN... when it does something
+{ return 0; }
+  
+
+#---------------------------------------------------------------------
+##=item lock_resource_proc <PID> <type> <name> [<type> <name>] ...
+##
+## This is the function that is forked off be lockexec to lock a 
+## resource. It assumes that it has exclusive access to the resource
+## tracking list. Lockexec ensures the exclusive access.
+##
+#---------------------------------------------------------------------
+function lock_resources_proc()		#IF YOU CALL THIS I WILL HUNT YOU DOWN
+{  # $1=PID, $2=type, $3=name, $4=type, $5=name ...
+
+  #debug "liblock" "lock_resource_proc() called with args: $*" 
+
+  lock_clean_locklist
+
+  #File that will indicate success in obtaining lock:
+  SUCCESSFILE="/tmp/smLockResource.success.$1"
+  #Create/empty success file
+  echo -n "" > $SUCCESSFILE
+
+  #Who will own the lock of this file?
+  LOCK_OWNER="$1"
+  shift 1
+
+  #Setup temporary new locklist
+  LOCKLIST_NEW=$LOCKLIST.1
+  rm $LOCKLIST_NEW 2>/dev/null
+
+  #Now we can try to add locks
+  while [ $# -gt 0 ] ; do
+    
+    #debug "liblock" "lock_resources_proc() - trying to lock $2:$1." 
+    LOCKED_BY=`lock_owned_by $1 $2`
+    #Find other locks on this file
+    debug "liblock" "lock_resources_proc() - LOCKED_BY=[$LOCKED_BY] on ($2:$1)" 
+	  
+    #If it's not locked already, add a lock
+    #If you own the lock already, renew it
+    #Otherwise, exit with error, note success file is still empty
+    # and the locklist has not been changed, only the temp one
+    if ! [[ $LOCKED_BY ]] ; then 
+      lock_add_resource $2 $1 $LOCK_OWNER
+    elif parent_PIDs $LOCK_OWNER | grep -q "^$LOCKED_BY$" ; then
+      lock_renew_lock $1 $2
+    else
+      rm $LOCKLIST_NEW 2>/dev/null
+      return 1
+    fi
+    
+    # remove resource just locked from list
+    shift 2
+
+  done
+
+  #All locks were obtained, so make the changes
+  [ -s $LOCKLIST_NEW ] && cat $LOCKLIST_NEW >> $LOCKLIST
+  #Notification of success
+  echo "success" > $SUCCESSFILE
+
+}
+
+
+#---------------------------------------------------------------------
+##=item unlock_resources_proc <PID> <type> <name> [<type> <name>] ...
+##
+## The mate of lock_resource_proc. Makes the same assumptions.
+##
+##--------------------------------------------------------------------
+function unlock_resources_proc()		#IF YOU CALL THIS I WILL HUNT YOU DOWN
+{
+
+  debug "liblock" "unlock_resources_proc() - trying to unlock $@." 
+  #Determine the owner of this lock
+  LOCK_OWNER="$1"
+  shift 1
+
+  #Generate sed command that will remove the locks
+  SED_CMD="sed"
+  while [ $# -gt 0 ] ; do
+    SED_CMD="$SED_CMD -e s@$2:$1:$LOCK_OWNER:\$@@"
+    shift 2
+  done
+
+  #Run the sed command and update locklist, and remove blank lines
+  $SED_CMD ${LOCKLIST} | grep -v "^$" > $LOCKLIST.1
+  mv ${LOCKLIST}.1 ${LOCKLIST}
+
+}
+
+#---------------------------------------------------------------------
+##=item is_locked_proc <type> <name>
+##
+## Prints the PID of the process owning a lock on the file
+## Returns 0 if a lock exists
+## Returns 1 if the file is not locked
+## Note this is slower that lock_owned_by, but obtains a lock and
+## cleans losck list
+##
+#---------------------------------------------------------------------
+function is_locked_proc()			#IF YOU CALL THIS I WILL HUNT YOU DOWN
+{
+  
+  debug "liblock" "is_locked_proc() - trying to check $@." 
+  lock_clean_locklist
+  
+  lock_owned_by $*
+  
+}

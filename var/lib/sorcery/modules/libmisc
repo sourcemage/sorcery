@@ -1,0 +1,418 @@
+#!/bin/bash
+
+#---------------------------------------------------------------------
+##=item explode
+##
+## Turns a string into an array. Each element of the array
+## is separated in the string by the delimiter.
+##
+## Note: The array you want the fields put into must be
+## declared before you call this function.
+##
+##=head1 EXAMPLE
+##
+## my_array=()
+## explode "a_string_to_explode" "_" "my_array"
+## echo my_array[*]
+##
+## Produces "a" "string" "to" "explode".
+##
+#---------------------------------------------------------------------
+function explode ()
+{ # $1==string to explode, $2==delimiter, $3==name of array to put it in
+
+  [[ "$3" ]] || return 1
+  local ASSIGN=`echo "$1" | awk -F "$2" "{ for(i=1; i<=NF; i++) print \"${3}[\" i-1 \"]='\" \\\$i \"';\"; }"`
+  debug "libmisc" "explode() - $ASSIGN"
+  eval "$ASSIGN"
+}
+
+
+#---------------------------------------------------------------------
+##=item sedit
+##
+## First argument is a sed command.  Second argument is a file.  
+## C<sedit> performs the sed command on the file, modifiying the 
+## original file.  For example,
+## C<sedit "s/foo/bar/g" /tmp/somefile>
+## will replace all occurances of foo with bar in /tmp/somefile.  
+## This function is often used in spells to make changes to source
+## files before compiling.  See the sed man page for more information.
+##
+#---------------------------------------------------------------------
+sedit()  {
+  (
+    # Execute in a subshell to avoid globally affecting the umask
+    umask 077
+    TMP_FILE="/tmp/`basename  $2`.$$.$RANDOM"  &&
+    rm    -rf    $TMP_FILE                     &&
+    cp    $2     $TMP_FILE                     &&
+    sed   "$1"   $TMP_FILE  >  $2              &&
+    rm    -rf    $TMP_FILE
+
+  )
+}
+
+
+#---------------------------------------------------------------------
+##=item query <question> <default answer>
+##
+## Asks the user a yes/no question.  First argument is the question to
+## ask, second argument is the default answer.  If a timeout occurs
+## before the question is answered, the given default answer is 
+## applied.  Returns true or false based on the answer given.
+##
+#---------------------------------------------------------------------
+query()  { (
+
+  debug  "libmisc" "Running query() with the following arguments: '$1' and '$2'"
+  
+  while true ; do
+  
+    RESPONSE=""
+
+    if  [  -z  "$SILENT"  ];  then
+
+      echo  -e  -n  "${QUERY_COLOR}$1 [$2] ${DEFAULT_COLOR}"
+ 
+      read   -t  $PROMPT_DELAY  -n  1  RESPONSE
+      echo
+    fi
+
+    RESPONSE=${RESPONSE:=$2}
+    case  $RESPONSE  in
+      n|N)  return 1  ;;
+      y|Y)  return 0  ;;
+    esac
+  
+  done
+
+) }
+
+
+#---------------------------------------------------------------------
+##=item message <message to echo>
+##
+## echo's the given arguments if C<SILENT> is not set.
+##
+#---------------------------------------------------------------------
+message()    {
+
+  if  [  !  -n  "$SILENT"  ];  then
+    if  [  "$1"  ==  "-n"  ];  then
+      shift  1
+      echo  -n  -e  "$*"
+    else
+      echo  -e  "$*"
+    fi
+  fi
+
+}
+
+#---------------------------------------------------------------------
+#=item debug <type> <message>
+##
+## Enters a debug message if the type of debug message != 'no'
+##
+## The 'type' is usually the name of the file the debug statement
+## comes from. i.e. DEBUG_liblock, DEBUG_libsorcery, DEBUG_cast etc.
+##
+#---------------------------------------------------------------------
+debug()  {
+
+  local debugVar="DEBUG_$1"
+  if [[ ${!debugVar} != "no" ]] ; then
+    echo -n "$1($$): " >>$DEBUG
+    shift
+    echo $* >>$DEBUG
+  fi
+
+  true
+}
+
+#---------------------------------------------------------------------
+#=item progress_spinner
+##
+## Displays progress spinner like the one in fsck.
+##
+#---------------------------------------------------------------------
+function progress_spinner()  {
+
+  ((  PROGRESS_SPINNER=$PROGRESS_SPINNER+1  ))
+  if ((  PROGRESS_SPINNER>((  ${#PROGRESS_SPINNER_CHARS}-1  ))  )); then
+    PROGRESS_SPINNER=0;
+  fi
+  echo -en "\b${PROGRESS_SPINNER_CHARS:$PROGRESS_SPINNER:1}"
+}
+
+
+#---------------------------------------------------------------------
+#=item progress_bar <opt "dot"> <count> <total> <opt length>
+##
+## Displays progress bar in the form of [---->   ] 100%
+## Or just a dot in the dot format
+##
+#---------------------------------------------------------------------
+function progress_bar()  {
+
+  local percent i len num_dash
+
+  if [[ $1 == -dot ]] ; then
+    len=0
+    shift 1
+  else
+    len="$3"
+    len="${len:-$COLUMNS}"
+  fi
+  
+  # Can't make a bar because there's no total, or the length isn't
+  #  long enough, or if there is no length 
+  if [ $# -lt 2 ] || [ $len -lt 8 ] ; then
+    message -n "."
+    return 0
+  fi
+  
+  if [ $1 -lt 1 ] || [ $2 -lt 1 ] ; then return 1 ; fi
+  
+  percent=$((100*$1/$2))
+  percent=`printf "%.0f" $percent`
+  
+  if [[ $LAST_PERCENT == $percent ]] ; then
+    return 0
+  fi
+
+  LAST_PERCENT=$percent
+
+
+  dash_len=$(($len-8))
+  num_dash=$(( $dash_len*$1/$2 ))
+
+  #Format: [--->  ] 100%
+
+  #opening of the bar
+  BAR_STRING="["
+
+  #The '=' signs
+  for (( i=0 ; i<$num_dash ; i++ )) ; do
+    BAR_STRING="${BAR_STRING}="
+  done
+
+  #Now a pretty indicator
+  [ $num_dash -lt $((dash_len-1)) ] && BAR_STRING="${BAR_STRING}>"
+
+  #Fill the rest of the bar up with blanks
+  for (( i++ ; i<$dash_len-1 ; i++ )) ; do
+    BAR_STRING="${BAR_STRING} "
+  done
+
+  #Put on the closing for the bar and the percent
+  BAR_STRING="${BAR_STRING}] ${percent}%"
+
+  #Clear the rest of the space
+  for (( i+=3+${#percent} ; i<$len ; i++ )) ; do
+    BAR_STRING="${BAR_STRING} "
+  done
+
+  clear_line
+  message -n "$BAR_STRING"
+  progress_spinner
+
+ return 0
+
+
+}
+#---------------------------------------------------------------------
+#=item clear_line 
+##
+## Clears the current line and puts the cursor at the begining of it.
+##
+#---------------------------------------------------------------------
+function clear_line()  {
+
+  echo -en '\r\033[2K'
+  return 0
+
+}
+
+
+#---------------------------------------------------------------------
+##=item sound
+##
+## Plays a given soundfile if sounds are on and the file exists in 
+## the chosen theme.
+##
+#---------------------------------------------------------------------
+sound()  {
+
+  case  $SOUND  in
+    on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
+         if  [  -e  $SOUND_FILE  ];  then
+           (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
+	   debug "libmisc" "Playing $SOUND_FILE"
+	 else
+	   debug "libmisc" "Error playing $SOUND_FILE: no such file"
+         fi
+    ;;
+  esac
+
+}
+
+
+#---------------------------------------------------------------------
+##=item edit_file <filename>
+##
+## Runs the editor given by C<EDITOR> on the file given in the first
+## argument.  If C<EDITOR> is not set, nano is used.
+##
+#---------------------------------------------------------------------
+edit_file()  {
+  ${EDITOR:-nano -w} $1
+}
+
+
+#---------------------------------------------------------------------
+##=item esc_str <string>
+##
+## Adds escape sequences to strings for special characters.
+## Does NOT escape the string ".*".
+## Used for putting escape sequences in regexp strings that should
+## be treated literaly.
+##
+#---------------------------------------------------------------------
+function esc_str()
+{
+
+  local OUT
+  if [[ $1 == .* ]] ; then
+    OUT="$1"
+  else
+    OUT=`echo $1 | sed -e 's:\.:\\\.:' \
+                       -e 's:\*:\\\*:'`
+  fi
+  echo "$OUT"
+
+}
+
+
+function parent_PIDs()
+{
+  
+  local pid ppid
+  
+  pid="$1"
+  if [[ $1 ]] ; then
+    pid=$1
+  else
+    pid="$$"
+    echo $$
+  fi
+  
+  if [[ $pid == 0 ]] || ! [ -e /proc/$pid/status ] ; then return 0; fi
+  
+  ppid=`grep "^PPid:" /proc/$pid/status | cut -f 2`
+  echo $pid
+  parent_PIDs $ppid
+
+}
+
+
+#---------------------------------------------------------------------
+##=item get_basenames <list-of-directories>
+## 
+## Takes <newline> separated list of directories
+## and outputs their base names.
+##
+#---------------------------------------------------------------------
+function get_basenames() {
+  local DIRECTORY=''
+  while read DIRECTORY; do
+    basename "$DIRECTORY"
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=item get_dirnames <list-of-paths>
+## 
+## Takes <newline> separated list of pathnames
+## and outputs their directory names.
+##
+#---------------------------------------------------------------------
+function get_dirnames() {
+  local PATH_NAME=''
+  while read PATH_NAME; do
+    dirname "$PATH_NAME"
+  done
+}
+
+#---------------------------------------------------------------------
+##=item itterate string1 string2 <string3>
+##  string1: The function to call on each itteration and it's arguments
+##  string2: The separator string. If there is no $3, only the first char counts
+##  string3: The string to itterate over. This is optional, when it isn't used, 
+##   stdin is used and only the first letter in $2 is used. Note, using stdin
+##   can have odd side effects when your function uses read and stdin itself.
+#3
+## Special vars: 
+##  BREAK: Use this to break out of the loop prematurely, also causes a return of 1.
+##
+## If the function returns the value of the last return
+## Notes:
+##  In stdin mode, if the string does not terminate with the delimiter, the last 
+##  token will be ignored.
+function iterate()
+{ # $1=callback+args, $2=separator, $3=(opt)string
+  debug "libmisc" "iterate - $@"
+  
+  [ $# -lt 3 ] && return 2
+  
+  local oldIFS="$IFS"
+  local token
+  local func="$1"
+  local returnValue=0
+  if [[ $# -gt 2 ]] ; then
+    IFS="$2"
+    shift 2
+    for token in $* ; do
+      IFS="$oldIFS"
+      
+      eval "$func \"$token\""
+      [[ $BREAK ]] && break
+      
+    done
+    IFS="$oldIFS"
+  else
+    while read -r -d "$2" token ; do
+      eval "$func \"$token\""
+      [[ $BREAK ]] && break
+    done
+    echo "leftover token: $token" >> $DEBUG
+  fi
+  
+  returnValue=$?
+  [[ $BREAK ]] && debug "libmisc" "iterate - I was BREAKed."
+  unset BREAK
+  return $returnValue
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
