@@ -207,14 +207,14 @@ download() {
 
   run_patch
 
-  <<<"`compgen -v`" grep -q "^SOURCE$" && #some spells need nothing
-  <<<"$SOURCE" grep -q '[[:graph:]]' && #just in case a spell has SOURCE=""
+  compgen -v | grep -q "^SOURCE$" && #some spells need nothing
+  echo "$SOURCE" | grep -q '[[:graph:]]' && #just in case a spell has SOURCE=""
    dl_source  $SOURCE  ${SOURCE_URL[*]}
 
   i=2
   ii=SOURCE$i
-  while  <<<"`compgen -v`" grep -q "^${ii}$" ;  do
-    if <<<"${!ii}" grep -q '[[:graph:]]'
+  while  compgen -v | grep -q "^${ii}$" ;  do
+    if echo "${!ii}" | grep -q '[[:graph:]]'
     then #don't attempt do download blanks
       iii="${ii}_URL[*]"
  

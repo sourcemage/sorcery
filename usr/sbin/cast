@@ -91,7 +91,7 @@ function run_conflicts() {
             message "${SPELL_COLOR}"
             echo "$CONFLICTS" | column
             message "${DEFAULT_COLOR}"
-            query "Do you want to dispel these?" "y" && dispel "$CONFLICTS"
+            query "Do you want to dispel these?" "n" && dispel "$CONFLICTS"
         fi
      fi
  }
@@ -997,19 +997,19 @@ function cast_spell()  { (
   show_downloading            && 
   verify_sources              ||   return 1
   
-  # Some checks must be made at this poit to see if it's safe to start building
-  message -n "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} spells to complete..."
-  lock_resources "castSOLO" "SOLO"
-  message " done."
-    
-  message -n "Waiting for any other casts of ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} to complete..."
-  lock_resources "cast" "$SPELL"
-  message " done"
-    
-  # Release the SOLO lock if you don't need to be cast solo
-  if ! grep -q "^$SPELL$" $SOLO ; then 
-    unlock_resources "castSOLO" "SOLO"
+  #locking - blocks normal spells if a solo cast is running, solo casts if any cast is running
+  message "Waiting for any ${FILE_COLOR}Solo${DEFAULT_COLOR} casts to complete..."
+  lock_resources "solo" "cast"
+  if grep -q "^$SPELL$" $SOLO
+  then #SOLO spell
+    message -n "Waiting for ${SPELL_COLOR}all other${DEFAULT_COLOR} spells to complete..."
+    excllock_resources "cast" "$SPELL"
+  else
+    message -n "Waiting for any other casts of ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} to complete..."
+    lock_resources "cast" "$SPELL"
+    unlock_resources "solo" "cast"
   fi
+  message " done."
                                
   if    run_pre_build              			&&
 		run_build                   		&&
@@ -1037,7 +1037,7 @@ function cast_spell()  { (
 
   unlock_resources "cast" "$SPELL"
   #It's OK to try to release a lock you don't have
-  unlock_resources "castSOLO" "SOLO"
+  unlock_resources "solo" "cast"
 
   return ${CAST_EXIT_STATUS:-0}
 

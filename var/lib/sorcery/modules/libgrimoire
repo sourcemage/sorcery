@@ -144,7 +144,7 @@ function guess_compressor()  {
 
   local OUTPUT=`$FILEPROG -b "$1"`
   local COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f1`
-  [ "$COMPRESSOR" = "GNU" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
+  [ "$COMPRESSOR" = "GNU" -o "$COMPRESSOR" = "POSIX" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
   debug "libgrimoire" "guess_compressor() - guessed $1 compressor to be <$COMPRESSOR>"
   echo $COMPRESSOR
 }
@@ -544,6 +544,9 @@ function gather_docs()  {
 
     cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
 
+		# making installed docs readable for all users.
+		chmod -fR a+r $DOC_DIR
+
   fi
 
 }
@@ -640,10 +643,15 @@ function install_services()  { (
   lock_file $SCRIPT_DIRECTORY/services
   if  [  -f  $SCRIPT_DIRECTORY/services  ];  then
 
+    local t_services=$( lock_start_transaction /etc/services )
     local LINE=''
     cat  $SCRIPT_DIRECTORY/services  |  while  read  LINE;  do
-      grep  -q  "$LINE"      /etc/services  ||
-      echo      "$LINE"  >>  /etc/services
+      IFS=$' \t'
+      tmp=( $LINE )     # tmp[0] is "service name", tmp[1] is "port/protocol"
+      IFS=''
+      tmp=$( grep  -v  "${tmp[0]}[^/]*/${tmp[1]#*/}"  $t_services )
+      echo $tmp > $t_services
+      echo $LINE >> $t_services
     done
   fi
   unlock_file $SCRIPT_DIRECTORY/services
