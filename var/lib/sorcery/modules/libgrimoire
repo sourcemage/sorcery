@@ -629,20 +629,12 @@ function install_xinetd_confs()  { (
   LD_PRELOAD_OLD="$LD_PRELOAD"
   unset LD_PRELOAD
 
-  # Before checking for xinetd install, ensure the state of depneds is correct, 
-  # don't worry about dups, dealt with in add_depends().
-  add_depends $SPELL xinetd on required
-	
-  # Restart xinetd if xinetd is available, otherwise add to var SPELLS.
+  # only restart if xinetd script installed and xinetd is available.
   if  [   -n  "$LIST"  ]  &&  ps  -C  xinetd  >  /dev/null ;  then
     if  [  -x  /etc/init.d/runlevels/%3/xinetd  ] ; then
       /sbin/telinit  run  xinetd  restart
     else
-      message "${MESSAGE_COLOR}It seems xinetd is missing so will add it to the list of spells to be cast.${DEFAULT_COLOR}" 
-      if [[ $SPELLS == ${SPELLS/xinetd/} ]] ; then
-        # xinetd not in the list, adding to be cast.
-        $SPELLS="xinetd $SPELLS"
-			fi
+      message "${MESSAGE_COLOR}Unable to restart xinetd, missing runlevel 3 script.${DEFAULT_COLOR}" 
     fi
   fi
 
