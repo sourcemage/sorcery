@@ -643,21 +643,18 @@ function install_services()  { (
 
   debug  "libgrimoire" "Running install_services() on $SPELL"
 
-  lock_file $SCRIPT_DIRECTORY/services
   if  [  -f  $SCRIPT_DIRECTORY/services  ];  then
 
     local t_services=$( lock_start_transaction /etc/services )
     local LINE=''
     cat  $SCRIPT_DIRECTORY/services  |  while  read  LINE;  do
-      IFS=$' \t'
-      tmp=( $LINE )     # tmp[0] is "service name", tmp[1] is "port/protocol"
-      IFS=''
+	  explode "$LINE" '\t| ' # tmp[0] is "service name", tmp[1] is "port/protocol"
       tmp=$( grep  -v  "${tmp[0]}[^/]*/${tmp[1]#*/}"  $t_services )
       echo $tmp > $t_services
       echo $LINE >> $t_services
     done
+	lock_commit_transaction /etc/services
   fi
-  unlock_file $SCRIPT_DIRECTORY/services
 
 ) }
 
