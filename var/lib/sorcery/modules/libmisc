@@ -577,11 +577,11 @@ function real_list_add () {
 #---------------------------------------------------------------------
 function real_list_find () {
     local i
-	 local input="$1"
-	 shift
+    local input="$1"
+    shift
 
     for i in $@; do
-       eval "echo \" $input \" | grep -qE -e \"[[:space:]]$i[[:space:]]\" && return 0"
+        eval "echo \" $input \" | grep -qE -e \"[[:space:]]$i[[:space:]]\" && return 0"
     done
     return 1
 }
@@ -628,8 +628,8 @@ function real_persistent_load () {
 #---------------------------------------------------------------------
 function real_persistent_save () {
     local VAR
-	 local TMP
-	 > "$SPELL_CONFIG.p"
+    local TMP
+    > "$SPELL_CONFIG.p"
     for VAR in $PERSISTENT_VARIABLES; do
         config_get_option $VAR TMP
         echo "$VAR=\"$TMP\"" >> "$SPELL_CONFIG.p"
@@ -693,11 +693,20 @@ function real_query_string () {
 #}
 function config_get_option () {
     eval "
-	     [ -n \"$2\" ] && $2=\"\$$1\"
-		  [ -n \"\$$1\" ] && return 0
-        grep -E \"^$1=\" \"$SPELL_CONFIG.p\" &> /dev/null && return 0
-		  return 1
-	 "
+         [ -n \"$2\" ] && $2=\"\$$1\"
+
+         # If variable has some value, return 0
+         [ -n \"\$$1\" ] && return 0
+
+         # Variable don't have value, and we don't have config file return 1
+         test -e \"$SPELL_CONFIG.p\" || return 1
+
+         # If the variable name is in config file, it means that we have this variable, and it's empty
+         grep -qE \"^$1=\" \"$SPELL_CONFIG.p\" && return 0
+
+         # We dont' have this variable
+         return 1
+     "
 }
 
 
@@ -775,7 +784,7 @@ function real_config_query_option () {
     if [ -z "$RECONFIGURE" ] && config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
-		  return 1
+        return 1
     fi
   
     if query "$2" $3; then
