@@ -658,8 +658,10 @@ codex_cache_spell_lookup()  {
 #---------------------------------------------------------------------
 codex_check_cache()  {
 
-	[ -f $1/$SPELL_INDEX_FILE ] || codex_create_cache
-	if ! [ -f $1/$SPELL_INDEX_FILE ] ; then
+    if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
+        codex_create_cache
+    fi
+	if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
 		message "${PROBLEM_COLOR}Eeek, $2 is not a grimoire!${DEFAULT_COLOR}" >&2
 		exit 1
 	fi
