@@ -1,22 +1,25 @@
 #!/bin/bash
 
 #---------------------------------------------------------------------
-##=item explode
+## @param string to explode
+## @param delimiter
+## @param name of array to put it in
 ##
+## @Description
 ## Turns a string into an array. Each element of the array
 ## is separated in the string by the delimiter.
 ##
 ## Note: The array you want the fields put into must be
 ## declared before you call this function.
-##
-##=head1 EXAMPLE
+## <pre>
+## EXAMPLE
 ##
 ## my_array=()
 ## explode "a_string_to_explode" "_" "my_array"
 ## echo my_array[*]
 ##
 ## Produces "a" "string" "to" "explode".
-##
+## </pre>
 #---------------------------------------------------------------------
 function explode ()
 { # $1==string to explode, $2==delimiter, $3==name of array to put it in
@@ -29,18 +32,19 @@ function explode ()
 
 
 #---------------------------------------------------------------------
-##=item sedit
+## @param sed command
+## @param file
 ##
 ## First argument is a sed command.  Second argument is a file.  
-## C<sedit> performs the sed command on the file, modifiying the 
-## original file.  For example,
-## C<sedit "s/foo/bar/g" /tmp/somefile>
+## sedit performs the sed command on the file, modifiying the 
+## original file.  For example, 
+## <br>sedit "s/foo/bar/g" /tmp/somefile <br>
 ## will replace all occurances of foo with bar in /tmp/somefile.  
 ## This function is often used in spells to make changes to source
 ## files before compiling.  See the sed man page for more information.
 ##
 #---------------------------------------------------------------------
-sedit()  {
+function sedit()  {
   (
     # Execute in a subshell to avoid globally affecting the umask
     umask 077
@@ -55,7 +59,11 @@ sedit()  {
 
 
 #---------------------------------------------------------------------
-##=item query <question> <default answer>
+## @param question 
+## @param default answer
+##
+## @return 0 on yes
+## @return 1 on no
 ##
 ## Asks the user a yes/no question.  First argument is the question to
 ## ask, second argument is the default answer.  If a timeout occurs
@@ -63,7 +71,7 @@ sedit()  {
 ## applied.  Returns true or false based on the answer given.
 ##
 #---------------------------------------------------------------------
-query()  { (
+function query()  { (
 
   debug  "libmisc" "Running query() with the following arguments: '$1' and '$2'"
   
@@ -91,12 +99,12 @@ query()  { (
 
 
 #---------------------------------------------------------------------
-##=item message <message to echo>
-##
-## echo's the given arguments if C<SILENT> is not set.
+## @param message to echo
+## @Stdout message
+## echo's the given arguments if SILENT is not set.
 ##
 #---------------------------------------------------------------------
-message()    {
+function message()    {
 
   if  [  !  -n  "$SILENT"  ];  then
     if  [  "$1"  ==  "-n"  ];  then
@@ -110,7 +118,8 @@ message()    {
 }
 
 #---------------------------------------------------------------------
-#=item debug <type> <message>
+## @param type
+## @param message
 ##
 ## Enters a debug message if the type of debug message != 'no'
 ##
@@ -118,7 +127,7 @@ message()    {
 ## comes from. i.e. DEBUG_liblock, DEBUG_libsorcery, DEBUG_cast etc.
 ##
 #---------------------------------------------------------------------
-debug()  {
+function debug()  {
 
   [[ $DEBUG ]] || return 0
   
@@ -133,8 +142,7 @@ debug()  {
 }
 
 #---------------------------------------------------------------------
-#=item progress_spinner
-##
+## @Stdout progress spinner
 ## Displays progress spinner like the one in fsck.
 ##
 #---------------------------------------------------------------------
@@ -149,11 +157,14 @@ function progress_spinner()  {
 
 
 #---------------------------------------------------------------------
-#=item progress_bar <opt "dot"> <count> <total> <opt length>
-##
+## @param opt "dot"
+## @param count
+## @param total
+## @param opt length
+## <pre>
 ## Displays progress bar in the form of [---->   ] 100%
 ## Or just a dot in the dot format
-##
+##</pre>
 #---------------------------------------------------------------------
 function progress_bar()  {
 debug "libmisc" "progress_bar - $*"
@@ -224,8 +235,7 @@ debug "libmisc" "progress_bar - $*"
 
 }
 #---------------------------------------------------------------------
-#=item clear_line 
-##
+## @Stdout Clear line
 ## Clears the current line and puts the cursor at the begining of it.
 ##
 #---------------------------------------------------------------------
@@ -238,8 +248,8 @@ function clear_line()  {
 
 
 #---------------------------------------------------------------------
-##=item sound
 ##
+## @Globals SOUND
 ## Plays a given soundfile if sounds are on and the file exists in 
 ## the chosen theme.
 ##
@@ -261,10 +271,10 @@ sound()  {
 
 
 #---------------------------------------------------------------------
-##=item edit_file <filename>
+## @param filename
 ##
-## Runs the editor given by C<EDITOR> on the file given in the first
-## argument.  If C<EDITOR> is not set, nano is used.
+## Runs the editor given by EDITOR on the file given in the first
+## argument.  If EDITOR is not set, "nano -w" is used.
 ##
 #---------------------------------------------------------------------
 edit_file()  {
@@ -273,7 +283,8 @@ edit_file()  {
 
 
 #---------------------------------------------------------------------
-##=item esc_str <string>
+## @param string
+## @Stdout escaped string
 ##
 ## Adds escape sequences to strings for special characters.
 ## Does NOT escape the string ".*".
@@ -295,7 +306,11 @@ function esc_str()
 
 }
 
-
+#---------------------------------------------------------------------
+## @param Yes, there is a parameter.. 
+## @Stdout wheee, even output.
+## Dunno what that one does..
+#---------------------------------------------------------------------
 function parent_PIDs()
 {
   
@@ -319,9 +334,9 @@ function parent_PIDs()
 
 
 #---------------------------------------------------------------------
-##=item get_basenames <list-of-directories>
-## 
-## Takes <newline> separated list of directories
+## @Stdin directories.
+## @Stdout directories' basenames
+## Takes newline separated list of directories
 ## and outputs their base names.
 ##
 #---------------------------------------------------------------------
@@ -335,9 +350,9 @@ debug "DB" "basename - $*"
 
 
 #---------------------------------------------------------------------
-##=item get_dirnames <list-of-paths>
-## 
-## Takes <newline> separated list of pathnames
+## @Stdin directories.
+## @Stdout directories' basenames
+## Takes newline separated list of pathnames
 ## and outputs their directory names.
 ##
 #---------------------------------------------------------------------
@@ -349,12 +364,14 @@ function get_dirnames() {
 }
 
 #---------------------------------------------------------------------
-##=item itterate string1 string2 <string3>
-##  string1: The function to call on each itteration and it's arguments
-##  string2: The separator string. If there is no $3, only the first char counts
-##  string3: The string to itterate over. This is optional, when it isn't used, 
-##   stdin is used and only the first letter in $2 is used. Note, using stdin
-##   can have odd side effects when your function uses read and stdin itself.
+##  @param The function to call on each itteration and it's arguments
+##  @param The separator string. If there is no $3, only the first char counts
+##  @param The string to itterate over. (optional)
+##  @Stdin is used when $3 isn't given.
+##
+##  $3 is optional, when it isn't used, 
+##  stdin is used and only the first letter in $2 is used. Note, using stdin
+##  can have odd side effects when your function uses read and stdin itself.
 #3
 ## Special vars: 
 ##  BREAK: Use this to break out of the loop prematurely, also causes a return of 1.
@@ -363,6 +380,7 @@ function get_dirnames() {
 ## Notes:
 ##  In stdin mode, if the string does not terminate with the delimiter, the last 
 ##  token will be ignored.
+#----------------------------------------------------------------------
 function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
 #  debug "libmisc" "iterate - $@"
@@ -398,7 +416,9 @@ function iterate()
   return $returnValue
 }
 
-#Env caching is not implemented yet. There are still bugs in the caching.
+#---------------------------------------------------------------------
+## not yet implemented
+#---------------------------------------------------------------------
 function cache_env() 
 {
 
@@ -426,6 +446,9 @@ PS4\nSHELLOPTS\nUID\n_"`
 	read
 	
 }
+#---------------------------------------------------------------------
+## not yet implemented
+#---------------------------------------------------------------------
 function restore_env()
 {
 	debug "libmisc" "Restoring env for $1 from $2"
@@ -434,11 +457,40 @@ function restore_env()
 	
 }
 
+#---------------------------------------------------------------------
+## @param return_var 
+## @param elements, ..
+## 
+## gives the user some nice select list and puts the selected
+## item in return_var
+##
+#---------------------------------------------------------------------
+function select_list()
+{
+    local i
+    local number foo temp
+    local returnvar=$1
+    shift
+    let i=0
+    for foo in "$@"; do
+        message "\t$DEFAULT_COLOR($i)  $SPELL_COLOR$foo$DEFAULT_COLOR"
+        temp[$i]=$foo
+        let i++
+    done
+
+    message -n "\n${QUERY_COLOR}Which one do you want? [0]$DEFAULT_COLOR "
+    read number
+    while ! [[ ${temp[$number]} ]]; do
+        message -n "\n${QUERY_COLOR}Which one do you want? [0]$DEFAULT_COLOR "
+        read number
+    done
+
+    eval ''$returnvar'='${temp[$number]}''
+}
+
 
 #---------------------------------------------------------------------
-##=back
-##
-##=head1 LICENSE
+## @License
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
