@@ -153,11 +153,13 @@ function satisfy_depends()
     # First, see if the spell exists.
     DEP_SPELL_LOCATION=`codex_find_spell_by_name ${DEP[1]}`
     if  [  -z  "$DEP_SPELL_LOCATION"  ];  then
-      message  "${PROBLEM_COLOR}Unable to find previously configured"           \
-               "optional dependency ${SPELL_COLOR}'${DEP[1]}'${PROBLEM_COLOR}"
-      message  "in grimoire.  Removing spell from cached optional depends."     \
-               "${DEFAULT_COLOR}"
-      remove_depends_status  "$SPELL"  "${DEP[1]}"
+      if [  "${DEP[2]}"  !=  'providedby'  ]; then
+        message  "${PROBLEM_COLOR}Unable to find previously configured"  \
+                 "dependency ${SPELL_COLOR}'${DEP[1]}'${PROBLEM_COLOR}"
+        message  "in grimoire.  Removing spell from cached depends."     \
+                 "${DEFAULT_COLOR}"
+        remove_depends_status  "$SPELL"  "${DEP[1]}"
+      fi
     else
 
       #Second, am I trying to cast --fix or is this just a normal cast?
