@@ -23,6 +23,7 @@ EOF
 
   source /etc/sorcery/config
   SPELL=${SPELL:=alter}
+  VERSION="$(gaze -q installed "$SPELL" | grep -v 'not installed')"
   [ -z "$VERSION" ] && VERSION=$$
   TMP_LOG=/tmp/$SPELL-$VERSION
   IW_LOG=/tmp/$SPELL-$VERSION.iw
@@ -162,9 +163,9 @@ function alter_md5_mend() {
 
 }
 
-function alter_md5mend() {
+function alter_gather_md5s() {
 
-  [ -z "$1" ] && echo "Please provide spells to mend as arguments" > /dev/stderr && return 1
+  [ -n "$MASTER_MD5S" ] && return 0
 
   TOTAL=$(gaze installed | wc -l)
 
@@ -183,6 +184,14 @@ function alter_md5mend() {
     )
   )"
 
+}
+
+function alter_md5mend() {
+
+  [ -z "$1" ] && echo "Please provide spells to mend as arguments" > /dev/stderr && return 1
+
+  alter_gather_md5s
+
   for spell in $*; do
     alter_md5_mend "$spell"
   done
@@ -190,12 +199,10 @@ function alter_md5mend() {
 
 }
 
-function alter_pre_link() {
-
-  ARGS="$@"
+function alter_gather_bins() {
 
   if [ ! -f "/etc/prelink.conf" ]; then
-    message "${MESSAGE_COLOR}Gathering binary directories for prelinking (this could take a long while)...${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Gathering binary directories for altering (this could take a long while)...${DEFAULT_COLOR}"
     find / -perm +001 2> /dev/null |
     while read LINE; do
       [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
@@ -205,6 +212,14 @@ function alter_pre_link() {
     sed -e 's/[^/]*$//' | uniq |
     sort | uniq > /etc/prelink.conf
   fi
+
+}
+
+function alter_pre_link() {
+
+  ARGS="$@"
+
+  alter_gather_bins
 
   alter_alter -n smgl-prelink '
     /usr/sbin/prelink -v '"$ARGS"' | tee /tmp/prelink.$$.output
@@ -236,21 +251,11 @@ function alter_prelink {
 
 }
 
-function alter_strip_do() {
+function alter_strip_all_do() {
 
   ARGS="$@"
 
-  if [ ! -f "/etc/prelink.conf" ]; then
-    message "${MESSAGE_COLOR}Gathering binary directories for stripping (this could take a long while)...${DEFAULT_COLOR}"
-    find / -perm +001 2> /dev/null |
-    while read LINE; do
-      [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
-      grep -q ELF && echo "$LINE"
-    done |
-    grep -v '/src/\|/lib/modules\|/root/\|/home/' |
-    sed -e 's/[^/]*$//' | uniq |
-    sort | uniq > /etc/prelink.conf
-  fi
+  alter_gather_bins
 
   alter_alter -n smgl-strip '
     find $(cat /etc/prelink.conf) -perm +001 2> /dev/null |
@@ -273,10 +278,64 @@ function alter_strip_do() {
           mv /tmp/tostrip.$$ "$STRIPFILE"
         else
           echo "$STRIPFILE corrupted by strip, skipping"
+          rm /tmp/tostrip.$$
         fi
       fi
     done
   '
+
+}
+
+function alter_strip_do() {
+
+  SPELL="$1"; shift
+  ARGS="$@"
+
+  if [ "${SPELL% *}" != "$SPELL" ]; then
+    NAME=smgl-strip
+    VERSION=$$
+  else
+    NAME="$SPELL"
+    VERSION="$(gaze -q installed "$NAME")"
+  fi
+
+  alter_alter -n "$NAME" -v "$VERSION" '
+    for sp in '"$SPELL"'; do gaze install "$sp"; done 2> /dev/null |
+    while read LINE; do
+      [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
+      grep -q ELF && echo "$LINE"
+    done |
+    while read STRIPFILE; do
+      cp "$STRIPFILE" /tmp/tostrip.$$
+      strip '"$ARGS"' /tmp/tostrip.$$
+      if [ "$(md5sum < /tmp/tostrip.$$)" == "$(md5sum < "$STRIPFILE")"    ]; then
+        echo "$STRIPFILE" already stripped, skipping.
+        rm /tmp/tostrip.$$
+      else 
+        if [ "$(ldd /tmp/tostrip.$$ | md5sum)" == "$(ldd "$STRIPFILE"    | md5sum)" ]; then 
+          echo "$STRIPFILE stripped and verified."
+          # uncomment the following to make backups before mving stripped bins
+          # mkdir -p "/var/log/sorcery/tmp/smgl-strip.$$/${STRIPFILE%/*}"
+          # cp "$STRIPFILE" "/var/log/sorcery/tmp/smgl-strip.$$/$STRIPFILE"
+          mv /tmp/tostrip.$$ "$STRIPFILE"
+        else
+          echo "$STRIPFILE corrupted by strip, skipping"
+          rm /tmp/tostrip.$$
+        fi
+      fi
+    done
+  '
+
+}
+
+function alter_strip_all {
+
+  if [ -z "$1" ]; then
+    alter_strip_all_do
+  else
+    alter_strip_all_do "$@"
+  fi
+  alter_md5mend smgl-strip
 
 }
 
@@ -287,7 +346,7 @@ function alter_strip {
   else
     alter_strip_do "$@"
   fi
-  alter_md5mend smgl-strip
+  [ "$1" != "$NAME" ] && alter_md5mend "$NAME"
 
 }
 
@@ -333,11 +392,11 @@ however if more than three spells had the same file, it will use the
 version appearing in the environmental spell that is first in
 alphabetical order.
 
-Alter has two shortcut uses:
+Alter has three shortcut uses:
 
-"prelink" or "strip":
+"prelink", "strip-all", or "strip":
     These are two commonly used alter shortcuts.  Prelinking optimizes
-the link space among all the binaries on the system.  Strip strips 
+the link space among all the binaries on the system.  Strip-all strips 
 all the binaries on the system one by one, and confirms that they are 
 sane before installing them.
     The first time you run either prelink or strip, alter creates the
@@ -377,7 +436,7 @@ FAQ:
     A: alter -p
 
     Q: How do I strip debugging info from my whole system?
-    A: alter -s
+    A: alter -z
     
     Q: I recompiled some libraries, and it slowed down.
     A: Recompiling makes prelinking pointless, rerun alter -p upon each update.
@@ -405,6 +464,24 @@ FAQ:
                                              # they are, set REAP=no before.
        dispel -d alter-to-remove-undo 31337  # to unpack the undo cache
 
+    Q: How do I prelink just one file and its dependents?
+    A: alter -p -fmR /bin/kill
+
+    Q: How do I prelink just one spell and its dependents?
+    A: alter -p -fmR \$(gaze install coreutils)
+
+    Q: How do I prelink two spells and their dependents?
+    A: alter -p -fmR \$(for sp in coreutils psmisc; do gaze install \$sp; done)
+
+    Q: How do I strip just one file?
+    A: alter -n smgl-strip strip /bin/kill
+
+    Q: How do I strip just one spell?
+    A: alter -s coreutils
+
+    Q: How do I strip two spells?
+    A: alter -s 'coreutils psmisc'
+
 EOF
 
 }
@@ -415,13 +492,13 @@ function main() {
 alter: usage: 
   alter [ { -a | --alter   } ] # -a/--alter are ignored as this is default
         [ { -n | --spell   } spell:=alter ]
-        [ { -v | --version } version:=<installed> ] 
-        command [ args  ... ]
-  alter   { -m | --md5mend        }
-        spell   [ spell ... ]
-  alter   { -p | --prelink        }
-        [ prelink_args:=-afmR ]
-  alter   { -s | --strip          } # shortcut to strip all binaries
+        [ { -v | --version } version:=<installed> ] command [ args  ... ]
+  alter   { -m | --md5mend        }     spell     [ spell ... ]
+  alter   { -p | --prelink        }     [ prelink_args:=-afmR ]
+  alter   { -z | --strip-all      } # shortcut to strip all binaries
+        [ strip_args:=        ]
+  alter   { -s | --strip          } # shortcut to strip binaries in spell(s)
+        spell_list                  # space-delimited list of spells as one arg
         [ strip_args:=        ]
   alter   { -h | --help | --about } # learn about alter and what it does
 
@@ -431,19 +508,19 @@ alter: usage:
   To undo with ARCHIVE=on:
     dispel -d <spell-name>-undo <spell-version>
     alter -m <spell-name>-undo
-
   NOTE:  Never directly dispel an alter with REAP=on unless
   ****:  you want to delete everything the alter touched!
   ****:  Use the undo archives as they have no install log.
 EOF
 
   case "$1" in
-	-m|--md5mend              ) shift; alter_md5mend "$@" ;;
-	-p|--prelink              ) shift; alter_prelink "$@" ;;
-	-s|--strip                ) shift; alter_strip   "$@" ;;
-	-a|--alter                ) shift; alter_alter   "$@" ;;
-        -h|--about|--help         ) shift; alter_about   "$@" ;;
-	-n|--spell|-v|--version|* )        alter_alter   "$@" ;;
+	-m|--md5mend              ) shift; alter_md5mend   "$@" ;;
+	-p|--prelink              ) shift; alter_prelink   "$@" ;;
+	-s|--strip                ) shift; alter_strip     "$@" ;;
+	-z|--strip-all            ) shift; alter_strip_all "$@" ;;
+	-a|--alter                ) shift; alter_alter     "$@" ;;
+	-h|--about|--help         ) shift; alter_about     "$@" ;;
+	-n|--spell|-v|--version|* )        alter_alter     "$@" ;;
   esac
 
 }
