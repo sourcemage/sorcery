@@ -130,11 +130,16 @@ export_snapshot()  {
     fi
   done
 
-  SNAPSHOT="/root/snapshot-$HOSTNAME-`date  -u  +%Y%m%d`.tar.bz2"
+  SNAPSHOT="/root/snapshot-$HOSTNAME-`date  -u  +%Y%m%d`.tar$EXTENSION"
 
   cd  $BUILD_DIRECTORY
-  tar    -c  snapshot     |
-  bzip2  -9  >  $SNAPSHOT
+  if  [  -n  "$EXTENSION"  ];  then
+    tar    -c  snapshot     |
+    $COMPRESSBIN      >  $SNAPSHOT
+  else
+    tar  -cf  $SNAPSHOT  snapshot
+  fi
+  
   rm_source_dir          $SOURCE_DIRECTORY
   echo  "$SNAPSHOT created."
 
@@ -151,7 +156,12 @@ import_snapshot()  {
     cd  $BUILD_DIRECTORY
     mk_source_dir          $SOURCE_DIRECTORY
 
-    bzcat $SNAPSHOT  |  tar  -x
+    if  [  -n  "$EXTENSION"  ];  then
+      $COMPRESSBIN -dc $SNAPSHOT  |  tar  -x
+    else
+      tar  -xf  $SNAPSHOT
+    fi
+
     cd  $SOURCE_DIRECTORY
 
     for  LINE  in  `cat  install`;  do
@@ -424,8 +434,9 @@ display()  {
 
   if  [  -f  "$1"  ];  then
     case  `file  -b  $1  |  cut -d ' ' -f1`  in
-      ASCII)    cat  $1  |  $PAGER  ;;
-      bzip2)  bzcat  $1  |  $PAGER  ;;
+      ASCII)       cat  $1  |  $PAGER  ;;
+      bzip2)     bzcat  $1  |  $PAGER  ;;
+      gzip)   gzip -cd  $1  |  $PAGER  ;;
     esac
   else
     message  "$2"
@@ -1365,7 +1376,7 @@ parse()  {
     compile)  if  [  -z  "$VERSION"  ];  then
                   codex_set_current_spell_by_name  $2
               fi
-              display  $COMPILE_LOGS/$SPELL-$VERSION.bz2   \
+              display  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION   \
                        "Compile log for $SPELL does not exist"
               ;;
 

@@ -462,14 +462,29 @@ function spell_recover()  {
            "${MESSAGE_COLOR} and recovering${DEFAULT_COLOR}"
 
   CURRENT_VERSION=$(installed_version  $SPELL)
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$BUILD.tar.bz2"
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$BUILD.tar$EXTENSION"
+  CONTINUE=false
 
-  if  [      -e   $CACHE_BZ  ]  &&
-      bzip2  -tf  $CACHE_BZ;    then
-
-    bzcat   $CACHE_BZ  |  tar  -Pkx  2>/dev/null
+  if    [  !      -f  $CACHE_COMP   ];  then
+    false
+  elif  [         -n  "$EXTENSION"  ];  then
+    CONTINUE=true
+  elif  $COMPRESSBIN  -tf  $CACHE_COMP
+  then
+    CONTINUE=true
+  fi
+ 
+  if  $CONTINUE
+  then
+ 
+    if  [  -n  "$EXTENSION"  ];  then
+      $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Pkx  2>/dev/null
+    else
+      tar  -Pkxf  $CACHE_COMP  2>/dev/null
+    fi
     add_spell  $SPELL  installed  $CURRENT_VERSION
-
+  else
+    false
   fi
 
   exit  130
@@ -1245,7 +1260,7 @@ function log_list()  {
     SPELL=`echo  $LINE  |  cut  -d  :  -f1`
       VER=`echo  $LINE  |  cut  -d  :  -f4`
     echo  "$SPELL-$VER"
-    echo  "$SPELL-$VER.bz2"
+    echo  "$SPELL-$VER$EXTENSION"
   done
 
 }
@@ -1483,7 +1498,7 @@ function track()  {
   filter  "$LOCAL_EXCLUDED"  |
   exists                     >  $TMP_LOG
 
-  echo  "$C_LOG_BZ"         >>  $TMP_LOG
+  echo  "$C_LOG_COMP"         >>  $TMP_LOG
   echo  "$MD5_LOG"          >>  $TMP_LOG
   echo  "$INST_LOG"         >>  $TMP_LOG
 
@@ -1502,8 +1517,8 @@ function track()  {
 
 #---------------------------------------------------------------------
 ##
-## Creates a bzip'ed tar file containing an archived backup of every
-## file installed by a spell.
+## Creates a bzip/gzip'ed tar file containing an archived backup of 
+## every file installed by a spell.
 ##
 #---------------------------------------------------------------------
 function archive()  {
@@ -1525,8 +1540,8 @@ function archive()  {
 
   debug "libsorcery" "archive() - ARCHIVE=$ARCHIVE, archiving."
 
-  message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_BZ}${DEFAULT_COLOR}"
-  tar --no-recursion --bzip -cPf "$CACHE_BZ" -T $INST_LOG
+  message  "${MESSAGE_COLOR}Creating ${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
+  tar --no-recursion --"$COMPRESSBIN" -cPf "$CACHE_COMP" -T $INST_LOG
 
 }
 
@@ -1544,8 +1559,8 @@ function boost()	{ (
   debug  "libsorcery" "Running boost() on $SPELL"
 
      CACHE="/tmp/$SPELL-$VERSION-$BUILD.tar"
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
-  C_LOG_BZ="$COMPILE_LOGS/$SPELL-$VERSION.bz2"
+CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
    TMP_LOG="/tmp/$SPELL-$VERSION"
   INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
    MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
@@ -1660,7 +1675,7 @@ function generate_keep_list()  { (
   (
     codex_set_current_spell  $SPELL_DIRECTORY
     sources  $SPELL
-    echo     $SPELL-$VERSION-$BUILD.tar.bz2
+    echo     $SPELL-$VERSION-$BUILD.tar$EXTENSION
   )
   done
 
@@ -1791,6 +1806,51 @@ function verify_sources()  {
 }
 
 
+
+#---------------------------------------------------------------------
+##
+## Will set the prefered compression type based on user filled option
+## in dialog menu (either gzip/bzip).
+## 
+#---------------------------------------------------------------------
+function set_compression_type() {
+
+  while
+
+    B_HELP="bzip2 compression (slow, small files)"
+    G_HELP="gzip compression (fast, larger files)"
+    T_HELP="no compression/tar (fastest, largest files)"
+
+    COMMAND=`eval $DIALOG '  --title "Currently using : $COMPRESSBIN "  \
+                             --item-help                                \
+                             --ok-label      "Select"                   \
+                             --cancel-label  "Exit"                     \
+                             --menu                                     \
+                             ""                                         \
+                             0 0 0                                      \
+                             "B"  "bzip2 compression"        "$B_HELP"  \
+                             "G"  "gzip compression"         "$G_HELP"  \
+                             "T"  "no compression/tar"       "$T_HELP"'`
+
+  do
+
+    case  $COMMAND in
+
+      B)  modify_local_config "COMPRESSBIN" "bzip2"  &&
+          COMPRESSBIN="bzip2"                        &&
+          modify_local_config "EXTENSION" ".bz2"     ;;
+      G)  modify_local_config "COMPRESSBIN" "gzip"   &&
+          COMPRESSBIN="gzip"                         &&
+          modify_local_config "EXTENSION" ".gz"      ;;
+      T)  modify_local_config "COMPRESSBIN" "tar"    &&
+          COMPRESSBIN="tar"                          &&
+          modify_local_config "EXTENSION" ""         ;;
+
+    esac
+      
+  done
+
+}
 
 #---------------------------------------------------------------------
 ## @param filename

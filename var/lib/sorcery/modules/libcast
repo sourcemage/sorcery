@@ -284,11 +284,15 @@ function run_pre_build() {
 #---------------------------------------------------------------------
 function create_compile_log()  {
 
-  message  "${MESSAGE_COLOR}Creating"                        \
-           "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.bz2"  \
+  message  "${MESSAGE_COLOR}Creating"                              \
+           "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"  \
            "${DEFAULT_COLOR}"
 
-  bzip2  -9f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION.bz2
+  if [  -z  "$EXTENSION"  ];  then
+    cp  $C_LOG  $COMPILE_LOGS/$SPELL-$VERSION
+  else
+    $COMPRESSBIN  -f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
+  fi
   rm             $C_LOG
   rm             $C_FIFO
 
@@ -551,7 +555,7 @@ function run_triggers() {
 function can_resurect()  {
 	debug "cast" "can_resurect - $*"
 	run_details		&&
-	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2 ] &&
+	[ -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION ] &&
 	debug "cast" "I am able to resurect."
 }
 
@@ -571,14 +575,33 @@ function resurrect()  {  (
     dispel --notriggers $SPELL
   fi
 
-  CACHE_BZ="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2"
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+  CONTINUE=false
 
-  if bzip2  -tf  $CACHE_BZ ; then
-    
+  if    [  !              -f  $CACHE_COMP   ];  then
+    false
+  elif  [                 -z  "$EXTENSION"  ];  then
+    if  $COMPRESSBIN  -tf  $CACHE_COMP  1>/dev/null
+    then
+      CONTINUE=true;
+    fi
+  elif  $COMPRESSBIN  -tf  $CACHE_COMP
+  then
+    CONTINUE=true;
+  fi
+
+  if  $CONTINUE
+  then
     run_conflicts    &&
     satisfy_depends  &&
-    bzip2         -cd   $CACHE_BZ  |  tar  -Pkx  1>/dev/null  2>&1
-    run_post_install #bug 199
+		
+    if  [  -n  "$EXTENSION"  ];  then
+      $COMPRESSBIN   -cd   $CACHE_COMP  |  tar  -Pkx  1>/dev/null  2>&1
+    else
+      tar  -Pkxf  $CACHE_COMP  1>/dev/null  2>&1
+    fi 
+
+    run_post_install 
     run_triggers
     
     add_spell     "$SPELL"  "$STATUS"  "$VERSION"

@@ -239,21 +239,18 @@ add_pkgs()  { (
 show_file()	{
 
   if  [  -f  $1  ];  then
+
     if  [  "`file  -b  $1  |  cut  -d ' '  -f1`"  == "bzip2" ];  then
-
       bzcat  $1  |  $PAGER
-
+    elif  [  "`file  -b  $1  |  cut  -d ' '  -f1`"  == "gzip" ];  then
+      gzip  -cd  $1  |  $PAGER
     else
-
       eval $DIALOG  '--textbox  $1  0  0'
-
     fi
+
   else
-
     eval $DIALOG  '--msgbox  "File not found."  0  0'
-
     return  1
-
   fi
 
 }
@@ -1348,6 +1345,7 @@ option_menu()  {
     J_HELP="Enter the number of jobs 'make' should run at the same time"
     C_HELP="Setup distributed compilation"
     R_HELP="Enter the maximum rate for downloading"
+    T_HELP="Select compression program for logs and archives"
     N_HELP="Enter the process priority (nice value) to use for sorcery"
     S_HELP="Sorcery development options (debugging)"
     W_HELP="Enter maximum timeout (seconds) for summoning sources"
@@ -1372,6 +1370,7 @@ option_menu()  {
                       "C"  "Distributed compilation"  "$C_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
+                      "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
                       "Z"  "Select Sound Scheme"      "$Z_HELP"'`
@@ -1392,6 +1391,7 @@ option_menu()  {
       M)  mirror_menu            ;;
       O)  optimize_architecture  ;;
       S)  sorcery_devel_settings ;;
+      T)  set_compression_type   ;;
       W)  set_http_ftp_timeout   ;;
       Z)  sound_schemes_menu     ;;
 
