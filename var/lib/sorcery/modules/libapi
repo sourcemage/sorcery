@@ -24,6 +24,7 @@
 #    default_post_build     (libgrimoire)   (BUILD_API==1 only)
 #    default_post_install   (libgrimoire)   (BUILD_API==2 only)
 #    depends                (libdepends)
+#    get_spell_provider     (libstate)
 #    installed_version      (libgrimoire)   
 #    list_add               (libmisc)
 #    list_find              (libmisc)
@@ -41,6 +42,7 @@
 #    persistent_remove      (libmisc)
 #    persistent_save        (libmisc)
 #    prepare_install        (libgrimoire)   
+#    provider_ok            (libstate)
 #    query                  (libmisc)       
 #    query_string           (libmisc)
 #    requires               (libdepends)
@@ -359,6 +361,18 @@ function spell_ok() {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param Provider name
+## @See <@function var.lib.sorcery.modules.libstate.html,real_provider_ok> for more details.
+##
+## @return 0 if any provider of $1 is installed
+#---------------------------------------------------------------------
+function provider_okay() {
+    debug "libapi" "provider_ok - $*"
+    real_provider_ok "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @param spell
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_install_version> for more details.
 ## Returns the current version of the given spell
@@ -369,6 +383,23 @@ function installed_version () {
     real_installed_version "$@"
 }
 
+#---------------------------------------------------------------------
+## @Type API
+## @param Spell name
+## @param Provider name
+## @param If empty get the uncommited spell info, if anything else get
+## info from the committed ($DEPENDS_STATUS) database. If the uncommited
+## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS instead.
+##
+## @See <@function var.lib.sorcery.modules.libstate.html,real_get_spell_provider,> for more details.
+##
+## @return 0 if a provider could be found 1 if not
+## @stdout the provider name(s)
+#---------------------------------------------------------------------
+function get_spell_provider() {
+    debug "libapi" "get_spell_provider - $*"
+    real_get_spell_provider "$@"
+}
 
 #---------------------------------------------------------------------
 ## @Type API

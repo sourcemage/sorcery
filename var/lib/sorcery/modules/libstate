@@ -481,6 +481,44 @@ function real_spell_ok() {
 
 
 #---------------------------------------------------------------------
+## @Type API
+## @param Provider name
+##
+## @return 0 if any provider of $1 is installed
+#---------------------------------------------------------------------
+function real_provider_ok() {
+  for spell in $(search_depends_status_exact $DEPENDS_STATUS '.*' ".*($1)" \
+                 'on' '.*'  '.*' |cut -f2 -d:|cut -f1 -d\(|sort|uniq); do
+    spell_ok $spell && return 0
+  done
+  return 1
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param Spell name
+## @param Provider name
+## @param If empty get the uncommited spell info, if anything else get
+## info from the committed ($DEPENDS_STATUS) database. If the uncommited
+## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS
+##
+## @return 0 if a provider could be found 1 if not
+## @stdout the provider name(s)
+#---------------------------------------------------------------------
+function real_get_spell_provider() {
+  local dep_status
+  if [[ $3 ]] ; then
+    dep_status=$DEPENDS_STATUS
+  else
+    dep_status=$(hash_get uncommitted_hash $1)
+    [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
+  fi
+  search_depends_status_exact $dep_status "$1" ".*($2)" \
+                 'on' '.*'  '.*' |cut -f2 -d:|cut -f1 -d\(|sort|uniq
+}
+
+
+#---------------------------------------------------------------------
 ## @param spell name
 ##
 ##  @return 0 if the given spell's status is "exiled"
