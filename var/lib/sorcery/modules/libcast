@@ -172,7 +172,9 @@ function use_initd()  { (
       echo  "$INITDSCRIPTS $INITDSCRIPTS_DISABLED"  |  \
           grep  -Eq  "( |^)$INITSCRIPT( |$)"  &&  continue
 
-      if  query  "Invoke $INITSCRIPT at boot via init?"  y  ;  then
+      local default_answer
+      if ! grep -Fq 'ESSENTIAL=yes' "$INITSCRIPT" ; then default_answer=y else default_answer=n; fi
+      if  query  "Invoke $INITSCRIPT at boot via init?"  $default_answer  ;  then
         INITDSCRIPTS="$INITSCRIPT $INITDSCRIPTS"
         init_prepare_install  $INITSCRIPT
       else
