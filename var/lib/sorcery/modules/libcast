@@ -36,6 +36,18 @@ function load_build_api() {
     2) source $SGL_LIBRARY_MODULES/build_api/api2 ;;
     *) source $SGL_LIBRARY_MODULES/build_api/api1 ;;
   esac
+
+  # the following allows spell writers to override certain functions
+  # in the build pipeline
+  USE_FUNCTIONS=${USE_FUNCTIONS:-on}
+  if [[ $USE_FUNCTIONS == "on" ]] ; then
+    [ -x $GRIMOIRE/FUNCTIONS ] && . $GRIMOIRE/FUNCTIONS
+    [ -x $SECTION_DIRECTORY/FUNCTIONS ] && . $SECTION_DIRECTORY/FUNCTIONS
+  elif [[ $USE_FUNCTIONS == "grimoire" ]] ; then
+    [ -x $GRIMOIRE/FUNCTIONS ] && . $GRIMOIRE/FUNCTIONS
+  elif [[ $USE_FUNCTIONS == "section" ]] ; then
+    [ -x $SECTION_DIRECTORY/FUNCTIONS ] && . $SECTION_DIRECTORY/FUNCTIONS
+  fi
 }
 
 
