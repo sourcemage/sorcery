@@ -87,7 +87,7 @@ function tablet_install_spell_files() {
   # directories
   mkdir spell section grimoire
 
-  cp -R $SCRIPT_DIRECTORY spell
+  cp -R $SCRIPT_DIRECTORY/* spell
 
   local section_files=$(find $SECTION_DIRECTORY -maxdepth 1 -type f)
   if [[ $section_files ]] ; then cp $section_files section; fi
@@ -137,7 +137,13 @@ function tablet_install_spell_files() {
 function tablet_set_spell() {
   codex_clear_current_spell
   SPELL=$1
-  SPELL_DIRECTORY=$(tablet_find_spell_dir $SPELL) || return 1
+  if [[ $2 ]] && test -d $2; then
+    SPELL_DIRECTORY=$2
+  else
+    SPELL_DIRECTORY=$(tablet_find_spell_dir $SPELL) || return 1
+  fi
+
+  VERSION=$(<$SPELL_DIRECTORY/version)
 
   # Directories
   SCRIPT_DIRECTORY=$SPELL_DIRECTORY/spell
