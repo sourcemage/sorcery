@@ -790,7 +790,7 @@ function depends_to_Makefile()
 	# Spells that are actualy going to be cast
 	for i in $( hash_get_table_fields $1 ) ; do
 		echo "$i : $(hash_get "$1" "$i")"
-		echo -e "\t@$0 $args $i"
+		echo -e "\t@bash $0 $args $i"
 		echo
 	done
 	
@@ -1120,7 +1120,7 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
   echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST" >> $RM_AT_END
-  exec $SAFE_CAST "$@"
+  exec bash $SAFE_CAST "$@"
   
 else
   if  [[  $NICE != "0"  ]] ; then
