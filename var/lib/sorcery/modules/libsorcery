@@ -292,6 +292,7 @@ function release_saved_libraries()  {
 #---------------------------------------------------------------------
 ##
 ## Recovers from a CTRL-C while casting a spell
+## FIXME: this should be a resurrect
 ##
 #---------------------------------------------------------------------
 function spell_recover()  {
@@ -419,7 +420,7 @@ function symlinks()  {
 #---------------------------------------------------------------------
 function filter() {
   local thing RID_LIST
-  local files each
+  local files each invert
   for each in $@; do
     test -f $each && files="$files $each"
   done
@@ -429,7 +430,7 @@ function filter() {
                  echo -n "$thing\|"
                done < $files
                echo -n /dev/null)
-    grep  -v  "$RID_LIST"
+    grep -v "$RID_LIST"
   else
     cat
   fi
@@ -448,14 +449,59 @@ function filter() {
 #---------------------------------------------------------------------
 function filter_in() {
   local thing RID_LIST
-  if  [  -f  $1  ];  then
+  local files each invert
+  for each in $@; do
+    test -f $each && files="$files $each"
+  done
+    
+  if [[ $files ]] ; then
     RID_LIST=$(while read thing; do
-                 echo  -n  "$thing\|"
-               done < $@
-               echo  -n  "/dev/null")
-    grep  "$RID_LIST"
+                 echo -n "$thing\|"
+               done < $files
+               echo -n /dev/null)
+    grep "$RID_LIST"
   else
     cat
+  fi
+}
+
+function filter_volatiles() {
+  local SPELL_VOLATILES=$(tablet_find_spell_file $SPELL spell/volatiles)
+  if [ "$1" == -v ] ; then
+    shift
+    filter_in $@ $VOLATILES $SPELL_VOLATILES
+  else
+    filter $@ $VOLATILES $SPELL_VOLATILES
+  fi
+}
+
+function filter_configs() {
+  local SPELL_CONFIGS=$(tablet_find_spell_file $SPELL spell/configs)
+  if [ "$1" == -v ] ; then
+    shift
+    filter_in $@ $CONFIGS $SPELL_CONFIGS
+  else
+    filter $@ $CONFIGS $SPELL_CONFIGS
+  fi
+}
+
+function filter_excluded() {
+  local SPELL_EXCLUDED=$(tablet_find_spell_file $SPELL spell/excluded)
+  if [ "$1" == -v ] ; then
+    shift
+    filter_in $@ $EXCLUDED $SPELL_EXCLUDED
+  else
+    filter $@ $EXCLUDED $SPELL_EXCLUDED
+  fi
+}
+
+function filter_protected() {
+  local SPELL_PROTECTED=$(tablet_find_spell_file $SPELL spell/protected)
+  if [ "$1" == -v ] ; then
+    shift
+    filter_in $@ $PROTECTED $SPELL_PROTECTED
+  else
+    filter $@ $PROTECTED $SPELL_PROTECTED
   fi
 }
 

@@ -189,34 +189,6 @@ function strip_parameters()  {
 }
 
 #---------------------------------------------------------------------
-## Gets the cast lock for us and ensures that we've waited for all
-## solo/non-solo casts to complete
-#---------------------------------------------------------------------
-function acquire_cast_lock() {
-  # locking - blocks normal spells if a solo cast is running,
-  # solo casts if any cast is running
-  message "${MESSAGE_COLOR}Waiting for any${DEFAULT_COLOR} ${FILE_COLOR}" \
-          "Solo${DEFAULT_COLOR} ${MESSAGE_COLOR}casts to complete..." \
-          "${DEFAULT_COLOR}"
-  lock_resources "solo" "cast"
-  if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
-  then #SOLO spell
-    message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}" \
-               "all other${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to" \
-               " complete...${DEFAULT_COLOR}"
-    excllock_resources "cast" "$SPELL"
-  else
-    message -n "${MESSAGE_COLOR}Waiting for any other casts of" \
-               "${DEFAULT_COLOR} ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
-               " ${MESSAGE_COLOR}to complete...${DEFAULT_COLOR}"
-    lock_resources "cast" "$SPELL"
-    unlock_resources "solo" "cast"
-  fi
-  message " done."
-}
-
-
-#---------------------------------------------------------------------
 ## Cast a single spell. When this function is called, all dependencies
 ## have been taken care of and we are allowed to cast this.
 ## @Globals SPELL
@@ -531,7 +503,7 @@ function pass_three()  {
 ## Sets SPELL to spellname.
 ## Calls trigger "pre_cast"
 ## If COMPILE is not set and it can be resurrected 
-## (can_resurect SPELL) it calls resurrect with SPELL as argument.
+## (can_resurrect SPELL) it calls resurrect with SPELL as argument.
 ## Otherwise it calls cast_spell.
 ## If resurrect or cast_spell returned 0 it calls trigger "cast"
 ## (Is being called by make)
@@ -539,15 +511,34 @@ function pass_three()  {
 function pass_four()  {
 
   debug "cast" "pass_four - $*"
+  local do_resurrect=no
+  local VERSION
   unset CAST_PASS
   SPELL=$1
   trigger "pre_cast"
-  if ! [[ $COMPILE ]] &&  can_resurect $SPELL ; then
-    resurrect     $SPELL
+  if ! [[ $COMPILE ]] ; then
+    # hacky way to get the latest version
+    VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
+    if [[ ! $VERSION ]] ; then
+      message "Cant find spell version for some reason, is $SPELL a spell?"
+    else
+      can_resurrect $SPELL $VERSION &> /dev/null && do_resurrect=yes
+    fi
+  fi
+
+  local rc
+  if [[ "$do_resurrect" == "yes" ]] ; then
+    resurrect $SPELL $VERSION
+    rc=$?
+    # this is here for safety in case resurrect bails out somewhere
+    # we didnt expect it to
+    unlock_resources "libgrimoire" "install"
+    unlock_resources "cast" "$SPELL"
+    unlock_resources "solo" "cast"
   else
     cast_spell $*
+    rc=$?
   fi
-  local rc=$?
 
   # We only want to trigger if the cast or resurect completed properly
   [ $rc -eq 0 ] && trigger "cast"

@@ -906,6 +906,22 @@ function real_config_query_list () {
   return 0
 }
 
+function remove_files_and_dirs() {
+    cat $1 | while read file; do
+      test -d $file || rm -f $file
+    done
+
+    # remove possibly empty directories, rmdir WILL have error output
+    # because some directories wont be empty for one of many reasons,
+    # this is OKAY
+    cat $1|dirnames|while read dir; do
+      until [[ $dir == ${2:-/} ]] ; do
+        rmdir $dir &>/dev/null || break
+        dir=$(dirname $dir)
+      done
+    done
+}
+
 #---------------------------------------------------------------------
 ## Safely creates $TMP_DIR and exports the variable so we can use it
 ## even in subprocesses called through make.

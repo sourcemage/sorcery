@@ -2,7 +2,7 @@
 	* man1/gaze.1: added gaze newer last_cast et al
 
 2005-02-16 Seth Woolley <seth@tautology.org>
-	* sorcery upgrade needs to bypass noexec as well.
+	* sorcery: sorcery upgrade needs to bypass noexec as well.
 
 2005-02-16 Andrew Stitt <astitt@sourcemage.org>
 	* libapi: make list_find help slightly more helpful
@@ -48,6 +48,30 @@
 2005-02-10 Andrew Stitt <astitt@sourcemage.org>
 	* libtrack: fix cache tarball generation, bug 8210
 
+2005-02-08 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/common: remove run_conflicts, move it to libcast
+	* libcast: add run_conflicts, also add a feature to mask some conflicts
+	  from the caller, this is mainly to disable self-conflicts
+	  that manifest in resurrect where self-conflicts make no sense
+	  (not that they normally make sense either).
+	* libresurrect: fix some issues with log pointers in tablet
+	  comment off backup/rollback code, im not sure its necessary,
+	  will think about it later. Test out conflicts, they work,
+	  surprise surprise.
+	  
+2005-02-08 Andrew Stitt <astitt@sourcemage.org>
+	* libresurrect: try out handle_changed_config codepath, seems
+	  to work now, only work left is the backup/rollback mechanism.
+	* libtablet: mkdir -p the tablet dir instead of assuming the
+	  base directory will be there too.
+	* libtrack: strip empty lines generated from seperate_state_files
+	* cast: fix logic that determines if the spell should be compiled
+	  or resurrected.
+
+2005-02-07 Andrew Stitt <astitt@sourcemage.org>
+	* libresurrect: first cut at handle_changed_config, not highly tested
+	  or bullet-proofed but believed to be usable
+
 2005-02-07 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: fix bug 8203, in gaze installed when looking at individual
 	  spells, if one of the specified spells is not specified return
@@ -74,6 +98,20 @@
 	* libtablet: incorporate some changes from proj3, the version
 	  ought to be stored in the tablet, and the way in which spell
 	  files were copied was unfortunatly incorrect.
+
+2005-02-03 Andrew Stitt <astitt@sourcemage.org>
+	* libresurrect: begin to hash out config file installation stuff
+
+2005-02-03 Andrew Stitt <astitt@sourcemage.org>
+	* libcast, libresurrect: branch resurrect code into a new library
+	  because its reached a critical mass
+
+2005-02-03 Andrew Stitt <astitt@sourcemage.org>
+	* libcast, tablet: incorporate work in progress changes on
+	  resurrect, dont use it yet unless you know what you're getting
+	  into.
+	* libtrack: add some more filter functions for the bigger better
+	  filtering project
 
 2005-02-03 Andrew Stitt <astitt@sourcemage.org>
 	* libtrack: fix bug 8117, guile has a filename with a '*' in it

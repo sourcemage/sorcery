@@ -16,49 +16,6 @@
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-## Prompts the user about spells that are in conflict with the current
-## spell and allows them to dispel them. If the user chooses not to
-## dispel the conflicting spell, the function returns 1
-## @return nothing if the user dispels the conflicting spell
-## @return 1 if the user chooses not to dispel the conflicting spell
-#---------------------------------------------------------------------
-function run_conflicts() {
-
-  debug "build_api/common" "Starting run_conflicts() on $SPELL"
-
-  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-    local CONFLICTS=$(
-        persistent_load
-        . $SCRIPT_DIRECTORY/CONFLICTS
-        persistent_save
-    )
-
-    local tmp to_dispel=""
-    for  tmp  in  $CONFLICTS  ;  do
-      local spell_and_default
-      explode  $tmp  ':'  spell_and_default
-
-      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}."
-      text="$text Dispel"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
-
-      if  query  "$text"  ${spell_and_default[1]}  ;  then
-        to_dispel="$to_dispel ${spell_and_default[0]}"
-        echo  ${spell_and_default[0]} >>  $CONFLICT_LIST
-      else
-        echo  $SPELL  >>  $FAILED_LIST
-        return  1
-      fi
-
-      dispel  $to_dispel
-    done
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
 ## Prompts the user about possible security problems with the current
 ## spell. Allows a safe way of failing a spell due to security problems.
 ## @return 0 if there are no security problem or the user acknowledges them.

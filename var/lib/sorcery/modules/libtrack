@@ -128,7 +128,8 @@ function create_md5list() {
 ## Creates a bzip/gzip'ed tar file containing an archived backup of
 ## file specified on standard input into $CACHE_COMP
 ## @stdin files, one per line, to put into the archive
-## @param directory input files are relative to
+## @param directory input files are relative to install root for regular
+## files state root for state files
 ##
 #---------------------------------------------------------------------
 function create_cache_archive()  {
@@ -319,8 +320,8 @@ function seperate_state_files() {
     FILE=$TMP_DIR/ssf.$RANDOM
   done
   cat $1 > $FILE
-  grep -v "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE > $2
-  grep    "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE > $3
+  grep -v "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE | grep -xv '' > $2
+  grep    "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE | grep -xv '' > $3
   rm $FILE
   return 0
 }
