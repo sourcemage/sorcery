@@ -737,9 +737,20 @@ function pass_one()  {
   echo
   compute_uninstalled_depends "to_cast" "back_hash" "bad_spells" $SPELLS
 
+  # special case of no spell making it through dependency resolution
+  SPELLS=$(hash_get_table_fields "to_cast")
+  if [ -z "$SPELLS" ] ; then 
+    local cannot_cast=$(hash_get_table_fields "bad_spells")
+    message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Cannot cast these spells:${DEFAULT_COLOR}"
+    message "---------------------------"
+    message "${SPELL_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column 
+    message "${DEFAULT_COLOR}"
+    exit 1
+  fi
+
   message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
   depends_to_Makefile to_cast already_cast > $MAKEFILE
-  SPELLS=$(hash_get_table_fields "to_cast")
 
   if  [  -n  "$DEPS_ONLY"  ] ;  then  
    	for i in $SPELLS ; do
