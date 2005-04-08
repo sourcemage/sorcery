@@ -275,6 +275,9 @@ function run_spell_success() {
     create_md5list $TMP_INST_LOG $TMP_MD5_LOG
     log_adjuster $TMP_MD5_LOG $MD5_LOG root log md5_log_filter
 
+    # do this before cache archive creation (bug 8249)
+    rm_source_dir
+
     # cache archive
 
     # Archives are stored with INSTALL_ROOT and STATE_ROOT stripped.
@@ -283,7 +286,6 @@ function run_spell_success() {
     create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
-    rm_source_dir
     rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends
 }
 
