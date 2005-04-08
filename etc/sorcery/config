@@ -28,6 +28,7 @@ export       DIALOGRC=/etc/sorcery/dialogrc
        SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                  NICE=${NICE:=+10}
                 UMASK=${UMASK:=0022}
+         SORCERY_PATH="/usr/sbin"
 FORCE_BASESYSTEM_DEPENDS=${FORCE_BASESYSTEM_DEPENDS:-off}
 
             LDD_CHECK=${LDD_CHECK:=on}
@@ -141,6 +142,9 @@ PROGRESS_SPINNER_CHARS='-\|/'
 
       BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
    DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/share/doc
+
+# this makes appending the sorcery path idempotent
+[ -z ${PATH##*$SORCERY_PATH*} ] || export PATH="$PATH:$SORCERY_PATH"
 
 optimize
 umask $UMASK >/dev/null
