@@ -639,17 +639,21 @@ function optimize()  {
     export LDFLAGS="$OVERRIDE_LDLAGS"
   else
     local SPECFILE
-    SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"|head -n 1`;
-    debug "libsorcery" "native archspec found at $SPECFILE"
-    [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+    SPECFILE=`find ${ARCH_SPECS} -perm -400 -name "$ARCHITECTURE" 2>/dev/null|head -n 1`;
+    if test -n "$SPECFILE" ; then
+      debug "libsorcery" "native archspec found at $SPECFILE"
+      .  "$SPECFILE"
+    fi
 
     BUILD=${HOST}
 
     if  [[ $CROSS_INSTALL == on ]]; then
       if  [[ $TARGET ]]; then
-        SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"|head -n 1`;
-        debug "libsorcery" "cross archspec found at $SPECFILE"
-        [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+        SPECFILE=`find ${ARCH_SPECS} -perm -400 -name "$TARGET" 2>/dev/null|head -n 1`;
+        if test -n "$SPECFILE" ; then
+          debug "libsorcery" "cross archspec found at $SPECFILE"
+          .  "$SPECFILE"
+        fi
       fi
     fi
     debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
