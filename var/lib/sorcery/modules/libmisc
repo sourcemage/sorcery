@@ -942,7 +942,8 @@ function mk_tmp_dirs() {
   if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
     message "$BASE_DIR has unknown permissions and ownership, replacing it"
     rm -rf $BASE_DIR
-    install -d -o root -g root -m 755 "$BASE_DIR"
+    install -d -o root -g root -m 755 "$BASE_DIR" &&
+    chmod a-s "$BASE_DIR" # work around installer bug where /tmp is suid/sgid
   fi || mk_tmp_dir_error $BASE_DIR
 
   # double check
