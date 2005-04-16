@@ -86,11 +86,6 @@ to check if any became broken by the update.
 .IP
 This will make sorcery remove old logs, sources and caches on a sorcery upgrade.
 .PP
-.I CABAL
-.IP
-Turn this on if you want to administrate a group of sorcery boxes.
-This will make the changes on all boxes.
-.PP
 .I CCACHE
 .IP
 This will create a cache of compiled files for spells,
@@ -194,6 +189,42 @@ to use this option.
 .IP
 This will make cast set the terminal/screen title if run in an
 xterm/rxvt/screen.
+.SS STORE_CONF_LOG
+This will add the config.log of the build to the compile log sorcery keeps.
+The config.log is an extensive output of what was done and detected during the
+run of ./configure. Helpful for debugging.
+.SH INSTALL_ROOT
+This section will describe the options connected with install_rooting,
+which is installing a spell to a different location.
+.SS INSTALL_ROOT
+This option describes where the spell's files should be installed to.
+Note that this is the root of that dir, so that they will probably
+end up in $INSTALL_ROOT/usr. Should not end in a "/".
+
+Note to grimoire writers: The default, when spells should be installed
+in default locations, is "".
+Take care, therefore, to use "${INSTALL_ROOT}/".
+.SS STATE_ROOT
+This option specifies the root where installed state information should go.
+This is currently /etc/sorcery/local/depends, /var/log/sorcery and
+/var/state/sorcery.
+
+If you are installing a different configuration, this should probably
+point somewhere else too so you don't get the two installations mixed up.
+.SS TRACK_ROOT
+This option specifies how files should be recorded in the install logs.
+$INSTALL_ROOT in the logs will be replaced by this.
+For a cross install, for example, this should be "/".
+
+Note to grimoire writers:
+If you for some reason (symlinks etc.) have to know where the file
+will be residing when it will be executed,
+use this variable instead of INSTALL_ROOT.
+.SS INSTALL_CACHE
+This option specifies directly where to dump the cache files
+(the .tar.bz2 of all the files the spell installed).
+This is not a root,
+so the directory you specify will be the one the files end up in.
 .SH "AUTHOR"
 Original version by Karsten Behrmann.
 .PP

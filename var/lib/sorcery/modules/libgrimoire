@@ -15,9 +15,6 @@
 ##
 #---------------------------------------------------------------------
 
-
-
-
 #---------------------------------------------------------------------
 ## @param filename
 ## @Stdout compressor
@@ -75,7 +72,7 @@ function uncompress() {
   # failure of this function.
   local a=$?
   [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
-  echo "$a"  > /tmp/libgrimoire.uncompress.$$
+  echo "$a"  > $TMP_DIR/libgrimoire.uncompress.$$
   return $a
 
 }
@@ -120,12 +117,12 @@ function real_unpack() {
   } &&
   {
 
-    # This section takes care of what happens if the md5sum doesn't match
-    # /tmp/libgrimoire.uncompress.$$ is set in uncompress. It's the only way to
-    # get the return value since it's in a pipe.
+    # This section takes care of what happens if the md5sum doesn't match.
+    # $TMP_DIR/libgrimoire.uncompress.$$ is set in uncompress. It's the only
+    # way to get the return value since it's in a pipe.
     if ! [[ $2 ]] ; then
 
-      rm /tmp/libgrimoire.uncompress.$$
+      rm $TMP_DIR/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
       case $MD5SUM_DL in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
@@ -136,7 +133,7 @@ function real_unpack() {
 
     elif [[ $2 == "IGNORE" ]] ; then
 
-      rm /tmp/libgrimoire.uncompress.$$
+      rm $TMP_DIR/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was purposefully left out for the uncompressed $1."
       message "${QUERY_COLOR}Would you like to abort so you can validate the source yourself via some alternate method?"
       case $MD5SUM_DL in
@@ -146,9 +143,9 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
            abort_all)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
       esac
 
-    elif [[  `cat /tmp/libgrimoire.uncompress.$$` != 0  ]]  ; then
+    elif [[  `cat $TMP_DIR/libgrimoire.uncompress.$$` != 0  ]]  ; then
 
-      rm /tmp/libgrimoire.uncompress.$$
+      rm $TMP_DIR/libgrimoire.uncompress.$$
       message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different for uncompressed $1."
       case $MD5SUM_DL in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
@@ -158,7 +155,7 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
       esac
 
     fi
-    rm /tmp/libgrimoire.uncompress.$$
+    rm $TMP_DIR/libgrimoire.uncompress.$$
 
   }
 
@@ -204,39 +201,6 @@ function md5_tar_check()  {
   return 1
 
 }
-#---------------------------------------------------------------------
-## @Type API
-## Prepares to install the spell.  If the spell is installed already,
-## the libraries are saved with save_libraries() and the spell is dispelled.
-## Usually called from the BUILD or PRE_INSTALL script of a spell.
-## Locks "libgrimoire" "install" before proceeding.
-## If the spell is not installed (or held) the spell is not dispelled.
-##
-#---------------------------------------------------------------------
-function real_prepare_install() { (
-
-  debug  "libgrimoire" "Running prepare_install() on $SPELL"
-
-  message  "${MESSAGE_COLOR}Preparing to install"  \
-           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
-
-  devoke_installwatch
-
-  lock_resources "libgrimoire" "install"
-
-    if  spell_installed  $SPELL   ||
-        spell_held       $SPELL
-    then
-
-      trap  "spell_recover"  SIGINT
-      save_libraries
-      dispel  --notriggers --nosustain  $SPELL
-
-    fi
-) }
-
-
-
 
 
 #---------------------------------------------------------------------
@@ -284,7 +248,7 @@ function real_mk_source_dir() {
 ## given.
 ##
 #---------------------------------------------------------------------
-function rm_source_dir() {
+function real_rm_source_dir() {
 
   DEAD_DIR=$1
   DEAD_DIR=${DEAD_DIR:-$SOURCE_DIRECTORY}
@@ -325,13 +289,25 @@ function make() {
 
   local JOBS=""
 
-  if  [[ $MAKE_NJOBS == 0 ]]; then
+  local make_njobs=${MAKE_NJOBS:-1}
+  local jobs_per_host=${JOBS_PER_HOST:-0}
+  local tmp num_hosts=0
+  for tmp in $DISTCC_HOSTS; do let num_hosts+=1; done
+  local JOBS
+
+  if [[ "$USE_DISTCC" == on ]] ; then
+    let JOBS=$(($make_njobs+$jobs_per_host*$num_hosts))
+  else
+    let JOBS=$make_njobs
+  fi
+
+  if  [[ $JOBS == 0 ]]; then
     # Zero jobs has the effect of unlimiting the number of make processes
     JOBS=""
   else
     # Check there is a reasonable value.
-    [ $MAKE_NJOBS -gt 0 ] &&
-    JOBS="$MAKE_NJOBS"    ||
+    [ $JOBS -lt 0 ] ||
+    echo $JOBS|grep -q '[0-9]+' &&
     JOBS="1" # Use default of one when MAKE_NJOBS is nonsense.
   fi
 
@@ -341,8 +317,8 @@ function make() {
   # Cache the result
   local  STATUS=$?
 
-  if [[ $STATUS -ne 0 ]] && [[ $JOBS != 1 ]] ; then
-    query "Running make with $MAKE_NJOBS jobs failed. Attempt to run with a single job?" y &&
+  if [[ $STATUS -ne 0 ]] && [[ "$JOBS" != 1 ]] ; then
+    query "Running make with $JOBS jobs failed. Attempt to run with a single job?" y &&
     # Try again
     /usr/bin/make -j1 -S "$@"
     STATUS=$?
@@ -352,90 +328,6 @@ function make() {
   return $STATUS
 
 }
-
-
-#---------------------------------------------------------------------
-##
-## Gathers all documentation files from source archive and installs
-## them as part of the spell
-##
-#---------------------------------------------------------------------
-function gather_docs()  {
-
-  if  [  "$GATHER_DOCS"  ==  "on"  ]; then
-
-    debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
-
-    DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
-    mkdir  -p  $DOC_DIR
-
-    for i in ${DOCS[@]}
-    do
-      cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
-    done
-
-    # what is this here for and why isn't it part of the standard DOCS
-    # variable?
-    cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
-
-    # making installed docs readable for all users.
-    chmod -fR a+r $DOC_DIR
-
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Copies pam configuration files to /etc/pam.d/
-##
-#---------------------------------------------------------------------
-function install_pam_confs()  {
-
-  debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
-
-  if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
-    cd       "$SCRIPT_DIRECTORY/pam.d"
-
-    mkdir  -p  /etc/pam.d
-
-    for  FILE  in  `ls`;  do
-      if  !  [  -f  /etc/pam.d/$FILE  ];  then
-        cp  $FILE   /etc/pam.d
-      fi
-    done
-
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
-##
-## Installs init scripts in /etc/init.d, and creates links in
-## /etc/rc*.d
-## Accepts list of scripts to be installed.
-#---------------------------------------------------------------------
-function install_initd_confs()  { (
-
-  debug  "libgrimoire" "Running install_initd_confs() on $SPELL"
-
-  local enable_script="$1"
-  shift
-  LIST="$@"
-  
-  debug  "libgrimiore" "install_initd_confs LIST: '$LIST'"
-  
-  # Something is seriously wrong if this doesn't already exist.
-  mkdir  -p  $INSTALL_ROOT/etc/init.d
-
-  for  INITSCRIPT  in  $LIST;  do
-    init_install  $enable_script ${INITSCRIPT}
-  done
-
-) }
-
 
 #---------------------------------------------------------------------
 ## Install files in a spells "desktop" subdirectory for .desktop

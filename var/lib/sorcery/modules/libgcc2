@@ -29,12 +29,23 @@
 
 
 #---------------------------------------------------------------------
+## @param gcc version (2.95. or 3.3.)
 ## @return 0 if gcc is being used to compile
+## @return 1 otherwise
+#---------------------------------------------------------------------
+function use_gcc()  {
+
+  gcc  -dumpversion  |  grep  -q  $(esc_str $1)  >  /dev/null
+
+}
+
+#---------------------------------------------------------------------
+## @return 0 if gcc 2.95 is being used to compile
 ## @return 1 otherwise
 #---------------------------------------------------------------------
 function use_gcc2()  {
 
-  gcc  -dumpversion  |  grep  -q  '2\.95\.'  >  /dev/null
+  use_gcc 2.95.
 
 }
 

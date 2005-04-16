@@ -7,11 +7,11 @@ export       DIALOGRC=/etc/sorcery/dialogrc
               AUTOFIX=${AUTOFIX:=on}
             UPDATEFIX=${UPDATEFIX:=off}
             AUTOPRUNE=${AUTOPRUNE:=off}
-                CABAL=${CABAL:=off}
          MAIL_REPORTS=${MAIL_REPORTS:=off}
                 PATCH=${PATCH:=off}
              PRESERVE=${PRESERVE:=on}
                  REAP=${REAP:=on}
+       STORE_CONF_LOG=${STORE_CONF_LOG:-off}
              SORCERER=${SORCERER:=root}
                 SOUND=${SOUND:=off}
               SUSTAIN=${SUSTAIN:=on}
@@ -27,6 +27,7 @@ export       DIALOGRC=/etc/sorcery/dialogrc
             EXTENSION=${EXTENSION:=.bz2}
        SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                  NICE=${NICE:=+10}
+                UMASK=${UMASK:=0022}
 
             LDD_CHECK=${LDD_CHECK:=on}
            FIND_CHECK=${FIND_CHECK:=on}
@@ -35,8 +36,13 @@ export       DIALOGRC=/etc/sorcery/dialogrc
 
  URL_HTTP_FTP_TIMEOUT=${URL_HTTP_FTP_TIMEOUT:=90}
 
-
-                PAGER=${PAGER:=less}
+                    # pager info
+                    # -R: display color codes properly
+                    # -E: quit at eof (otherwise scribe pauses on empty updates)
+                    # -X: dont do screen init and deinit, gaze install
+                    # of a small spell is effectively useless otherwise as the
+                    # screen is cleared afterwards.
+                PAGER=${PAGER:=less -R -E -X}
              FILEPROG=${FILEPROG:=file}
            DIALOGPROG=${DIALOGPROG:=dialog}
 
@@ -60,8 +66,6 @@ export       DIALOGRC=/etc/sorcery/dialogrc
           LOCAL_URL_CONFIG=/etc/sorcery/local/url
           LOCAL_CONFIG=/etc/sorcery/local/config
 
-        LOCAL_EXCLUDED=/etc/sorcery/local/excluded
-
                MIRRORS=/etc/sorcery/mirrors
   SM_LICENSE_DIRECTORY=/etc/sorcery/licenses
 SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
@@ -69,22 +73,26 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
             GROUP_LIST=/etc/sorcery/groups
          GRIMOIRE_LIST=/etc/sorcery/local/grimoire
   GRIMOIRE_LIST_BACKUP=/etc/sorcery/local/grimoire.backup
-         UPDATE_SCRIPT=/tmp/sorcery.update
-        RESTORE_SCRIPT=/tmp/sorcery.restore
+        RESTORE_SCRIPT=/root/sorcery.restore
        CABAL_DIRECTORY=/etc/sorcery/cabal
            CABAL_NAMES=$CABAL_DIRECTORY/names
             CABAL_KEYS=$CABAL_DIRECTORY/keys
           CABAL_OUTPUT=/tmp/cabal.output
 
+           GPG_KEY_DIR=/usr/share/smgl-pubkeys
+           GPG_SIG_EXT=asc
+    GPG_VERIFY_SORCERY=no
+   GPG_VERIFY_GRIMOIRE=no
+
+
           SGL_LIBRARY=/var/lib/sorcery
   SGL_LIBRARY_MODULES=${SGL_LIBRARY}/modules
            ARCH_SPECS=${SGL_LIBRARY}/archspecs
              EXCLUDED=${SGL_LIBRARY}/excluded
-           IGNORE_FIX=${SGL_LIBRARY}/ignore.fix
                 CODEX=${SGL_LIBRARY}/codex
-            WORKCODEX=${SGL_LIBRARY}/workcodex
-           TMPFSCODEX=${SGL_LIBRARY}/tmpfscodex
             PROTECTED=${SGL_LIBRARY}/protected
+            VOLATILES=${SGL_LIBRARY}/volatiles
+              CONFIGS=${SGL_LIBRARY}/configs
                  SOLO=${SGL_LIBRARY}/solo
           SUBROUTINES=${SGL_LIBRARY}/subroutines
             SUSTAINED=${SGL_LIBRARY}/sustained
@@ -97,8 +105,17 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
      LOCK_TRANSACTIONS="$LOCK_DIR/liblock.locklist"
             MAX_SLEEP=5
 
+   TABLET_MAX_VERSION=1
+
          SOURCE_CACHE=${SOURCE_CACHE:=/var/spool/sorcery}
 
+              # SECURITY NOTE: any script running as root must pick a
+              # more secure location for temp files that is not accessable
+              # by other users and override this variable.
+              # mk_tmp_dirs accomplishes this. Scripts run as
+              # unpriviledged users are also advised to override this,
+              # it is here merely to ensure it is always defined.
+              TMP_DIR=${TMP_DIR:-/tmp}
 
               TRACKED="/bin /boot /etc /lib /sbin /usr /var"
                  DOCS="README* FAQ* CHAN* doc* DOC* conf SETUP LICENSE COPYING NEWS"
@@ -118,9 +135,11 @@ PROGRESS_SPINNER_CHARS='-\|/'
 . $LOCAL_CONFIG
 . $COMPILE_CONFIG
 
+
 [  -r  $GRIMOIRE_LIST  ]  &&  .  $GRIMOIRE_LIST
 
       BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
    DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/share/doc
 
 optimize
+umask $UMASK >/dev/null

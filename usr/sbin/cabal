@@ -6,7 +6,6 @@
 ## written by someone who never used cabal or looked at this code before.
 ##
 ## @Globals CABAL_DIRECTORY CABAL_NAMES MAX_CABALS
-
 #---------------------------------------------------------------------
 
 #------------------
@@ -14,7 +13,7 @@
 ## @Stdout The names of the machines in the cabal
 ## @Globals CABAL_NAMES CABAL
 #------------------
-read_cabal_names()  {
+function read_cabal_names()  {
 
   mkdir  -p  $CABAL_DIRECTORY
 
@@ -29,7 +28,7 @@ read_cabal_names()  {
 ## @Note The loop can probably be done more intelegently, so a MAX_CABALS is not necessary.
 ## @Globals CABAL_NAMES MAX_CABALS
 #--------------------
-write_cabal_names()  {
+function write_cabal_names()  {
 
   rm  -f  $CABAL_NAMES
   for  ((  COUNT=0;  COUNT != MAX_CABALS;  COUNT++  ));   do
@@ -44,7 +43,7 @@ write_cabal_names()  {
 ## @Stdout Names of each cabal member
 ## @NOTE MAX_CABAL can be eliminated
 #---------------------
-print_cabal_names()  {
+function print_cabal_names()  {
 
   for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
     echo  "${CABALS[$COUNT]}"
@@ -57,7 +56,7 @@ print_cabal_names()  {
 ## @Stdout <number>\n<cabal name or "Undefined"> for all cabal members
 ## @NOTE Dito about MAX_CABALS
 #---------------------
-print_cabal_numbers_names()  {
+function print_cabal_numbers_names()  {
 
   for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
     echo  "$COUNT"
@@ -74,7 +73,7 @@ print_cabal_numbers_names()  {
 ## @Stdout dialog output
 ## @Stderr Cabal member selection
 #-----------------------
-select_cabal()  {
+function select_cabal()  {
 
   eval $DIALOG  '--title         "Cabal Selection Menu"  \
            --ok-label      "Select"                \
@@ -89,7 +88,7 @@ select_cabal()  {
 #----------------------
 ## Edit the file about selected members
 #----------------------
-edit_cabals()  {
+function edit_cabals()  {
 
   while  SELECTED=`select_cabal`
   do     edit_file  "$CABAL_DIRECTORY/$SELECTED"
@@ -100,7 +99,7 @@ edit_cabals()  {
 #---------------------
 ## Show contents of a member's info file
 #---------------------
-show_cabals()  {
+function show_cabals()  {
 
   while  SELECTED=`select_cabal`
   do     show_file  "$CABAL_DIRECTORY/$SELECTED"
@@ -111,7 +110,7 @@ show_cabals()  {
 #--------------------
 ## Generate SSH key for a cabal member
 #--------------------
-generate_cabal_key()  {
+function generate_cabal_key()  {
 
   while  SELECTED=`select_cabal`
   do
@@ -129,7 +128,7 @@ generate_cabal_key()  {
 }
 
 
-all_cabal_keys()  {
+function all_cabal_keys()  {
 
   for  KEY  in  `ls  $CABAL_KEYS/*  |
                  grep  -v  "\.pub"`
@@ -140,7 +139,7 @@ all_cabal_keys()  {
 }
 
 
-distribute_cabal_key()  {
+function distribute_cabal_key()  {
 
   while  SELECTED=`select_cabal`
   do
@@ -169,7 +168,7 @@ distribute_cabal_key()  {
 }
 
 
-revoke_cabal_key()  {
+function revoke_cabal_key()  {
 
   while  SELECTED=`select_cabal`
   do
@@ -221,7 +220,7 @@ name_cabals()  {
 }
 
 
-set_max_cabals()  {
+function set_max_cabals()  {
 
   PROMPT="Please enter the maximum number of cabals"
 
@@ -230,18 +229,14 @@ set_max_cabals()  {
                         "$PROMPT"             \
                         0 0  "$MAX_CABALS"'`
   then
-
     MAX_CABALS=$NEW_MAX
-    TEMP=`grep  -v  "MAX_CABALS="       $LOCAL_CONFIG`
-    echo  "$TEMP"                   >   $LOCAL_CONFIG
-    echo  "MAX_CABALS=$MAX_CABALS"  >>  $LOCAL_CONFIG
-
+    modify_local_config "MAX_CABALS" $MAX_CABALS
   fi
 
 }
 
 
-cabal_name_menu()  {
+function cabal_name_menu()  {
 
   while
 
@@ -271,7 +266,7 @@ cabal_name_menu()  {
 }
 
 
-cabal_key_menu()  {
+function cabal_key_menu()  {
 
   while
 
@@ -305,7 +300,7 @@ enable root login without password prompts"
 }
 
 
-cabal_content_menu()  {
+function cabal_content_menu()  {
 
   while
 
@@ -335,7 +330,7 @@ cabal_content_menu()  {
 }
 
 
-select_order()  {
+function select_order()  {
 
   eval $DIALOG  '--title  "Order Selection Menu"  \
            --menu  ""  0 0 0                \
@@ -345,7 +340,7 @@ select_order()  {
 }
 
 
-cabal_admin_menu()  {
+function cabal_admin_menu()  {
 
   while
 
@@ -382,12 +377,15 @@ cabal_admin_menu()  {
 }
 
 
-cabal_copy()  {
+function cabal_copy()  {
 
   SOURCE_MESSAGE="Please enter source files and directories."
     DEST_MESSAGE="Please enter destination directory."
 
-  mkdir  -p  $CABAL_OUTPUT
+  mkdir  -p  $CABAL_OUTPUT || {
+    messasge "Failed to make CABAL_OUTPUT directory $CABAL_OUTPUT"
+    exit 1
+  }
 
        SOURCE=`eval $DIALOG  --inputbox  "$SOURCE_MESSAGE"  0 0`  &&
   DESTINATION=`eval $DIALOG  --inputbox  "$DEST_MESSAGE"    0 0`  &&
@@ -416,11 +414,14 @@ cabal_copy()  {
 }
 
 
-cabal_execute()  {
+function cabal_execute()  {
 
   COMMAND_MESSAGE="Please enter command to be execute remotely on cabal."
 
-  mkdir  -p  $CABAL_OUTPUT
+  mkdir  -p  $CABAL_OUTPUT || {
+    messasge "Failed to make CABAL_OUTPUT directory $CABAL_OUTPUT"
+    exit 1
+  }
 
   COMMAND=`eval $DIALOG  '--inputbox  "$COMMAND_MESSAGE"  0 0'`  &&
     CABAL=`select_cabal`                                  &&
@@ -451,7 +452,7 @@ cabal_execute()  {
 }
 
 
-cabal_output()  {
+function cabal_output()  {
 
   if  [  -d  $CABAL_OUTPUT  ];  then
     for  FILE  in  `ls  $CABAL_OUTPUT`;  do
@@ -463,7 +464,7 @@ cabal_output()  {
 }
 
 
-cabal_enchantment_menu()  {
+function cabal_enchantment_menu()  {
 
   while
 
@@ -498,7 +499,7 @@ copies"
 }
 
 
-cabal_menu()  {
+function cabal_menu()  {
 
   while
 
@@ -530,6 +531,9 @@ cabal_menu()  {
 
 }
 
+. /etc/sorcery/config
+DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
+cabal_menu
 
 #---------------------------------------------------------------------
 ##=back

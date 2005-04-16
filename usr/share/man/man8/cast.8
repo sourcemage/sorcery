@@ -1,4 +1,4 @@
-.TH CAST 8 "August 2002" "Source Mage GNU Linux" "System Administration"
+.TH CAST 8 "November 2004" "Source Mage GNU Linux" "System Administration"
 .SH NAME
 cast \- installs software packages
 .SH SYNOPSIS
@@ -12,161 +12,69 @@ emacs
 .SH "DESCRIPTION" 
 .I cast
 is part of the
-.SM sorcery
+.I sorcery
 source-code package management suite. It is a command-line tool
 for automatically retrieving, unpacking, compiling, installing, and
 tracking software installations. 
 .SH "OPTIONS"
-.TP
-.B "-f, --fix"
-Discover and fix broken spells. Four methods are used to do this.
-The methods can be toggled using sorcery->Option->Integrity Checking.
-A fix is automatically issued after a
-.B sorcery update.
-.IP
-.I "Find Check"
-.IP
-Discovers missing binary executables, libraries and header files.
-.IP
-.I MD5 Sum
-.IP
-Discovers modified executables and libraries.
-.IP
-.I Ldd Check
-.IP
-Discovers Broken executables and libraries.
-.IP
-.I Sym Check
-.IP
-Discovers miss-owned symbolic links to files.
-.TP
-.B "-n, --nofix"
-Discover broken spells (as --fix) , but does not fix them.
-.TP
-.B "-s"
-Download 1st, cast 2nd. eg
-.B cast
-bash fileutils
-.IP
-Downloads bash and compiles fileutils.
-.TP
-.B "--deps"
-Configures the spells and determines their dependencies, but they are not
+.SS "-f, --fix"
+Used to be: Discover and fix broken spells. Now removed.
+.P
+Use
+.I cleanse --fix
+instead.
+.SS "-s"
+First download all spells, then cast.
+Normal cast behavior is to download in the background while compiling.
+This disables that behavior.
+.SS "--deps"
+Configures the spells and determines their dependencies, but does not
 compiled or installed.
-.TP
-.B "-c, --compile"
+.SS "--cflags, --cxxflags, --ldflags"
+Set custom cflags/cxxflags/ldflags values to override those found in
+arch specs, and set through the sorcery menu.
+.SS "--no-opts"
+Disable the use of optimization flags from arch specs and the sorcery
+menu, only use those specified on the command line with --cflags,
+--cxxflags, or --ldflags.
+.SS "-c, --compile"
 Compiles spell even if there is a compile cache in /var/cache/sorcery.
-.TP
-.B "-r, --reconfigure"
-Select new configuration and dependencies for spells.
-.TP
-.B "--from directory"
-Specify an alternate directory to search for cached spells. An alternate
-to /var/cache/sorcery. Cached spells are spells that your have already
-compiled. There for installation is quick.
-.TP
-.B "--url URL"
-Specify an alternative download url.
-.TP
-.B "--pam"
-re-casts all installed spells that can use Linux-PAM.
-.TP
-.B "-h, --help"
+Otherwise, it would just resurrect (untar) it.
+Helpful when the system configuration changes.
+.SS "-r, --reconfigure"
+This will prompt you again for optional dependencies
+and configuration options, even those you answered before.
+Implies
+.IR "-c" .
+.SS "--from directory"
+Specify an alternate directory to search for cached sources.
+An alternate to /var/spool/sorcery.
+Usually though, you'd just copy the source to /var/spool/sorcery.
+.SS "--pam"
+re-casts all installed spells that can use linux-pam.
+.SS "--queue"
+re-casts all spells in the install queue, as generated for example by
+.BI sorcery " queue"
+.SS "-V on|off"
+overrides the VOYEUR option, which specifies whether or not
+compile output should be displayed. Helpful if you usually have
+it off and want to see where an error is.
+.SS "-d, --download"
+forces redownloading of sources, sources are freshly downloaded
+even when we already have them.
+.SS "-R, --recast-down"
+recasts all the spells the given spell(s) depend on
+(and the ones they depend on ...).
+This might be quite a lot of spells.
+.SS "-B, --recast-up"
+recasts all the spells that depend on the given spell(s).
+.SS "-h, --help"
 Display short help.
-.SH "FILES"
-All files can be edited by hand, but its easier to edit them with sorcery.
-.TP
-.I /etc/sorcery/config
-.IP
-Configuration options.
-.TP
-.I /etc/sorcery/mirrors
-.IP
-Mirror information.
-.TP
-.I /etc/sorcery/local/*
-.IP
-Local settings.
-.TP
-.I /etc/sorcery/local/config
-.IP
-Various local settings and compiler optimisation parameters (select with
-sorcery).
-.TP
-.I /etc/sorcery/local/depends/*
-.IP
-Dependency and config info for spells.
-.TP
-.I /var/lib/sorcery/subroutines
-.IP
-Contains functions used by 
-.I cast.
-.I
 .SH "ENVIRONMENT"
-.PP
-The following settings can be altered in 
-.I /etc/sorcery/local/config 
-It is easier, faster and less error prone to edit them with
-.B sorcery.
-.IP AUTODEPENDS
-If set to yes this turns on autodepends, that is cast automatically resolves
-and casts dependencies.
-.IP GNU_URL
-The GNU Mirror (deafult: ftp.gnu.org).
-.IP KERNEL_URL
-The kernel mirror (default: ftp.kernel.org).
-.IP XFREE86_URL
-The xfree86 mirror (default: ftp.xfree86.org).
-.IP GNOME_URL
-The GNOME mirror (default: ftp.gnome.org).
-.IP KDE_URL
-The KDE mirror (default: ftp.kde.org).
-.IP optimise
-The optimise setting. Used to configure what optimisations are used while
-compiling. These are the available options i586, pentium, i686, pentiumpro,
-k6, athlon, speedy, risky and nostrip.
-.IP color
-If set to yes cast outputs nice colour. Green for messages, gray for compiling,
-yellow for questions, and red for errors.q
-.IP PROMPT_DELAY
-The delay in seconds that
-.B cast
-gives you when waiting for responses from you.
-.IP APPRENTICE
-If set to yes, some packages get cast automatically when run.
-.IP MAIL_REPORTS
-If set to yes 
-.I README
-and
-.I INSTALL
-files along with compiler and installation logs will be mailed to the sorcerer
-.IP SORCERER
-The mailbox where the reports will be mailed. The sorcerer's email address.
-.IP PRESERVE
-When set to yes, files that have been edited will not get deleted when the
-spell is recast
-.IP SOUND
-If set to yes then sounds will be enabled if the
-.I sorcery-sound
-is installed
-.IP SUSTAIN
-When set to yes this disallows dispelling of spells that would cause terrible
-malfunctions. eg glibc, gcc, bash, to name some obvious ones. 
-.IP VIEW_REPORTS
-If set to yes then you will be prompted whether to view reports before
-and after installation.
-.IP VOYEUR
-If set to yes then compiler output will be displayed in real time.
-.IP REAP
-Deletes files when dispelling.
-.IP AUTOFIX
-If set to yes whenever a library is updated all packages that depend on that
-library will be rebuilt. See FIND_CHECK, MD5SUM_CHECK, LDD_CHECK, SYM_CHECK for
-autofix settings.
-.IP FIND_CHECK MD5SUM_CHECK LDD_CHECK SYM_CHECK
-See the -f options above for explanations of these.
-.SH ADVANCED USEAGE
-.PP
+The environment is set using the sorcery configuration files.
+See
+.I sorcery_config(5)
+.SH ADVANCED USAGE
 Casting from an alternate spell cache.
 .IP
 cast
@@ -181,9 +89,10 @@ or
 name when specifying a package. To get complete listing of software packages
 type
 .I gaze grimoire
-.TP
-If spell fails during a cast, try recasting it with -r -c to reconfigure and 
-recompile.
+.P
+If spell fails during a cast, try recasting it with
+.I cast -r -c
+to reconfigure and recompile.
 .SH "COMMENTS"
 Unless the
 .B -from
@@ -193,12 +102,14 @@ directory first to see if the package exists. If the package does not
 exist it downloads the package via the Internet.
 .SH "AUTHOR"
 Original version by Kyle Sallee, and updated Thomas Stewart.
+Rewritten and shortened by Karsten Behrmann.
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .PP
 .SH "REPORTING BUGS"
 Report bugs to bugzilla <http://bugs.sourcemage.org>
 .SH "SEE ALSO"
-dispel(8), gaze(1), grimoire(5), invoke(8), sorcery(8), scribe(8), summon(8), scribbler (8)
+alter(8), cleanse(8), dispel(8), gaze(1), grimoire(5), scribbler(8),
+scribe(8), sorcery(8), sorcery_config(5), summon(8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY

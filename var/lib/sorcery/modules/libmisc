@@ -21,7 +21,7 @@
 ## Produces "a" "string" "to" "explode".
 ## </pre>
 #---------------------------------------------------------------------
-function explode ()
+function explode()
 { # $1==string to explode, $2==delimiter, $3==name of array to put it in
 
   [[ "$3" ]] || return 1
@@ -152,7 +152,6 @@ function debug()  {
 ##
 #---------------------------------------------------------------------
 function progress_spinner()  {
-  local PROGRESS_SPINNER
   let  PROGRESS_SPINNER=$PROGRESS_SPINNER+1 
   if ((  PROGRESS_SPINNER > ${#PROGRESS_SPINNER_CHARS}-1  )); then
     PROGRESS_SPINNER=0;
@@ -179,8 +178,7 @@ debug "libmisc" "progress_bar - $*"
     len=0
     shift 1
   else
-    len="$3"
-    len="${len:-$COLUMNS}"
+    len=${3:-${COLUMNS:-70}}
   fi
   
   # Can't make a bar because there's no total, or the length isn't
@@ -196,6 +194,7 @@ debug "libmisc" "progress_bar - $*"
   percent=`printf "%.0f" $percent`
   
   if [[ $LAST_PERCENT == $percent ]] ; then
+    progress_spinner
     return 0
   fi
 
@@ -306,8 +305,8 @@ function esc_str()
   if [[ $* == .* ]] ; then
     OUT="$1"
   else
-    OUT=`echo "$@" | sed -e 's:\.:\\\.:' \
-                         -e 's:\*:\\\*:'`
+    OUT=`echo "$@" | sed -e 's:\.:\\\.:'g \
+                         -e 's:\*:\\\*:'g`
   fi
   echo "$OUT"
 
@@ -464,7 +463,8 @@ function restore_env()
 }
 
 #---------------------------------------------------------------------
-## @param return_var 
+## @param default choice
+## @param return_var (must not be i, foo, temp, returnvar, or default)
 ## @param elements, ..
 ## 
 ## gives the user some nice select list and puts the selected
@@ -474,9 +474,10 @@ function restore_env()
 function select_list()
 {
     local i
-    local number foo temp
+    local foo temp number
     local returnvar=$1
-    shift
+    local default=$2
+    shift 2
     let i=0
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR($i)  $SPELL_COLOR$foo$DEFAULT_COLOR"
@@ -484,11 +485,13 @@ function select_list()
         let i++
     done
 
-    message -n "\n${QUERY_COLOR}Which one do you want? [0]$DEFAULT_COLOR "
+    message -n "\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
     read   -t  $PROMPT_DELAY  -n  1  number
-    while ! [[ ${temp[$number]} ]]; do
-        message -n "\n${QUERY_COLOR}Which one do you want? [0]$DEFAULT_COLOR "
-        read number
+    if [[ ! $number ]] ; then number=$default; fi
+    while [[ $number != [0-9]* ]] || (( $number >= $i )) ; do
+        message -n "\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
+        read -n 1 number
+        if [[ ! $number ]] ; then number=$default; fi
     done
 
     echo
@@ -599,7 +602,17 @@ function real_list_find () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_add () {
-    list_add PERSISTENT_VARIABLES $@
+  if [[ $PROTECT_SORCERY ]] ; then
+    for each in "$@" ; do
+      if is_sorcery_var $each; then
+        complain_sorcery_var $each
+      else
+        list_add PERSISTENT_VARIABLES $each
+      fi
+    done
+  else
+    list_add PERSISTENT_VARIABLES "$@"
+  fi
 }
 
 
@@ -610,7 +623,7 @@ function real_persistent_add () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_remove () {
-    list_remove PERSISTENT_VARIABLES $@
+    list_remove PERSISTENT_VARIABLES "$@"
 }
 
 
@@ -716,6 +729,11 @@ function real_query_string () {
 #    return 0
 #}
 function config_get_option () {
+  if is_sorcery_var $1; then
+    complain_sorcery_var $1
+    return 1
+  fi
+
   # afrayedknot hates variable leakage
   if real_list_find $1 $PERSISTENT_VARIABLES; then
     # variable is known and valid
@@ -869,7 +887,7 @@ function real_config_query_list () {
   if config_get_option "$VARIABLE" ANSWER; then
     # option allready ANSWERed in config
     (
-        for foo in $@; do
+        for foo in "$@"; do
             [ "$foo" == "$ANSWER" ] && exit 0
         done
         echo "!!!! WARNING !!!!"
@@ -880,12 +898,160 @@ function real_config_query_list () {
   else
     # we have to ask user
     message "$QUESTION"
-    select_list ANSWER $@
+    select_list ANSWER 0 "$@"
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 
   eval $VARIABLE=\"$ANSWER\"
   return 0
+}
+
+function remove_files_and_dirs() {
+    cat $1 | while read file; do
+      test -d $file || rm -f $file
+    done
+
+    # remove possibly empty directories, rmdir WILL have error output
+    # because some directories wont be empty for one of many reasons,
+    # this is OKAY
+    cat $1|dirnames|while read dir; do
+      until [[ $dir == ${2:-/} ]] ; do
+        rmdir $dir &>/dev/null || break
+        dir=$(dirname $dir)
+      done
+    done
+}
+
+#---------------------------------------------------------------------
+## Safely creates $TMP_DIR and exports the variable so we can use it
+## even in subprocesses called through make.
+## @param name of the script needing the tmp dir 
+#---------------------------------------------------------------------
+function mk_tmp_dirs() {
+  debug "$FUNCNAME" "Making tmp dirs for $$"
+  local SCRIPT_NAME=$1 STATS tmp
+  SCRIPT_NAME=${SCRIPT_NAME:-misc}
+
+  local BASE_DIR=${2:-/tmp/sorcery}
+  local SCRIPT_DIR=$BASE_DIR/$SCRIPT_NAME
+  local FULL_DIR=$SCRIPT_DIR/$$
+
+
+
+  tmp=$(ls -ld $BASE_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    message "$BASE_DIR has unknown permissions and ownership, replacing it"
+    rm -rf $BASE_DIR
+    install -d -o root -g root -m 755 "$BASE_DIR" &&
+    chmod a-s "$BASE_DIR" # work around installer bug where /tmp is suid/sgid
+  fi || mk_tmp_dir_error $BASE_DIR
+
+  # double check
+  tmp=$(ls -ld $BASE_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    mk_tmp_dir_error $BASE_DIR
+  fi
+
+
+  tmp=$(ls -ld $SCRIPT_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    rm -rf $SCRIPT_DIR
+    install -d -o root -g root -m 755 "$SCRIPT_DIR"
+  fi || mk_tmp_dir_error $SCRIPT_DIR
+
+  # double check
+  tmp=$(ls -ld $SCRIPT_DIR|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    mk_tmp_dir_error $SCRIPT_DIR
+  fi
+
+
+  if [ -e $FULL_DIR ] ; then
+    echo "Looks like you had an old $SCRIPT_NAME on PID $$. Cleaning it out..."
+    rm -rf $FULL_DIR
+  fi
+
+  install -d -o root -g root -m 755 "$FULL_DIR" || mk_tmp_dir_error $FULL_DIR
+  tmp=$(ls -ld $SCRIPT_DIR|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  if [[ "$tmp" != "drwxr-xr-x:root:root" ]] ; then
+    mk_tmp_dir_error $FULL_DIR
+  fi
+
+  # in order for TMP_DIR to make it through make and into pass_three/four
+  # we must export
+  export TMP_DIR=$FULL_DIR
+}
+
+# emergency exit function if we fail to make a TMP_DIR
+function mk_tmp_dir_error() {
+    message "Failed to make temporary dir, this" \
+            "might be due to a security attack,\nplease" \
+            "check the permissions of $1. Bailing out..."
+    exit 1
+}
+
+#---------------------------------------------------------------------
+## @param tmp_dir, should begin with /tmp/sorcery
+#---------------------------------------------------------------------
+function cleanup_tmp_dir() {
+  local TMP_DIR=$1
+  if  [  ${TMP_DIR:0:13} ==  "/tmp/sorcery/"  ];  then
+    rm -rf $TMP_DIR
+  else
+    message "Cowardly refusing to remove $TMP_DIR, this may be a bug," \
+            "please alert the sorcery team."
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param Variable to check if its a known sorcery variable
+## @return Success if its a sorcery variable, false if not
+##
+## This function will probably need to be updated as sorcery variables
+## come in and out of flux, the variables listed are roughly defined as
+## things defined at the point in which a spell file is run, and when it
+## is not run in a seperate subshell, note that the build phase of cast
+## is seperate from the frontend, so a spell could technically modify
+## something like "SPELLS" and not have a major problem. However the
+## philosophy is to not discriminate about what sorcery variables
+## are technically okay to use in what files and ones that arent,
+## instead we'll treat all usages of sorcery variables equally.  The rules
+## are of course subject to change without warning and its just easier
+## to be consistent, also theres a good chance that if a variable is safe
+## in some circumstances and not others, and one uses it where its safe,
+## someone will forget and start using it in places that arent safe...
+#---------------------------------------------------------------------
+function is_sorcery_var() {
+  local vars="TOP_LEVEL DISPLAY PATH RM_AT_END TMP_DIR SAFE_CAST \
+  FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY \
+  CAST_PASS download_log IW_LOG OPTS SOLO QUIET INSTALL_QUEUE \
+  OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS \
+  DOT_PROGRESS VOYEUR_OVERRIDE RECONFIGURE RECAST_DOWN COMPILE RECAST_UP \
+  FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX DEBUG SEPARATE BASE_URL \
+  CAST_HASH BACK_CAST_HASH CANNOT_CAST_HASH uncommitted_hash NEW_DEPENDS \
+  spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR \
+  SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION \
+  BUILD_API VOYEUR_STDOUT VOYEUR_STDERR C_LOG C_FIFO INSTALL_ROOT HOST \
+  BUILD INST_LOG MD5_LOG INSTALLWATCHFILE CAST_EXIT_STATUS"
+
+  # the \\< \\> matches word boundaries
+  echo $vars|grep -q "\\<$1\\>"
+}
+
+
+#---------------------------------------------------------------------
+## @param Variable name used in complaint
+## @stdout Complain vehemently that a variable name is used by sorcery
+## and the user should file a bug because a spell is using the variable
+#---------------------------------------------------------------------
+function complain_sorcery_var() {
+  message "${PROBLEM_COLOR}WARNING: ATTEMPTING TO USE" \
+          "${DEFAULT_COLOR}${SPELL_COLOR}\"$1\"" \
+           "${DEFAULT_COLOR}${PROBLEM_COLOR}AS A SPELL VARIABLE."
+  message "THIS VARIABLE IS A USED BY SORCERY, THIS IS PROBABLY" \
+          "A SPELL BUG\nAND SORCERY MAY BEHAVE IN UNDEFINED WAYS IF" \
+          "YOU CONTINUE."
+  message "\n\nPLEASE REPORT A BUG IMMEDIATLY!!${DEFAULT_COLOR}\n\n"
 }
 
 #---------------------------------------------------------------------

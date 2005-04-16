@@ -1,21 +1,20 @@
 #!/bin/sh
 
-# Author : Benoit PAPILLAULT <benoit.papillault@free.fr>
-# Creation : 29/10/2003
-
-# This source code is based on the fact that mkdir will create a
-# directory atomically. If two processes try to create a dir, one and only one
-# will succeed immediately
-
-# when interrupting the current process, we need to unlock all current
-# locks. Therefor, we need a list of locks for the current
-# process. And we need to update this list at the same time we got the
-# lock.
-
-# liblock is used to lock and unlock resources. It should be deadlock 
-# free, and clean up locks after processes that had locks die without
-# unlocking the files. It uses the directory $LOCK_DIR defined in
-# /etc/sorcery/config
+#----------------------
+## @Author : Benoit PAPILLAULT <benoit.papillault@free.fr>
+## @Creation : 29/10/2003
+## This source code is based on the fact that mkdir will create a
+## directory atomically. If two processes try to create a dir, one and only one
+## will succeed immediately
+## when interrupting the current process, we need to unlock all current
+## locks. Therefor, we need a list of locks for the current
+## process. And we need to update this list at the same time we got the
+## lock.
+## liblock is used to lock and unlock resources. It should be deadlock 
+## free, and clean up locks after processes that had locks die without
+## unlocking the files. It uses the directory $LOCK_DIR defined in
+## /etc/sorcery/config
+#-----------------------
 
 # global options that can be changed to suit your needs.
 #Perhaps this should be moved to the config? (Duff, 04/07)
@@ -43,7 +42,6 @@
 ## the lock. If no other processes have locked the resource, this
 ## function will return immediately
 #---------------------------------------------------------------------
-
 lock_resources()
 {
 #    if [ $# -ne 2 ]; then
@@ -68,7 +66,6 @@ lock_resources()
 ## immediately returns 0 (true). On failure (the lock cannot be
 ## acquired), it returns 1 (false).
 #---------------------------------------------------------------------
-
 trylock_resources()
 {
 #    if [ $# -ne 2 ]; then
@@ -105,7 +102,6 @@ trylock_resources()
 ## This will not stop any other lock from being created, that has to
 ## be done in the code
 #---------------------------------------------------------------------
-
 excllock_resources()
 {
 #  if [ $# -ne 2 ]; then
@@ -137,7 +133,6 @@ excllock_resources()
 ## In all cases and for compatibility reasons with the old liblock, we
 ## return true
 #---------------------------------------------------------------------
-
 unlock_resources()
 {
 #    if [ $# -ne 2 ]; then
@@ -161,7 +156,6 @@ unlock_resources()
 ## you can call this function at the end of your script to check for
 ## missing call to unlock_resources
 #---------------------------------------------------------------------
-
 clean_resources()
 {
 # we remove locks owned by this process. there is no guarantee since
@@ -183,7 +177,6 @@ clean_resources()
 ##
 ## this function is used internaly to remove all stale locks.
 #---------------------------------------------------------------------
-
 global_clean_resources()
 {
   if [ -d "${LOCK_DIR}" ]; then
@@ -263,7 +256,6 @@ function unlock_file()
 ## instead of the real file.
 ##
 #---------------------------------------------------------------------
-
 function lock_start_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"

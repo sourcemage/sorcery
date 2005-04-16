@@ -39,29 +39,43 @@ function update_sorcery_scripts() {
   }
 
   FORCE_DOWNLOAD=1
-  C_LOG=/tmp/$SPELL.compile.log
-  TMP_LOG="/tmp/$SPELL-$BRANCH"
-  IW_LOG="/tmp/$SPELL.iw"
 
   # sorcery is not a spell
   # there is no spoon
   SOURCE=sorcery-$SORCERY_BRANCH.tar.bz2
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/sorcery
-  SOURCE_URL[0]=$SORCERY_URL/$SOURCE
+  SOURCE_URL=$SORCERY_URL/$SOURCE
   FUZZ="off"
 
-  echo "$SOURCE  ${SOURCE_URL[*]}" |
-  download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither"
+  echo "$SOURCE  ${SOURCE_URL}" |
+  download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither" || {
+    messaage "${PROBLEM_COLOR}Failed to download sorcery${DEFAULT_COLOR}"
+    return 1
+  }
 
   FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
 
+  gpg_verify_sorcery $FILENAME $SORCERY_URL
+  rc=$?
+
+  gpg_user_query $rc $SORCERY_BRANCH sorcery || return 1
+
   mk_source_dir  $SOURCE_DIRECTORY              &&
-  cd $INSTALL_ROOT/usr/src                      &&
+  cd $BUILD_DIRECTORY
   bzip2  -cdf   $FILENAME                       |
   tar --owner=root --group=root -xf /dev/stdin  &&
   cd      $SOURCE_DIRECTORY                     &&
 
   echo `pwd`                                    || return 1
+
+  # last chance to lock
+  message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}all" \
+             "${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to complete..." \
+             "${DEFAULT_COLOR}"
+  lock_resources "solo" "cast" # prevent other casts
+  excllock_resources "cast" "sorcery" # wait for other casts
+  message "done."
+  lock_resources "libgrimoire" "install"      &&
 
   # rough equivalent to prepare_install...
   rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
@@ -77,6 +91,9 @@ function update_sorcery_scripts() {
   unlock_resources "libgrimoire" "install"      &&
 
   SORCERY_VERSION=`cat /etc/sorcery/version`
+
+  unlock_resources "solo" "cast"
+  unlock_resources "cast" "sorcery"
 
   if [ $? -eq 0 ] ; then
     activity_log "update" "sorcery-$BRANCH" "$SORCERY_VERSION" "success"
@@ -109,6 +126,26 @@ function set_nice()  {
                             0 0  "$NICE"'`
   then
      modify_local_config "NICE" "$NICE"
+  fi
+
+}
+
+#---------------------------------------------------------------------
+##
+## Menu query to user asking to set the umask value which sorcery should
+## use to run proccesses with.
+##
+#---------------------------------------------------------------------
+function set_umask()  {
+
+  PROMPT="Please enter the permissions mask sorcery should run with."
+
+  if  UMASK=`eval $DIALOG '  --ok-label  "Commit"  \
+                            --inputbox            \
+                            "$PROMPT"             \
+                            0 0  "$UMASK"'`
+  then
+     modify_local_config "UMASK" "$UMASK"
   fi
 
 }
@@ -231,6 +268,7 @@ function save_libraries()  {
   else  export  LD_LIBRARY_PATH="$OLD_LIBS:$LD_LIBRARY_PATH"
   fi
 
+  # NOTE: remove this in 1.13
   if  [  "$SPELL"  ==  "glibc"         ]   ||
       [  "$SPELL"  ==  "glibc-custom"  ] ;  then
     if [ -e $OLD_LIBS/ld-$OLD_VERSION.so ] ; then 
@@ -255,6 +293,7 @@ function release_saved_libraries()  {
 #---------------------------------------------------------------------
 ##
 ## Recovers from a CTRL-C while casting a spell
+## FIXME: this should be a resurrect
 ##
 #---------------------------------------------------------------------
 function spell_recover()  {
@@ -373,33 +412,91 @@ function symlinks()  {
 ## @param filename
 ## @Stdin list of files/dirs/..
 ## @Stdout filtered list
-## First argument is a file that contains filenames.  C<filter> will
-## filter standard input to remove any filenames that match an entry
-## in that file.  Used to filter out excluded or protected files from
-## a list of files.
+## First argument is a file that contains (basic) grep regular expressions.
+## They are joined with \|'s and given to grep -v.
+## Which will filter standard input to remove entries that match.
+## Used to filter out excluded or protected files from install logs.
 ##
 #---------------------------------------------------------------------
 function filter() {
-
-  if  [  -f  $1  ];  then
-
-     DIRS=`directories  <  $1  2>/dev/null`
-    FILES=`files        <  $1  2>/dev/null`
-     SYMS=`symlinks     <  $1  2>/dev/null`
-
-    RID_LIST=`for  DIR   in  $DIRS;   do  echo  -n  "^$DIR\|";     done
-              for  FILE  in  $FILES;  do  echo  -n  "^$FILE\$\|";  done
-              for  SYM   in  $SYMS;   do  echo  -n  "^$SYM\$\|";   done
-              echo  -n  "/dev/null"`
-
-    grep  -v  "$RID_LIST"
-
+  local thing RID_LIST
+  local files each invert
+  for each in $@; do
+    test -f $each && files="$files $each"
+  done
+    
+  if [[ $files ]] ; then
+    RID_LIST=$(
+      cat $files | while read thing; do
+                     echo -n "$thing\|"
+                   done
+      echo -n /dev/null)
+    grep -v "$RID_LIST"
   else
     cat
   fi
-
 }
 
+#---------------------------------------------------------------------
+## @param filename
+## @Stdin list of files/dirs/..
+## @Stdout filtered list
+## First argument is a file that contains (basic) grep regular expressions.
+## They are joined with \|'s and given to grep
+## Which will filter standard input to remove and remove entries
+## that do not match.
+## Used to filter in config files from install logs.
+##
+#---------------------------------------------------------------------
+function filter_in() {
+  local thing RID_LIST
+  local files each invert
+  for each in $@; do
+    test -f $each && files="$files $each"
+  done
+    
+  if [[ $files ]] ; then
+    RID_LIST=$(while read thing; do
+                 echo -n "$thing\|"
+               done < $files
+               echo -n /dev/null)
+    grep "$RID_LIST"
+  else
+    cat
+  fi
+}
+
+function filter_generic() {
+  local args=$1
+  local filter_name=$2
+  local system_filter=$3
+  local spell_filter spell_dir
+  tablet_find_spell_dir $SPELL spell_dir &>/dev/null &&
+  tablet_get_filter $spell_dir $filter_name spell_filter &>/dev/null
+  set -- $args
+  if [ "$1" == -v ] ; then
+    shift
+    filter_in $@ $system_filter $spell_filter
+  else
+    filter $@ $system_filter $spell_filter
+  fi
+}
+
+function filter_volatiles() {
+  filter_generic "$*" volatiles $VOLATILES
+}
+
+function filter_configs() {
+  filter_generic "$*" configs $CONFIGS
+}
+
+function filter_excluded() {
+  filter_generic "$*" excluded $EXCLUDED
+}
+
+function filter_protected() {
+  filter_generic "$*" protected $PROTECTED
+}
 
 #---------------------------------------------------------------------
 ## @Stdin list of files
@@ -534,65 +631,73 @@ function optimize()  {
   unset  CFLAGS CXXFLAGS LDFLAGS LC_ALL
   unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STATIC STRIP TINY
 
-  local SPECFILE
-  SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
-  [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+  # if user specified --no-opts then use only the args from the command line
+  # otherwise do the normal stuff
+  if [[ $NO_OPTIMIZATION_FLAGS ]] ; then
+    export CFLAGS="$OVERRIDE_CFLAGS"
+    export CXXFLAGS="$OVERRIDE_CXXFLAGS"
+    export LDFLAGS="$OVERRIDE_LDLAGS"
+  else
+    local SPECFILE
+    SPECFILE=`find ${ARCH_SPECS} -name "$ARCHITECTURE"`;
+    [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
 
-  BUILD=${HOST}
+    BUILD=${HOST}
 
-  if  [[ $CROSS_INSTALL == on ]]; then
-    if  [[ $TARGET ]]; then
-      SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"`;
-      [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+    if  [[ $CROSS_INSTALL == on ]]; then
+      if  [[ $TARGET ]]; then
+        SPECFILE=`find ${ARCH_SPECS} -name "$TARGET"`;
+        [  -x  "$SPECFILE"  ]  &&  .  "$SPECFILE"
+      fi
     fi
+    debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
+
+    CFLAGS="$CFLAGS -pipe"
+    for  PARAM  in  $OPTIMIZATIONS;  do
+      case  $PARAM  in
+        combreloc)
+          LDFLAGS="$LDFLAGS -z combreloc"
+          COMBRELOC="on"
+          ;;
+
+        prelink)
+          CFLAGS="$CFLAGS -DPIC -fPIC"
+          PRELINK="on"
+          ;;
+
+        risky)
+          CFLAGS="$CFLAGS -ffast-math -funroll-loops"
+          RISKY="on"
+          ;;
+
+        speedy)
+          CFLAGS="$CFLAGS $FAST"
+          SPEEDY="on"
+          ;;
+
+        static)
+          LDFLAGS="$LDFLAGS -static"
+          STATIC="on"
+          ;;
+
+        strip)
+          LDFLAGS="$LDFLAGS -s"
+          STRIP="on"
+          ;;
+
+        tiny)
+          CFLAGS="$CFLAGS $SMALL"
+          TINY="on"
+          ;;
+
+      esac
+    done
+    # use echo to crunch all the whitespace out for broken configure scripts
+    export CFLAGS=$(echo -O $CFLAGS $CUSTOM_CFLAGS $OVERRIDE_CFLAGS)
+    export CXXFLAGS=$(echo $CFLAGS $CUSTOM_CXXFLAGS $OVERRIDE_CXXFLAGS)
+    export LDFLAGS=$(echo $LDFLAGS $CUSTOM_LDFLAGS $OVERRIDE_LDLAGS)
   fi
-  debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
-
-  CFLAGS="$CFLAGS -pipe"
-  for  PARAM  in  $OPTIMIZATIONS;  do
-    case  $PARAM  in
-      combreloc)
-        LDFLAGS="$LDFLAGS -z combreloc"
-        COMBRELOC="on"
-        ;;
-
-      prelink)
-        CFLAGS="$CFLAGS -DPIC -fPIC"
-        PRELINK="on"
-        ;;
-
-      risky)
-        CFLAGS="$CFLAGS -ffast-math -funroll-loops"
-        RISKY="on"
-        ;;
-
-      speedy)
-        CFLAGS="$CFLAGS $FAST"
-        SPEEDY="on"
-        ;;
-
-      static)
-        LDFLAGS="$LDFLAGS -static"
-        STATIC="on"
-        ;;
-
-      strip)
-        LDFLAGS="$LDFLAGS -s"
-        STRIP="on"
-        ;;
-
-      tiny)
-        CFLAGS="$CFLAGS $SMALL"
-        TINY="on"
-        ;;
-
-    esac
-  done
-
-  export  CFLAGS="-O $CFLAGS"
-  export  CXXFLAGS="$CFLAGS"
-  export  LDFLAGS="$LDFLAGS"
-  export  LC_ALL="C"
+  export LC_ALL="C"
 
 }
 
@@ -636,8 +741,6 @@ function list_install_queue() {
 function update_install_queue()  { (
 
   message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
-  wait_flag_up
-
   rm  -f  $INSTALL_QUEUE
   for  LINE  in  `all_spell_status`;  do
 
@@ -661,8 +764,6 @@ function update_install_queue()  { (
   lock_file $INSTALL_QUEUE
   echo -e "$QUEUE" | sort | uniq > $INSTALL_QUEUE
   unlock_file $INSTALL_QUEUE
-
-  wait_flag_down
 
 ) }
 
@@ -796,48 +897,6 @@ function fix_installed_spells()  {
   if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
 }
 
-
-#---------------------------------------------------------------------
-##
-## Casts all spells in the install queue.
-##
-## DEPRICATED: tagged for removal - nkj
-##
-#---------------------------------------------------------------------
-function upgrade_install_queue()  {
-
-  if  [  -f  $INSTALL_QUEUE  ];  then
-    lock_file $INSTALL_QUEUE
-
-    message  "The following spells will be updated:"
-    cat  $INSTALL_QUEUE
-
-    unset  SPELL
-    if    query  "Do you wish to edit ${FILE_COLOR}$INSTALL_QUEUE${DEFAULT_COLOR}?" n
-    then  edit_file  $INSTALL_QUEUE
-    fi
-
-    if  [  -n  "`cat  $INSTALL_QUEUE`"  ];  then
-      cast      `cat  $INSTALL_QUEUE`
-      rm              $INSTALL_QUEUE
-    fi
-
-    unlock_file $INSTALL_QUEUE
-  else
-    message  "No spells will be updated."
-  fi
-
-  local ANSWER
-
-  [  "$AUTOFIX"  ==  "on"  ]  &&  ANSWER=y  ||  ANSWER=n
-  if  query  "Attempt to fix spells that may have become broken ?" $ANSWER;  then
-    cleanse  --fix;
-  fi
-
-  if  [  "$AUTOPRUNE"  ==  "on"  ];  then  prune;  fi
-}
-
-
 #---------------------------------------------------------------------
 ## @Stdout log files list
 ## Returns a list of the log files for each spell.
@@ -862,7 +921,6 @@ function log_list()  {
 #---------------------------------------------------------------------
 function clean_logs()  {
 
-  wait_flag_down
   message "${CHECK_COLOR}Cleaning log files... ${DEFAULT_COLOR} "
 
   debug  "libsorcery" "Running clean_logs()"
@@ -976,7 +1034,7 @@ function boost() {
 
 #---------------------------------------------------------------------
 ## @Stdout spelllist
-## Returns a list of all installed spells that use Linux-PAM
+## Returns a list of all installed spells that use linux-pam
 ##
 ## NOTE: this will become useless when triggers are introduced.
 ##
@@ -995,7 +1053,7 @@ function find_pam_aware()  { (
       SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL`
 
       if    [  -d  "$SPELL_DIRECTORY/pam.d"  ]  &&
-            [  "$SPELL"  !=  "Linux-PAM"              ]
+            [  "$SPELL"  !=  "linux-pam"              ]
       then  echo  $SPELL
       fi
 
@@ -1080,20 +1138,22 @@ function source_urls()  { (
 ## Returns a list of files that should not be pruned.
 ##
 #---------------------------------------------------------------------
-function generate_keep_list()  { (
-
-  for  SPELL_DIRECTORY  in  `codex_get_all_spells`;  do
+function generate_keep_list()  {
+  #echo /var/lib/sorcery/codex/test/utils/tree/|
+  codex_get_all_spells|
   (
-    codex_set_current_spell  $SPELL_DIRECTORY
-    sources  $SPELL
-    echo     $SPELL-$VERSION-$BUILD.tar$EXTENSION
-  )
+  while read SPELL_DIRECTORY ; do
+    codex_set_current_spell_quick  $SPELL_DIRECTORY &>/dev/null
+    sources 2>/dev/null
+    ls /var/cache/sorcery/$SPELL-$VERSION-* 1>&2 2>/dev/null
+    unset VERSION SPELL ${!SOURCE*}
   done
+  ) 2> $2 > $1
 
   #Add the README in the cache to list of files to keep
-  echo  README
+  echo  README >> $2
 
-) }
+}
 
 
 #---------------------------------------------------------------------
@@ -1101,71 +1161,132 @@ function generate_keep_list()  { (
 ## Removes unnecessary files from the source cache and install cache.
 ## 
 #---------------------------------------------------------------------
-function prune()  { (
+function prune()  {
 
   debug  "libsorcery" "Running prune()"
-  local NO_KEEP KEEP
+  local NO_KEEP
   local NUM_NO_KEEP=0
   
-  # This if is useless. The su will run, then exit. The rest of the script will
-  # continue to run as the original user, with no environment change
-  # Who put this here? Why??
-  if  [  "$UID"  !=  0  ];  then
-    echo  "Enter the root password, please."
-    su  - -c "DISPLAY=$DISPLAY PATH=$PATH"
-  fi
-
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
-  KEEP="/tmp/prune.keep"
-  generate_keep_list  >  $KEEP
+  local SOURCE_KEEP="$TMP_DIR/prune-keep-source"
+  local CACHE_KEEP="$TMP_DIR/prune-keep-cache"
+  rm -rf $CACHE_KEEP
+  rm -rf $SOURCE_KEEP
+  generate_keep_list  $SOURCE_KEEP $CACHE_KEEP
 
-  message "${MESSAGE_COLOR}Cleaning up source cache (${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
-  NO_KEEP=$( find $SOURCE_CACHE -mindepth 1 -maxdepth 1 -type f  | awk -F/ 'BEGIN { 
-				while (getline < "'$KEEP'") 
-					Installed[$1] = 1; 
-			}
-			{
-				if(!Installed[$NF]) 
-					print $0;
-			}' )
-  if [[ ${NO_KEEP} ]] ; then
-    NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
-    if query "Remove $NUM_NO_KEEP files from $SOURCE_CACHE?" "y" ; then
-      rm $NO_KEEP
+  message "${MESSAGE_COLOR}Cleaning up source cache" \
+          "(${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
+  local SOURCE_RM="$TMP_DIR/prune.rm.source"
+  find $SOURCE_CACHE -follow -mindepth 1 -maxdepth 1 -type f|
+  awk -F/ 'BEGIN {
+             while ( getline < ARGV[1] ) {
+               keep[$NF] = 1;
+             }
+             while ( getline < ARGV[2] ) {
+               if ( keep[$NF] != 1 ) {
+                 print $0;
+               }
+             }
+           }' $SOURCE_KEEP - |sort|uniq > $SOURCE_RM
+  if test -s $SOURCE_RM ; then
+    NUM_NO_KEEP=$(cat $SOURCE_RM|wc -l)
+    
+    message "There are $NUM_NO_KEEP files that can be removed"
+    if query "Edit the list?" "n" ; then
+      $EDITOR $SOURCE_RM
+    fi
+    if query "Remove the files?" "y" ; then
+      cat $SOURCE_RM|xargs rm
     fi
   fi
   
-  message "${MESSAGE_COLOR}Cleaning up install cache (${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
-  NO_KEEP=$( find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f  | awk -F/ 'BEGIN { 
-				while (getline < "'$KEEP'") 
-					Installed[$1] = 1; 
-			}
-			{
-				if(!Installed[$NF]) 
-					print $0;
-			}' )
-  if [[ ${NO_KEEP} ]] ; then
-    NUM_NO_KEEP=$( echo "$NO_KEEP" | wc -l )
-    if query "Remove $NUM_NO_KEEP files from $INSTALL_CACHE?" "y" ; then
-  	  rm $NO_KEEP
+  message "${MESSAGE_COLOR}Cleaning up install cache" \
+          "(${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
+  local CACHE_RM="$TMP_DIR/prune.rm.cache"
+  find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f|
+  awk -F/ 'BEGIN { 
+             while ( getline < ARGV[1] ) {
+               keep[$NF] = 1;
+             }
+             while ( getline < ARGV[2] ) {
+               if ( keep[$NF] != 1 ) {
+                 print $0;
+               }
+             }
+           }' $CACHE_KEEP - |sort|uniq > $CACHE_RM
+  if test -s $CACHE_RM ; then
+    NUM_NO_KEEP=$( cat $CACHE_RM | wc -l )
+    message "There are $NUM_NO_KEEP files that can be removed"
+    if query "Edit the list?" "n" ; then
+      $EDITOR $CACHE_RM
+    fi
+    if query "Remove the files?" "y" ; then
+      cat $CACHE_RM|xargs rm
     fi
   fi
-  
-  rm  -f  $KEEP
 
-) }
+  rm  -f  $SOURCE_KEEP $CACHE_KEEP $SOURCE_RM $CACHE_RM
+
+}
 
 
 #---------------------------------------------------------------------
 ##
-## Adds /var/lib/sorcery/build to the C<PATH>
+## Sets DISTCC=[on|off] depending on the value of DISTCC_HOSTS.
+## Adds /var/lib/sorcery/build to the C<PATH> if necessary.
 ##
 #---------------------------------------------------------------------
 function invoke_build_dir() { 
-  { 
-    { [  "$CCACHE"  ==  "on"  ]  &&  spell_installed  ccache ; }  || 
-    { [  -n "$DISTCC_HOSTS"   ]  &&  spell_installed  distcc ; } 
-  }  &&  export  PATH="/var/lib/sorcery/build:$PATH" 
+
+  # This merits some explaination:
+  #
+  # In the /var/lib/sorcery/build dir are frontends for the compilers
+  # they run CCACHE and DISTCC. By putting them in the front of the path
+  # they get run first, then hand the work off to the real compilers.
+  # The script also loads /etc/sorcery/compile_config, this made it
+  # convenient for building stuff outside of sorcery and taking advantage
+  # of ccache/distcc, just do "export  PATH="/var/lib/sorcery/build:$PATH""
+  # and you're set, you can also edit the DISTCC hosts on the fly.
+  #
+  # Then someone had the bright idea "if we set DISTCC_HOSTS to the empty
+  # string, distcc wont run!" due to a misconception in how this function
+  # worked, that spell hack would only work /some/ of the time: if you
+  # used ccache in addition to distcc, distcc wouldnt get disabled. *Sigh*
+  #
+  # SO...now we're stuck with a bunch of spells in the field disabling
+  # distcc in an broken way, obviously they all cant change overnight. To
+  # make matters worse inside make() we have to fiddle with the number of
+  # make jobs to use in case distcc is disabled (badly).
+  #
+  # so the answer is: 
+  # 1) make a new variable "USE_DISTCC" and set it to "off" if distcc
+  # is being disabled by the spell
+  # 2) check if USE_DISTCC == off in run_compiler, but still check the
+  # other signs just in case its being run manually
+  # 3) add a check for DISABLE_DISTCC so spells can start using that someday
+  #   (phase this in after a few months, then phase out the old check below,
+  #   but not in run_compiler)
+  # 4) remove the old stupid logic for MAKE_NJOBS (num_hosts + 1),
+  # instead split MAKE_NJOBS up, add a JOBS_PER_HOST multiplier, and add
+  # MAKE_NJOBS to that. This results in the number of jobs being $MAKE_NJOBS
+  # (default 1) when distcc is disabled (bug 6432), and allows an automatic
+  # increase in the number of jobs per host if its desired.
+  # 
+
+  USE_DISTCC=off
+  if [[ $DISABLE_DISTCC != yes ]] ; then
+    if test -n "$DISTCC_HOSTS" && spell_ok distcc ; then
+      USE_DISTCC=on
+    fi
+  fi
+
+  if ! spell_ok ccache ; then
+    CCACHE=off
+  fi
+
+  if [[ "CCACHE" == on ]] || [[ "$USE_DISTCC" == on ]] ; then
+    export  PATH="/var/lib/sorcery/build:$PATH" 
+  fi
 } 
 
 

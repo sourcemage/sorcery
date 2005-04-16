@@ -22,11 +22,11 @@ function remove_triggers ()
 { 
   debug "libtriggers" "remove_triggers - $*"
 
-	tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
-	[ -f $tTRIGGER_LIST ] || return 0
-	grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
-	lock_commit_transaction $TRIGGER_LIST
-	return $?
+  tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
+  [ -f $tTRIGGER_LIST ] || return 0
+  grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
+  lock_commit_transaction $TRIGGER_LIST
+  return $?
 }
 
 #---------------------------------------------------------------------
@@ -43,50 +43,49 @@ function remove_triggers ()
 function trigger ()
 { 
   debug "libtriggers" "trigger - $*"
-	local i TRIGGER	spell
-	spell=`esc_str ${SPELL:-$4}`
-	TRIGGER=()
 
-	[ -f $TRIGGER_LIST ] || return 0
-	
-	for i in `grep "^[^:]*:$spell:on_$1" $TRIGGER_LIST` ; do
-		explode "$i" ":" TRIGGER
-		query "${TRIGGER[1]} being $1 has triggered a ${TRIGGER[3]} on spell ${TRIGGER[0]}. Proceed? " "y"
-		[[ $? != 0 ]] && continue
-		#otherwise continue... hmmm, I've always thought that keyword was bad.
-                (
-		  function unset_vars()
-		  {
-		    unset CAST_PASS D_LOG
-#		    for VAR in `export | sed 's/declare -x \([^=[:blank:]]*\).*/\1/' | grep -v "TRIGGER"` ; do
-#		      unset $VAR
-#		    done
-		  }
-		  #Ok, now do the required action:
-		  case ${TRIGGER[3]} in
-			cast_self)
-			  unset_vars
-			  cast -c "${TRIGGER[0]}"
-			  ;;
-			dispel_self)
-			  unset_vars
-			  dispel "${TRIGGER[0]}"
-			  ;;
-			check_self)
-			  unset_vars
-			  cleanse --fix "${TRIGGER[0]}"
-			  ;;
-			run_script*)
-			  unset_vars
-			  eval ${TRIGGER[3]}
-			  ;;
-			*)
-			  message "${PROBLEM_COLOR}${TRIGGER[3]} is not a known kind of trigger.${DEFAULT_COLOR}"
-		esac
-	      )
-	done	
+  local spell TRIGGER action
+  action=$1
+  spell=`esc_str ${SPELL:-$4}`
+
+  [ -f $TRIGGER_LIST ] || return 0
+
+  function trigger_sub () {
+    TRIGGER=()
+    explode "$1" ":" TRIGGER
+    local DC="$DEFAULT_COLOR"
+    message "${SPELL_COLOR}${TRIGGER[1]}${DC}${QUERY_COLOR}" \
+            "being $action has triggered a" \
+            "\"${DC}${FILE_COLOR}${TRIGGER[3]}${DC}${QUERY_COLOR}\"" \
+            "on spell ${DC}${SPELL_COLOR}${TRIGGER[0]}${DC}."
+    query "Proceed? " "y"
+    [[ $? != 0 ]] && return
+
+    (
+      unset CAST_PASS D_LOG
+      function run_script() { eval $@ ; }
+      #Ok, now do the required action:
+      case ${TRIGGER[3]} in
+        cast_self)
+          cast -c "${TRIGGER[0]}"
+          ;;
+        dispel_self)
+          dispel "${TRIGGER[0]}"
+          ;;
+        check_self)
+          cleanse --nofix_quick "${TRIGGER[0]}" ||
+          cast -c "${TRIGGER[0]}"
+          ;;
+        run_script*)
+          eval "${TRIGGER[3]}"
+          ;;
+        *) message "${PROBLEM_COLOR}${TRIGGER[3]} is not" \
+                   "a known kind of trigger.${DEFAULT_COLOR}"
+      esac
+    )
+  }
+  iterate trigger_sub $'\n' "`grep "^[^:]*:$spell:on_$action" $TRIGGER_LIST`"
 }
-
 #---------------------------------------------------------------------
 ## @param event
 ## @param causing-spell
@@ -101,32 +100,32 @@ function set_trigger ()
 
   debug "libtriggers" "set_trigger - $*"
 
-	local str spell
-	[[ $4 ]] || [[ $SPELL ]] || return 1
-	case $3 in
-		cast_self|dispel_self|check_self|run_script)
-			;;
-		*)
-			message "${PROBLEM_COLOR}$3 is not a valid trigger action.${DEFAULT_COLOR}"
-			return 1
-			;;
-	esac
-	case $1 in
-		on_cast|on_pre_cast|on_dispel|on_pre_dispel)
-			;;
-		*)
-			message "${PROBLEM_COLOR}$1 is not a valid trigger.${DEFAULT_COLOR}"
-			return 1
-			;;
-	esac
-	#perhaps a check to make sure that $2 exists?
-	
-	spell=${SPELL:-$4}
-	str="$spell:$2:$1:$3"
-	
-	lock_file $TRIGGER_LIST
-	grep -q "$str" $TRIGGER_LIST || echo "$str" >> $TRIGGER_LIST
-	unlock_file $TRIGGER_LIST
+  local str spell
+  [[ $4 ]] || [[ $SPELL ]] || return 1
+  case $3 in
+    cast_self|dispel_self|check_self|run_script*)
+      ;;
+    *)
+      message "${PROBLEM_COLOR}$3 is not a valid trigger action.${DEFAULT_COLOR}"
+      return 1
+      ;;
+  esac
+  case $1 in
+    on_cast|on_pre_cast|on_dispel|on_pre_dispel)
+      ;;
+    *)
+      message "${PROBLEM_COLOR}$1 is not a valid trigger.${DEFAULT_COLOR}"
+      return 1
+      ;;
+  esac
+  #perhaps a check to make sure that $2 exists?
+  
+  spell=${SPELL:-$4}
+  str="$spell:$2:$1:$3"
+  
+  lock_file $TRIGGER_LIST
+  grep -q "$str" $TRIGGER_LIST || echo "$str" >> $TRIGGER_LIST
+  unlock_file $TRIGGER_LIST
 }
 
 #---------------------------------------------------------------------

@@ -1,10 +1,12 @@
-.TH "CLEANSE" "8" "August 2004" "Paul Mahon" "System Administration"
+.TH "CLEANSE" "8" "August 2004" "Source Mage GNU Linux" "System Administration"
 .SH "NAME"
 cleanse \- Cleans sorcery system files of lint and accumulated garbage
 .SH "SYNOPSIS"
 .B cleanse
 [\-\-packages]
 [\-\-delint [full]]
+[\-\-tablet [coalesce]]
+[\-\-tablet_spell spell-name]
 [\-\-prune [doit]]
 [\-\-sweep]
 [\-\-fix]
@@ -28,6 +30,14 @@ Finds bad dependency lines. This includes badly formated lines, dependencies on 
 If 'full' is specified, then all lines will be examined, not just lines where at least one of the spells is installed.
 
 .TP 
+.B "\-\-tablet [coalesce]"
+Fixes broken tablets, removes orphaned tablets, removes duplicate tablets.
+If 'coalesce' is specified then duplicate files are hardlinked together, this results in a significant reduction in space. Do not use this if you plan on editing the tablet with an editor that does not break hardlinks.
+
+.TP 
+.B "\-\-tablet_spell spell-name"
+Fixes tablet for just the specified spell.
+.TP 
 .B "\-\-prune [doit]"
 Finds spells that should be installed but aren't, finds spells that shouldn't be installed but are, and Prunes the dependency shrub. If 'doit' is specified, the cast and dispel actions are done for you. Otherwise the suggested commands are given to you at the end to run yourself.
 .TP 
@@ -46,7 +56,7 @@ A fix is automatically issued after a
 .IP 
 Discovers missing binary executables, libraries and header files.
 .IP 
-.I MD5 Sum
+.I MD5Sum Check
 .IP 
 Discovers modified executables and libraries.
 .IP 

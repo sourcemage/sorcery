@@ -16,48 +16,6 @@
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-## Prompts the user about spells that are in conflict with the current
-## spell and allows them to dispel them. If the user chooses not to
-## dispel the conflicting spell, the function returns 1
-## @return nothing if the user dispels the conflicting spell
-## @return 1 if the user chooses not to dispel the conflicting spell
-#---------------------------------------------------------------------
-function run_conflicts() {
-
-  debug "build_api/common" "Starting run_conflicts() on $SPELL"
-
-  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-    local CONFLICTS=$(
-        persistent_load
-        . $SCRIPT_DIRECTORY/CONFLICTS
-        persistent_save
-    )
-
-    local tmp to_dispel=""
-    for  tmp  in  $CONFLICTS  ;  do
-      local spell_and_default
-      explode  $tmp  ':'  spell_and_default
-
-      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}."
-      text="$text Dispel"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
-
-      if  query  "$text"  ${spell_and_default[1]}  ;  then
-        to_dispel="$to_dispel ${spell_and_default[0]}"
-      else
-        echo  $SPELL  >>  $FAILED_LIST
-        return  1
-      fi
-
-      dispel  $to_dispel
-    done
-  fi
-
-}
-
-
-#---------------------------------------------------------------------
 ## Prompts the user about possible security problems with the current
 ## spell. Allows a safe way of failing a spell due to security problems.
 ## @return 0 if there are no security problem or the user acknowledges them.
@@ -110,7 +68,7 @@ function run_config_loc () {
       fi
 
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
-				F_TMP=/tmp/cast.$$.configure
+	F_TMP=$TMP_DIR/cast.$$.configure
         rm -f $F_TMP
 				
         if [ -x ./configure ]; then
@@ -145,6 +103,92 @@ function run_config_loc () {
 }
 
 #---------------------------------------------------------------------
+## @Type API
+## Prepares to install the spell.  If the spell is installed already,
+## the libraries are saved with save_libraries() and the spell is dispelled.
+## Usually called from the BUILD or PRE_INSTALL script of a spell.
+## Locks "libgrimoire" "install" before proceeding.
+## If the spell is not installed (or held) the spell is not dispelled.
+##
+#---------------------------------------------------------------------
+function real_prepare_install() { (
+
+  debug  "libgrimoire" "Running prepare_install() on $SPELL"
+
+  message  "${MESSAGE_COLOR}Preparing to install"  \
+           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+
+  devoke_installwatch
+  lock_resources "libgrimoire" "install"
+
+    if  spell_installed  $SPELL   ||
+        spell_held       $SPELL
+    then
+
+      trap  "spell_recover"  SIGINT
+      save_libraries
+      dispel  --notriggers --nosustain  $SPELL
+
+    fi
+) }
+
+#---------------------------------------------------------------------
+##
+## Gathers all documentation files from source archive and installs
+## them as part of the spell
+##
+#---------------------------------------------------------------------
+function real_gather_docs()  {
+
+  if  [  "$GATHER_DOCS"  ==  "on"  ]; then
+
+    debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
+
+    DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
+    mkdir  -p  $DOC_DIR
+
+    for i in ${DOCS[@]}
+    do
+      cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
+    done
+
+    # what is this here for and why isn't it part of the standard DOCS
+    # variable?
+    cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
+
+    # making installed docs readable for all users.
+    chmod -fR a+r $DOC_DIR
+
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+##
+## Copies pam configuration files to /etc/pam.d/
+##
+#---------------------------------------------------------------------
+function install_pam_confs()  {
+
+  debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
+
+  if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
+    cd       "$SCRIPT_DIRECTORY/pam.d"
+
+    mkdir  -p  /etc/pam.d
+
+    for  FILE  in  `ls`;  do
+      if  !  [  -f  /etc/pam.d/$FILE  ];  then
+        cp  $FILE   /etc/pam.d
+      fi
+    done
+
+  fi
+
+}
+
+#---------------------------------------------------------------------
 ## Checks for a TRIGGERS file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it.
 #---------------------------------------------------------------------
@@ -160,9 +204,6 @@ function run_triggers() {
 
 }
 
-
-
-
 #---------------------------------------------------------------------
 ## Stuff that should be done if run_build_spell succeeds
 ## This is intended to be overridable at some point
@@ -174,18 +215,18 @@ function run_spell_success() {
     local MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
     local TMP_INST_LOG="$TMP_DIR/$SPELL-$VERSION.install"
     local TMP_MD5_LOG="$TMP_DIR/$SPELL-$VERSION.md5"
-    local CACHE_COMP="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION"
+    local CACHE="$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar"
+    local CACHE_COMP=${CACHE}${EXTENSION}
     local C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
 
     sound  SUCCESS
 
-    create_compile_log
-    view_compile_log
-
+    # announce to everyone the spell succeeded
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     add_spell $SPELL installed $VERSION
     echo $SPELL >> $SUCCESS_LIST
 
+    # update depends info
     debug "build_api/common" "Merging depends info"
     local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
     # none of the old values are valid, only the new, uncommitted values are
@@ -193,36 +234,57 @@ function run_spell_success() {
     local spell_depends=$(hash_get uncommitted_hash $SPELL)
     if [ -e $spell_depends ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
-      rm -f $spell_depends &>/dev/null 
     fi
     lock_commit_transaction $DEPENDS_STATUS
 
     # since the database is now accurate, no reason to keep old answers
     # floating around
-    [ -e "$ABANDONED_DEPENDS/$SPELL" ] &&
+    test -e "$ABANDONED_DEPENDS/$SPELL" &&
     rm -f $ABANDONED_DEPENDS/$SPELL &>/dev/null
 
-    # this will make the raw log that needs post processing to strip
-    # INSTALL_ROOT and insert TRACK_ROOT in its place
-    
+    # compile log
+    create_compile_log
+    view_compile_log
+
+    local tablet_dir=$(tablet_get_path $SPELL)
+    if [ "$?" != 0 ] ; then
+      message "failed to make a tablet directory: $tablet_dir" \
+              "this may be a bug"
+      unset tablet_dir
+    else
+      message  "${MESSAGE_COLOR}Creating tablet in directory"        \
+               "${FILE_COLOR}${tablet_dir}${DEFAULT_COLOR}"
+      tablet_install_spell_files $tablet_dir
+    fi
+
+    # install log
     message  "${MESSAGE_COLOR}Creating install log" \
              "${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
-    track $TMP_INST_LOG
-    install_log_filter $INSTALL_ROOT $TRACK_ROOT < $TMP_INST_LOG > $INST_LOG
+    # this will make a "root" format install log it will need to be
+    # reformatted to "log" format (see log_adjuster in libtrack for details)
+    # but basically replacing INSTALL_ROOT with TRACK_ROOT
+    create_install_log $IW_LOG $TMP_INST_LOG
+    if [[ $tablet_dir ]] ; then
+      find $tablet_dir >> $TMP_INST_LOG
+    fi
+    log_adjuster $TMP_INST_LOG $INST_LOG root log
 
+    # md5sum log
     message  "${MESSAGE_COLOR}Creating MD5 log"        \
              "${FILE_COLOR}${MD5_LOG}${DEFAULT_COLOR}"
-    md5list $TMP_INST_LOG $TMP_MD5_LOG
-    md5_log_filter $INSTALL_ROOT $TRACK_ROOT < $TMP_MD5_LOG > $MD5_LOG
+    create_md5list $TMP_INST_LOG $TMP_MD5_LOG
+    log_adjuster $TMP_MD5_LOG $MD5_LOG root log md5_log_filter
 
-    # archives are relative to / in their own environment, and thus
-    # INSTALL_ROOT is stripped
-    sed "s:^$INSTALL_ROOT/::" $TMP_INST_LOG | archive $INSTALL_ROOT 
+    # cache archive
+
+    # Archives are stored with INSTALL_ROOT and STATE_ROOT stripped.
+    # this way they can be unpacked anywhere and sorcery will know
+    # where things will be.
+    create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
-
     rm_source_dir
-    rm  -f  $IW_LOG  $TMP_LOG  $CASTING $C_LOG
+    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends
 }
 
 #---------------------------------------------------------------------
@@ -235,22 +297,27 @@ function run_spell_failure() {
 
     sound  FAILURE
 
-    if [ $rc != 1 ] ; then
-      create_compile_log
-      view_compile_log
-    fi
     activity_log "cast" "$SPELL"  "$VERSION" "failure"
     echo $SPELL >> $FAILED_LIST
 
+    # if it failed after PRE_BUILD make a compile log
+    if [ "$rc" != 1 ] ; then
+      create_compile_log
+      view_compile_log
+    fi
+
+    # put the answers somewhere where they can still be used later
+    mkdir -p $ABANDONED_DEPENDS
     local spell_depends=$(hash_get uncommitted_hash $SPELL)
-    [ -e $spell_depends ] && rm $spell_depends
+    [ -e $spell_depends ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL
 
     # This may have been locked if there was a failure during the install
     unlock_resources "libgrimoire" "install"
 
     IW_LOG="$INSTALLWATCHFILE"
-    INSTALLWATCHFILE=""
-    rm  -f  $IW_LOG  $TMP_LOG  $CASTING $C_LOG
+    devoke_installwatch
+
+    rm -f $IW_LOG $C_LOG
 
     [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1
