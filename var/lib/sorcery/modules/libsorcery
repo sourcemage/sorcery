@@ -450,16 +450,17 @@ function filter() {
 #---------------------------------------------------------------------
 function filter_in() {
   local thing RID_LIST
-  local files each invert
+  local files each
   for each in $@; do
     test -f $each && files="$files $each"
   done
     
   if [[ $files ]] ; then
-    RID_LIST=$(while read thing; do
-                 echo -n "$thing\|"
-               done < $files
-               echo -n /dev/null)
+    RID_LIST=$(
+      cat $files | while read thing; do
+                     echo -n "$thing\|"
+                   done
+      echo -n /dev/null)
     grep "$RID_LIST"
   else
     cat
