@@ -106,26 +106,26 @@ select_mirror()  {
 
 mirror_menu()  {
 
+  local A_HELP="Select mirror for downloading APACHE sources."
+  local C_HELP="Select mirror for downloading CTAN sources."
+  local K_HELP="Select mirror for downloading KDE sources."
+  local L_HELP="Select mirror for downloading kernel related sources."
+  local N_HELP="Select mirror for downloading GNOME sources."
+  local G_HELP="Select mirror for downloading GNU sources."
+  local S_HELP="Select mirror for downloading Sorcery itself"
+  local SF_HELP="Select mirror for downloading Sourceforge"
+  local X_HELP="Select mirror for downloading XFree86 related sources."
+  local HELP="Selecting a mirror site can speed your downloads."
 
   while
 
-	A_HELP="Select mirror for downloading APACHE sources."
-    C_HELP="Select mirror for downloading CTAN sources."
-    K_HELP="Select mirror for downloading KDE sources."
-    L_HELP="Select mirror for downloading kernel related sources."
-    N_HELP="Select mirror for downloading GNOME sources."
-    G_HELP="Select mirror for downloading GNU sources."
-    S_HELP="Select mirror for downloading Sorcery itself"
-   SF_HELP="Select mirror for downloading Sourceforge"
-    X_HELP="Select mirror for downloading XFree86 related sources."
-      HELP="Selecting a mirror site can speed your downloads."
 
     COMMAND=`eval $DIALOG '  --title "Mirror Menu"        \
                       --ok-label      "Select"     \
                       --cancel-label  "Exit"       \
                       --item-help                  \
                       --menu        ""  0 0 0      \
-					  "APACHE"      ""  "$A_HELP"  \
+                      "APACHE"      ""  "$A_HELP"  \
                       "CTAN"        ""  "$C_HELP"  \
                       "KDE"         ""  "$K_HELP"  \
                       "KERNEL"      ""  "$L_HELP"  \
@@ -579,8 +579,8 @@ process_section()  {
 
 select_pkgs()  {
 
-  SELECT_TITLE="Spell Toggle Selection Menu"
-  SELECT_HELP="[X]=install  [ ]=remove"
+  local SELECT_TITLE="Spell Toggle Selection Menu"
+  local SELECT_HELP="[X]=install  [ ]=remove"
 
   while  SECTION=`select_section`;  do
 
@@ -640,10 +640,10 @@ hold_pkgs()  {
   local array=()
   local tSPELL_STATUS
 
-  CHECKLIST=`make_hold_checklist`
+  local CHECKLIST=`make_hold_checklist`
 
-  HOLD_TITLE="Select spells to hold or unhold"
-   HOLD_HELP="[X]=held  [ ]=installed"
+  local HOLD_TITLE="Select spells to hold or unhold"
+  local HOLD_HELP="[X]=held  [ ]=installed"
 
   if  OUTLIST=`eval $DIALOG '  --title "$HOLD_TITLE"  \
                         --item-help            \
@@ -663,19 +663,19 @@ hold_pkgs()  {
 
 spell_menu() {
 
+  local U_HELP="Current software hinders crackers' attempts to infiltrate your box"
+  local S_HELP="Install and remove multiple spells from a section using a single selection"
+  local A_HELP="Simple safe, verbose way of selecting spells for installation"
+  local R_HELP="Simple safe, verbose way of selecting spells for removal"
+  local B_HELP="Rebuild all installed spells"
+  local H_HELP="Held spells will not be upgraded until unheld or broken"
+  local E_HELP="Done managing spells"
+  local TITLE="Spell Menu"
+  local OK="Select"
+  local CANCEL="Exit"
+
   while
 
-    U_HELP="Current software hinders crackers' attempts to infiltrate your box"
-    S_HELP="Install and remove multiple spells from a section using a single
-selection"
-    A_HELP="Simple safe, verbose way of selecting spells for installation"
-    R_HELP="Simple safe, verbose way of selecting spells for removal"
-    B_HELP="Rebuild all installed spells"
-    H_HELP="Held spells will not be upgraded until unheld or broken"
-    E_HELP="Done managing spells"
-     TITLE="Spell Menu"
-        OK="Select"
-    CANCEL="Exit"
 
     COMMAND=`eval $DIALOG '  --title "$TITLE"           \
                       --item-help                \
@@ -707,6 +707,7 @@ selection"
 
 grep_install_logs() {
 
+  local WHAT
   if  WHAT=`eval $DIALOG '  --inputbox                                \
                     "Please enter full path and name of file"  \
                     0 0'`
@@ -733,7 +734,7 @@ architecture_menu() {
 
   debug "sorcery" "architecture_menu()"
   local  SPECFILE
-  local  LIST
+  local  LIST CPUNAME specname
   for  SPECFILE  in  `find  $ARCH_SPECS  -not  -name '*~' | sort`; do
     if  [[  -x  $SPECFILE  ]]  &&
         grep  -q  "CPUNAME"  $SPECFILE; then
@@ -757,6 +758,7 @@ architecture_menu() {
 # used by sorcery configuration
 
   local CURRENT_ARCH="${!1}"
+  local NEW_ARCH
 
   if NEW_ARCH=`eval $DIALOG '  --title  "$ARCH_TITLE"     \
                               --item-help                \
@@ -820,6 +822,10 @@ optimization_menu(){
 
 custom_optimization_menu() {
   local RESULTS KEY rc
+  local CUSTOM_CFLAGS
+  local CUSTOM_CXXFLAGS
+  local CUSTOM_LDFLAGS
+
   while true ; do
     # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
     # the ( ) interprits as an array, then using the magic power of set we
@@ -852,12 +858,12 @@ custom_optimization_menu() {
 
 integrity_fix_menu()  {
 
-    INT_TITLE="Integrity Checking Selection Menu"
-     INT_HELP="Please select the tests which cleanse --fix should execute."
-    FIND_HELP="Discover missing  binary executables, libraries, and header files"
-     LDD_HELP="Discover broken   binary executables, and libraries"
-     SYM_HELP="Discover misowned symbolic links to files"
-  MD5SUM_HELP="Discover modified binary executables, and libraries"
+  local INT_TITLE="Integrity Checking Selection Menu"
+  local INT_HELP="Please select the tests which cleanse --fix should execute."
+  local FIND_HELP="Discover missing  binary executables, libraries, and header files"
+  local LDD_HELP="Discover broken   binary executables, and libraries"
+  local SYM_HELP="Discover misowned symbolic links to files"
+  local MD5SUM_HELP="Discover modified binary executables, and libraries"
 
   if  INT_FIX_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"  \
                            --no-cancel            \
@@ -898,8 +904,8 @@ integrity_fix_menu()  {
 
 integrity_download_menu()  {
 
-     INT_DL_TITLE="Archive Integrity Checking Level Menu"
-      INT_DL_HELP="On bad archive integrity checks:
+  local INT_DL_TITLE="Archive Integrity Checking Level Menu"
+  local INT_DL_HELP="On bad archive integrity checks:
 c = continue, a = abort, n = ask default abort no,
 y = ask default abort yes, - = doesn't get checked, continues.
 K MD5SUM_DL . good bad IGNORE missing
@@ -911,12 +917,12 @@ U ask_risky . . c . y . . n . . . y .
 G ask_ignore. . c . n . . n . . . n .
 I off . . . . . - . - . . - . . . - .
 "
-   ABORT_ALL_HELP="Abort use of the file. Do not prompt. Period. PARANOID"
-       ABORT_HELP="Abort use of the file. Do not prompt unless the MD5 is set to IGNORE. SAFER"
-   ABORT_ASK_HELP="Ask, but default to abort. SAFE"
-   ABORT_IGN_HELP="Ask, but default to abort unless the MD5 is set to IGNORE. RISKY"
-  IGNORE_ASK_HELP="Ask, but default to ignore. UNSAFE"
-      IGNORE_HELP="Ignore (do not check) integrity of downloads. DANGEROUS!"
+  local ABORT_ALL_HELP="Abort use of the file. Do not prompt. Period. PARANOID"
+  local ABORT_HELP="Abort use of the file. Do not prompt unless the MD5 is set to IGNORE. SAFER"
+  local ABORT_ASK_HELP="Ask, but default to abort. SAFE"
+  local ABORT_IGN_HELP="Ask, but default to abort unless the MD5 is set to IGNORE. RISKY"
+  local IGNORE_ASK_HELP="Ask, but default to ignore. UNSAFE"
+  local IGNORE_HELP="Ignore (do not check) integrity of downloads. DANGEROUS!"
 
   if  INT_DL_CHECK=`eval $DIALOG '  --title  "$INT_DL_TITLE"        \
    			     --no-cancel                            \
@@ -979,11 +985,11 @@ function gpg_download_menu() {
 
 integrity_menu()  {
 
-  INT_TITLE="Integrity Checking Selection Menu"
-   INT_HELP="Options involving integrity checking, including --fix and download options."
-   FIX_HELP="Set cleanse --fix checks"
-    DL_HELP="Discover corrupted or modified archives during cast"
-   GPG_HELP="Verify GnuPG signatures on sorcery/grimoire tarballs"
+  local INT_TITLE="Integrity Checking Selection Menu"
+  local INT_HELP="Options involving integrity checking, including --fix and download options."
+  local FIX_HELP="Set cleanse --fix checks"
+  local DL_HELP="Discover corrupted or modified archives during cast"
+  local GPG_HELP="Verify GnuPG signatures on sorcery/grimoire tarballs"
 
   while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
                            --cancel-label  "Exit"      \
@@ -1059,13 +1065,13 @@ function parallel_compilation_menu() {
 
 set_branch() {
 
+  local D_HELP="Nightly devel snapshots"
+  local T_HELP="Current release candidate or stable release"
+  local S_HELP="Current stable version"
+  local C_HELP="Choose a custom version"
 
   while
 
-    D_HELP="Nightly devel snapshots"
-    T_HELP="Current release candidate or stable release"
-    S_HELP="Current stable version"
-    C_HELP="Choose a custom version"
 
     COMMAND=`eval $DIALOG '  --title "Currently tracking : $SORCERY_BRANCH "  \
                       --item-help                               \
@@ -1099,10 +1105,8 @@ set_branch() {
 
 set_custom_branch() {
 
-
+  local C_HELP="Please choose the sorcery release/version you want to use, this can be anything you want from download.sourcemage.org/sorcery/sorcery-<version>.tar.bz2"
   while
-
-    C_HELP="Please choose the sorcery release/version you want to use, this can be anything you want from download.sourcemage.org/sorcery/sorcery-<version>.tar.bz2"
 
     COMMAND=`eval $DIALOG '  --title "Currently tracking : $SORCERY_BRANCH "  \
                       --item-help                               \
@@ -1142,7 +1146,7 @@ set_delay()  {
 
 set_download_rate()  {
 
-  PROMPT="Please enter the maximum bytes per second for summoning"
+  local PROMPT="Please enter the maximum bytes per second for summoning"
 
   if  DOWNLOAD_RATE=`eval $DIALOG '  --ok-label  "Commit"  \
                               --inputbox            \
@@ -1158,30 +1162,30 @@ set_download_rate()  {
 
 set_http_ftp_timeout()  {
 
-	PROMPT="Please enter maximum time (seconds) summon is to wait for each download server"
+  local PROMPT="Please enter maximum time (seconds) summon is to wait for each download server"
 
-	if  URL_HTTP_FTP_TIMEOUT=`eval $DIALOG '  --ok-label  "Commit"  \
+  if  URL_HTTP_FTP_TIMEOUT=`eval $DIALOG '  --ok-label  "Commit"  \
                                             --inputbox            \
                                             "$PROMPT"             \
                                             0 0  "$URL_HTTP_FTP_TIMEOUT"'`
-	then
+  then
 
-		modify_local_config "URL_HTTP_FTP_TIMEOUT" "$URL_HTTP_FTP_TIMEOUT"
+    modify_local_config "URL_HTTP_FTP_TIMEOUT" "$URL_HTTP_FTP_TIMEOUT"
 
-	fi
+  fi
 
 }
 
 queue_menu()  {
 
-  while
+  local I_HELP="View the list of spells selected for installation"
+  local i_HELP="Edit the list of spells selected for installation"
+  local R_HELP="View the list of spells selected for removal"
+  local r_HELP="Edit the list of spells selected for removal"
+  local S_HELP="View the datafile of installed spells"
+  local s_HELP="Edit the datafile of installed spell"
 
-    I_HELP="View the list of spells selected for installation"
-    i_HELP="Edit the list of spells selected for installation"
-    R_HELP="View the list of spells selected for removal"
-    r_HELP="Edit the list of spells selected for removal"
-    S_HELP="View the datafile of installed spells"
-    s_HELP="Edit the datafile of installed spell"
+  while
 
     COMMAND=`eval $DIALOG '  --title "Queue Menu"                           \
                       --ok-label      "Select"                       \
@@ -1218,13 +1222,13 @@ queue_menu()  {
 
 log_menu()  {
 
-  while
+  local C_HELP="View compile logs of previously installed software"
+  local G_HELP="Discover a file's origin"
+  local I_HELP="View logs of files previously installed"
+  local c_HELP="Remove a compile log"
+  local i_HELP="Edit a log of files previously installed"
 
-    C_HELP="View compile logs of previously installed software"
-    G_HELP="Discover a file's origin"
-    I_HELP="View logs of files previously installed"
-    c_HELP="Remove a compile log"
-    i_HELP="Edit a log of files previously installed"
+  while
 
     COMMAND=`eval $DIALOG '  --title "Log Menu"                          \
                       --ok-label      "Select"                    \
@@ -1258,34 +1262,34 @@ log_menu()  {
 
 sorcery_devel_settings()   {
 
+  local D_HELP="Set the debugging file for normal debugging."
+  local S_HELP="Turn on Super Debug. You probably don't want to do this."
+
   while
 
-    D_HELP="Set the debugging file for normal debugging."
-	S_HELP="Turn on Super Debug. You probably don't want to do this."
-
-	COMMAND=`eval $DIALOG '--title      "Sorcery Development"		\
-						--ok-label      "Select"					\
-						--cancel-label  "Exit"						\
-						--default-item  $COMMAND					\
-						--item-help									\
-						--menu										\
-						""											\
-						0 0 0										\
-						"D"  "Debug file"				"$D_HELP"	\
-						"S"  "Super debugging toggle"	"$S_HELP"'`
+  COMMAND=`eval $DIALOG '--title      "Sorcery Development"    \
+            --ok-label      "Select"          \
+            --cancel-label  "Exit"            \
+            --default-item  $COMMAND          \
+            --item-help                  \
+            --menu                    \
+            ""                      \
+            0 0 0                    \
+            "D"  "Debug file"        "$D_HELP"  \
+            "S"  "Super debugging toggle"  "$S_HELP"'`
   do
 
     case $COMMAND in
 
-	  D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
-	  		FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
-	  		modify_local_config "DEBUG" "$FILE" ;;
-	  S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
-	  		TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
-	  		( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
-			( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
+    D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
+        FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
+        modify_local_config "DEBUG" "$FILE" ;;
+    S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
+        TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
+        ( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
+      ( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
 
-	esac
+  esac
 
   done
 
@@ -1294,27 +1298,27 @@ sorcery_devel_settings()   {
 
 feature_menu()  {
 
-  B_HELP="Administrate groups of Unix/Linux boxes?"
-  C_HELP="Colorized messages on cast and dispel?"
-  D_HELP="Automatically gather miscellaneous documentation from spells"
-  E_HELP="Remove files when dispelling?"
-  F_HELP="Check for and repair broken programs after updating sorcery?"
-  G_HELP="Slower initial compilation, accelerated upgrade compilation?"
-  I_HELP="Create archives of installed software?"
-  L_HELP="Locally customize SPELL configuration?"
-  M_HELP="Email reports?"
-  P_HELP="Preserve modified files or backup them up and overwrite with defaults?"
-  R_HELP="Prompt to view reports?"
-SCL_HELP="Store config.log in compile log?"
-TMP_HELP="Attempt to compile entirely in RAM?"
-  T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
-  U_HELP="Automatically remove old sources and install caches upon sorcery update?"
-  V_HELP="View compilation as it happens?"
- NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
- CS_HELP="Clean up source directories after failures?"
- CI_HELP="Non-native installation / cross compilation"
- ST_HELP="Set xterm title/screen window title on cast?"
- UF_HELP="Ensure a sane environment before sorcery update"
+  local B_HELP="Administrate groups of Unix/Linux boxes?"
+  local C_HELP="Colorized messages on cast and dispel?"
+  local D_HELP="Automatically gather miscellaneous documentation from spells"
+  local E_HELP="Remove files when dispelling?"
+  local F_HELP="Check for and repair broken programs after updating sorcery?"
+  local G_HELP="Slower initial compilation, accelerated upgrade compilation?"
+  local I_HELP="Create archives of installed software?"
+  local L_HELP="Locally customize SPELL configuration?"
+  local M_HELP="Email reports?"
+  local P_HELP="Preserve modified files or backup them up and overwrite with defaults?"
+  local R_HELP="Prompt to view reports?"
+  local SCL_HELP="Store config.log in compile log?"
+  local TMP_HELP="Attempt to compile entirely in RAM?"
+  local T_HELP="Disallow dispelling of spells that would cause terrible malfunctions?"
+  local U_HELP="Automatically remove old sources and install caches upon sorcery update?"
+  local V_HELP="View compilation as it happens?"
+  local NS_HELP="Use netselect to try fastest mirrors first if netselect is available?"
+  local CS_HELP="Clean up source directories after failures?"
+  local CI_HELP="Non-native installation / cross compilation"
+  local ST_HELP="Set xterm title/screen window title on cast?"
+  local UF_HELP="Ensure a sane environment before sorcery update"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -1419,26 +1423,25 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
 
 option_menu()  {
 
+  local B_HELP="Specify the sorcery branch you would like to track"
+  local H_HELP="Specify the color scheme for messages"
+  local D_HELP="Enter the default delay time for prompts"
+  local E_HELP="Enter the email address for this box's sorcerer"
+  local F_HELP="Select many options on or off at once"
+  local M_HELP="Select ftp and http mirrors for faster downloads"
+  local O_HELP="Select architecture optimizations"
+  local I_HELP="Select the test that cleanse --fix, and AUTOFIX execute"
+  local J_HELP="Enter the number of jobs 'make' should run at the same time"
+  local C_HELP="Setup distributed compilation"
+  local R_HELP="Enter the maximum rate for downloading"
+  local T_HELP="Select compression program for logs and archives"
+  local N_HELP="Enter the process priority (nice value) to use for sorcery"
+  local U_HELP="Enter the permissions mask (umask value) to use for sorcery"
+  local S_HELP="Sorcery development options (debugging)"
+  local W_HELP="Enter maximum timeout (seconds) for summoning sources"
+  local Z_HELP="Select sorcery sound scheme"
+
   while
-
-    B_HELP="Specify the sorcery branch you would like to track"
-    H_HELP="Specify the color scheme for messages"
-    D_HELP="Enter the default delay time for prompts"
-    E_HELP="Enter the email address for this box's sorcerer"
-    F_HELP="Select many options on or off at once"
-    M_HELP="Select ftp and http mirrors for faster downloads"
-    O_HELP="Select architecture optimizations"
-    I_HELP="Select the test that cleanse --fix, and AUTOFIX execute"
-    J_HELP="Enter the number of jobs 'make' should run at the same time"
-    C_HELP="Setup distributed compilation"
-    R_HELP="Enter the maximum rate for downloading"
-    T_HELP="Select compression program for logs and archives"
-    N_HELP="Enter the process priority (nice value) to use for sorcery"
-    U_HELP="Enter the permissions mask (umask value) to use for sorcery"
-    S_HELP="Sorcery development options (debugging)"
-    W_HELP="Enter maximum timeout (seconds) for summoning sources"
-    Z_HELP="Select sorcery sound scheme"
-
 
     COMMAND=`eval $DIALOG '  --title "Option Menu"              \
                       --item-help                               \
@@ -1537,17 +1540,18 @@ foreground_execute() {
 
 main_menu()  {
 
-  S_HELP="Easy spell management."
-  O_HELP="Change sorcery options and features."
-  L_HELP="View and edit sorcery generated log files."
-  Q_HELP="View and edit sorcery queues."
-  F_HELP="Process queues while you watch and wait."
-  B_HELP="Process queues in the background."
-  E_HELP="Exit without processing queues."
-  I_HELP="Setting your install/state/track root locations"
-  C_HELP="Administrate groups of Unix/Linux boxes."
-      OK="Select"
-  CANCEL="Exit"
+  local S_HELP="Easy spell management."
+  local O_HELP="Change sorcery options and features."
+  local L_HELP="View and edit sorcery generated log files."
+  local Q_HELP="View and edit sorcery queues."
+  local F_HELP="Process queues while you watch and wait."
+  local B_HELP="Process queues in the background."
+  local E_HELP="Exit without processing queues."
+  local I_HELP="Setting your install/state/track root locations"
+  local C_HELP="Administrate groups of Unix/Linux boxes."
+  local OK="Select"
+  local CANCEL="Exit"
+
   while
     COMMAND=`eval $DIALOG ' --title "Main Menu"               \
                      --item-help                              \
