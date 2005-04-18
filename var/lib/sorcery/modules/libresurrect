@@ -182,8 +182,7 @@ function resurrect()  { (
   # load spell or tablet
 
   # notice the magic dot
-  local TABLET_PATH=.$TABLET_PATH
-  test -d $TABLET_PATH &&
+  local TABLET_PATH=.${TABLET_PATH%$STATE_ROOT}
   local OLD_TABLET_DIR
   local SPELL_CONFIG_FILTER
   tablet_find_resurrect_dir $SPELL OLD_TABLET_DIR
@@ -318,8 +317,12 @@ function resurrect_sub() {
   cat $NEW_DATA_F_NC | while read line; do
     # filterable data also has the clever trait that to make it relative
     # in this context we prepend a .
-    test -d "$line" || echo .$line
-  done | cat | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
+
+    # tar doesnt like directories, but symlinks to directories pass
+    # test -d so handle them specially
+    test -h ".$line" && echo .$line ||
+    test -d ".$line" || echo .$line
+  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
     debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
