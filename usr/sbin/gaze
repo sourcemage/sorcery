@@ -219,20 +219,25 @@ function md5sum_files()  { for FILE in `cat $1 | files`; do md5sum  "$FILE"; don
 #-----
 function alien()  {
 
-  message  "In a few minutes I will print files found on this disk"
-  message  "that were not installed by sorcery.  This is not a"
-  message  "security feature!  Files could still be lurking"
-  message  "undetected on this box."
+  if [[ $GAZE_VERBOSE != 0 ]] ; then
+    message  "In a few minutes I will print files found on this disk"
+    message  "that were not installed by sorcery.  This is not a"
+    message  "security feature!  Files could still be lurking"
+    message  "undetected on this box."
+  fi
 
   rm    -f  $TMP_DIR/gaze.found
   rm    -f  $TMP_DIR/gaze.known
 
+  [[ $GAZE_VERBOSE != 0 ]] && 
+  message  "Discovering installed files..."
+  { cat $SORCERY_INSTALL_LOG ; cat  $INSTALL_LOGS/* ; }  | 
+    files  |  sort  >  $TMP_DIR/gaze.known
+
+  [[ $GAZE_VERBOSE != 0 ]] && 
   message  "Discovering ambient files..."
   find  $TRACKED  |  files  |  filter  "$EXCLUDED"  |  sort  >$TMP_DIR/gaze.found
  
-  message  "Discovering installed files..."
-  cat  $INSTALL_LOGS/*  |  files  |  sort  >  $TMP_DIR/gaze.known
-
   diff  -B  -a  -d  $TMP_DIR/gaze.found  $TMP_DIR/gaze.known  |
   grep  -v  "^> "                                     |
   grep      "^< "                                     |
