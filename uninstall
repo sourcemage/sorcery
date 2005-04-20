@@ -1,0 +1,19 @@
+INSTALL_ROOT=${1:-/}
+SORCERY_INSTALL_LOG=${INSTALL_ROOT}/etc/sorcery/install.log
+if ! test -f $SORCERY_INSTALL_LOG ; then
+  echo "sorcery install log not found"
+  exit 1
+fi
+sort $SORCERY_INSTALL_LOG|while read file; do
+  if test -f $file || test -h $file ; then
+    rm -v $file
+  fi
+done
+
+sort -r $SORCERY_INSTALL_LOG|while read file; do
+  if test -d $file ; then
+    rmdir -v $file
+  fi
+done
+rm $SORCERY_INSTALL_LOG
+true

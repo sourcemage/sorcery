@@ -6,6 +6,10 @@
 function install__find_non_volatile() {
   find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*'
 }
+function install__find_for_log() {
+  find "$@" -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*'|
+  while read line; do echo /$line; done
+}
 
 if [[ $1 ]] ; then
   INSTALL_ROOT=$1
@@ -17,8 +21,13 @@ echo "Cleaning out all old sorcery libraries..."
 SORCERY_LIBS=${INSTALL_ROOT}/var/lib/sorcery/modules
 rm -rf $SORCERY_LIBS
 
+SORCERY_INSTALL_LOG=$INSTALL_ROOT/etc/sorcery/install.log
+rm $SORCERY_INSTALL_LOG
+
+
 echo "Installing scripts and libraries"
 # Install the executables
+install__find_for_log etc usr/sbin var/lib >> $SORCERY_INSTALL_LOG
 install__find_non_volatile etc usr/sbin var/lib | (
   while read SCRIPT; do
     /usr/bin/install --owner=root --group=root --mode=755 -pD "${SCRIPT}" "${INSTALL_ROOT}/${SCRIPT}"
@@ -27,6 +36,9 @@ install__find_non_volatile etc usr/sbin var/lib | (
 
 # Install the man pages
 echo "Installing man pages"
+install__find_for_log usr/share/man |while read line; do
+echo ${line}.gz
+done >> $SORCERY_INSTALL_LOG
 install__find_non_volatile usr/share/man | (
   while read DOC; do
     /usr/bin/install --owner=root --group=root --mode=644 -pD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
@@ -36,9 +48,11 @@ install__find_non_volatile usr/share/man | (
 
 # Install the GNU General Public License
   /usr/bin/install --owner=root --group=root --mode=644 -pD "COPYING"   "${INSTALL_ROOT}/usr/doc/sorcery/COPYING"
+    echo /usr/doc/sorcery/COPYING >> $SORCERY_INSTALL_LOG
 
 # Install the ChangeLog
   /usr/bin/install --owner=root --group=root --mode=644 -pD "ChangeLog"   "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
+    echo /usr/doc/sorcery/ChangeLog >> $SORCERY_INSTALL_LOG
 
 # Install the run_compiler script with the same names as gcc
 echo "Setting up build symlinks"
@@ -46,6 +60,7 @@ BUILD_DIR=${INSTALL_ROOT}/var/lib/sorcery/build
 pushd $BUILD_DIR &> /dev/null || exit 1
 for COMPILER in "cc" "gcc" "c++" "g++"; do
   ln -sf "run_compiler" "$COMPILER"
+  echo $BUILD_DIR/$COMPILER >> $SORCERY_INSTALL_LOG
 done
 popd &>/dev/null
 
@@ -65,7 +80,6 @@ for FILE in                                           \
   "${INSTALL_ROOT}/etc/sorcery/local/compile_config"  \
   "${INSTALL_ROOT}/var/state/sorcery/packages"        \
   "${INSTALL_ROOT}/var/state/sorcery/depends"         \
-  "${INSTALL_ROOT}/var/state/sorcery/depends.backup"  \
   "${INSTALL_ROOT}/var/log/sorcery/activity"          
 
   do
@@ -74,6 +88,7 @@ for FILE in                                           \
     chmod +x "$FILE"
   fi
 done
+
 
 #---------------------------------------------------------------------
 ##=back
