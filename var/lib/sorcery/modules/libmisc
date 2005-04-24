@@ -992,6 +992,56 @@ function mk_tmp_dir_error() {
 }
 
 #---------------------------------------------------------------------
+##
+## 'which' is not in basesystem, heres our own simple version of it
+## it should be just as fast as the real one.
+##
+## @param executable to look for
+## @param variable to return path in (pass by reference)
+##
+## Marches through $PATH looking for the executable specified
+##
+#---------------------------------------------------------------------
+function smgl_which() {
+  local target=$1 location
+  local BREAK
+  function smgl_which_sub() {
+    if test -x "$1/$target" ; then
+      echo "$1/$target"
+      BREAK=yes
+    fi
+  }
+  location=$(iterate smgl_which_sub : "$PATH")
+  if [[ "$location" ]]  ; then
+    eval "$2=$location"
+  else
+    echo "which: no $target in ($PATH)"
+    return 1
+  fi
+}
+
+#---------------------------------------------------------------------
+##
+## Finds the make command and complains if its missing (shouldnt ever
+## happen)
+##
+## @param variable to return path in (pass by reference)
+##
+#---------------------------------------------------------------------
+function find_make() {
+  local ___REAL_MAKE
+  smgl_which make ___REAL_MAKE
+  rc=$?
+  if [[ $rc != 0 ]] ; then
+    message "Cannot find make command!!"
+    message "Bailing out"
+    return $rc
+  fi
+  eval "$1=$___REAL_MAKE"
+}
+
+
+#---------------------------------------------------------------------
 ## @param tmp_dir, should begin with /tmp/sorcery
 #---------------------------------------------------------------------
 function cleanup_tmp_dir() {
