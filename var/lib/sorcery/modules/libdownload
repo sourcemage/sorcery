@@ -223,17 +223,28 @@ function connect()  {
 
   debug "libdownload" "connect()"
 
+  local ONLINE
   if !  ifconfig  |  grep  -q  "^eth"   &&
      !  ifconfig  |  grep  -q  "^wlan"  &&
      !  ifconfig  |  grep  -q  "^bnep"  &&
+     !  ifconfig  |  grep -q   "^ath"   &&
      !  ifconfig  |  grep  -q  "^tr"    &&
      !  ifconfig  |  grep  -q  "^atml"  &&
      !  ifconfig  |  grep  -q  "^ppp";  then
-    if which pon &> /dev/null ; then
-      pon
-    else
+    local pon_cmd
+    if smgl_which pon pon_cmd &>/dev/null ; then
+      pon && ONLINE=YES
+    fi
+
+    if [[ ! $ONLINE ]] ; then
       message "${PROBLEM_COLOR}Cannot find or initiate network connection"
-      message " (pon program is missing) ${DEFAULT_COLOR}"
+      message "${DEFAULT_COLOR}"
+      message "Please setup your network connection."
+      message "Try netconf if you use ethernet (with dsl), or see man pppd"
+      message "for dialup.\n"
+      message "If you still have trouble and have another way of getting"
+      message "online, please come by #sourcemage on irc.freenode.net and" 
+      message "someone will help you."
       exit 1
     fi
 
@@ -250,7 +261,7 @@ function connect()  {
     done
 
     disconnect
-  fi
+#  fi
 }
 
 #-------------------------------------------------------------------------

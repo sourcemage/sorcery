@@ -435,6 +435,12 @@ function cleanse_fix()
   shift 1
   local SPELL
   local SPELLS=$*
+
+  # find the binary executable make, we cant call it directly since make may
+  # be a function in this context
+  local REAL_MAKE
+  find_make REAL_MAKE || return $?
+
   # given a list of spells to check
   if [ -z "$SPELLS" ]; then
     # I think the behavior will be to not check held spells by default
@@ -477,7 +483,7 @@ function cleanse_fix()
   
   # load our ldd hash with the spells we know we'll care about
   # but no more then necessary
-  cleanse_fix_init_ldd_check $(/usr/bin/make -s -f $MAKEFILE all 2>/dev/null)
+  cleanse_fix_init_ldd_check $($REAL_MAKE -s -f $MAKEFILE all 2>/dev/null)
 
   local PASSED FIXED HOPELESS TOTALNR CURNR unused
  
@@ -499,7 +505,7 @@ function cleanse_fix()
   else
     # non-quick mode implies we check from the bottom up, so get all
     # the spells..
-    TOTALNR=$(/usr/bin/make -s -f $MAKEFILE all 2>/dev/null|wc -l)
+    TOTALNR=$($REAL_MAKE -s -f $MAKEFILE all 2>/dev/null|wc -l)
     cleanse_fix_depends all
   fi
 
@@ -533,7 +539,7 @@ function cleanse_fix()
 function cleanse_fix_depends() {
   local SPELL=$1
   # run the makefile to get the proper order
-  local FIX_ORDER=$(/usr/bin/make -s -f $MAKEFILE $1  2>/dev/null| grep -v "^$SPELL\$")
+  local FIX_ORDER=$($REAL_MAKE -s -f $MAKEFILE $1  2>/dev/null| grep -v "^$SPELL\$")
   #for each spell
   for SPELL in ${FIX_ORDER}; do
     # check it
@@ -724,7 +730,7 @@ function cleanse_fix_ldd_check()  { (
   fi
 
   local tmp
-  for each in $(/usr/bin/make -s -f $MAKEFILE $1 2>/dev/null); do
+  for each in $($REAL_MAKE -s -f $MAKEFILE $1 2>/dev/null); do
     tmp=$(hash_get ldd_hash $each)
     [[ $tmp ]] && LD_LIBRARY_PATH="$(hash_get ldd_hash $each):${LD_LIBRARY_PATH}"
   done
