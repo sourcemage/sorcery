@@ -53,7 +53,16 @@ Command		Description
 --tablet	clean up the tablet
 --tablet_spell	clean up the tablet for one spell
 --logs		cleans old logs in the same way a system-update does
---sweep		clean out old downloaded sources and cached binaries
+
+--sweep		Clean out old downloaded sources and cached binaries
+		old is defined as not capable of being used by any
+		spell/version in any grimoire on the system.
+
+--sweep_all	Clean out old downloaded sources and cached binaries
+		old is defined as not capable of being used by any spell
+		installed on the system. Only the first version of the
+		spell found is used.
+
 It is suggested that you try the following order the first time:
 	1) $s --packages
 	2) $s --delint
@@ -80,6 +89,7 @@ EOF
 ## @args  --tablet_spell    Clean up the tablet for one spell
 ## @Args  --logs            Remove stale logs
 ## @Args  --sweep           Remove uneeded spool and cache files
+## @Args  --sweep_all       Remove uneeded spool and cache files
 ## @Args  --fix             Find binaries that are missing libs and files,
 ##                          and recast broken spells
 ## @Args  --nofix           Same as --fix, but won't recast.
@@ -132,6 +142,9 @@ function args()
         shift $#
         ;;
       --sweep) prune
+        let rc+=$?
+        ;;
+      --sweep_all) prune installed_only
         let rc+=$?
         ;;
       --packages) packages
