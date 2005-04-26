@@ -41,9 +41,10 @@ else
 fi
 
 COMPILER=$( basename $0 )
+MYDIR=$( dirname $0 )
 
 # Remove this directory from $PATH - we don't want to re-exec this script!
-export PATH=${PATH#*:}
+export PATH=${PATH/$MYDIR/}
 
 exec $CCACHE $DISTCC $COMPILER "$@"
 
