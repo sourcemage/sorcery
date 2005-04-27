@@ -1,4 +1,15 @@
 #!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Synopsis This utility lets you manage moving spells to your private
+## grimoire so you can mix-and-match versions from various other grimoires.
+##
+## @Copyright
+##
+## Copyright 2002 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
 
 #---------------------------------------------------------------------
 #  Scribbler
@@ -6,18 +17,6 @@
 #---------------------------------------------------------------------
 
 . /etc/sorcery/config
-
-##  CODEX is already defined in /etc/sorcery/config.
-#CODEX=/var/lib/sorcery/codex
-
-##  I would prefer to use my own private/custom grimoire and section names and
-##  not necessarily predifined grimore and section names.  Or at least place the
-##  spell in the same section name of the new grimoire as the one it is pulled
-##  from.  Also, until private is in /etc/sorcery/local/grimoires, nothing done
-##  with scribble will have any effect.
-#mkdir -p $CODEX/private/assorted
-
-
 
 usage ()
 {
@@ -38,122 +37,159 @@ scribbler remove spell from-grimoire
 EOF
 }
 
+function scribbler_remove() {
+  rm -rfv $SPELL_DIRECTORY
+  # remove empty sections
+  rmdir $(dirname $SPELL_DIRECTORY)
+  scribe reindex $3
+}
+
+function scribbler_add() {
+  ##  Set and validate (and possibly create) the to-grimoire name
+  if ! TO_GRIMOIRE_DIRECTORY=$(codex_find_grimoire $4) ; then
+    message "${PROBLEM_COLOR}The grimoire you specified" \
+            "(${SPELL_COLOR}${4}${PROBLEM_COLOR}) is not a" 
+            "valid grimoire.${DEFAULT_COLOR}"
+    if query "Shall I add it for you?" y; then
+      TO_GRIMOIRE_DIRECTORY=$(codex_canonicalize_grimoire_name $4) &&
+      ##  is this still needed?
+      mkdir -p $TO_GRIMOIRE_DIRECTORY &&
+      codex_add_grimoire $TO_GRIMOIRE_DIRECTORY 0 &&
+      scribe localize $TO_GRIMOIRE_DIRECTORY
+    else
+      return $?
+    fi || return $?
+  fi
+
+  codex_set_current_spell $SPELL_DIRECTORY || return $?
+
+  ##  Validate and create the link
+  if [[ "${5}" ]] ; then
+    TO_SECTION=$5
+  else
+    TO_SECTION=$SECTION
+  fi
+
+  TO_SPELL_DIRECTORY=${TO_GRIMOIRE_DIRECTORY}/${TO_SECTION}/$2
+
+  if test -e ${TO_SPELL_DIRECTORY}; then
+    message "${PROBLEM_COLOR}The spell you specified" \
+            "(${SPELL_COLOR}${2}${PROBLEM_COLOR}) already exists" \
+            "in the specified grimoire/section" \
+           "(${SPELL_COLOR}${4}/${TO_SECTION}${PROBLEM_COLOR}).${DEFAULT_COLOR}"
+    if query "Shall I re-scribble it?" y; then
+      rm -rf $TO_SPELL_DIRECTORY
+    else
+      return 1
+    fi
+  fi
 
 
-##  This script needed some sanity checking...
-if [ "${1}" == "" ]; then
-	usage
-	exit 1
-fi
+  mkdir -p ${TO_SPELL_DIRECTORY}
 
-if [ "${1}" == "add" ] && [ "${4}" == "" ]; then
-	usage
-	exit 1
-fi
+  cp -r $SPELL_DIRECTORY/* $TO_SPELL_DIRECTORY &&
+  touch $TO_SPELL_DIRECTORY/SCRIBBLED &&
+  mkdir -p $TO_SPELL_DIRECTORY/grimoire
+  find $GRIMOIRE/ -maxdepth 1 -type f|files| while read file ; do
+    cp $file $TO_SPELL_DIRECTORY/grimoire
+  done
+  mkdir -p $TO_SPELL_DIRECTORY/section
+  find $SECTION_DIRECTORY/ -maxdepth 1 -type f | while read file ; do
+    cp $file $TO_SPELL_DIRECTORY/section
+  done
 
-if [ "${2}" == "" ]; then
-	usage
-	exit 1
-fi
-
-if [ "${3}" == "" ]; then
-	usage
-	exit 1
-fi
-
-if [ "${3}" == "${4}" ] && [ "${5}" == "" ]; then
-	message "${PROBLEM_COLOR}The from and to grimoires cannot be the same name unless you specify a to-section.${DEFAULT_COLOR}"
-	usage
-	exit 1
-fi
+  scribe reindex $4
+}
 
 
-##  Set and validate the from-grimoire name
-FROM_GRIMOIRE_DIRECTORY=$(codex_get_all_grimoires | grep $3)
-if [ "${FROM_GRIMOIRE_DIRECTORY}" == "" ]; then
-	message "${PROBLEM_COLOR}The grimoire you specified (${SPELL_COLOR}${3}${PROBLEM_COLOR}) is not a valid grimoire.${DEFAULT_COLOR}"
-	exit 1
-fi
+function validate_and_parse_args() {
+  ##  This script needed some sanity checking...
+  if [ "${1}" == "" ]; then
+    usage
+    exit 1
+  fi
 
-##  Set and validate the spell name
-SPELL_DIRECTORY=$(codex_cache_spell_lookup $2 $FROM_GRIMOIRE_DIRECTORY)
-if [ "${SPELL_DIRECTORY}" == "" ]; then
-	message "${PROBLEM_COLOR}The spell you specified (${SPELL_COLOR}${2}${PROBLEM_COLOR}) is not a valid spell of the specified grimoire (${SPELL_COLOR}${3}${PROBLEM_COLOR}).${DEFAULT_COLOR}"
-	exit 1
-fi
+  if [ "${1}" == "add" ] && [ "${4}" == "" ]; then
+    usage
+    exit 1
+  fi
+
+  if [ "${2}" == "" ]; then
+    usage
+    exit 1
+  fi
+
+  if [ "${3}" == "" ]; then
+    usage
+    exit 1
+  fi
+
+  if [ "${3}" == "${4}" ] && [ "${5}" == "" ]; then
+    message "${PROBLEM_COLOR}The from and to grimoires cannot be" \
+            "the same name unless you specify a to-section.${DEFAULT_COLOR}"
+    usage
+    exit 1
+  fi
 
 
+  ##  Set and validate the from-grimoire name
+  if ! FROM_GRIMOIRE_DIRECTORY=$(codex_find_grimoire $3) ; then
+     message "${PROBLEM_COLOR}The grimoire you specified" \
+             "(${SPELL_COLOR}${2}${PROBLEM_COLOR}) can not be" \
+             "found.${DEFAULT_COLOR}"
+     exit 1
+  fi
 
-##  Change to root user.  Psuedo copied from cast.
+
+  ##  Set and validate the spell name
+  SPELL_DIRECTORY=$(codex_cache_spell_lookup $2 $FROM_GRIMOIRE_DIRECTORY)
+  if [ "${SPELL_DIRECTORY}" == "" ]; then
+    message "${PROBLEM_COLOR}The spell you specified" \
+            "(${SPELL_COLOR}${2}${PROBLEM_COLOR}) is not a" \
+            "valid spell of the specified grimoire" \
+            "(${SPELL_COLOR}${3}${PROBLEM_COLOR}).${DEFAULT_COLOR}"
+    exit 1
+  fi
+}
+
+function main() {
+  mk_tmp_dirs scribbler
+
+  ##  Get to the root of the issue
+  case $1 in
+    add)    scribbler_add "$@" ;;
+    remove) scribbler_remove "$@" ;;
+    *)      usage ;;
+  esac
+  cleanup_tmp_dir $TMP_DIR
+  exit 0
+}
+
+
+validate_and_parse_args $@
+
 if [ "${UID}" != 0 ]; then
-	echo "Enter the root password, please:"
-	exec su -c "${0} ${*}" root
+  echo "Enter the root password, please:"
+  exec su -c "${0} ${*}" root
 fi
 
-mk_tmp_dirs scribbler
+main $@
+#---------------------------------------------------------------------
+##
+## @License
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
 
-##  Get to the root of the issue
-case $1 in
-
-	add)
-		##  Set and validate (and possibly create) the to-grimoire name
-		TO_GRIMOIRE_DIRECTORY=$(codex_get_all_grimoires | grep $4)
-		if [ "${TO_GRIMOIRE_DIRECTORY}" == "" ]; then
-			message "${PROBLEM_COLOR}The grimoire you specified (${SPELL_COLOR}${4}${PROBLEM_COLOR}) is not a valid grimoire.${DEFAULT_COLOR}"
-			if query "Shall I add it for you?" y; then
-				##  Because codex_add_grimoire does not create the directory
-				mkdir -p ${CODEX}/${4}
-				codex_add_grimoire ${CODEX}/${4} 0
-				TO_GRIMOIRE_DIRECTORY=$(codex_get_all_grimoires | grep $4)
-			else
-				exit 1
-			fi
-		fi
-
-		codex_set_current_spell $SPELL_DIRECTORY
-
-		##  Validate and create the link
-		if [ "${5}" == "" ]; then
-			if [ -e ${TO_GRIMOIRE_DIRECTORY}/${SECTION}/${2} ]; then
-				message "${PROBLEM_COLOR}The spell you specified (${SPELL_COLOR}${2}${PROBLEM_COLOR}) already exists in the specified grimoire/section (${SPELL_COLOR}${4}/${SECTION}${PROBLEM_COLOR}).${DEFAULT_COLOR}"
-			fi
-
-			if ! [ -e ${TO_GRIMOIRE_DIRECTORY}/${SECTION} ]; then
-				mkdir -p ${TO_GRIMOIRE_DIRECTORY}/${SECTION}
-			fi
-
-			ln -s ${FROM_GRIMOIRE_DIRECTORY}/${SECTION}/${2} ${TO_GRIMOIRE_DIRECTORY}/${SECTION}
-			##  An alternate action (maybe this could be an switch: -c to copy rather than link):
-#			cp -r ${FROM_GRIMOIRE_DIRECTORY}/${SECTION}/${2} ${TO_GRIMOIRE_DIRECTORY}/${SECTION}
-		else
-			if [ -e ${TO_GRIMOIRE_DIRECTORY}/${5}/${2} ]; then
-				message "${PROBLEM_COLOR}The spell you specified (${SPELL_COLOR}${2}${PROBLEM_COLOR}) already exists in the specified grimoire/section (${SPELL_COLOR}${4}/${5}${PROBLEM_COLOR}).${DEFAULT_COLOR}"
-			fi
-
-			if ! [ -e ${TO_GRIMOIRE_DIRECTORY}/${5} ]; then
-				mkdir -p ${TO_GRIMOIRE_DIRECTORY}/${5}
-			fi
-
-			ln -s ${FROM_GRIMOIRE_DIRECTORY}/${SECTION}/${2} ${TO_GRIMOIRE_DIRECTORY}/${5}
-			##  An alternate action (maybe this could be an switch: -c to copy rather than link):
-#			cp -r ${FROM_GRIMOIRE_DIRECTORY}/${SECTION}/${2} ${TO_GRIMOIRE_DIRECTORY}/${5}
-		fi
-
-		scribe reindex > /dev/null
-		;;
-
-	remove)
-		codex_set_current_spell ${SPELL_DIRECTORY}
-		##  This would need to change if this script were to account for dirs:
-		rm ${FROM_GRIMOIRE_DIRECTORY}/${SECTION}/${2}
-		scribe reindex > /dev/null
-		;;
-
-	*)
-		usage
-		;;
-
-esac
-
-cleanup_tmp_dir $TMP_DIR
-exit 0
