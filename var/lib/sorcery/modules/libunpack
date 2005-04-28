@@ -419,6 +419,11 @@ function uncompress_unpack() {
           "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
           "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
 
+  if [[ ! $FILENAME ]] || ! test -f "$FILENAME" ; then
+    message "${PROBLEM_COLOR}Source file not found.${DEFAULT_COLOR}"
+    return 1
+  fi
+
   uncompress_core "$FILENAME" "$COMPRESSOR" |
       unpack_core "$FILENAME" "$COMPRESSOR"
 }
@@ -477,7 +482,11 @@ function real_unpack() {
 
   FILENAME="$(guess_filename  "$SOURCE_CACHE/$1")" &&
   COMPRESSOR="$(guess_compressor "$FILENAME")"
-#  UNCOMPRESSED=""
+
+  if [[ ! $FILENAME ]] || ! test -f "$FILENAME" ; then
+    message "${PROBLEM_COLOR}Source file not found.${DEFAULT_COLOR}"
+    return 1
+  fi
 
   uncompress_md5 "$FILENAME" "$COMPRESSOR" "$2" |
      unpack_core "$FILENAME" "$COMPRESSOR"      &&
