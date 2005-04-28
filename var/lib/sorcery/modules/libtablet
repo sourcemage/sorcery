@@ -28,6 +28,11 @@
 ##                         status (installed or held)
 ##                         tb_version (tablet version)
 ##                         updated (value of $UPDATED)
+##                         patchlevel (value of $PATCHLEVEL) (optional,
+##                                                            defaults to 0)
+##                         security_patchlevel (value of $SECURITY_PATCHLEVEL)
+##                          (optional, defaults to 0, name still undecided upon)
+##                         updated (value of $UPDATED)
 ##                         version (value of $VERSION)
 ##                         cache symlink to cache archive
 ##
@@ -55,6 +60,8 @@
 ##        tablet_get_build_api
 ##        tablet_get_version
 ##        tablet_get_updated
+##        tablet_get_patchlevel
+##        tablet_get_security_patchlevel
 ##        tablet_get_depends
 ##        tablet_get_status
 ##        tablet_get_sources
@@ -100,6 +107,32 @@ function tablet_get_updated() {
     1) test -f $tb_dir/updated && value=$(<$tb_dir/updated) || return 2 ;;
     *) return 3 ;;
   esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_patchlevel() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/patchlevel && value=$(<$tb_dir/patchlevel) || value=0 ;;
+    *) return 3 ;;
+  esac
+  # default value is 0 for patchlevel
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_security_patchlevel() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/security_patchlevel && value=$(<$tb_dir/security_patchlevel) || value=0;;
+    *) return 3 ;;
+  esac
+  # default value is 0 for security_patchlevel
   eval "$2=\"$value\""
   return 0
 }
@@ -398,6 +431,9 @@ function tablet_install_spell_files() {
   # magic values we want to be able to easily look up
   echo $VERSION > version
   echo $UPDATED > updated
+  echo ${PATCHLEVEL:-0} > patchlevel
+  # uncomment once consensus on bug 8379 is reached
+  #echo ${SECURITY_PATCHLEVEL:-0} > security_patchlevel
   echo $BUILD_API > build_api
   echo $SECTION > section_name
   echo installed > status # this could be held or something else
@@ -509,6 +545,7 @@ function tablet_import_repair_files_page() { (
   local name key
   tablet_get_version $page spell_version
   tablet_get_updated $page spell_updated
+  tablet_get_patchlevel $page spell_patchlevel
   for repair_file in $(find $SPELL_DIRECTORY -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
     name=$(basename $repair_file|cut -f3- -d^)
     key=$(basename $repair_file|cut -f2 -d^)
@@ -556,7 +593,8 @@ function tablet_check_repair_file() {
     tablet_md5=$(md5sum $tablet_file|cut -f1 -d' ')
     if [[ $spell_version == $key ]] ||
        [[ $spell_updated == $key ]] ||
-       [[ $key == $tablet_md5 ]] ; then
+       [[ $spell_patchlevel == $key ]] ||
+       [[ $tablet_md5 == $key ]] ; then
       replace=2
     fi
   fi

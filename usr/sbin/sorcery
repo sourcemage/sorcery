@@ -45,6 +45,8 @@ Optional Parameters:
 
 -q  |  queue		Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
+       queue-security	Same as queue, but only for spells that need
+			  updating due to security fixes.
 
 review-queue		Review the install queue for each spell's history 
 			  since each was last installed.
@@ -490,6 +492,11 @@ update_sorcery () {
 
 update_queue () {
     update_install_queue
+    list_install_queue
+}
+
+update_security_queue () {
+    update_security_install_queue
     list_install_queue
 }
 
@@ -1695,6 +1702,7 @@ main() {
      -s|system-update)  update_pkgs  autoupdate                 ;;
            -g|upgrade)  update_pkgs  upgrade                    ;;
              -q|queue)  update_queue                            ;;
+       queue-security)  update_security_queue                   ;;
          review-queue)  install_queue_history                   ;;
            -r|rebuild)  rebuild                                 ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;

@@ -746,7 +746,8 @@ function list_install_queue() {
 ##
 #---------------------------------------------------------------------
 function update_install_queue()  {
-  local line spell curr_version curr_updated page_dir info
+  local line spell curr_version curr_updated page_dir info curr_patchlevel
+  local curr_sec_pl
   local tmp_queue=$TMP_DIR/install_queue
   touch $tmp_queue
 
@@ -766,12 +767,18 @@ function update_install_queue()  {
         if  [[ $VERSION != $curr_version ]] ; then
           echo $spell >> $tmp_queue
         else
+          curr_patchlevel=0
+          curr_sec_pl=0
           if tablet_find_spell_dir $spell page_dir ; then
-            curr_updated=""
+            curr_updated=0
             tablet_get_updated $page_dir curr_updated
+            tablet_get_patchlevel $page_dir curr_patchlevel
+            tablet_get_security_patchlevel $page_dir curr_sec_pl
           fi
-          if [[ -z $curr_updated ]] ||
-             (( "${UPDATED:-0}" >  "$curr_updated" )) ; then
+          if (( "${PATCHLEVEL:-0}" >  "$curr_patchlevel" )) ||
+             # the following is subject to change
+             (( "${SECURITY_PATCHLEVEL:-0}" >  "$curr_sec_pl" )) ||
+             (( "${UPDATED:-0}" >  "${curr_updated:-0}" )) ; then
             echo $spell >> $tmp_queue
           fi
         fi
@@ -786,6 +793,38 @@ function update_install_queue()  {
 
 }
 
+function update_security_install_queue()  {
+  local line spell page_dir info curr_sec_pl=0
+  local tmp_queue=$TMP_DIR/install_queue
+  touch $tmp_queue
+
+  message  "${CHECK_COLOR}Generating list of spells to update for" \
+           "security reasons... ${DEFAULT_COLOR} "
+  for  line  in  `all_spell_status`;  do
+    #0=spell, 1=date, 2=status, 3=version
+    explode "$line" ":" "info"
+    spell=${info[0]}
+    status=${info[2]}
+    
+    ( # do this in a subshell in case a spell mis-behaves and exits we
+      # still want queueing to work
+      if  [[  "$status"  ==  "installed"  ]] &&
+          codex_set_current_spell_by_name  $spell &&
+          tablet_find_spell_dir $spell page_dir ; then
+        tablet_get_security_patchlevel $page_dir curr_sec_pl &&
+        if (( "${SECURITY_PATCHLEVEL:-0}" >  "$curr_sec_pl" )) ; then
+          echo $spell >> $tmp_queue
+        fi
+      fi
+    )
+  done
+
+  lock_file $INSTALL_QUEUE
+  rm  -f  $INSTALL_QUEUE
+  sort $tmp_queue | uniq > $INSTALL_QUEUE
+  unlock_file $INSTALL_QUEUE
+
+}
 
 #---------------------------------------------------------------------
 ##
