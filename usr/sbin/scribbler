@@ -170,10 +170,11 @@ validate_and_parse_args $@
 
 if [ "${UID}" != 0 ]; then
   echo "Enter the root password, please:"
-  exec su -c "${0} ${*}" root
+  PARAMS=$(consolidate_params "$@")
+  su -c "$0 $PARAMS" root
 fi
 
-main $@
+main "$@"
 #---------------------------------------------------------------------
 ##
 ## @License
