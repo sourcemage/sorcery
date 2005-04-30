@@ -119,7 +119,10 @@ function process_parameters()  {
                          mv "$INSTALL_QUEUE.new" "$INSTALL_QUEUE"
 
                          # cast the queue.
-                         cast "$SILENT" "$RECONFIGURE" -c `cat $INSTALL_QUEUE 2>/dev/null`
+                         # SILENT and RECONFIGURE may be empty, they
+                         # must be at the end or it will confuse parameter
+                         # parsing
+                         cast -c `cat $INSTALL_QUEUE 2>/dev/null` "$SILENT" "$RECONFIGURE"
             
                          # report spells still in queue.
                          if  [  -s  $INSTALL_QUEUE  ] ; then
