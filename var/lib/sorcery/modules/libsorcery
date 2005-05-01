@@ -77,14 +77,18 @@ function update_sorcery_scripts() {
   message "done."
   lock_resources "libgrimoire" "install"      &&
 
-  # rough equivalent to prepare_install...
-  rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
-  rm $INSTALL_ROOT/etc/sorcery/licenses/*   2>/dev/null
-  rm $INSTALL_ROOT/etc/sorcery/mirrors/* 2>/dev/null
-  rm $INSTALL_ROOT/var/lib/sorcery/* 2>/dev/null
-  rm -r $INSTALL_ROOT/var/lib/sorcery/archspecs/* 2>/dev/null
-  rm -r $INSTALL_ROOT/var/lib/sorcery/build/* 2>/dev/null
-
+  if test -x ./uninstall && test -f /etc/sorcery/install.log ; then
+    message uninstalling...
+    ./uninstall
+  else
+    # rough equivalent to prepare_install...
+    rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
+    rm $INSTALL_ROOT/etc/sorcery/licenses/*   2>/dev/null
+    rm $INSTALL_ROOT/etc/sorcery/mirrors/* 2>/dev/null
+    rm $INSTALL_ROOT/var/lib/sorcery/* 2>/dev/null
+    rm -r $INSTALL_ROOT/var/lib/sorcery/archspecs/* 2>/dev/null
+    rm -r $INSTALL_ROOT/var/lib/sorcery/build/* 2>/dev/null
+  fi
   ./install                                     &&
 
   cd /                                          &&
