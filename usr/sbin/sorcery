@@ -1690,6 +1690,41 @@ sorcery_remove_defaults () {
   remove_default_provider $DEFAULT_PROVIDERS "$@"
 }
 
+#---------------------------------------------------------------------
+#-item sorcery_queue_add <spells>
+##
+## Used for adding spells to install queue
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_queue_add() {
+  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  for SPELL in "$@"; do
+    grep -qE "^$SPELL\$" "$tINSTALL_QUEUE" || echo "$SPELL" >> "$tINSTALL_QUEUE"
+  done
+  lock_commit_transaction "$INSTALL_QUEUE"
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_queue_remove <spells>
+##
+## Used for removing spells from install queue
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_queue_remove() {
+  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  for SPELL in "$@"; do
+    if grep -qE "^$SPELL\$" "$tINSTALL_QUEUE"; then
+      grep -vE "^$SPELL\$" "$tINSTALL_QUEUE" > "$TMP_DIR/tmp_queue"
+      mv "$TMP_DIR/tmp_queue" "$tINSTALL_QUEUE"
+    else
+      message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}$SPELL${PROBLEM_COLOR} not found in install queue!${DEFAULT_COLOR}"
+    fi
+  done
+  lock_commit_transaction "$INSTALL_QUEUE"
+}
+
 main() {
 
   rm  -f  $UPDATE_SCRIPT
@@ -1703,8 +1738,10 @@ main() {
            -g|upgrade)  update_pkgs  upgrade                    ;;
              -q|queue)  update_queue                            ;;
        queue-security)  update_security_queue                   ;;
-         review-queue)  install_queue_history                   ;;
            -r|rebuild)  rebuild                                 ;;
+         review-queue)  install_queue_history                   ;;
+            add-queue) shift; sorcery_queue_add "$@"            ;;
+         remove-queue) shift; sorcery_queue_remove "$@"         ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
                 exile) shift; set_exiled $@                     ;;
