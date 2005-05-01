@@ -452,19 +452,19 @@ function pass_two()  {
   rm -f $TMP_DIR/pass_three.done # dont return until this file exists
   if  [[  $SEPARATE   ]] ; then
     ( CAST_PASS="three" 
-      $REAL_MAKE -j1 -k -f $MAKEFILE $*
+      $REAL_MAKE -s -j1 -k -f $MAKEFILE $*
       touch $TMP_DIR/pass_three.done
     )
   else
     ( CAST_PASS="three"
-      $REAL_MAKE -j1 -k -f $MAKEFILE $*
+      $REAL_MAKE -s -j1 -k -f $MAKEFILE $*
       touch $TMP_DIR/pass_three.done
     ) &
   fi
   
   debug "cast" "Starting stage four make."
   
-  ( CAST_PASS="four" ; $REAL_MAKE -j1 -k -f $MAKEFILE $* )
+  ( CAST_PASS="four" ; $REAL_MAKE -s -j1 -k -f $MAKEFILE $* )
   
   # in some very bad situations pass four can complete before three, and if
   # we return too soon more bad things can happen, so wait at least a little
