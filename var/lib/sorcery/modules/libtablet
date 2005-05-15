@@ -338,7 +338,6 @@ function tablet_find_spell_dir() {
 function tablet_find_resurrect_dir() {
   local SPELL=$1
   if ! test -d $TABLET_PATH; then
-    mkdir -p $TABLET_PATH
     return 1
   fi
   local __spell_dir
@@ -773,6 +772,7 @@ function tablet_coalesce_files() {
 ## a version of 1 in it.
 #---------------------------------------------------------------------
 function tablet_0_repair() {
+  [[ $1 ]] || return 1
   # once all these are done, we should have a version 1 tablet
   tablet_0_repair_spell $1 &&
   tablet_0_repair_version $1 &&
@@ -794,6 +794,7 @@ function tablet_0_repair() {
 #---------------------------------------------------------------------
 function tablet_0_repair_spell() {
   local tb_dir=$1
+  [[ $tb_dir ]] || return 1
   local spell_name=$(tablet_get_spell_name_from_path $tb_dir)
   if test -d $tb_dir/spell/; then
     if test -f $tb_dir/spell/DETAILS; then
@@ -823,6 +824,7 @@ function tablet_0_repair_spell() {
 #---------------------------------------------------------------------
 function tablet_0_repair_version() {
   local tb_dir=$1
+  [[ $tb_dir ]] || return 1
   test -f $tb_dir/version ||
   (
     message "Repairing missing spell version file in $tb_dir"
@@ -838,7 +840,8 @@ function tablet_0_repair_version() {
 ## tablets. Source the spell, echo $UPDATED into a file named updated
 #---------------------------------------------------------------------
 function tablet_0_repair_updated() {
-  local tb_dir=$2
+  local tb_dir=$1
+  [[ $tb_dir ]] || return 1
   test -f $tb_dir/updated ||
   (
     message "Repairing missing spell updated file in $tb_dir"

@@ -13,7 +13,7 @@
 #---------------------------------------------------------------------
 ## @param spellname
 ## determines if a particular version of a spell can be cast
-## test -f $INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar.bz2
+## test -f $INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar.bz2
 #---------------------------------------------------------------------
 function can_resurrect()  {
   debug "libresurrect" "can_resurrect - $*"
@@ -21,7 +21,7 @@ function can_resurrect()  {
   local VERSION=$2
   
   # FIXME accept files of other extensions
-  local file=$INSTALL_CACHE/$SPELL-$VERSION-$BUILD.tar$EXTENSION &&
+  local file=$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar$EXTENSION &&
   test -f $file &&
   echo $file &&
   debug "libresurrect" "I am able to resurrect." &&
@@ -102,6 +102,7 @@ function resurrect()  { (
 
   local RESURRECT_DIR=$BUILD_DIRECTORY/resurrect-$SPELL-$VERSION
 
+  mkdir -p $BUILD_DIRECTORY &&
   mk_source_dir $RESURRECT_DIR || {
     debug "libresurrect" "Failed to make $RESURRECT_DIR"
     resurrect_fail
@@ -181,8 +182,7 @@ function resurrect()  { (
   # load spell or tablet
 
   # notice the magic dot
-  local TABLET_PATH=.$TABLET_PATH
-  test -d $TABLET_PATH &&
+  local TABLET_PATH=.${TABLET_PATH#$STATE_ROOT}
   local OLD_TABLET_DIR
   local SPELL_CONFIG_FILTER
   tablet_find_resurrect_dir $SPELL OLD_TABLET_DIR
@@ -317,8 +317,12 @@ function resurrect_sub() {
   cat $NEW_DATA_F_NC | while read line; do
     # filterable data also has the clever trait that to make it relative
     # in this context we prepend a .
-    test -d "$line" || echo .$line
-  done | cat | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
+
+    # tar doesnt like directories, but symlinks to directories pass
+    # test -d so handle them specially
+    test -h ".$line" && echo .$line ||
+    test -d ".$line" || echo .$line
+  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
     debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
@@ -498,7 +502,7 @@ function real_handle_changed_config() {
     while [[ $number != [0-9]* ]] || (( " $number >= 5 " )); do
       message -n "\n${QUERY_COLOR}Which one do you want? [$default]" \
                  "$DEFAULT_COLOR"
-      read -n 1 number
+      read -n 1 -t $PROMPT_DELAY number
       if [[ ! -n $number ]]; then
           number=$default
       fi

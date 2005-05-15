@@ -49,7 +49,7 @@ function update_sorcery_scripts() {
 
   echo "$SOURCE  ${SOURCE_URL}" |
   download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither" || {
-    messaage "${PROBLEM_COLOR}Failed to download sorcery${DEFAULT_COLOR}"
+    message "${PROBLEM_COLOR}Failed to download sorcery${DEFAULT_COLOR}"
     return 1
   }
 
@@ -304,7 +304,7 @@ function spell_recover()  {
            "${MESSAGE_COLOR} and recovering${DEFAULT_COLOR}"
 
   CURRENT_VERSION=$(installed_version  $SPELL)
-  CACHE_COMP="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$BUILD.tar$EXTENSION"
+  CACHE_COMP="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$HOST.tar$EXTENSION"
   CONTINUE=false
 
   if    [  !      -f  $CACHE_COMP   ];  then
@@ -450,16 +450,17 @@ function filter() {
 #---------------------------------------------------------------------
 function filter_in() {
   local thing RID_LIST
-  local files each invert
+  local files each
   for each in $@; do
     test -f $each && files="$files $each"
   done
     
   if [[ $files ]] ; then
-    RID_LIST=$(while read thing; do
-                 echo -n "$thing\|"
-               done < $files
-               echo -n /dev/null)
+    RID_LIST=$(
+      cat $files | while read thing; do
+                     echo -n "$thing\|"
+                   done
+      echo -n /dev/null)
     grep "$RID_LIST"
   else
     cat
@@ -1284,7 +1285,7 @@ function invoke_build_dir() {
     CCACHE=off
   fi
 
-  if [[ "CCACHE" == on ]] || [[ "$USE_DISTCC" == on ]] ; then
+  if [[ "$CCACHE" == on ]] || [[ "$USE_DISTCC" == on ]] ; then
     export  PATH="/var/lib/sorcery/build:$PATH" 
   fi
 } 
