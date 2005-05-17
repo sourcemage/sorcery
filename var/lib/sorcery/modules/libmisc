@@ -312,6 +312,24 @@ function esc_str()
 
 }
 
+
+#---------------------------------------------------------------------
+## Properly quotes and backquotes parameters so they can be passed
+## through su at the start of many sorcery commands
+##
+## Expected usage is:
+##
+##  PARAMS=$(consolidate_params "$@")
+##  su -c "$0 $PARAMS" root
+#---------------------------------------------------------------------
+function consolidate_params() {
+  local param
+  for param in "$@"; do
+    echo -n $param | sed 's/ /\\ /g'
+    echo -n " "
+  done
+}
+
 #---------------------------------------------------------------------
 ## @param Yes, there is a parameter.. 
 ## @Stdout wheee, even output.

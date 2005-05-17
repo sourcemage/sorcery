@@ -1716,8 +1716,8 @@ main() {
 }
 
 
+. /etc/sorcery/config
 if  [  "$UID"  ==  0  ];  then
-  . /etc/sorcery/config
   DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
 
   SORCERY_VERSION=`cat /etc/sorcery/version`
@@ -1735,7 +1735,8 @@ else
       echo  $( cat /etc/sorcery/version )
     else
       echo  "Enter the root password, please."
-      su -c "$0 $*" root
+      PARAMS=$(consolidate_params "$@")
+      su -c "$0 $PARAMS" root
     fi
   fi
 fi

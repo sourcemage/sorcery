@@ -187,13 +187,14 @@ if    [  $#      ==  0  ];  then  help  |  $PAGER
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 elif  [  "$UID"  ==  0  ];  then 
   mk_tmp_dirs dispel
-  main  $*
+  main  "$@"
   rc=$?
   cleanup_tmp_dir $TMP_DIR
   exit $rc
 else  
   echo  "Enter the root password, please."  1>&2
-  su -c "$0 $*" root
+  PARAMS=$(consolidate_params "$@")
+  su -c "$0 $PARAMS" root
 fi
 
 

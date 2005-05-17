@@ -116,7 +116,10 @@ function process_parameters()  {
                          mv "$INSTALL_QUEUE.new" "$INSTALL_QUEUE"
 
                          # cast the queue.
-                         cast "$SILENT" "$RECONFIGURE" -c `cat $INSTALL_QUEUE 2>/dev/null`
+                         # SILENT and RECONFIGURE may be empty, they
+                         # must be at the end or it will confuse parameter
+                         # parsing
+                         cast -c `cat $INSTALL_QUEUE 2>/dev/null` "$SILENT" "$RECONFIGURE"
             
                          # report spells still in queue.
                          if  [  -s  $INSTALL_QUEUE  ] ; then
@@ -697,8 +700,8 @@ function main()  {
 
   debug "cast" "main() - $*"
   local T_SPELLS=""
-  process_parameters        $*
-  SPELLS=`strip_parameters  $*`
+  process_parameters        "$@"
+  SPELLS=`strip_parameters  "$@"`
 
   if  [[  $FIX  ]];  then
     message "${PROBLEM_COLOR}cast --fix is depreciated and will be" \
@@ -750,7 +753,8 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 elif  [  "$UID"  -gt  0  ];  then
 
   echo  "Enter the root password, please."
-  su -c "$0 $*" root
+  PARAMS=$(consolidate_params "$@")
+  su -c "$0 $PARAMS" root
 
 elif  [  ${0:0:5} !=  "/tmp/"  ];  then
 
@@ -783,7 +787,7 @@ else
     renice $NICE -p $$  >/dev/null
   fi
   trap int_trap INT
-  main  $*
+  main  "$@"
   rc=$?
   if [ $SHLVL -eq $TOP_LEVEL ] ; then
     unlock_file $SAFE_CAST
