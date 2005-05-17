@@ -16,194 +16,6 @@
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-## @param filename
-## @Stdout compressor
-##
-## Guesses what program was used to compress a file
-## Return value is always success due to `file' workings
-##
-#---------------------------------------------------------------------
-function guess_compressor()  {
-  # NOTE: if the file doesn't exist, `file' still completes successfully
-  #       the COMPRESSOR value in this case will be "can't"
-
-  local OUTPUT=`$FILEPROG -b "$1"`
-  local COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f1`
-  [ "$COMPRESSOR" = "GNU" -o "$COMPRESSOR" = "POSIX" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
-  debug "libgrimoire" "guess_compressor() - guessed $1 compressor to be <$COMPRESSOR>"
-  echo $COMPRESSOR
-}
-
-
-#---------------------------------------------------------------------
-## @param filename 
-## @param compressor 
-## @param md5 
-## @Stdout uncompressed
-##
-## Just uncompresses the file, but does not expand it. i.e. bunzip
-## it, but don't untar it. It dumps the expanded file to stderr.
-##
-#---------------------------------------------------------------------
-function uncompress() {
-  debug "libgrimoire" "uncompress - $*"
-  set +x #This is here so Duff's super debugging info doesn't screw the next step up
-
-  # Outer subshell is necessary to redirect stderr to stdout
-  (
-    #Inner subshell decompresses archive to stdout
-    # Then outside the inner subshell, the stdout is tee'ed
-    # and md5 checked.
-    (
-    case  $2  in
-          bzip2)  bzip2  -cdf   $1  ;;
-           gzip)  gzip   -cdf   $1  ;;
-      compress*)  gzip   -cdf   $1  ;;
-            Zip)  cat           $1  ;;
-            RPM)  rpmunpack  <  $1 | gzip  -cd    ;;
-            tar)  cat           $1  ;;
-              *)  cat           $1  ;;
-    esac
-    ) | tee /dev/stderr | md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing
-  ) 2>&1
-
-  #This temp file is here because this function MUST NOT send
-  # anything to stdout or stderr, and upack needs a way to get the success or
-  # failure of this function.
-  local a=$?
-  [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
-  echo "$a"  > $TMP_DIR/libgrimoire.uncompress.$$
-  return $a
-
-}
-
-
-#---------------------------------------------------------------------
-## @Type API
-## @param file to unpack 
-## @param md5sum
-##
-## Given a file, unpack runs the decompression program for that file,
-## as well as untar'ing the file if appropriate and if the MD5
-## matches.
-## Note: zip is a special cast because it doesn't work with streams.
-##
-#---------------------------------------------------------------------
-function real_unpack() {
-
-  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"
-  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
-  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
-
-  debug "libgrimoire" "Running unpack() on $1"
-  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
-  COMPRESSOR=`guess_compressor $FILENAME`
-#  UNCOMPRESSED=""
-
-  uncompress $FILENAME $COMPRESSOR $2 | \
-  {
-
-    # This section takes the uncompressed stream and turns it into the
-    # fully unarchived form.
-    case  $COMPRESSOR  in
-            bzip2|gzip|compress*|tar)
-                    tar   --owner=root  --group=root  -xf  /dev/stdin 2> /dev/null || cat > /dev/null ;;
-              Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
-	            unzip  -q  $FILENAME                               ;;
-              RPM)  cpio  -idm < /dev/stdin                            ;;
-                *)  cat > /dev/null                                    ;;
-    esac
-
-  } &&
-  {
-
-    # This section takes care of what happens if the md5sum doesn't match.
-    # $TMP_DIR/libgrimoire.uncompress.$$ is set in uncompress. It's the only
-    # way to get the return value since it's in a pipe.
-    if ! [[ $2 ]] ; then
-
-      rm $TMP_DIR/libgrimoire.uncompress.$$
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
-      case $MD5SUM_DL in
-                 off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
-          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
- ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
-      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
-      esac
-
-    elif [[ $2 == "IGNORE" ]] ; then
-
-      rm $TMP_DIR/libgrimoire.uncompress.$$
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was purposefully left out for the uncompressed $1."
-      message "${QUERY_COLOR}Would you like to abort so you can validate the source yourself via some alternate method?"
-      case $MD5SUM_DL in
-                 off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
-ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
-      ask_abort|on|*)  query "Abort?" "y"         && return 1   ||  return 0 ;;
-           abort_all)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
-      esac
-
-    elif [[  `cat $TMP_DIR/libgrimoire.uncompress.$$` != 0  ]]  ; then
-
-      rm $TMP_DIR/libgrimoire.uncompress.$$
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different for uncompressed $1."
-      case $MD5SUM_DL in
-                 off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
-          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
- ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
-      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
-      esac
-
-    fi
-    rm $TMP_DIR/libgrimoire.uncompress.$$
-
-  }
-
-  #By this point, the archive is unarchived, and we know the MD5 check was good.
-  return 0
-
-}
-
-
-#---------------------------------------------------------------------
-## @param md5
-##
-## Checks that the stdin matches the argument.
-## Note that DEBUG output may dissapear if it's /dev/stderr due to
-## uncompress' 2>/dev/null.
-##
-#---------------------------------------------------------------------
-function md5_tar_check()  {
-
-  local md5
-
-  debug "libgrimoire" "md5_tar_check() - Checking MD5 sum"
-
-  #Do the md5
-  md5=`md5sum /dev/stdin | awk '{print $1}'`
-  debug "libgrimoire" "md5_tar_check() - MD5 of tarball is $md5."
-  debug "libgrimoire" "md5_tar_check() - argument received is $1."
-
-  #See if they match
-  if [[ $1 == $md5 ]] ; then
-    debug "libgrimoire" "md5_tar_check() - MD5 Sum Success ( $1 == $md5 )"
-    return 0
-  fi
-
-  #See of we need to md5sum it at all
-  if [[ ${MD5SUM_DL:-on} == off ]] || ! [[  $1  ]] ; then
-    debug "libgrimoire" "md5_tar_check() - Skipping check"
-    return 0
-  fi
-
-  #If we get here, the md5's don't match, but should.
-  debug "libgrimoire" "md5_tar_check() - bad md5"
-  return 1
-
-}
-
-
-#---------------------------------------------------------------------
 ## @Type API
 ## @param directory name 
 ## @param [size]
@@ -358,6 +170,7 @@ function install_desktop_files() {
   done
 }
 
+
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell
@@ -446,6 +259,7 @@ function ask_continue_with_rejected()
   message "\n${MESSAGE_COLOR}OK, here we go... you are on your" \
           "own!${DEFAULT_COLOR}"
 }
+
 
 #---------------------------------------------------------------------
 ## @License
