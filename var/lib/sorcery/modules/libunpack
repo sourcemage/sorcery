@@ -12,6 +12,7 @@
 ## @Copyright
 ## Original version Copyright 2001 by Kyle Sallee
 ## Additions/Corrections Copyright 2002 by the Source Mage Team
+## New World libunpack Additions/Corrections by Seth Woolley (2005)
 ##
 #---------------------------------------------------------------------
 
@@ -23,7 +24,9 @@
 ##
 ## unpack_file takes the SOURCE suffix and figures out if it is supposed
 ## to hash or gpg check it -- then it does its dirty work and runs unpack_hash
-## or unpack_gpg depending upon the circumstances.
+## or unpack_gpg depending upon the circumstances.  That's the only argument it
+## takes and needs: '' '2' '3', etc.  It is run in default_pre_build for the
+## null argument only.  Custom unpacking still requires a custom PRE_BUILD.
 ##
 ## nine valid formats: vendor-provided gpg, guru-provided gpg, md5sum
 ## compressed md5sum, sha1sum, sha256sum, sha384sum, sha512sum, ripemd160sum
@@ -33,7 +36,7 @@
 ##       SOURCE_URL=http://blah.com/$SOURCE
 ##      SOURCE2_URL=http://blah.com/$SOURCE2
 ##       SOURCE_GPG=blah.gpg:$SOURCE2
-##      SOURCE2_GPG=SIGNORE # for auditing purposes
+##   SOURCE2_IGNORE=signature # for auditing purposes
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
@@ -49,42 +52,96 @@
 ##
 ## hashes supported: sha1 md5 (more with hashsum installed ;) )
 ##
-## In HASH mode:
-##   It puts "sum" after the algorithm name, then
-##   executes it, expecting md5sum-compatible behavior.
-##   see real_unpack_hash()
-##
 ## In GPG mode:
 ##   It finds the public key and signature using locate_spell_file,
 ##   Then it validates it at the beginning.
-##   see real_unpack_gpg()
+##   see unpack_gpg()
 ##
+## In HASH mode:
+##   It puts "sum" after the algorithm name, then
+##   executes it, expecting md5sum-compatible behavior.
+##   see unpack_hash()
+##
+## In IGNORE mode:
+##   It checks for the following text:
+##     volatile (for cvs/svn/any-other-scm)
+##     unversioned (the source file changes frequently, but not a direct scm)
+##     signature (for gnupg signatures)
+##   as reasons for ignoring the source code validation.  Signatures
+##   are silently ignored.  Everything else respects MD5SUM_DL.
+##   see unpack_ignore
+##
+## Otherwise, it falls back to MISSING mode, see unpack_missing
+## (or for now)
 ## Otherwise, it falls back to old uncompressed md5sum check with MD5[n].
 ##   see real_unpack()
+##
+## Also if you want to include more than one signature, hash, etc, just put
+## a 2, 3, 4, etc on the end of the variable like so:
+##   SOURCE2_HASH2=...
+##
+## For cascading, currently it will still ask abort questions: a no abort
+## will make it fail over all cascades; a yes abort will have it skip to
+## the next cascdes.  Missing binaries or other failures like that (error 200
+## below) will silently fail over to the next check.  The cascade order is:
+##  GPG, HASH, IGNORE, MISSING
+##
+## The cascade setup allows you to place a higher bit checksum earlier 
+## in the cascade and even if the binary doesn't work it will just print 
+## out an abort query which can be said no to and it will continue to 
+## fail over to the lower bit checksum that should be available in 
+## coreutils (like sha1/md5).  That's if you're not using gpg, which is 
+## preferred.  If multiple hashes are included of different ciphers, the
+## user can abort on either that go bad, so it can be considered a
+## security increase to have more than one, but only if the harder cipher
+## is first in the cascade order, as the first successful hash match will
+## go ahead and prompt an untarball.  I may change it later, but for now I
+## think first successful match skipping the rest is least intrusive, and
+## I'd need to add an interface element to let the user choose to run all
+## checks on a single source.
 ##
 #---------------------------------------------------------------------
 function real_unpack_file() {
   debug "libgrimoire" "real_unpack_file - $*"
 
-  local GPGNUM=$1
+  local GPGNUM="$1"
+  local SVAR="SOURCE${GPGNUM}"
 
   local crypto_func
-  for crypto_func in GPG HASH; do
-    local SVAR="SOURCE${GPGNUM}"
+  for crypto_func in GPG HASH IGNORE; do
+    debug "libgrimoire" "checking $crypto_func verification"
     local AVAR="SOURCE${GPGNUM}_${crypto_func}"
-    [ -n "${!AVAR}" ] && {
+    local AVARN="$AVAR"
+    local iter=1
+    local rc=""
+    while [ -n "${!AVARN}" ]; do
       local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
-      eval "real_unpack_$lcase_crypto_func ${!SVAR} ${!AVAR}"
-      return $?
-    }
+      eval 'unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"'
+      rc="$?"
+      case "$rc" in
+        200) debug "libgrimoire" "falling back from $AVARN"; rc="" ;;
+          1)                               return "$?"             ;;
+          0) uncompress_unpack "${!SVAR}"; return "$?"             ;;
+      esac
+      (( iter++ ))
+      AVARN="$AVAR$iter"
+    done
+    [ -n "$rc" ] && return "$rc"
   done
 
-  message "${MESSAGE_COLOR}Falling back to regular MD5SUM.${DEFAULT_COLOR}"
-
-  local SOURCEVAR="SOURCE$GPGNUM"
-  local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo $(($GPGNUM - 1)))"
-  eval "real_unpack ${!SOURCEVAR} ${MD5[$MD5NUM]}"
-
+  if false; then # <------ here's the switch to disable oldworld -------
+    debug "libgrimoire" "falling back to missing verification"
+    unpack_missing "${!SVAR}"
+    rc="$?"
+    case "$rc" in
+        0) uncompress_unpack "${!SVAR}"; return "$?"             ;;
+        *) return "$rc"                                          ;;
+    esac
+  else
+    debug "libgrimoire" "falling back to regular MD5[]"
+    local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo "$(("$GPGNUM" - 1))")"
+    real_unpack "${!SVAR}" "${MD5[$MD5NUM]}"
+  fi
 }
 
 
@@ -95,19 +152,20 @@ function real_unpack_file() {
 ##
 ## Just uncompresses the file, but does not expand it. i.e. bunzip
 ## it, but don't untar it. It dumps the expanded file to stdout.
+## Note: zip is a special case because it doesn't work with streams.
 ##
 #---------------------------------------------------------------------
 function uncompress_core() {
   debug "libgrimoire" "uncompress_core - $*"
 
-  case  $2  in
-          bzip2)  bzip2  -cdf   $1  ;;
-           gzip)  gzip   -cdf   $1  ;;
-      compress*)  gzip   -cdf   $1  ;;
-            Zip)  cat           $1  ;;
-            RPM)  rpmunpack  <  $1 | gzip  -cd    ;;
-            tar)  cat           $1  ;;
-              *)  cat           $1  ;;
+  case  "$2"  in
+          bzip2)  bzip2  -cdf   "$1"  ;;
+           gzip)  gzip   -cdf   "$1"  ;;
+      compress*)  gzip   -cdf   "$1"  ;;
+            Zip)  cat           "$1"  ;;
+            RPM)  rpmunpack  <  "$1" | gzip  -cd    ;;
+            tar)  cat           "$1"  ;;
+              *)  cat           "$1"  ;;
   esac
 
 }
@@ -120,16 +178,18 @@ function uncompress_core() {
 ##
 ## unpack_core takes the uncompressed stream and turns it into the
 ## fully unarchived form.
+## Note: zip is a special case because it doesn't work with streams.
 ##
 #---------------------------------------------------------------------
 function unpack_core() {
   debug "libgrimoire" "unpack_core - $*"
 
-  case  $2  in
+  case  "$2"  in
             bzip2|gzip|compress*|tar)
-                    tar   --owner=root  --group=root  -xf  /dev/stdin 2> /dev/null || cat > /dev/null ;;
+                    tar   --owner=root  --group=root  -xf  /dev/stdin \
+                          2> /dev/null  ||  cat > /dev/null            ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
-	            unzip  -q  $1                                      ;;
+	            unzip  -q  "$1"                                    ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
                 *)  cat > /dev/null                                    ;;
   esac
@@ -138,6 +198,7 @@ function unpack_core() {
 
 
 #---------------------------------------------------------------------
+## @Type API
 ## @param filename
 ## @Stdout compressor
 ##
@@ -145,15 +206,16 @@ function unpack_core() {
 ## Return value is always success due to `file' workings
 ##
 #---------------------------------------------------------------------
-function guess_compressor()  {
+function real_guess_compressor()  {
   # NOTE: if the file doesn't exist, `file' still completes successfully
   #       the COMPRESSOR value in this case will be "can't"
 
-  local OUTPUT=`$FILEPROG -b "$1"`
-  local COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f1`
-  [ "$COMPRESSOR" = "GNU" -o "$COMPRESSOR" = "POSIX" ] && COMPRESSOR=`echo "$OUTPUT" | cut -d ' ' -f2`
-  debug "libgrimoire" "guess_compressor() - guessed $1 compressor to be <$COMPRESSOR>"
-  echo $COMPRESSOR
+  local OUTPUT="$($FILEPROG -b "$1")"
+  local COMPRESSOR="$(echo "$OUTPUT" | cut -d ' ' -f1)"
+  [ "$COMPRESSOR" = "GNU" -o "$COMPRESSOR" = "POSIX" ] &&
+    COMPRESSOR="$(echo "$OUTPUT" | cut -d ' ' -f2)"
+  debug "libgrimoire" "guess_compressor() - guessed $1 compressor <$COMPRESSOR>"
+  echo "$COMPRESSOR"
 }
 
 
@@ -168,10 +230,31 @@ function guess_compressor()  {
 function real_uncompress() { uncompress_core "$@"; }
 
 
+#---------------------------------------------------------------------
+## @param required spell
+##
+## Returns 200 if the user says not to Abort in the face, otherwise
+##
+#---------------------------------------------------------------------
+function unpack_spell_required() {
+  debug "libgrimoire" "Running unpack_spell_required -- $1"
+
+  if ! spell_ok "$1" ; then
+    query "This spell has an option to check its integrity via spell "\
+"${SPELL_COLOR}${1}${QUERY_COLOR} for $2, you might consider casting it. "\
+"Abort?" n && 
+      return 1 ||
+        return 200
+  else
+    return 0
+  fi
+
+}
+
+
 #===================== libunpack newworld ============================
 
 #---------------------------------------------------------------------
-## @Type API
 ## @param file to unpack 
 ## @param gpg public key file (.gpg) ":" gpg signature file  (.asc)
 ##
@@ -181,36 +264,30 @@ function real_uncompress() { uncompress_core "$@"; }
 ## work with streams.
 ##
 #---------------------------------------------------------------------
-function real_unpack_gpg() {
+function unpack_gpg() {
+  debug "libgrimoire" "Running unpack_gpg -- $*"
 
-  message -n "${MESSAGE_COLOR}GPG checking source file ${SPELL_COLOR}${1}"
-  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
-  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
+  PFNAME="$( echo "$2" | cut -d: -f1  )"
+  SFNAME="$( echo "$2" | cut -d: -f2- )"
 
-  debug "libgrimoire" "Running unpack_gpg() on $1"
+  message "${MESSAGE_COLOR}GPG checking source file $1...${DEFAULT_COLOR}"
 
-  PFNAME="$(echo $2 | cut -d: -f1 )"
-  SFNAME="$(echo $2 | cut -d: -f2-)"
+  unpack_spell_required gnupg || return "$?"
 
-  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
-  COMPRESSOR=`guess_compressor $FILENAME`
-#  UNCOMPRESSED=""
+  gpg_verify_signature "$( locate_spell_file "$SFNAME" )" "$FILENAME" \
+                       "$( locate_spell_file "$PFNAME" securely)"
+  rc="$?"
 
-  gpg_verify_signature "$(locate_spell_file $SFNAME)" $FILENAME "$(locate_spell_file $PFNAME)"
-  rc=$?
+  if [ "$rc" -eq 200 ]; then return 200; fi
   
   gpg_user_query $rc $SPELL spell || return 1
-
-  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}" &&
-  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}" &&
-  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
-
-  uncompress_core $FILENAME $COMPRESSOR | unpack_core $FILENAME $COMPRESSOR
+  return 0
 
 }
 
+
 #---------------------------------------------------------------------
-## @Type API
 ## @param file to unpack 
 ## @param algorithm ":" hashsum
 ##
@@ -220,45 +297,141 @@ function real_unpack_gpg() {
 ## work with streams.
 ##
 #---------------------------------------------------------------------
-function real_unpack_hash() {
-
-  ALGORITHM="$(echo $2 | cut -d: -f1 )"
-  HASHSUM="$(echo $2 | cut -d: -f2-)"
-
-  message -n "${MESSAGE_COLOR}hash checking source file ${SPELL_COLOR}${1}"
-  message    "${DEFAULT_COLOR}${MESSAGE_COLOR} with ${ALGORITHM}.${DEFAULT_COLOR}"
-
+function unpack_hash() {
   debug "libgrimoire" "Running unpack_hash() on $1"
 
-  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
-  COMPRESSOR=`guess_compressor $FILENAME`
-#  UNCOMPRESSED=""
+  FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
+  ALGORITHM="$( echo "$2" | cut -d: -f1  )"
+  HASHSUM="$(   echo "$2" | cut -d: -f2- )"
+
+  message "${MESSAGE_COLOR}hash checking source file $1...${DEFAULT_COLOR}"
 
   if [ "$MD5SUM_DL" != "off" ]; then
-    local HASH="$(${ALGORITHM}sum $FILENAME | cut -d' ' -f1)"
-    [ "$HASH" == "$HASHSUM" ]  || {
-      message "${PROBLEM_COLOR}$ALGORITHM check failed $HASH != $HASHSUM !${DEFAULT_COLOR}" &&
-      case $MD5SUM_DL in
-          ask_ignore)  query "Abort?" "n"         && return 1                ;;
- ask_risky|ask_abort)  query "Abort?" "y"         && return 1                ;;
+
+    case "$ALGORITHM" in
+                    md5|sha1) unpack_spell_required coreutils "$ALGORITHM" ||
+                                                                 return "$?" ;;
+sha256|sha384|sha512|ripemd160) unpack_spell_required hashsum "$ALGORITHM" ||
+                                                                 return "$?" ;;
+*) message "${PROBLEM_COLOR}algorithm $ALGORITHM is not known!${DEFAULT_COLOR}"
+                                                                 return 200  ;;
+    esac
+
+    local HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
+
+    [ "$HASH" == "$HASHSUM" ]  ||  {
+      message "${PROBLEM_COLOR}$ALGORITHM check failed"  \
+              "$HASH != $HASHSUM !${DEFAULT_COLOR}"      &&
+      case "$MD5SUM_DL" in
+          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
+ ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
       on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
       esac
+
     }
   else
     message "${RED}Continuing!${DEFAULT_COLOR}"
+    return 0
   fi
-
-  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}" &&
-  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}" &&
-  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
-
-  uncompress_core $FILENAME $COMPRESSOR | unpack_core $FILENAME $COMPRESSOR
 
 }
 
 
 #---------------------------------------------------------------------
+## @param file to unpack 
+## @param reason to ignore it, one of: volatile unversioned signature
+##
+## Given a file, unpack checks the ignore rules for that file, and, if 
+## appropriate, runs the decompression program for that file, as well as 
+## untar'ing the file. Note: zip is a special case because it doesn't 
+## work with streams.
+##
+#---------------------------------------------------------------------
+function unpack_ignore() {
+  debug "libgrimoire" "Running unpack_ignore() on $1"
+
+  REASON="$2"
+
+  message "${MESSAGE_COLOR}Not checking ${2} source file $1...${DEFAULT_COLOR}"
+
+  if [ "$MD5SUM_DL" != "off" ]; then
+
+    [ "$REASON" == "signature" ]  ||
+      case "$MD5SUM_DL" in
+ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
+           abort_all)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+      ask_abort|on|*)  query "Abort?" "y"         && return 1   ||  return 0 ;;
+      esac
+
+  else
+    message "${RED}Continuing!${DEFAULT_COLOR}"
+    return 0
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+## @param file to unpack 
+## @param reason to ignore it, one of: volatile unversioned signature
+##
+## Given a file, unpack checks the ignore rules for that file, and, if 
+## appropriate, runs the decompression program for that file, as well as 
+## untar'ing the file. Note: zip is a special case because it doesn't 
+## work with streams.
+##
+#---------------------------------------------------------------------
+function unpack_missing() {
+  debug "libgrimoire" "Running unpack_missing() on $1"
+
+  message "${PROBLEM_COLOR}Missing check for source file $1!${DEFAULT_COLOR}"
+
+  if [ "$MD5SUM_DL" != "off" ]; then
+
+    case "$MD5SUM_DL" in
+          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
+ ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
+      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+    esac
+
+  else
+    message "${RED}Continuing!${DEFAULT_COLOR}"
+    return 0
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+## @param file to unpack 
+##
+## Given a file, runs the decompression program for that file, as well as 
+## untar'ing the file. 
+##
+#---------------------------------------------------------------------
+function uncompress_unpack() {
+  debug "libgrimoire" "Running uncompress_unpack() on $1"
+
+  FILENAME="$(   guess_filename   "$SOURCE_CACHE/$1" )" &&
+  COMPRESSOR="$( guess_compressor "$FILENAME"        )"
+
+  message "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"   \
+          "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
+          "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+
+  if [[ ! $FILENAME ]] || ! test -f "$FILENAME" ; then
+    message "${PROBLEM_COLOR}Source file not found.${DEFAULT_COLOR}"
+    return 1
+  fi
+
+  uncompress_core "$FILENAME" "$COMPRESSOR" |
+      unpack_core "$FILENAME" "$COMPRESSOR"
+}
+
+
+#---------------------------------------------------------------------
 ## @param absolute or relative file path
+## @param empty or 'securely', which would skip SOURCE_CACHE
 ## @Stdout the real path of the file (sometimes relative to CWD)
 ##
 ## Given a file, locate_spell_file finds out where it really is within
@@ -267,17 +440,21 @@ function real_unpack_hash() {
 ##
 #---------------------------------------------------------------------
 function locate_spell_file() {
+  debug "libgrimoire" "Running locate_spell_file() $2 on $1"
 
-  [ -f    $SPELL_DIRECTORY/$1 ] && echo    $SPELL_DIRECTORY/$1 && return 0
-  [ -f  $SECTION_DIRECTORY/$1 ] && echo  $SECTION_DIRECTORY/$1 && return 0
-  [ -f $GRIMOIRE_DIRECTORY/$1 ] && echo $GRIMOIRE_DIRECTORY/$1 && return 0
-  [ -f                     $1 ] && echo                     $1 && return 0
-  [ -f       $SOURCE_CACHE/$1 ] && echo       $SOURCE_CACHE/$1 && return 0
+  # checks in any case
+  [ -f    "$SPELL_DIRECTORY/$1" ] && echo    "$SPELL_DIRECTORY/$1" && return 0
+  [ -f  "$SECTION_DIRECTORY/$1" ] && echo  "$SECTION_DIRECTORY/$1" && return 0
+  [ -f "$GRIMOIRE_DIRECTORY/$1" ] && echo "$GRIMOIRE_DIRECTORY/$1" && return 0
+  [ -f                     "$1" ] && echo                     "$1" && return 0
 
-  message -n "${MESSAGE_COLOR}" > /dev/stderr
-  message -n "Problem: $1: file not found in spell hierarchy." > /dev/stderr
-  message -n "${DEFAULT_COLOR}" > /dev/stderr
-  echo  $1
+  [ "$2" != "securely" ] &&  # checks in "secure" mode
+  [ -f       "$SOURCE_CACHE/$1" ] && echo       "$SOURCE_CACHE/$1" && return 0
+
+  message "${MESSAGE_COLOR}"                                 \
+          "Problem: $1: file not found in spell hierarchy."  \
+          "${DEFAULT_COLOR}"                                 > /dev/stderr
+  echo  "$1"
   return 1
 
 }
@@ -297,17 +474,22 @@ function locate_spell_file() {
 ##
 #---------------------------------------------------------------------
 function real_unpack() {
+  debug "libgrimoire" "Running unpack -- $*"
 
-  message -n "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"
-  message -n "${DEFAULT_COLOR}${MESSAGE_COLOR} for spell ${SPELL_COLOR}"
-  message    "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"   \
+          "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
+          "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
 
-  debug "libgrimoire" "Running unpack on $1"
-  FILENAME=`guess_filename  $SOURCE_CACHE/$1` &&
-  COMPRESSOR=`guess_compressor $FILENAME`
-#  UNCOMPRESSED=""
+  FILENAME="$(guess_filename  "$SOURCE_CACHE/$1")" &&
+  COMPRESSOR="$(guess_compressor "$FILENAME")"
 
-  uncompress_md5 $FILENAME $COMPRESSOR $2 | unpack_core $FILENAME $COMPRESSOR &&
+  if [[ ! $FILENAME ]] || ! test -f "$FILENAME" ; then
+    message "${PROBLEM_COLOR}Source file not found.${DEFAULT_COLOR}"
+    return 1
+  fi
+
+  uncompress_md5 "$FILENAME" "$COMPRESSOR" "$2" |
+     unpack_core "$FILENAME" "$COMPRESSOR"      &&
   {
 
     # This section takes care of what happens if the md5sum doesn't match.
@@ -315,9 +497,12 @@ function real_unpack() {
     # way to get the return value since it's in a pipe.
     if ! [[ $2 ]] ; then
 
-      rm $TMP_DIR/libgrimoire.uncompress.$$
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
-      case $MD5SUM_DL in
+      rm "$TMP_DIR/libgrimoire.uncompress.$$"
+
+      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an"  \
+              "MD5 sum for the uncompressed $1."
+
+      case "$MD5SUM_DL" in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
           ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
  ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
@@ -326,21 +511,28 @@ function real_unpack() {
 
     elif [[ $2 == "IGNORE" ]] ; then
 
-      rm $TMP_DIR/libgrimoire.uncompress.$$
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was purposefully left out for the uncompressed $1."
-      message "${QUERY_COLOR}Would you like to abort so you can validate the source yourself via some alternate method?"
-      case $MD5SUM_DL in
+      rm "$TMP_DIR/libgrimoire.uncompress.$$"
+
+      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was"  \
+              "purposefully left out for the uncompressed $1."
+      message "${QUERY_COLOR}Would you like to abort so you can validate"  \
+              "the source yourself via some alternate method?"
+
+      case "$MD5SUM_DL" in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
 ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
-      ask_abort|on|*)  query "Abort?" "y"         && return 1   ||  return 0 ;;
            abort_all)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
+      ask_abort|on|*)  query "Abort?" "y"         && return 1   ||  return 0 ;;
       esac
 
-    elif [[  `cat $TMP_DIR/libgrimoire.uncompress.$$` != 0  ]]  ; then
+    elif [[  "$(cat $TMP_DIR/libgrimoire.uncompress.$$)" != 0  ]]  ; then
 
-      rm $TMP_DIR/libgrimoire.uncompress.$$
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different for uncompressed $1."
-      case $MD5SUM_DL in
+      rm "$TMP_DIR/libgrimoire.uncompress.$$"
+
+      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different"  \
+              "for uncompressed $1."
+
+      case "$MD5SUM_DL" in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
           ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
  ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
@@ -348,7 +540,8 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
       esac
 
     fi
-    rm $TMP_DIR/libgrimoire.uncompress.$$
+
+    rm "$TMP_DIR/libgrimoire.uncompress.$$"
 
   }
 
@@ -371,22 +564,25 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
 #---------------------------------------------------------------------
 function uncompress_md5() {
   debug "libgrimoire" "uncompress_md5 - $*"
-  set +x #This is here so Duff's super debugging info doesn't screw the next step up
+
+  # This is here so Duff's super debugging info doesn't screw the next step up
+  set +x 
 
   # Outer subshell is necessary to redirect stderr to stdout
   (
-    uncompress_core $1 $2 |
+    uncompress_core "$1" "$2" |
       tee /dev/stderr |
-      md5_tar_check $3 2>&1 1>/dev/null #we must avoid this printing
+      md5_tar_check "$3" 2>&1 1>/dev/null #we must avoid this printing
   ) 2>&1
 
-  #This temp file is here because this function MUST NOT send
+  # This temp file is here because this function MUST NOT send
   # anything to stdout or stderr, and upack needs a way to get the success or
   # failure of this function.
-  local a=$?
+
+  local a="$?"
   [[ $SUPER_DEBUG ]] && set -x  #turn this back on as soon as possible
-  echo "$a"  > $TMP_DIR/libgrimoire.uncompress.$$
-  return $a
+  echo "$a"  > "$TMP_DIR/libgrimoire.uncompress.$$"
+  return "$a"
 
 }
 
@@ -400,13 +596,12 @@ function uncompress_md5() {
 ##
 #---------------------------------------------------------------------
 function md5_tar_check()  {
+  debug "libgrimoire" "md5_tar_check() - Checking MD5 sum"
 
   local md5
 
-  debug "libgrimoire" "md5_tar_check() - Checking MD5 sum"
-
   #Do the md5
-  md5=`md5sum /dev/stdin | awk '{print $1}'`
+  md5="$(md5sum /dev/stdin | awk '{print $1}')"
   debug "libgrimoire" "md5_tar_check() - MD5 of tarball is $md5."
   debug "libgrimoire" "md5_tar_check() - argument received is $1."
 

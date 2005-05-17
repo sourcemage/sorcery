@@ -1,7 +1,38 @@
+2005-05-16 Andrew Stitt <astitt@sourcemage.org>
+	* integrate fixes listed below from devel for bug 8793
+
+2005-04-27 Andrew Stitt <astitt@sourcemage.org>
+	* libunpack: fix bug 8732, check for file existence while unpacking
+
+2005-04-06 Seth Woolley <seth@tautology.org>
+	* libunpack: correct locate_spell_file logic for secure mode.
+	  Thanks to David Michael Leo Brown, Jr. of linux-new fame.
+
+2005-04-05 Seth Woolley <seth@tautology.org>
+	* libunpack: libunpack code cleanups, more refactors, and a 
+	  single conditional statement to change between old and new 
+	  world, and all old world code isolated ready for deletion.
+	* libunpack: slightly different auditing api and the addition of
+	  multiple GPG or HASH support per source file (so you can have, 
+	  say sha1 and md5 at the same time), also added checks for the 
+	  spell needed to support higher bit hashes, with an advisory if
+	  it's not installed (so people can rank high bit hashes even
+	  though it isn't in basesystem and it will gracefully failover
+	  to lower bit-depths).
+	* libunpack: IGNORE and MISSING support. MISSING will mostly be 
+	  for a future auditing script as unpack_missing should never be 
+	  activated in a real spell. IGNORE supports volatile, 
+	  unversioned, and signature modes that let the user know why it 
+	  is being ignored, and signatures are also silently skipped since
+	  they are not unpacked at all.
+	* libapi: some api removals and one addition for easier patching 
+	  where checks are needed (uncompress/guess_compressor pair)
+
 2005-04-04 Seth Woolley <seth@tautology.org>
 	* libgrimoire,libunpack: split out unpack stuff into new lib,
 	  then order it semantically by common/oldworld/newworld.
 	* libunpack: add more documentation.
+	* libapi: change references for the refactor.
 
 2005-04-04 Seth Woolley <seth@tautology.org>
 	* libgrimoire: correct documentation to be easier on the gurus
