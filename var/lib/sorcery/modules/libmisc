@@ -395,7 +395,7 @@ function get_dirnames() {
 ##  $3 is optional, when it isn't used, 
 ##  stdin is used and only the first letter in $2 is used. Note, using stdin
 ##  can have odd side effects when your function uses read and stdin itself.
-#3
+##
 ## Special vars: 
 ##  BREAK: Use this to break out of the loop prematurely, also causes a return of 1.
 ##
@@ -408,7 +408,7 @@ function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
 #  debug "libmisc" "iterate - $@"
   
-  [ $# -lt 3 ] && return 2
+  [ $# -lt 2 ] && return 2
   
   local oldIFS="$IFS"
   local token
@@ -430,7 +430,7 @@ function iterate()
       eval "$func \"$token\""
       [[ $BREAK ]] && break
     done
-    echo "leftover token: $token" >> $DEBUG
+#   debug "leftover token: $token"
   fi
   
   returnValue=$?
