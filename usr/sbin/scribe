@@ -461,18 +461,21 @@ function scribe_swap() {
 #---------------------------------------------------------------------
 function scribe_update() {
   local grimoires grimoire grim from
+  rc=0
   if [[ $@ ]] ; then
     while [ -n "$1" ] ; do
       grim="$1"
       if ! grimoire=$(codex_find_grimoire $grim) ; then
         message "Grimoire $grim not found"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
+        let rc++
         continue
       fi
 
       if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grim; then
         message "$grim has invalid metadata. Not Updating"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
+        let rc++
         continue
       fi
 
@@ -498,8 +501,9 @@ function scribe_update() {
       fi
 
       message "Updating grimoire $grim from $from"
-      scribe_do_update $grimoire $from
-      scribe_reindex $grimoire
+      scribe_do_update $grimoire $from &&
+      scribe_reindex $grimoire ||
+      let rc++
     done
   else
     #for each grimoire
@@ -520,11 +524,13 @@ function scribe_update() {
       . $grimoire/GRIMOIRE
       from=$FROM_URL
       message "Updating grimoire $grim from $from"
-      scribe_do_update $grimoire $from
-      scribe_reindex $grimoire
+      scribe_do_update $grimoire $from &&
+      scribe_reindex $grimoire ||
+      let rc++
     done
-  fi &&
+  fi
   tablet_import_repair_files $TABLET_PATH
+  return $rc
 }
 
 #---------------------------------------------------------------------
