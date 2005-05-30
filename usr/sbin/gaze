@@ -89,9 +89,10 @@ depends		spell [level]	Displays the spells that explicitly or
                    		 recursively depend on this spell,
 				 up to $level levels (infinity if omitted)
 
-dependencies    spell [level]	Displays the spells this spell explicitly or 
-                        	 recursively depends on,
-				 up to $level levels (infinity if omitted)
+dependencies    [-c ] spell [level]	Displays the spells this spell explicitly 
+				or recursively depends on, up to $level levels (infinity 
+				if omitted). -c turns on compact mode, which will prevent 
+				previously trees from being displayed (avoids loops).
 
 SCRIPT NAME	spell		will print the spell script for that spell.
 
@@ -752,7 +753,7 @@ unset SEARCH_RESULTS
 #-----
 function service()  {
 	
-  for  SPELL  in  `codex_get_all_spells`;  do
+  for  SPELL  in  $(codex_get_all_spells);  do
     if    [  -f  $SPELL/services  ]  &&
 	  grep  -q  -i  "$1"  $SPELL/services
     then  echo  "$( basename  $SPELL )"
@@ -806,7 +807,7 @@ function specific_voyeur()
   fi
   nice -n +20			\
    tail /tmp/$1.compile.log	\
-    --follow=name --pid=`ls "/tmp/liblock-0/cast.$1"` 2>/dev/null
+    --follow=name --pid=$(ls "/tmp/liblock-0/cast.$1") 2>/dev/null
 }
 
 #-----
@@ -821,7 +822,7 @@ function any_voyeur()
   debug "voyeur" "Looking at spell \"$FILE\""
   nice -n +20				\
     tail $(find /tmp/sorcery/cast/ -name $FILE.compile.log )\
-         --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
+         --follow=name --pid=$(ls "/tmp/liblock-0/cast.$FILE") 2>/dev/null
 }
 
 #-----
@@ -1403,7 +1404,16 @@ function gaze_show_depends() {
 ##
 #-----
 function gaze_show_dependencies() {
-    local SPELL=$1
+    local FOUND SPELL
+	
+	# Check for the compact mode flag
+	if [[ $1 == -c ]] ; then
+		FOUND="/tmp/gaze.seen.$$"
+	    echo -n > $FOUND
+		shift
+	fi
+    SPELL=$1
+	
     [[ $# == 2 ]] && MAX_DEPTH=$2
 
     (
@@ -1430,16 +1440,25 @@ function gaze_show_dependencies() {
     
         recurse () {
             local name=$1 DEPTH=$2 WHAT=$3
+			local found_before=""
     
             [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
-    
-            repeat "\t" $DEPTH
-            echo "$name ($WHAT)"
             grep () {
                local foo
                smgl_which grep foo &&
                $foo "$@"
             }
+			[[ $FOUND ]] && 
+			    grep -q '^'$name'$' $FOUND && 
+				    found_before=" (see above for tree)"
+    
+            repeat "\t" $DEPTH
+            echo "$name ($WHAT)${found_before}"
+			if [[ $found_before ]] ; then 
+			    return ;
+			elif [[ $FOUND ]] ; then
+			    echo "$name" >> $FOUND
+			fi
     
             local SPELL=$(codex_find_spell_by_name $name)
             [[ -e "$SPELL/DEPENDS" ]] &&
@@ -1451,6 +1470,7 @@ function gaze_show_dependencies() {
         }
         recurse $SPELL
     )
+	[[ $FOUND ]] && rm $FOUND
 }
 
 #-----
