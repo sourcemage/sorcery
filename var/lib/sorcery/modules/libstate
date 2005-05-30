@@ -185,7 +185,13 @@ function remove_depends_status()
         shift
 
 	local a1 a2 a3 a4 a5 a6
-	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3` ; a4=`esc_str $4`; a5=`esc_str $5`; a6=`esc_str $6`
+        # why do we esc_str the args? spells shouldnt have regexps in their name
+        # and "on" "off" "optional" and "required" are the only valid
+        # values for a3 and a4, also, with the exception of dispel depends
+        # this isnt ever called with more than a1 as a parameter...
+	#a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3` ; a4=`esc_str $4`;
+	a1=$1 ; a2=$2 ; a3=$3 ; a4=$4;
+        a5=`esc_str $5`; a6=`esc_str $6`
 	
 	a2=${a2:-.*}
 	a3=${a3:-.*}

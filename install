@@ -23,6 +23,7 @@ rm -rf $SORCERY_LIBS
 
 SORCERY_INSTALL_LOG=$INSTALL_ROOT/etc/sorcery/install.log
 rm -f $SORCERY_INSTALL_LOG
+mkdir -p $(dirname $SORCERY_INSTALL_LOG)
 echo /etc/sorcery/install.log > $SORCERY_INSTALL_LOG
 
 
@@ -42,6 +43,8 @@ echo ${line}.gz
 done >> $SORCERY_INSTALL_LOG
 install__find_non_volatile usr/share/man | (
   while read DOC; do
+    # remove incorrectly installed manuals
+    rm -f $INSTALL_ROOT/${DOC/share\/}
     /usr/bin/install --owner=root --group=root --mode=644 -pD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
     gzip  --best  -f "${INSTALL_ROOT}/${DOC}"
   done

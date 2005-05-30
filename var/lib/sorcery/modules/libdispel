@@ -76,6 +76,11 @@ function reap_modified_file()  {
 ## Removes depends entries for what the spell depends on
 #---------------------------------------------------------------------
 function reap_depends()  {
+  # save the old depends data as abandoned stuff so its seen later on
+  # recasts as the default
+  mkdir -p $ABANDONED_DEPENDS
+  search_depends_status $DEPENDS_STATUS $SPELL > $ABANDONED_DEPENDS/$SPELL
+
   # This conditional is here because the iso team wants to be able to
   # save dependencies after dispel (bug 8109), average users are expected
   # to always run this code to remove old depends.
@@ -286,6 +291,17 @@ function post_remove() {
 function dispel_spell() {
 
     local SPELL=$1
+    # fake dispel, only remove sorcery metadata
+    if [[ $DEBUG_DISPEL ]] ; then
+        echo "pretending to dispel $SPELL"
+        load_spell $SPELL           &&
+        remove_spell  $SPELL &&
+        reap_depends &&
+        message  "${DISPEL_COLOR}Partly dispelled spell:"  \
+                 "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+        return
+    fi
+
     if  dispel_sustained  || dispel_not_possible ; then
       DISPEL_EXIT_STATUS=1
       return 1
@@ -309,6 +325,74 @@ function dispel_spell() {
       activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
     ) &&
     reap_depends
+}
+
+#---------------------------------------------------------------------
+## @param	default value
+## Set one of always, ask_yes, ask_no, and ignore to on based
+## on the value of default, leave the remaining as off.
+#---------------------------------------------------------------------
+function dispel_depends_value_to_items() {
+  always=off
+  ask_yes=off
+  ask_no=off
+  ignore=off
+  case $1 in
+     always) always=on ;;
+    ask-yes) ask_yes=on ;;
+     ask-no) ask_no=on ;;
+     ignore) ignore=on ;;
+          *) ignore=on ;;
+  esac
+}
+
+
+#---------------------------------------------------------------------
+## @param	Title of the menu
+## @param	Name of the parameter being set
+## @param	Default value of the parameter being set
+##
+## Present a radiolist menu with the quad-options for one of various
+## dependency following options.
+#---------------------------------------------------------------------
+function dispel_depends_menu_template() {
+  local TITLE=$1
+  local DEFAULT_NAME=$2
+  local DEFAULT=$3
+  local always ask_yes ask_no ignore
+  dispel_depends_value_to_items $DEFAULT
+  RESULT=`eval $DIALOG ' --title "$TITLE"   \
+           --radiolist                     \
+           ""                              \
+           0 0 0                           \
+           always  "" $always              \
+           ask-yes "" $ask_yes             \
+           ask-no  "" $ask_no              \
+           ignore  "" $ignore'`
+  if [[ $RESULT ]] ; then
+    # remove spurious ""
+    RESULT=`echo "${RESULT}" | sed -e 's/^"//' -e 's/"$//'`
+    modify_local_config $DEFAULT_NAME "$RESULT"
+  fi
+}
+
+#---------------------------------------------------------------------
+## Present menus for each of the four dependency following options.
+#---------------------------------------------------------------------
+function dispel_depends_defaults_menu() {
+  dispel_depends_menu_template \
+               "Default action for orphaned spells"   \
+               "ORPHAN_MENU_DEFAULT" "$ORPHAN_MENU_DEFAULT"
+  dispel_depends_menu_template \
+               "Default action for non-orphaned spells"   \
+               "NONORPHAN_MENU_DEFAULT" "$NONORPHAN_MENU_DEFAULT"
+  dispel_depends_menu_template \
+               "Default action for recasting repairable parents spells"   \
+               "RECAST_PARENT_MENU_DEFAULT" "$RECAST_PARENT_MENU_DEFAULT"
+  dispel_depends_menu_template \
+               "Default action for broken parent spells"   \
+               "DISPEL_PARENT_MENU_DEFAULT" "$DISPEL_PARENT_MENU_DEFAULT"
+
 }
 
 #---------------------------------------------------------------------

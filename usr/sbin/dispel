@@ -36,6 +36,35 @@ Optional Parameters:
 			unless you know exactly what you are doing, and
 			dont complain if it breaks your box.
 
+The following parameters effect dependency following, if they are not
+specified the default action is to do no dependency following. For
+a more in-depth explaination refer to the manual
+
+			The following 5 parameters accept one of the following
+			4 parameters:
+			ignore, ask-yes, ask-no, always
+
+--orphan		Default action for dispelling a newly orphaned child 
+			spell.
+--non-orphan		Default action for dispelling a dependee of
+			another spell, that is not an orphan (doing this
+			will break the spells that still depend on it).
+
+--child			Default action for dispelling a child spell that
+			is either an orphan or non-orphan.
+
+--recast-parent		If a spell has a child removed from under it, the
+			spell is considered broken, if all of the removed
+			children are optional, the spell may be recast
+			without those depends. This option controls the
+			default for this action.
+--dispel-parent		Default action for dispelling broken parents,
+			the user is asked for recasting if possible first.
+
+--user-deps		Use defaults for dependency following from the
+--user-child-deps	sorcery menu for child and/or parent dependency
+--user-parent-deps	following.
+
 EOF
 
   exit  1
@@ -134,12 +163,40 @@ function process_parameters()  {
   --no-reap-depends)  NO_REAP_DEPENDS="on";  shift  1  ;;
         --nosustain)  SUSTAIN="off";      shift  1  ;;
        --notriggers)  TRIGGER="off";      shift  1  ;;
+            --child)  validate_param $2 ORPHAN_DEFAULT
+                      validate_param $2 NONORPHAN_DEFAULT
+                      shift ;;
+           --orphan)  validate_param $2 ORPHAN_DEFAULT
+                      shift ;;
+       --non-orphan)  validate_param $2 NONORPHAN_DEFAULT
+                      shift ;;
+        --user-deps)  ORPHAN_DEFAULT=$ORPHAN_MENU_DEFAULT
+                      NONORPHAN_DEFAULT=$NONORPHAN_MENU_DEFAULT
+                      RECAST_PARENT_DEFAULT=$RECAST_PARENT_MENU_DEFAULT 
+                      DISPEL_PARENT_DEFAULT=$DISPEL_PARENT_MENU_DEFAULT
+                      shift 1 ;;
+  --user-child-deps)  ORPHAN_DEFAULT=$ORPHAN_MENU_DEFAULT
+                      NONORPHAN_DEFAULT=$NONORPHAN_MENU_DEFAULT;;
+    --recast-parent)  validate_param $2 RECAST_PARENT_DEFAULT
+                      shift ;;
+    --dispel-parent)  validate_param $2 DISPEL_PARENT_DEFAULT
+                      shift ;;
+ --user-parent-deps)  RECAST_PARENT_DEFAULT=$RECAST_PARENT_MENU_DEFAULT 
+                      DISPEL_PARENT_DEFAULT=$DISPEL_PARENT_MENU_DEFAULT ;;
+     --debug-dispel)  DEBUG_DISPEL=yes ; shift 1 ;;
                   *)  help                          ;;
       esac
     else
       shift
    fi
   done
+}
+
+function validate_param() {
+  case $1 in
+    ask-yes|ask-no|ignore|always)  eval "$2=\"$1\"" ;;
+    *) help ;;
+  esac
 }
 
 #-----
@@ -157,6 +214,14 @@ function strip_parameters()  {
      --no-reap-depends)  shift  1  ;;
            --nosustain)  shift  1  ;;
           --notriggers)  shift  1  ;;
+               --child)  shift  2  ;;
+              --orphan)  shift  2  ;;
+          --non-orphan)  shift  2  ;;
+     --user-child-deps)  shift  1  ;;
+       --recast-parent)  shift  2  ;;
+       --dispel-parent)  shift  2  ;;
+    --user-parent-deps)  shift  1  ;;
+        --debug-dispel)  shift  1  ;;
                      *)  shift  1  ;;
       esac
     else
@@ -166,23 +231,369 @@ function strip_parameters()  {
   done
 }
 
-#-----
-## Main loop for dispel
-## @Args Parameters
-#-----
-function main() {
+#---------------------------------------------------------------------
+## @param spell to dispel
+##
+## Frontend to do common things for dispelling (keep a note of what
+## has already been dispelled.
+#---------------------------------------------------------------------
+function dispel_spell_wrapper() {
+  hash_put ALL_DISPELS $1 yes
+  dispel_spell $1
+}
 
-  process_parameters        $*
-  SPELLS=`strip_parameters  $*`
+#---------------------------------------------------------------------
+## @param list of spells to remove the children of
+## @param variable name to store list of newly dispelled spells
+##
+## Move one step down the depends tree for the given spells, return
+## list of spells removed.
+## The caller is expected to call this in a loop until nothing is returned.
+#---------------------------------------------------------------------
+function dispel_children() {
+  local spells=$1
 
+  local our_children
+  for spell in $spells; do
+    # this assumes list_add remains idempotent, which it is
+    list_add our_children $(hash_get down_deps $spell)
+  done
+  debug "children of $1 -> $our_children"
+
+  local is_orphan
+  local orphan_list non_orphan_list
+  for child in $our_children; do
+    if [[ $(hash_get ALL_DISPELS $child) == "yes" ]] ; then
+      debug "someone depends on $child but it was already removed"
+      continue
+    fi
+    # determine if this child is becomming an orphan or not
+    is_orphan="yes"
+    for parent in $(hash_get up_deps $child); do
+      if ! list_find "$spells" "$parent"; then
+        is_orphan=no
+        break
+      fi
+    done
+    if [[ "$is_orphan" == yes ]] ; then
+      list_add orphan_list $child
+    else
+      list_add non_orphan_list $child
+    fi
+  done
+
+  local removed_children
+  for child in $orphan_list; do
+    debug dispel "looking at $child:"
+    debug dispel "parents: $(hash_get up_deps $child)"
+    debug "children: $(hash_get down_deps $child)"
+    if dispel_child_query "$child" "is an orphan" \
+                          "Would you like to dispel it" \
+                          "${ORPHAN_DEFAULT}" ; then
+      dispel_spell_wrapper $child &&
+      list_add removed_children $child
+    fi
+  done
+  for child in $non_orphan_list; do
+    debug "looking at $child:"
+    debug "parents: $(hash_get up_deps $child)"
+    debug "children: $(hash_get down_deps $child)"
+    if dispel_child_query "$child" "is not an orphan" \
+                          "Would you like to dispel it" \
+                          "${NONORPHAN_DEFAULT}" ; then
+      dispel_spell_wrapper $child &&
+      list_add removed_children $child
+    fi
+  done
+
+  eval "$2=\"$removes\""
+}
+
+#---------------------------------------------------------------------
+## Common code for querying the user about children to remove
+## Prints a message and asks a query, if ask-yes or ask-no is the
+## provided action.
+##
+## @param	Spell in question
+## @param	Message a short message about the state of the spell
+## @param	Question to ask the user
+## @param	quad-option (always, ask-yes, ask-no, ignore)
+#---------------------------------------------------------------------
+function dispel_child_query() {
+  local SPELL=$1
+  local MESSAGE=$2
+  local QUERY=$3
+  local DEFAULT=$4
+  local query_default
+  if [[ ! $DEFAULT ]] ; then
+    return 1
+  fi
+  if [[ $DEFAULT == ignore ]] ; then
+    return 1
+  fi
+  if [[ $DEFAULT == always ]] ; then
+    return 0
+  fi
+  if [[ $DEFAULT == ask-yes ]] ; then
+    query_default=y
+  fi
+  if [[ $DEFAULT == ask-no ]] ; then
+    query_default=n
+  fi
+  message "${DEFAULT_COLOR}${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+          "${MESSAGE_COLOR}${MESSAGE}.${DEFAULT_COLOR}"
+  query "$QUERY" $query_default
+}
+
+#---------------------------------------------------------------------
+## Common code for querying the user about parents spells.
+## Asks a query, if ask-yes or ask-no is the provided action.
+##
+## @param	Question to ask the user
+## @param	quad-option (always, ask-yes, ask-no, ignore)
+#---------------------------------------------------------------------
+function dispel_parent_query() {
+  local QUERY=$1
+  local DEFAULT=$2
+  local query_default
+  if [[ ! $DEFAULT ]] ; then
+    return 1
+  fi
+  if [[ $DEFAULT == ignore ]] ; then
+    return 1
+  fi
+  if [[ $DEFAULT == always ]] ; then
+    return 0
+  fi
+  if [[ $DEFAULT == ask-yes ]] ; then
+    query_default=y
+  fi
+  if [[ $DEFAULT == ask-no ]] ; then
+    query_default=n
+  fi
+  query "$QUERY" $query_default
+}
+
+
+#---------------------------------------------------------------------
+## @param Spell in question
+## dis-associate with all its children (fix upward dep tree)
+## remove spell from the downward tree
+#---------------------------------------------------------------------
+function remove_from_dep_trees() {
+  debug dispel "$FUNCNAME $@"
+  local spell=$1
+  local down_dep_hash=$2
+  local up_dep_hash=$3
+  local foo
+  for child in $(hash_get $down_dep_hash $spell); do
+    foo=" $(hash_get $up_dep_hash $child) "
+    list_remove foo $spell
+    hash_put $up_dep_hash $child "$foo"
+  done
+  hash_unset $down_dep_hash $spell
+}
+
+#---------------------------------------------------------------------
+## @param	Spell to find borked parents for
+## @param	Name of upward dependency hash
+## @param	Name of hash to accumulate borked parents in
+##
+## Find the spells that the following spell borks.
+##
+## Bork is a technical term which in this context refers to the situation
+## where a spell is removed and spells that depend on it are broken. For
+## example xorg borks blackbox.
+#---------------------------------------------------------------------
+function get_borked_parents() {
+  local spell=$1
+  local up_dep_hash=$2
+  local parent
+  # get the spells that depend on us
+  for parent in $(hash_get $up_dep_hash $spell); do
+    debug dispel "hash_append $3 $parent $spell"
+    hash_append $3 $parent $spell
+  done
+}
+
+#---------------------------------------------------------------------
+## Main dependency following engine. This will follow the dependency
+## tree downwards for all the provided spells, then repair one level of
+## borked parents. The caller is expected to call this repeatedly until
+## there are no borked parents to remove.
+##
+## @param	List of spells to remove on this iteration.
+#---------------------------------------------------------------------
+function dispel_depends_engine() {
+
+  local CURR_SPELLS=$1
   for  SPELL  in  $SPELLS;  do
-    dispel_spell $SPELL ||
+    dispel_spell_wrapper $SPELL ||
     DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
   done
+
+
+  if [[ "$CHILD_DEPS" == yes ]] ; then
+    # go down the depends tree killing stuff
+    # each time dispel_children is called it appends the new children that
+    # can be dispelled
+    # dispel_children has its own policy of what will be picked, and may
+    # prompt the user for input
+    local new_children=$CURR_SPELLS
+    while [[ $new_children ]] ; do
+      curr_children=$new_children
+      unset new_children
+      debug dispel "in with $curr_children"
+      dispel_children "$curr_children" new_children
+      debug dispel "out with $new_children"
+      list_add CURR_SPELLS $new_children
+      for SPELL in $curr_children; do
+        remove_from_dep_trees $SPELL down_deps up_deps
+      done
+    done
+  fi
+
+  if [[ "$PARENT_DEPS" == yes ]] ; then
+    # figure out what parents are borked and whats borked them
+    hash_reset BORKED_PARENTS
+    for SPELL in $CURR_SPELLS; do
+      # maps broken spells to the spells that borked them
+      get_borked_parents $SPELL up_deps BORKED_PARENTS
+    done
+
+    local NEW_CASTS=""
+    local NEW_DISPELS=""
+    local borkers
+    # for all borked spells either recast, dispel, or ignore
+    for parent in $(hash_get_table_fields BORKED_PARENTS) ; do
+      message "$parent is borked because of $(hash_get BORKED_PARENTS $parent)"
+      recastable=yes
+      borkers=$(hash_get BORKED_PARENTS $parent)
+      local non_optional_borkers
+      # if any of the removed children are required depends of the current
+      # spell, the spell is not recastable
+      # note: this doesnt take into account the spell changing out from
+      # under us. Oh well.
+      for child in $borkers; do
+        if [[ $(grep "$parent:$child\(([^:]*)\)\?:on:required" $DEPENDS_STATUS) ]] ; then
+          recastable=no
+          list_add non_optional_borkers $child
+        fi
+      done
+      if [[ $recastable == yes ]] ; then
+        message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
+                "had the following optional depends removed:${DEFAULT_COLOR}"
+        message "${SPELL_COLOR}"
+        echo $borkers | col
+        message "${DEFAULT_COLOR}"
+        if dispel_parent_query \
+                       "Re-cast $parent without these optional depends?" \
+                       "$RECAST_PARENT_DEFAULT" ; then
+          # fix up the abandoned depends data for impending recompile
+          # this is a bit of a hack but should work:
+          # remove any uncommitted data, store our new data in a new abandonded
+          # dir with borked optionals disabled, remove those deps
+          # from master file so that recasting will see them
+          depends_file=$ABANDONED_DEPENDS/$SPELL
+          rm -f $UNCOMMITTED_DEPENDS/$parent $depends_file
+          touch $depends_file
+          local depline
+          search_depends_status $DEPENDS_STATUS $parent|while read depline; do
+            explode "$depline" : deparray
+            # note: we know that all $borkers are optional from
+            # the check above
+            if list_find "$borkers" "${deparray[1]}"; then
+              deparray[2]=off
+              # remove this rule so cast will look elsewhere
+              # (the abandoned file), the strange regexp at the end
+              # is to match providers: xorg(X11-LIBS)
+              remove_depends_status $DEPENDS_STATUS $parent \
+                                    "${deparray[1]}\(([^:]*)\)\?"
+            fi
+            add_depends $depends_file "${deparray[@]}"
+          done
+
+          list_add NEW_CASTS $parent
+        elif dispel_parent_query "Dispel $parent instead?" \
+                                 "$DISPEL_PARENT_DEFAULT" ; then
+
+          foo=$(hash_get down_deps $parent)
+          list_remove foo $borkers
+          hash_put down_deps $parent $foo
+
+          list_add NEW_DISPELS $parent
+        else
+          message "Please fix broken dependencies with cleanse --prune"
+        fi
+      else
+        message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
+                "had the following non-optional depends removed:" \
+                "${DEFAULT_COLOR}"
+        message "${SPELL_COLOR}"
+        echo $non_optional_borkers | col
+        message "${DEFAULT_COLOR}"
+        if dispel_parent_query "Dispel $parent?" \
+                               "$DISPEL_PARENT_DEFAULT"; then
+
+          foo=$(hash_get down_deps $parent)
+          list_remove foo $borkers
+          hash_put down_deps $parent $foo
+
+          list_add NEW_DISPELS $parent
+        else
+          message "Please fix broken dependencies with cleanse --prune"
+        fi
+      fi
+    done
+    if [[ $NEW_CASTS ]] ; then
+      debug dispel "cast -c $NEW_CASTS"
+      cast -c $NEW_CASTS
+    fi
+  fi
+  debug dispel "NEW_DISPELS: $NEW_DISPELS"
+  debug dispel "eval $2=\"$NEW_DISPELS\""
+  eval "$2=\"$NEW_DISPELS\""
+
   return  ${DISPEL_EXIT_STATUS:-0}
 }
 
+#---------------------------------------------------------------------
+## Main loop for dispel
+## @Args Parameters
+#---------------------------------------------------------------------
+function main() {
+
+  process_parameters        "$@"
+  SPELLS=`strip_parameters  "$@"`
+
+  if [[ $NONORPHAN_DEFAULT ]] ||
+     [[ $ORPHAN_DEFAULT ]] ; then
+    CHILD_DEPS=yes
+    DO_DEPENDS=yes
+  fi
+
+  if [[ $RECAST_PARENT_DEFAULT ]] ||
+     [[ $DISPEL_PARENT_DEFAULT ]] ; then
+    PARENT_DEPS=yes
+    DO_DEPENDS=yes
+  fi
+  if [[ $DO_DEPENDS ]] ; then
+    while [[ $SPELLS ]] ; do
+      debug dispel "recomputing depends tree"
+      compute_installed_depends down_deps
+      compute_reverse_installed_depends up_deps
+      dispel_depends_engine "$SPELLS" SPELLS
+      debug dispel "SPELLS $SPELLS"
+    done
+  else
+    for SPELL in $SPELLS; do 
+      dispel_spell_wrapper $SPELL
+    done
+  fi
+}
+
 . /etc/sorcery/config
+
 if    [  $#      ==  0  ];  then  help  |  $PAGER
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 elif  [  "$UID"  ==  0  ];  then 

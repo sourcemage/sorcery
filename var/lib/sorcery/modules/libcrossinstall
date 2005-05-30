@@ -130,83 +130,41 @@ function set_track_root_menu() {
   fi
 }
 
-
 #------------------------------
 ## Will install sorcery in install_root directory, by running
 ## the install script bundled with the tarball
+## This expects the user to have the sorcery tarball already downloaded
+## and in $SOURCE_CACHE.
 #------------------------------
 function replicate_sorcery() {
-  SOURCE=sorcery-$SORCERY_BRANCH.tar.bz2
-  SOURCE_DIRECTORY=$INSTALL_ROOT/$BUILD_DIRECTORY/sorcery
+  SOURCE=$SOURCE_CACHE/sorcery-$SORCERY_BRANCH.tar.bz2
+  SOURCE_DIRECTORY=$BUILD_DIRECTORY/sorcery
+
+  if ! test -f $SOURCE ; then
+    message "Cant find source in $SOURCE, please update or download sorcery"
+    return 1
+  fi
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
-  cd $INSTALL_ROOT/usr/src                     &&
-  bzip2  -cdf   $FILENAME                       |
+  cd $INSTALL_ROOT/usr/src                      &&
+  bzip2  -cdf   $SOURCE                         |
   tar --owner=root --group=root -xf /dev/stdin  &&
   cd      $SOURCE_DIRECTORY                     &&
   echo `pwd`                                    &&
   ./install  $INSTALL_ROOT
+  rc=$?
+  cd ..
 
-  if [ $? -eq 0 ] ; then
+  if [ $rc -eq 0 ] ; then
     rm_source_dir
   else
     if [[  $CLEAN_SOURCE == on ]]; then
       rm_source_dir
     fi
   fi
+  return $rc
 }
 
-#-------------
-## Do we know why this is commented out?
-## Do we know why it's still here?
-##
-## Its commented out because it was a product of the old way
-## install_root/cross_install was put together. I left it commented out
-## just to be more conservative than killing it out-right. Its also
-## basically implemented in a more robust way above.
-##
-## I suspect I'll remove it in 1.12 since no one has even mentioned the
-## idea of installing sorcery itself somewhere else and running it from
-## there. (afk 2004-9-30)
-#-------------
-#cross_install_sorcery()
-#{
-	#
-	#message -n "${MESSAGE_COLOR}Setting up Sorcery for cross-install environment."
-	#message -n "${DEFAULT_COLOR}"
-	#
-	#mkdir -p ${INSTALL_ROOT}/etc/init.d/runlevels/{%DEV,%1,%2,%3,%4,%5,%S}
-	#mkdir -p ${INSTALL_ROOT}/etc/{sorcery,sysconfig/network}
-	#mkdir -p ${INSTALL_ROOT}/{boot,home,root,dev,lib,bin,sbin,mnt,proc}
-	#mkdir -p -m 1777 ${INSTALL_ROOT}/tmp
-	#mkdir -p ${INSTALL_ROOT}/var/state/sorcery
-	#mkdir -p ${INSTALL_ROOT}/var/cache/sorcery
-	#mkdir -p ${INSTALL_ROOT}/usr/{src,sbin,bin,lib}
-	#mkdir -p ${INSTALL_ROOT}/usr/share/info
-        #ln -sf ./share/info ${INSTALL_ROOT}/usr/info
-	#mkdir -p ${INSTALL_ROOT}/usr/share/man/{man1,man2,man3,man4,man5,man6,man7,man8}
-        #ln -sf ./share/man ${INSTALL_ROOT}/usr/man
-  #mkdir -p ${INSTALL_ROOT}/var/lock
-  #mkdir -p ${INSTALL_ROOT}/var/run
-	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/compile/
-	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/install/
-	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/md5sum/
-	#mkdir -p ${INSTALL_ROOT}/var/log/sorcery/queue/
-	#mkdir -p ${INSTALL_ROOT}/var/lib/sorcery/codex/
-	#mkdir -p ${INSTALL_ROOT}/var/spool/{mail,sorcery}
-	#mkdir -p -m 1777 ${INSTALL_ROOT}/var/tmp
-	#cp -ruv /etc/sorcery/{accounts,config,groups,mirrors,version,cabal,dialogrc,licenses,uid,compile_config,gid,update} ${INSTALL_ROOT}/etc/sorcery
-        #mkdir -p ${INSTALL_ROOT}/etc/sorcery/local/depends
-        #cp -f /etc/sorcery/local/depends/README ${INSTALL_ROOT}/etc/sorcery/local/depends
-        #cp /etc/sysconfig/init ${INSTALL_ROOT}/etc/sysconfig
-        #touch ${INSTALL_ROOT}/var/state/sorcery/{depends,packages,triggers}
-        #cp -ruv /var/lib/sorcery/{archspecs,excluded,protected,subroutines,build,modules,solo,sustained} ${INSTALL_ROOT}/var/lib/sorcery/
-        #cp -p /usr/sbin/{cast,dispel,gaze,invoke,scribbler,scribe,sorcery,summon,vcast,xsorcery} ${INSTALL_ROOT}/usr/sbin
-        #cp -p /usr/share/man/man8/{cast.8*,dispel.8*,invoke.8*,scribbler.8*,scribe.8*,sorcery.8*,summon.8*} ${INSTALL_ROOT}/usr/share/man/man8
-        #cp -p /usr/share/man/man1/gaze.1* ${INSTALL_ROOT}/usr/share/man/man1/
-        #cp -p /usr/share/man/man5/grimoire.5* ${INSTALL_ROOT}/usr/share/man/man5/
-#
-#}
 
 #---------------------------------------------------------------------
 ## @License
