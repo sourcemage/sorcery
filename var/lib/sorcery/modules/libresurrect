@@ -335,6 +335,7 @@ function resurrect_sub() {
 
   local res_fail=0 BREAK
   function resurrect_install_conf_sub() {
+    debug libresurrect "resurrect_install_conf_sub -- $@"
     test -d ".$1" ||
     internal_install_config_file ".$1" "${INSTALL_ROOT}${1}" $savetime \
                                                          "$OLD_MD5_LOG" || {
@@ -427,7 +428,14 @@ function internal_install_config_file() {
   local savetime=$3
   local md5_log=$4
 
-  test -f "$from" || return
+  debug libresurrect "$FUNCNAME -- $@"
+  # if its a symlink, just copy, someday maybe we should figure
+  # out where it points to and so something, but thats too annoying
+  if test -h "$from" ; then
+    mkdir -p "$(dirname "$to")" &&
+    cp -pv --no-dereference "$from" "$to"
+    return $?
+  fi
 
   # if the file does not exist, 
   if ! test -e "$to"; then
