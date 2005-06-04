@@ -365,11 +365,11 @@ function prune_depends()
     [ -s $TMP_DIR/prune.dispel ] && 
       dispel $( sort $TMP_DIR/prune.dispel | uniq )
     [ -s $TMP_DIR/prune.cast ] && 
-      cast $( sort $TMP_DIR/prune.cast | uniq )
+      cast -c $( sort $TMP_DIR/prune.cast | uniq )
   else
     t=$(date +%Y%m%d%s)
     echo dispel $( sort $TMP_DIR/prune.dispel 2>/dev/null  | uniq ) > $BACKUPDIR/prune.$t
-    echo cast $( sort $TMP_DIR/prune.cast 2>/dev/null | uniq ) >> $BACKUPDIR/prune.$t
+    echo cast -c $( sort $TMP_DIR/prune.cast 2>/dev/null | uniq ) >> $BACKUPDIR/prune.$t
     cat $BACKUPDIR/prune.$t
     message "For future reference, lines are stored in $BACKUPDIR/prune.$t"
   fi
