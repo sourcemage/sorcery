@@ -489,6 +489,19 @@ function pass_three()  {
   unset CAST_PASS
   local SPELL=$1
   local download_log=$(get_spell_dl_log $SPELL)
+  # check if this is being resurrected and if so, dont summon
+  # this will go away when resurrect support and dependency resolution merge
+  if ! [[ $COMPILE ]] ; then
+    VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
+    if [[ $VERSION ]] && can_resurrect $SPELL $VERSION &> /dev/null ; then
+      # touch the 'log' file just in case the spell disagreed so cast doesnt
+      # hang forever
+      echo "pass_three thought that $SPELL was being resurrected" \
+               > $download_log &>/dev/null
+      touch > ${download_log}.done 2>/dev/null
+      return
+    fi
+  fi
   if  [[  $SEPARATE   ]] ; then
     summon_spells "$SPELL"
   else
