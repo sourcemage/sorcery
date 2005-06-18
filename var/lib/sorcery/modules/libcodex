@@ -596,11 +596,22 @@ function codex_set_current_spell()  {
 
   # Directories
   SCRIPT_DIRECTORY=$SPELL_DIRECTORY
-  SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
-  GRIMOIRE=${SECTION_DIRECTORY%/*}
+  # scribbled spells are self contained, SECTION_DIRECTORY and GRIMOIRE
+  # point to slightly different places
+  if test -e $SPELL_DIRECTORY/SCRIBBLED ; then
+    # I dont know how to nest these
+    local tmp=${SPELL_DIRECTORY%/*}
+    SECTION=${tmp##*/}
+
+    SECTION_DIRECTORY=${SPELL_DIRECTORY}/section
+    GRIMOIRE=${SPELL_DIRECTORY}/grimoire
+  else
+    SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
+    SECTION=${SECTION_DIRECTORY##*/}
+    GRIMOIRE=${SECTION_DIRECTORY%/*}
+  fi
 
   # Names
-  SECTION=${SECTION_DIRECTORY##*/}
   SPELL=${SPELL_DIRECTORY##*/}
   
   SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
@@ -626,12 +637,20 @@ function codex_set_current_spell()  {
 
 function codex_set_current_spell_quick()  {
   SPELL_DIRECTORY=$1
-  SCRIPT_DIRECTORY=$SPELL_DIRECTORY
-  SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
-  GRIMOIRE=${SECTION_DIRECTORY%/*}
+  if test -e $SPELL_DIRECTORY/SCRIBBLED ; then
+    # I dont know how to nest these
+    local tmp=${SPELL_DIRECTORY%/*}
+    SECTION=${tmp##*/}
+
+    SECTION_DIRECTORY=${SPELL_DIRECTORY}/section
+    GRIMOIRE=${SPELL_DIRECTORY}/grimoire
+  else
+    SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
+    SECTION=${SECTION_DIRECTORY##*/}
+    GRIMOIRE=${SECTION_DIRECTORY%/*}
+  fi
 
   # Names
-  SECTION=${SECTION_DIRECTORY##*/}
   SPELL=${SPELL_DIRECTORY##*/}
   SPELL=${1##*/}
   SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
