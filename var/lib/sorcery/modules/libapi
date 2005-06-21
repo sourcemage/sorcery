@@ -57,7 +57,10 @@
 #    spell_installed        (libstate)
 #    spell_ok               (libstate)
 #    track_manual           (libtrack)
-#    unpack                 (libgrimoire)   
+#    unpack_file            (libunpack)
+#    unpack                 (libunpack) (deprecated)
+#    guess_compressor       (libunpack)
+#    uncompress             (libunpack)
 #
 # Read-only variable that might be of use to a spell:
 # SOURCE_CACHE, OPTS, BUILD HOST, INSTALL_ROOT
@@ -841,17 +844,61 @@ function spell_exiled() {
 ## @Type API
 ## @param file to unpack 
 ## @param md5sum
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_unpack> for more details.
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack> for more details.
 ##
 ## Given a file, unpack runs the decompression program for that file,
 ## as well as untar'ing the file if appropriate and if the MD5
 ## matches.
-## Note: zip is a special cast because it doesn't work with streams.
+## Note: zip is a special case because it doesn't work with streams.
 ##
 #---------------------------------------------------------------------
 function unpack () {
     debug "libapi" "unpack - $*"
     real_unpack "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param SOURCE suffix
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_file> for more details.
+##
+## unpack_file takes the SOURCE suffix and figures out if it is supposed
+## to md5 or gpg/hash check it -- then it does its dirty work and runs
+## unpack, unpack_gpg, or unpack_hash depending upon the circumstances.
+##
+#---------------------------------------------------------------------
+function unpack_file () {
+    debug "libapi" "unpack_file - $*"
+    real_unpack_file "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param file to uncompress
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_uncompress> for more details.
+##
+## Given a file, uncompress runs the decompression program for that file,
+## Note: zip is a special case because it doesn't work with streams.
+##
+#---------------------------------------------------------------------
+function uncompress () {
+    debug "libapi" "uncompress - $*"
+    real_uncompress "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param filename
+## @Stdout compressor
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_guess_compressor> for more details.
+##
+## Guesses what program was used to compress a file
+## Return value is always success due to `file' workings
+##
+#---------------------------------------------------------------------
+function guess_compressor () {
+    debug "libapi" "guess_compressor - $*"
+    real_guess_compressor "$@"
 }
 
 #---------------------------------------------------------------------

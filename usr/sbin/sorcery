@@ -735,15 +735,28 @@ architecture_menu() {
   debug "sorcery" "architecture_menu()"
   local  SPECFILE
   local  LIST CPUNAME specname
-  for  SPECFILE  in  `find  $ARCH_SPECS  -not  -name '*~' | sort`; do
-    if  [[  -x  $SPECFILE  ]]  &&
-        grep  -q  "CPUNAME"  $SPECFILE; then
-      local CPUNAME=""
-      CPUNAME=$( .  $SPECFILE  &&  echo $CPUNAME )  &&
-      LIST="$LIST
-\"`basename $SPECFILE`\"	\"$CPUNAME\"	\"$CPUNAME\""
+  hash_reset archspec_hash
+  # this loop finds archspecs, it uses a hash table to ensure that theres
+  # only one entry per archspec (there could be several archspecs with the
+  # same name), it reverses the output from tac so that the first archspecs
+  # found are the last added to the hash table and thus are prefered over
+  # ones found later
+  for  SPECFILE  in  $(find  $ARCH_SPECS  -not  -name '*~'|tac); do
+    if  test -x  "$SPECFILE"   && grep  -q  "CPUNAME"  $SPECFILE; then
+      specname=$(basename $SPECFILE)
+      hash_put archspec_hash $specname $SPECFILE
     fi
   done
+  
+  # now that there archspecs have been found, build the dialog list
+  for specname in $(hash_get_table_fields archspec_hash|sort); do
+    CPUNAME=""
+    SPECFILE=$(hash_get archspec_hash $specname) &&
+    debug  "sorcery" "architecture_menu() - $specname found at $SPECFILE"
+    CPUNAME=$( .  $SPECFILE  &&  echo $CPUNAME )  &&
+    LIST="$LIST $specname  \"$CPUNAME\"    \"$CPUNAME\""
+  done
+  hash_reset archspec_hash
   debug  "sorcery" "architecture_menu() - Dialog options are $LIST"
 
   local ARCH_TITLE="$2"
@@ -822,9 +835,6 @@ optimization_menu(){
 
 custom_optimization_menu() {
   local RESULTS KEY rc
-  local CUSTOM_CFLAGS
-  local CUSTOM_CXXFLAGS
-  local CUSTOM_LDFLAGS
 
   while true ; do
     # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
@@ -1719,8 +1729,8 @@ main() {
 }
 
 
+. /etc/sorcery/config
 if  [  "$UID"  ==  0  ];  then
-  . /etc/sorcery/config
   DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
 
   SORCERY_VERSION=`cat /etc/sorcery/version`
@@ -1738,7 +1748,8 @@ else
       echo  $( cat /etc/sorcery/version )
     else
       echo  "Enter the root password, please."
-      su -c "$0 $*" root
+      PARAMS=$(consolidate_params "$@")
+      su -c "$0 $PARAMS" root
     fi
   fi
 fi
