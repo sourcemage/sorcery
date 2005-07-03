@@ -1130,6 +1130,26 @@ function complain_sorcery_var() {
 }
 
 #---------------------------------------------------------------------
+## @param Function body
+## @param Function name
+## @param (optional) Function name
+## @param ...
+## Creates functions with identical bodies. It is useful if you need 
+## to override a bunch of functions which have already been defined.
+#--------------------------------------------------------------------- 
+function define_functions() {
+	local funcName
+	local funcContent="$1"
+	shift
+	for funcName in $* ; do
+		debug "libmisc" "define_functions - redefining $funcName"
+		eval "function $funcName () { \
+			$funcContent \
+		}"
+	done
+}
+
+#---------------------------------------------------------------------
 ## @License
 ##
 ## This software is free software; you can redistribute it and/or modify
