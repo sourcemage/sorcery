@@ -97,16 +97,16 @@ function url_http_erase()  {
 # as a side-effect.
 #
 #---------------------------------------------------------------------
-function url_http_call_wget()  {  
+function url_http_call_wget()  {
   local  FILENAME=$1
   local  STRIPPED_FILENAME=$2
   local  URL=$3
 
   debug 'url_http' "call wget: $*"
 
-  url_http_erase  $STRIPPED_FILENAME   &&  
+  url_http_erase  $STRIPPED_FILENAME   &&
   wget $WGET_OPTIONS "$URL" 2>&1       &&
-  FILE="$FILENAME"
+  FILE="$FILENAME"                     &&
   if [ ! -e "$FILE" ]; then
     # stupid http site trying to be nice and re-direct us, this is a failure
     # even though wget doesnt notice it...
