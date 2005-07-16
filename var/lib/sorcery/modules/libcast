@@ -576,9 +576,9 @@ function report_install()  {
 ## @param download log file name
 #---------------------------------------------------------------------
 function show_download_progress()  {
-
+  [[ $SCREEN_NAME ]] && return
   local download_log=$1
-  if  [  -f  "$download_log"   ]   &&
+  if  [  -e  "$download_log"   ]   &&
       [  -z  "$SILENT"  ];  then
 
     LC_OLD=${LC_OLD:-0}
@@ -610,7 +610,7 @@ function show_downloading()  {
 
   # poke around waiting for downloading to start
   while ! ( [[ $download_log ]] && 
-            [  -f "$download_log"  ] ) 
+            [  -e "$download_log"  ] ) 
   do
     sleep 1
   done

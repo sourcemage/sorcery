@@ -85,7 +85,7 @@ default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
 EOF
 
   exit 1
-
+#' <-- fix for syntax highlighting in nedit
 }
 
 mirror_list()  {
@@ -1319,6 +1319,7 @@ feature_menu()  {
   local CI_HELP="Non-native installation / cross compilation"
   local ST_HELP="Set xterm title/screen window title on cast?"
   local UF_HELP="Ensure a sane environment before sorcery update"
+  local SCR_HELP="Toggle usage of screen in cast"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -1340,6 +1341,7 @@ STORE_CONF_LOG=${STORE_CONF_LOG:-off}
   CLEAN_SOURCE=${CLEAN_SOURCE:=off}
  CROSS_INSTALL=${CROSS_INSTALL:=off}
 SET_TERM_TITLE=${SET_TERM_TITLE:=off}
+        SCREEN=${SCREEN:-off}
 
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
@@ -1350,7 +1352,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                         0 0 0                   \
       "ARCHIVE"        "Toggle"  "$ARCHIVE"        "$I_HELP"   \
       "AUTOFIX"        "Toggle"  "$AUTOFIX"        "$F_HELP"   \
-      "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"   \
+      "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"  \
       "AUTOPRUNE"      "Toggle"  "$AUTOPRUNE"      "$U_HELP"   \
       "CCACHE"         "Toggle"  "$CCACHE"         "$G_HELP"   \
       "COLOR"          "Toggle"  "$COLOR"          "$C_HELP"   \
@@ -1363,13 +1365,14 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "VIEW_REPORTS"   "Toggle"  "$VIEW_REPORTS"   "$R_HELP"   \
       "VOYEUR"         "Toggle"  "$VOYEUR"         "$V_HELP"   \
       "REAP"           "Toggle"  "$REAP"           "$E_HELP"   \
-      "STORE_CONF_LOG" "Toggle"  "$STORE_CONF_LOG" "$SCL_HELP"   \
+      "STORE_CONF_LOG" "Toggle"  "$STORE_CONF_LOG" "$SCL_HELP" \
       "NET_SELECT"     "Toggle"  "$NET_SELECT"     "$NS_HELP"  \
       "CLEAN_SOURCE"   "Toggle"  "$CLEAN_SOURCE"   "$CS_HELP"  \
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
-      "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
+      "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"  \
+      "SCREEN"         "Toggle"  "$SCREEN"         "$SCR_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1398,11 +1401,12 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
         CLEAN_SOURCE)   CLEAN_SOURCE=on  ;;
        CROSS_INSTALL)  CROSS_INSTALL=on  ;;
       SET_TERM_TITLE) SET_TERM_TITLE=on  ;;
+              SCREEN)         SCREEN=on  ;;
       esac
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done

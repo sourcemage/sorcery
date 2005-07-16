@@ -453,11 +453,19 @@ function pass_two()  {
   if  [[  $SEPARATE   ]] ; then
     ( CAST_PASS="three" 
       $REAL_MAKE -s -j1 -k -f $MAKEFILE $*
+      if [[ $SCREEN_NAME ]] ; then
+        screen_notify "$SCREEN_NAME" "Done downloading"
+        screen_kill_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN
+      fi
       touch $TMP_DIR/pass_three.done
     )
   else
     ( CAST_PASS="three"
       $REAL_MAKE -s -j1 -k -f $MAKEFILE $*
+      if [[ $SCREEN_NAME ]] ; then
+        screen_notify "$SCREEN_NAME" "Done downloading"
+        screen_kill_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN
+      fi
       touch $TMP_DIR/pass_three.done
     ) &
   fi
@@ -487,31 +495,58 @@ function pass_two()  {
 ## as argument. This is equivalent to calling summon, but without the
 ## overhead.
 ## (Is being called by make)
+## If in screen mode it also execs a tail to the summon window
 #---------------------------------------------------------------------
 function pass_three()  {
   debug "cast" "pass_three - $*"
   unset CAST_PASS
   local SPELL=$1
+
+  # download_log is removed with it's .done in libcast
   local download_log=$(get_spell_dl_log $SPELL)
+
+  if [[ $SCREEN_NAME ]] && [ ! -p $TMP_DIR/download.fifo ] ; then
+    # Create the summon window
+    mkfifo $TMP_DIR/download.fifo
+    # Neither tail not cat work properly on FIFOs so a while loop will
+    # have to be used
+    screen_new_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL" \
+      /bin/bash -c  'while : ; do 
+          read LINE && echo $LINE || sleep 0.1 ; 
+        done < '$TMP_DIR/download.fifo
+    sleep 0.1
+  fi
+  if [[ $SCREEN_NAME ]] ; then
+    # A summon window is already up, just change the name
+    screen_name_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL"
+    # symlink the d/l log to the fifo
+    ln -s $TMP_DIR/download.fifo $download_log
+  else 
+    # normal non-screen cast, create a normal file
+    touch $download_log
+  fi
+  
   # check if this is being resurrected and if so, dont summon
   # this will go away when resurrect support and dependency resolution merge
   if ! [[ $COMPILE ]] ; then
     VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
     if [[ $VERSION ]] && can_resurrect $SPELL $VERSION &> /dev/null ; then
+      # The 2>/dev/null is necessary because the dir may not exist
+      echo "pass_three thought that $SPELL was being resurrected" \
+        > $download_log 2>/dev/null
       # touch the 'log' file just in case the spell disagreed so cast doesnt
       # hang forever
-      echo "pass_three thought that $SPELL was being resurrected" \
-               > $download_log 2>/dev/null
       touch ${download_log}.done &>/dev/null
       return
     fi
   fi
+  
+  
   if  [[  $SEPARATE   ]] ; then
-    summon_spells "$SPELL"
+    summon_spells "$SPELL" >$download_log
   else
-    touch $download_log
     lock_file   $download_log
-    summon_spells "$SPELL" >  $download_log
+    summon_spells "$SPELL" >$download_log
     unlock_file   $download_log
   fi
   
@@ -690,6 +725,11 @@ function int_trap()
   message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
   message "Cleaning up as well as I can..."
   cleanup
+  if [[ $SCREEN_NAME ]] ; then
+    message -n "Press a key to exit screen."
+    read -n 1
+	screen_quit "$SCREEN_NAME"
+  fi
   exit 1
 }
 
@@ -714,7 +754,6 @@ function cleanup() {
 ## according to CAST_PASS
 #---------------------------------------------------------------------
 function main()  {
-
   debug "cast" "main() - $*"
   local T_SPELLS=""
   process_parameters        "$@"
@@ -762,8 +801,6 @@ function main()  {
 
 . /etc/sorcery/config
 [[ $VOYEUR_OVERRIDE ]] && VOYEUR="$VOYEUR_OVERRIDE"
-export TOP_LEVEL=${TOP_LEVEL:-$SHLVL}
-
 if    [  $#      -eq  0  ];  then  help  |  $PAGER
 
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
@@ -800,15 +837,71 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
   exec bash $SAFE_CAST "$@"
   
 else
+  export TOP_LEVEL=${TOP_LEVEL:-$SHLVL}
   if  [[  $NICE != "0"  ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
+  
+  # If we are in a screen, weird things happen if we make another screen.
+  # So disable screen mode if we are in a screen aready 
+  # which wasn't started by smgl
+  if  [[ $TERM == screen ]] &&
+      [[ ! $SCREEN_NAME ]] 
+  then
+    message "${MESSAGE_COLOR}Although screen mode is enabled, you already seem to be in a another"
+    message "screen session. Screen-in-screen is disabled."
+    message "Continuing with screen mode off.${DEFAULT}"
+    export SCREEN=off
+    debug "cast" "Turning off screen mode"
+  fi
+
+  # If screen mode is on, but we aren't in screen, start a new session 
+  # Call to screen_start never exits 
+  if  [[ $SCREEN == on ]] && 
+      [[ $TERM != screen ]]
+  then
+    export SCREEN_NAME="ScreenCast $*"
+    screen_start "ScreenCast $*" "$0" "$@"
+    echo "WTF?? We should not get here. screen_start execs!"
+    exit 1
+  fi
+  
+  # If running in screen, screen mode is on, screen was started by us
+  # and finally, it hasn't been initialized yet.
+  if  [[ $TERM == screen ]] && 
+      [[ $SCREEN == on ]] && 
+      [[ $SCREEN_NAME ]] && 
+      [[ ! $SCREEN_INITIALIZED ]]
+  then
+    debug "cast" "Initializing screen windows"
+    screen_name_window "$SCREEN_NAME" $SCREEN_MAIN_WIN "Main"
+
+    # Start debugging window if debugging is on and not set to /dev*
+    if [[ $DEBUG ]] && [[ ${DEBUG#/dev} == $DEBUG ]] ; then 
+      touch $DEBUG
+      screen_new_window "$SCREEN_NAME" $SCREEN_DEBUG_WIN "Debug" \
+      	tail -f -n 0 -s 0.1 $DEBUG
+      #screen_unmonitor_window "$SCREEN_NAME" $SCREEN_DEBUG_WIN
+    fi
+
+    screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
+    screen_monitor_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
+    screen_quick_intro
+    export SCREEN_INITIALIZED=yes
+  fi
+
   trap int_trap INT
   main  "$@"
   rc=$?
   if [ $SHLVL -eq $TOP_LEVEL ] ; then
     unlock_file $SAFE_CAST
     cleanup
+  fi
+  if [[ $SCREEN_NAME ]] && [[ $TOP_LEVEL -eq $SHLVL ]] ;  then
+    screen_notify "$SCREEN_NAME" "Done casting"
+    message -n "Press enter to exit screen."
+    read 
+    screen_quit "$SCREEN_NAME"
   fi
   exit $rc
 fi

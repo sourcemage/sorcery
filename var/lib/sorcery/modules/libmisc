@@ -109,10 +109,8 @@ function real_query()  { (
 ## @param message to echo
 ## @Stdout message
 ## echo's the given arguments if SILENT is not set.
-##
 #---------------------------------------------------------------------
 function real_message()    {
-
   if  [  !  -n  "$SILENT"  ];  then
     if  [  "$1"  ==  "-n"  ];  then
       shift  1
@@ -139,10 +137,14 @@ function debug()  {
   [[ $DEBUG ]] || return 0
   
   local debugVar="DEBUG_${1}"
+  local i
   if [[ ${!debugVar} != "no" ]] ; then
     echo -n "$1($$): " >>$DEBUG
     shift
-    echo $* >>$DEBUG
+    for i in "$@" ; do
+      echo -n " \"$i\"" >>$DEBUG
+    done
+    echo >>$DEBUG
   fi
 
   true
@@ -1138,16 +1140,23 @@ function complain_sorcery_var() {
 ## to override a bunch of functions which have already been defined.
 #--------------------------------------------------------------------- 
 function define_functions() {
-	local funcName
-	local funcContent="$1"
-	shift
-	for funcName in $* ; do
-		debug "libmisc" "define_functions - redefining $funcName"
-		eval "function $funcName () { \
-			$funcContent \
-		}"
-	done
+  local funcName
+  local funcContent="$1"
+  shift
+  for funcName in $* ; do
+    debug "libmisc" "define_functions - redefining $funcName"
+    eval "function $funcName () { \
+      $funcContent \
+    }"
+  done
 }
+
+# Standard debug line:
+# file "function@line" "all" "args"
+STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ; 
+  _stddbg_file=${_stddbg_file##*/};
+  debug "${_stddbg_file}" "${FUNCNAME[0]}@$LINENO" "$@"'
+
 
 #---------------------------------------------------------------------
 ## @License
