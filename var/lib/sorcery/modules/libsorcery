@@ -475,15 +475,17 @@ function filter_generic() {
   local args=$1
   local filter_name=$2
   local system_filter=$3
-  local spell_filter spell_dir
+  local grimoire_filter section_filter spell_filter spell_dir
   tablet_find_spell_dir $SPELL spell_dir &>/dev/null &&
-  tablet_get_filter $spell_dir $filter_name spell_filter &>/dev/null
+  tablet_get_spell_filter $spell_dir $filter_name spell_filter &>/dev/null
+  tablet_get_section_filter $spell_dir $filter_name section_filter &>/dev/null
+  tablet_get_grimoire_filter $spell_dir $filter_name grimoire_filter &>/dev/null
   set -- $args
   if [ "$1" == -v ] ; then
     shift
-    filter_in $@ $system_filter $spell_filter
+    filter_in "$@" $system_filter $grimoire_filter $section_filter $spell_filter
   else
-    filter $@ $system_filter $spell_filter
+    filter "$@" $system_filter $grimoire_filter $section_filter $spell_filter
   fi
 }
 

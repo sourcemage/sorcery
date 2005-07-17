@@ -185,6 +185,8 @@ function resurrect()  { (
   local TABLET_PATH=.${TABLET_PATH#$STATE_ROOT}
   local OLD_TABLET_DIR
   local SPELL_CONFIG_FILTER
+  local SECTION_CONFIG_FILTER
+  local GRIMOIRE_CONFIG_FILTER
   tablet_find_resurrect_dir $SPELL OLD_TABLET_DIR
   local TMP_VERSION=$VERSION
   if [[ $OLD_TABLET_DIR ]] && test -d $OLD_TABLET_DIR ; then
@@ -194,15 +196,19 @@ function resurrect()  { (
       returrect_fail
       return 1
     }
-    # some earlier tablets didnt have the version (oops)
-    tablet_get_filter $OLD_TABLET_DIR configs SPELL_CONFIG_FILTER
+    tablet_get_spell_filter "$OLD_TABLET_DIR" configs SPELL_CONFIG_FILTER
+    tablet_get_grimoire_filter "$OLD_TABLET_DIR" configs SECTION_CONFIG_FILTER
+    tablet_get_section_filter "$OLD_TABLET_DIR" configs GRIMOIRE_CONFIG_FILTER
   else
     unset $OLD_TABLET_DIR
     debug "libresurrect" "no tablet"
     codex_set_current_spell_by_name $SPELL
     SPELL_CONFIG_FILTER=$SCRIPT_DIRECTORY/configs
+    SECTION_CONFIG_FILTER=$SECTION_DIRECTORY/configs
+    GRIMOIRE_CONFIG_FILTER=$GRIMOIRE/configs
     # loading the spell may give us a different version which we dont want
   fi
+  local CONFIG_FILTERS="$GRIMOIRE_CONFIG_FILTER $SECTION_CONFIG_FILTER $SPELL_CONFIG_FILTER"
   VERSION=${VERSION:-TMP_VERSION}
 
   # 6) find the cache's install log and divide it up every way imaginable
@@ -241,9 +247,9 @@ function resurrect()  { (
   log_adjuster $NEW_DATA_F $NEW_DATA_R filterable root
   # cannot use filter_configs here because the tablet is in a
   # non-standard location and may not exist at all...
-  cat $NEW_DATA_F| filter_in $CONFIGS $SPELL_CONFIG_FILTER > $NEW_DATA_F_C
+  cat $NEW_DATA_F| filter_in $CONFIGS $CONFIG_FILTERS > $NEW_DATA_F_C
   log_adjuster $NEW_DATA_F_C $NEW_DATA_R_C filterable root
-  cat $NEW_DATA_F| filter $CONFIGS $SPELL_CONFIG_FILTER > $NEW_DATA_F_NC
+  cat $NEW_DATA_F| filter $CONFIGS $CONFIG_FILTERS > $NEW_DATA_F_NC
   log_adjuster $NEW_DATA_F_NC $NEW_DATA_R_NC filterable root
   log_adjuster $NEW_MDATA_F $NEW_MDATA_R filterable root
 
