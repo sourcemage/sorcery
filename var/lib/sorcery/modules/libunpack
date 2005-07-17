@@ -139,7 +139,7 @@ function real_unpack_file() {
     esac
   else
     debug "libgrimoire" "falling back to regular MD5[]"
-    local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo "$(("$GPGNUM" - 1))")"
+    local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo "$(($GPGNUM - 1))")"
     real_unpack "${!SVAR}" "${MD5[$MD5NUM]}"
   fi
 }
@@ -445,7 +445,7 @@ function locate_spell_file() {
   # checks in any case
   [ -f    "$SPELL_DIRECTORY/$1" ] && echo    "$SPELL_DIRECTORY/$1" && return 0
   [ -f  "$SECTION_DIRECTORY/$1" ] && echo  "$SECTION_DIRECTORY/$1" && return 0
-  [ -f "$GRIMOIRE_DIRECTORY/$1" ] && echo "$GRIMOIRE_DIRECTORY/$1" && return 0
+  [ -f           "$GRIMOIRE/$1" ] && echo           "$GRIMOIRE/$1" && return 0
   [ -f                     "$1" ] && echo                     "$1" && return 0
 
   [ "$2" != "securely" ] &&  # checks in "secure" mode
