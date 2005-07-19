@@ -71,8 +71,7 @@ url_tla_download() {
     local       TLA_ARCHIVE=`echo $URL|cut -d"%" -f2`
     local      TLA_REVISION=`echo $URL|cut -d"%" -f3`
 
-    if [ -z "$TLA_LOCATION" -o -z "$TLA_ARCHIVE" -o -z "$TLA_REVISION" ]; 
-    then 
+    if [ -z "$TLA_LOCATION" -o -z "$TLA_ARCHIVE" -o -z "$TLA_REVISION" ]; then 
         message "${PROBLEM_COLOR}Missing required url args...${DEFAULT_COLOR}"
         return 1;
     fi
@@ -82,8 +81,7 @@ url_tla_download() {
             sed "s/\.tgz$//"      |
             sed "s/\.tar\.bz2$//"`
 
-    if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; 
-    then
+    if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
         message "${MESSAGE_COLOR}Previous source found." \
                 "Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
         tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
@@ -104,8 +102,7 @@ url_tla_download() {
         }
     else
         message "${MESSAGE_COLOR}Running tla get...${DEFAULT_COLOR}"
-        if ! tla archives | grep -q $TLA_ARCHIVE
-        then
+	if ! tla archives | grep -q "\<$TLA_ARCHIVE\>"; then
             tla register-archive $TLA_ARCHIVE $TLA_LOCATION
         fi
         tla get -A $TLA_ARCHIVE $TLA_REVISION $S_FILE      &&
