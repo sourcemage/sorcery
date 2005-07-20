@@ -527,7 +527,7 @@ function newer()  {
       .  "$SPELL_DIR/DETAILS" 1>/dev/null 2>&1
       if  [  "$ENTERED"  ]  &&  [  $ENTERED  -gt  $DATE  ];  then
         codex_set_current_spell  $SPELL_DIR
-        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
+        echo "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
   ) | maybe_column -t -s "|"
@@ -553,7 +553,7 @@ function older()  {
       .  "$SPELL_DIR/DETAILS" 1>/dev/null 2>&1
       if  [  "$ENTERED"  ]  &&  [  $ENTERED  -lt  $DATE  ];  then
         codex_set_current_spell  $SPELL_DIR
-        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
+        echo "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}|$ENTERED"
       fi
     done
   ) | maybe_column -t -s "|"
@@ -1017,7 +1017,7 @@ function gaze_show_section_version_table()  {
 
        codex_set_current_spell  $spell                            &&
        local  INSTALLED=`installed_version  $SPELL`               && 
-       echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+       echo  "$GRIMOIRE_NAME|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
      done 
 
@@ -1044,7 +1044,7 @@ function gaze_show_spell_version_table()  {
 
       codex_set_current_spell  $SPELL                        &&
       local  INSTALLED=`installed_version  $SPELL`           &&
-	  echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
+	  echo  "$GRIMOIRE_NAME|$SECTION|$SPELL|${VERSION:="-"}|${INSTALLED:="-"}"
 
     done 
 
@@ -1110,6 +1110,7 @@ function gaze_show_versions()  {
   local GRIMOIRE=
   local GRIMOIRES=
   local ECHO_INSTALLED=1
+  local GRIMOIRE_NAME
 
   if ! codex_does_spell_exist $SPELL
   then return 1
@@ -1130,16 +1131,16 @@ function gaze_show_versions()  {
     then
       codex_set_current_spell $SPELL_DIRECTORY
 
-	  if [ $ECHO_INSTALLED -eq 1 ]
-	  then
-        echo "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}"
+	    if [ $ECHO_INSTALLED -eq 1 ]
+	    then
+        echo "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}"
         ECHO_INSTALLED=0
       else
-        echo  "$(echo $GRIMOIRE | get_basenames)|$SECTION|$SPELL|$VERSION|-"
+        echo  "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|-"
       fi
 
     else
-      echo "$(echo $GRIMOIRE | get_basenames)|-|-|-|-"
+      echo "$(basename $GRIMOIRE)|-|-|-|-"
     fi
   done
 
