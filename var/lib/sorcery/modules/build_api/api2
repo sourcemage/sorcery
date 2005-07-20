@@ -31,8 +31,15 @@ function run_build_spell() {
 
   rm  -f $C_LOG
   touch $C_LOG
+  
+  if [[ $SCREEN_NAME ]] ; then  
+    screen_new_window "$SCREEN_NAME" $SCREEN_CAST_WIN "cast $SPELL" \
+      tail -f -s 0.1 $C_LOG
+    screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
 
-  if [ "$VOYEUR" == "on" -a -z "$SILENT" ]; then
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
+  elif [ "$VOYEUR" == "on" -a -z "$SILENT" ] ; then
     VOYEUR_STDOUT=/dev/stdout
     VOYEUR_STDERR=/dev/stderr
   else
@@ -41,19 +48,34 @@ function run_build_spell() {
   fi
                       
   local PROTECT_SORCERY=yes
-  run_pre_build                         || return 1
-  run_config_loc                        || return 2
+  local rs
   (
-    run_build                           &&
-    run_pre_install                     &&
-    run_install                         || return 2
-    run_post_install                    &&
-    run_final                           || return 3
-  ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
-     > >(tee -a $C_LOG >> $VOYEUR_STDOUT) || 
-  return $?  # this is needed to pass $? up if the ( ) fails
+    run_pre_build                         || return 1
+    run_config_loc                        || return 2
+    (
+      run_build                           &&
+      run_pre_install                     &&
+      run_install                         || return 2
+      run_post_install                    &&
+      run_final                           || return 3
+    ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
+       > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
+  )
+  rs=$?
+  if [[ $SCREEN_NAME ]] && [ $rs -gt 0 ] ; then
+    screen_move_window "$SCREEN_NAME" $SCREEN_CAST_WIN $SCREEN_LAST_FAILED_CAST_WIN
+    screen_name_window "$SCREEN_NAME" $SCREEN_LAST_FAILED_CAST_WIN "Failed $SPELL"
+    screen_kill_window "$SCREEN_NAME" $SCREEN_CAST_WIN
+    screen_notify "$SCREEN_NAME" "Last failed cast at $SCREEN_LAST_FAILED_CAST_WIN"
+  else
+    screen_kill_window "$SCREEN_NAME" $SCREEN_CAST_WIN
+  fi
+  
+  # triggers don't run in the window
+  [ $rs -gt 0 ] && return $rs
 
   run_triggers                          || return 4
+
   return 0
 }
 #---------------------------------------------------------------------
