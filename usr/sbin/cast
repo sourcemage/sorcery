@@ -843,21 +843,31 @@ else
   fi
   
   # If we are in a screen, weird things happen if we make another screen.
-  # So disable screen mode if we are in a screen aready 
-  # which wasn't started by smgl
-  if  [[ $TERM == screen ]] &&
+  # So disable screen mode if we are in a screen aready which wasn't started 
+  # by smgl. We also have to make sure this is the top level cast so the SA
+  # won't see the message over and over and over
+  if  [[ $TERM == screen ]]       &&
+      [[ $TOP_LEVEL == $SHLVL ]]  &&
+      [[ $SCREEN == on ]]         &&
       [[ ! $SCREEN_NAME ]] 
   then
+    export SCREEN_OVERRIDE=no
     message "${MESSAGE_COLOR}Although screen mode is enabled, you already seem to be in a another"
     message "screen session. Screen-in-screen is disabled."
     message "Continuing with screen mode off.${DEFAULT}"
-    export SCREEN=off
-    debug "cast" "Turning off screen mode"
+  fi
+  
+  # Disable screen mode if the appropriate env var is set
+  if  [[ $SCREEN_OVERRIDE ]]       &&
+      [[ $SCREEN == on ]]
+  then
+    export SCREEN=$SCREEN_OVERRIDE
+    debug "cast" "Turning $SCREEN_OVERRIDE screen mode"
   fi
 
   # If screen mode is on, but we aren't in screen, start a new session 
   # Call to screen_start never exits 
-  if  [[ $SCREEN == on ]] && 
+  if  [[ $SCREEN == on ]]         && 
       [[ $TERM != screen ]]
   then
     export SCREEN_NAME="ScreenCast $*"
@@ -868,16 +878,18 @@ else
   
   # If running in screen, screen mode is on, screen was started by us
   # and finally, it hasn't been initialized yet.
-  if  [[ $TERM == screen ]] && 
-      [[ $SCREEN == on ]] && 
-      [[ $SCREEN_NAME ]] && 
+  if  [[ $TERM == screen ]]       && 
+      [[ $SCREEN == on ]]         && 
+      [[ $SCREEN_NAME ]]          && 
       [[ ! $SCREEN_INITIALIZED ]]
   then
     debug "cast" "Initializing screen windows"
     screen_name_window "$SCREEN_NAME" $SCREEN_MAIN_WIN "Main"
 
     # Start debugging window if debugging is on and not set to /dev*
-    if [[ $DEBUG ]] && [[ ${DEBUG#/dev} == $DEBUG ]] ; then 
+    if  [[ $DEBUG ]]              && 
+        [[ ${DEBUG#/dev} == $DEBUG ]]
+    then 
       touch $DEBUG
       screen_new_window "$SCREEN_NAME" $SCREEN_DEBUG_WIN "Debug" \
       	tail -f -n 0 -s 0.1 $DEBUG
