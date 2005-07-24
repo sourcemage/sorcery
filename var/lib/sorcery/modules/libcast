@@ -147,6 +147,7 @@ function query_services() {
   local btmp xtmp itmp 
   local tmp retvar
   local XINETD INIT BOTH found
+  local new_init_provides
 
   test -d $SCRIPT_DIRECTORY/xinetd.d &&
   XINETD_SCRIPTS=$(find $SCRIPT_DIRECTORY/xinetd.d -maxdepth 1 -type f \
@@ -218,8 +219,10 @@ function query_services() {
     elif [[ $choice == init ]] ; then
       list_add new_init_inst $tmp
       list_add new_xinetd_ninst $tmp
-      service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
-                                "$INIT_DISABLED" n new_init_enab new_init_disab
+      if service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
+                          "$INIT_DISABLED" n new_init_enab new_init_disab; then
+        init_prepare_install "$tmp" "$INIT_PROVIDES" new_init_provides
+      fi
     elif [[ $choice == xinetd ]] ; then
       list_add new_init_ninst $tmp
       list_add new_xinetd_inst $tmp
@@ -232,10 +235,20 @@ function query_services() {
   done
 
   for tmp in $INIT; do
+    if grep -Fq 'ESSENTIAL=yes' $SCRIPT_DIRECTORY/init.d/$tmp ; then
+      message "Init script $tmp is \"ESSENTIAL\" for system startup," \
+              "\nit is recommended that you answer yes to the following" \
+              "\nqueries unless you know exactly what you're doing."
+    elif grep -Fq 'RECOMMENDED=yes' $SCRIPT_DIRECTORY/init.d/$tmp ; then
+      message "Init script $tmp is \"RECOMMENDED\" for system startup," \
+            "\nit is recommended that you answer yes to the following queries."
+    fi
     if service_query $tmp "Install init script $tmp?" "$INIT_INSTALLED" \
                      "$INIT_NOT_INSTALLED" n new_init_inst new_init_ninst; then
-      service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
-                            "$INIT_DISABLED" n new_init_enab new_init_disab
+      if service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
+                          "$INIT_DISABLED" n new_init_enab new_init_disab; then
+        init_prepare_install "$tmp" "$INIT_PROVIDES" new_init_provides
+      fi
     fi
   done
   for tmp in $XINETD; do
@@ -257,6 +270,8 @@ function query_services() {
   persistent_remove XINETD_ENABLED
   persistent_remove XINETD_DISABLED
 
+  persistent_remove INIT_PROVIDES
+
   if [[ $INIT ]] || [[ $BOTH ]] ; then
     service_store INIT_INSTALLED "$new_init_inst"
     service_store INIT_NOT_INSTALLED "$new_init_ninst"
@@ -270,6 +285,11 @@ function query_services() {
     service_store XINETD_ENABLED "$new_xinetd_enab"
     service_store XINETD_DISABLED "$new_xinetd_disab"
   fi
+
+  if [[ $new_init_provides ]] ; then
+    service_store INIT_PROVIDES "$new_init_provides"
+  fi
+
   if [[ $XINETD_INSTALLED ]] ; then
     optional_depends xinetd "" "" "for $XINETD_INSTALLED"
   fi

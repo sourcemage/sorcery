@@ -114,13 +114,52 @@ function create_md5list() {
   local INPUT=$1
   local OUTPUT=$2
   debug  "libtrack" "$FUNCNAME on $SPELL"
-  while read LINE ; do
+
+  [[ $__MODIFIED_FILES ]] || export __MODIFIED_FILES="$TMP_DIR/modified_files"
+  touch $__MODIFIED_FILES
+  filter "$__MODIFIED_FILES" < $INPUT | while read LINE ; do
     debug "libtrack" "Checking file $LINE"
     if  [ -f "$LINE" ] ; then
       debug "libtrack" "Running md5 on $LINE"
       md5sum "$LINE"
     fi
-  done < $INPUT 2>/dev/null > $OUTPUT
+  done 2>/dev/null > $OUTPUT
+}
+
+#---------------------------------------------------------------------
+## Notes that a file was previously modified so that its md5 is
+## deliberatly munged
+#---------------------------------------------------------------------
+function mark_file_modified() {
+  [[ "$1" ]] || return 1
+  [[ $__MODIFIED_FILES ]] || export __MODIFIED_FILES="$TMP_DIR/modified_files"
+  echo "^$1\$" >> $__MODIFIED_FILES
+}
+
+
+#---------------------------------------------------------------------
+## @param file to check
+## @param md5 file (optional)
+#---------------------------------------------------------------------
+function check_if_modified() {
+  local to=$1
+  local md5_log=$2
+  if ! [[ $2 ]] ; then
+    md5_log="$TMP_DIR/$SPELL.md5"
+    if [[ $OLD_SPELL_VERSION ]] ; then
+      old_md5_log="$MD5SUM_LOGS/$SPELL-$OLD_SPELL_VERSION"
+      # log must be in filterable form
+      log_adjuster "$old_md5_log" "$md5_log" filterable root
+    else
+      old_md5_log=/dev/null
+    fi
+  fi
+  local my_md5=$(md5sum "$to")
+  if test -f "$md5_log" && grep -q "$my_md5" "$md5_log"; then
+    false
+  else
+    true
+  fi
 }
 
 #---------------------------------------------------------------------

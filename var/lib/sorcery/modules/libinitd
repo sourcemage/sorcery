@@ -91,6 +91,7 @@ function _init_merge_config_file()
   local new_opts=$( sed -n -e 's/[[:space:]]*\([[:alnum:]_]*\)=.*/\1/p' $1 $2 |
                           sort | uniq -u )
 
+  # for now the file is always modified...
   if [ -z "$new_opts" ] ; then
     message "  No new options to merge into $2..."
     track_manual $2 # but we still need to track it.
@@ -139,6 +140,7 @@ function _init_install_conf_files()
     fi
 
     if [ -f "$target_file" ] ; then
+      check_if_modified "$target_file" && mark_file_modified "$target_file"
       _init_merge_config_file $file $target_file
     else
       install -m 644 $file $target_file
@@ -151,8 +153,9 @@ function _init_install_conf_files()
 
 #---------------------------------------------------------------------
 ## @param init script
+## @param previous cast instance's answers, if any
+## @param init script
 ## Prepares installation of an init-script.
-## @Global INITPROVIDES 
 ## Creates the variable $INITPROVIDES which contains facility provided by the
 ##   script (if any)
 ##
@@ -160,29 +163,25 @@ function _init_install_conf_files()
 function init_prepare_install()
 {
 
-  local script_name="$1"
-  local script_path="$SCRIPT_DIRECTORY/init.d/$script_name"
+  local service="$1"
+  local old_provides="$2"
+  local result_list="$3"
+  local script_path="$SCRIPT_DIRECTORY/init.d/$service"
   local script_provides=$( grep '^[:space:]*PROVIDES' $script_path )
   script_provides=$( eval "( ${script_provides:=:} ; echo \$PROVIDES ; )" )
 
   [ -z "$script_provides" ] && return
 
-  query "Set $script_name to be the default provider of $script_provides?" y \
-      || return
-
-  # If the variable isn't in the config file then we need to make sure we don't
-  # use an old instance of it from another spell.
-  if grep -q "^INITDSCRIPT_PROVIDES=" $SPELL_CONFIG ; then
-    # Unfortunately not very fast. Can be made speedier by exporting a variable
-    # and have use_initd write it after the looping is done.
-    local tmp=$( grep -v "^INITDSCRIPT_PROVIDES=" $SPELL_CONFIG )
-    echo $tmp > $SPELL_CONFIG
-  else
-    INITDSCRIPT_PROVIDES=""
+  local default=n
+  if grep -q "$script_provides=$service" \
+              $INSTALL_ROOT/etc/sysconfig/facilities ||
+     list_find "$service:$script_provides" $old_provides; then
+    default=y
   fi
-  INITDSCRIPT_PROVIDES="$script_name:$script_provides $INITDSCRIPT_PROVIDES"
-
-  echo  "INITDSCRIPT_PROVIDES=\"$INITDSCRIPT_PROVIDES\"" >> $SPELL_CONFIG
+  local question="Set $service to be the default provider of $script_provides?"
+  if query "$question" $default; then
+    list_add "$result_list" "$service:$script_provides"
+  fi
 }
 
 
@@ -217,7 +216,7 @@ function init_install()
     # /etc/sysconfig/init might not exist yet so we define this in case
     RUNLEVELS_DIR="${RUNLEVELS_DIR:-$INSTALL_ROOT/etc/init.d/runlevels}"
     
-    local runlevel_dir="${INSTALL_ROOT}$RUNLEVELS_DIR/%$script_runlevel"
+    local runlevel_dir="$RUNLEVELS_DIR/%$script_runlevel"
 
     if [ ! -d "$runlevel_dir" ] ; then
       message -n "${PROBLEM_COLOR}"
@@ -226,10 +225,6 @@ function init_install()
       message -n ${DEFAULT_COLOR}
       exit 1
     else
-      if grep -Fq 'ESSENTIAL=yes' $script_path ; then
-        message "  script $script_name is ESSENTIAL, installing enabled."
-        enable_script="enabled"
-      fi
       _init_make_backup $script_path $runlevel_dir/$script_name
       if [ "$enable_script" == "enabled" ] ; then
         install -m 754 $script_path $runlevel_dir
@@ -255,10 +250,10 @@ function init_post_install()
 {
   (
     IFS="$WHITESPACE_IFS"
-    for sp in $INITDSCRIPT_PROVIDES ; do
+    for sp in $INIT_PROVIDES ; do
+      mark_file_modified "$INSTALL_ROOT/etc/sysconfig/facilities"
       IFS=":"
       set $sp   # $1 - script name, $2 - facility
-
       if ! sedit "s/^\([:space:]*$2\)=.*/\1=$1/" \
             $INSTALL_ROOT/etc/sysconfig/facilities ; then
         message -n "${PROBLEM_COLOR}Unable to modify facilities file to make "
