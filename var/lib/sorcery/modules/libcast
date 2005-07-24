@@ -531,7 +531,8 @@ function acquire_cast_lock() {
           "Solo${DEFAULT_COLOR} ${MESSAGE_COLOR}casts to complete..." \
           "${DEFAULT_COLOR}"
   lock_resources "solo" "cast"
-  if grep -q "^$SPELL$" $SOLO || [ -f $SCRIPT_DIRECTORY/SOLO ]
+  if test -f $SOLO && grep -q "^$SPELL$" $SOLO || 
+     [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
     message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}" \
                "all other${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to" \
