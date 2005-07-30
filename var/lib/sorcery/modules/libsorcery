@@ -631,9 +631,7 @@ function push_remove_queue() {
 ##
 #---------------------------------------------------------------------
 function optimize()  {
-  debug "libsorcery" "In optimize(), ARCHITECTURE='${ARCHITECTURE}'"
-  debug "libsorcery" "TARGET='${TARGET}'"
-  debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
+  debug "libsorcery" "In optimize()"
 
   unset  CFLAGS CXXFLAGS LDFLAGS LC_ALL
   unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STATIC STRIP TINY
@@ -645,24 +643,12 @@ function optimize()  {
     export CXXFLAGS="$OVERRIDE_CXXFLAGS"
     export LDFLAGS="$OVERRIDE_LDLAGS"
   else
-    local SPECFILE
-    SPECFILE=`find ${ARCH_SPECS} -perm -400 -name "$ARCHITECTURE" 2>/dev/null|head -n 1`;
-    if test -n "$SPECFILE" ; then
-      debug "libsorcery" "native archspec found at $SPECFILE"
-      .  "$SPECFILE"
-    fi
-
+    set_architecture
+    debug "ARCHITECTURE='${ARCHITECTURE}'"
+    debug "libsorcery" "TARGET='${TARGET}'"
+    debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
     BUILD=${HOST}
 
-    if  [[ $CROSS_INSTALL == on ]]; then
-      if  [[ $TARGET ]]; then
-        SPECFILE=`find ${ARCH_SPECS} -perm -400 -name "$TARGET" 2>/dev/null|head -n 1`;
-        if test -n "$SPECFILE" ; then
-          debug "libsorcery" "cross archspec found at $SPECFILE"
-          .  "$SPECFILE"
-        fi
-      fi
-    fi
     debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
 
     CFLAGS="$CFLAGS -pipe"

@@ -1131,6 +1131,78 @@ function complain_sorcery_var() {
   message "\n\nPLEASE REPORT A BUG IMMEDIATLY!!${DEFAULT_COLOR}\n\n"
 }
 
+#-------------------------------------------------------------------
+## @param (optional) Architecture to use
+## Sets the SPECFILE glocal variable and the SMGL_COMPAT_ARCHS global array
+## SPECFILE contains the compiler and other arch specifications
+## SMGL_COMPAT_ARCHS is an array that holds architectures which are compatible 
+## with the desired architecture. The desired architecture is determined as 
+## follows:
+## 1) If function is gien an argument, the argument is used, or
+## 2) If cross-install is on, the TARGET architecture is used, or
+## 3) The local ARCHITECTURE is used
+##
+## The least specific arch is in SMGL_COMPAT_ARCHS[0], 
+## SMGL_COMPAT_ARCHS[1] is more specific, et cetera. For example:
+## desired architecture="athlon-xp" might result in:
+## SPECFILE=/usr/share/archspecs/ia32/amd/athlon-xp
+## SMGL_COMPAT_ARCHS=("ia32" "amd" "athlon-xp")
+##
+## ARCHITECTURE is also modified to be an array, the reverse of 
+## SMGL_COMPAT_ARCHS. The result is an array from most specific arch to least
+## specific. $ARCHITECTURE does not change meaning since $A == ${A[0]}.
+#-------------------------------------------------------------------
+function set_architecture() {
+
+  $STD_DEBUG
+  local specdir
+  local i j
+  unset SPECFILE
+
+  # If given an argument, treat as the architecture to use
+  local arch=${1}
+  
+  # If no arch is specified, see if this is a cross-install, if so, set arch to 
+  # the target arch
+  if  [[ ! $arch ]] &&
+      [[ $CROSS_INSTALL == on ]] &&
+      [[ $TARGET ]]
+  then
+    debug "libmisc" "set_architecture: using cross-install's target arch"
+    arch=${arch:-$TARGET}
+  fi
+  
+  # If no arch given and this isn't a cross-install, then default to the ARCHITECTURE var
+  if ! [[ $arch ]] ; then
+    arch=$ARCHITECTURE
+  fi
+  
+  # Find the specfile to use
+  for specdir in ${ARCH_SPECS[@]} ; do
+    # -L so symlinks work, -type f so it won't match dirs
+    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "$arch" -print -quit 2>/dev/null)
+    [ $SPECFILE ] && break
+  done
+  if [[ ! $SPECFILE ]] ; then 
+    message "${PROBLEM_COLOR}Cannot find arch spec for $arch!"
+    return 1
+  fi
+  debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
+  
+  # turn the path into an array, but remove $specdir from the start first
+  unset SMGL_COMPAT_ARCHS 
+  explode "${SPECFILE#$specdir/}" '/' SMGL_COMPAT_ARCHS
+
+    unset ARCHITECTURE
+    # Reverse the array so that the most specific arch is first
+    j=0
+    for(( i=${#SMGL_COMPAT_ARCHS[@]}-1; i>=0; i--)) ; do
+      ARCHITECTURE[j++]=${SMGL_COMPAT_ARCHS[i]}
+    done
+    
+    source "$SPECFILE"
+}
+
 #---------------------------------------------------------------------
 ## @param Function body
 ## @param Function name
