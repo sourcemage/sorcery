@@ -190,12 +190,12 @@ function create_cache_archive()  {
   local TMP_MDATA=$TMP_DIR/foo.mdata
   seperate_state_files $input $TMP_DATA $TMP_MDATA
 
-  pushd $STATE_ROOT &>/dev/null
+  pushd $STATE_ROOT/ &>/dev/null
   install_log_filter $STATE_ROOT "." < $TMP_MDATA |
   tar --no-recursion -cPf "$CACHE" -T -
   popd &>/dev/null
 
-  pushd $INSTALL_ROOT &>/dev/null
+  pushd $INSTALL_ROOT/ &>/dev/null
   install_log_filter $INSTALL_ROOT "." < $TMP_DATA |
   tar --no-recursion -rPf "$CACHE" -T -
   rm $TMP_DATA $TMP_MDATA
