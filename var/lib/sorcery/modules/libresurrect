@@ -162,7 +162,9 @@ function resurrect()  { (
     if test -e $OLD_INSTALL_LOG ; then
       log_adjuster $OLD_INSTALL_LOG $OLD_INSTALL_LOG_F log filterable
       log_adjuster $OLD_INSTALL_LOG $OLD_INSTALL_LOG_R log root
-      seperate_state_files $OLD_INSTALL_LOG_F $OLD_DATA_F $OLD_MDATA_F
+      # dont include the logs in meta-data
+      seperate_state_files $OLD_INSTALL_LOG_F $OLD_DATA_F /dev/stdout |
+      grep -v "$LOG_DIRECTORY" > $OLD_MDATA_F
       log_adjuster $OLD_DATA_F $OLD_DATA_R filterable root
       cat $OLD_DATA_F| filter_configs -v > $OLD_DATA_F_C
       log_adjuster $OLD_DATA_F_C $OLD_DATA_R_C filterable root
@@ -308,6 +310,7 @@ function resurrect_sub() {
     }
   fi
 
+
   # 11) for each non-config file, all old files are already backed up
   # tar is nice enough to preserve permissions, atime, etc. for us, using
   # mkdir and cp it isnt so easy, this also has the advantage of not
@@ -362,15 +365,20 @@ function resurrect_sub() {
     log_adjuster /dev/stdin  $TMP_DIR/leftover.$SPELL.non-config filterable root
 
     # clear out old files/symlinks
-    remove_files_and_dirs $TMP_DIR/leftover.$SEPLL.non-config "$INSTALL_ROOT"
+    remove_files_and_dirs $TMP_DIR/leftover.$SPELL.non-config "$INSTALL_ROOT"
 
     # this handles configs which must be backed up if they've changed
     awk -F : 'BEGIN {
       while (getline < ARGV[2] ) { fc[$1]=1; }
       while (getline < ARGV[1] ) { if( fc[$1] != 1 ) { print $1; } }
     }' $OLD_DATA_F_C $NEW_DATA_F_C |
-    log_adjuster /dev/stdin  $TMP_DI/leftover.$SPELL.configg filterable root
-    backup_config_file $TMP_DIR/leftover.$SPELL.config $savetime "$OLD_MD5_LOG"
+    log_adjuster /dev/stdin  $TMP_DIR/leftover.$SPELL.config filterable root
+    touch $TMP_DIR/leftover.$SPELL.config
+    while read file; do
+      if check_if_modified "$OLD_MD5_LOG"; then
+        reap_modified_file $file
+      fi
+    done < $TMP_DIR/leftover.$SPELL.config
   fi
 
   # 14) if theres a POST_RESURRECT run it
@@ -442,26 +450,27 @@ function internal_install_config_file() {
 
   # elif the file exists and is identical to the new one
   elif cmp "$to" "$from" &>/dev/null; then
-    # do nothing
     echo "$from"
+    # preserve modification status
+    if check_if_modified "$to" "$md5_log"  ; then
+      mark_file_modified "$to"
+    fi
   # else the file exists and differs from the new one then
   else
-    local my_md5=$(md5sum "$to")
     # if it is owned by the old spell with a valid md5
     # note that the md5_log is a subset of the install log, so if it
     # matches in the md5 log, it is owned by the spell
-    if test -f "$md5_log" && grep -q "$my_md5" $md5_log ; then
+    if check_if_modified "$to" "$md5_log" ; then
+      # it is owned by the old spell with an invalid md5 OR
+      # the file might be owned by another spell OR
+      # might be an alien, all lead to the same direction
+      # note, it might be nice to split the above cases out for more informative
+      # user messages
+      real_handle_changed_config "$from" "$to" $savetime
+    else
       # replace the file
       mkdir -p "$(dirname "$to")" &&
       cp -pv "$from" "$to"
-
-    # it is owned by the old spell with an invalid md5 OR
-    # the file might be owned by another spell OR
-    # might be an alien, all lead to the same direction
-    # note, it might be nice to split the above cases out for more informative
-    # user messages
-    else
-      real_handle_changed_config "$from" "$to" $savetime
     fi
   fi
 }
@@ -515,8 +524,15 @@ function real_handle_changed_config() {
           cp -pv "$from" "$to"
           break ;;
       2)  cp -pv "$from" "$to.$savetime"
+          mark_file_modified "$to"
+          # this is deliberatly not track_manual, if this is run from
+          # FINAL the user might not have wanted the files tracked
+          # so we wont make an assumption on what the user intends
+          touch "$to"
           break ;;
-      3)  break ;;
+      3)  mark_file_modified "$to"
+          touch "$to"
+          break ;;
       4)  diff "$to" "$from" | $PAGER;;
     esac
     message "\n\nPlease select another option"
