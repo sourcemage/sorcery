@@ -8,6 +8,7 @@
 ## and to make it so cast doesn't have to actually run the summon script.
 ##
 ## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+## @Copyright Copyright (C) 2005 The Source Mage Team <http://www.sourcemage.org>
 ##
 ## @Contributors Andrew Stitt <astitt@sourcemage.org)
 ## @Contributors Paul Mahon <pmahon@sourcemage.org)
@@ -26,71 +27,378 @@
 ##
 #---------------------------------------------------------------------
 function summon_spell() {
+  $STD_DEBUG
   local SPELL=$1
+  local rc=1
+  # FIXME trylock might fail
   if [ -n "${SPELL}" ] && trylock_resources "summon" "${SPELL}"; then
+    #local dl_dir=/tmp/sorcery/summon/${SPELL:-none}
+    local dl_dir=$TMP_DIR/${SPELL:-none}
+    debug "libsummon" "dl_dir is $dl_dir"
+    mkdir -p $dl_dir && pushd $dl_dir &>/dev/null &&
+
     # run in a subshell rather than try to unset_details
     # and instead jump through hoops to get the return code correctly
-    ( run_details    &&
-      get_spell_files_and_urls | download_files && rc=0
+    ( local rc=1
+      run_details    &&
+      persistent_load &&
+      if test -x $SCRIPT_DIRECTORY/DOWNLOAD ; then
+        . $SCRIPT_DIRECTORY/DOWNLOAD
+      else
+        default_download
+      fi &&
+      persistent_save
       # save the rc, then unlock
+      rc=$?
       unlock_resources "summon" "${SPELL}"
-      if [ ${rc:-1}==0 ]; then
+
+      if [[ $rc == 0 ]]; then
         activity_log "summon" "$SPELL"  "$VERSION" "success"
       else
         activity_log "summon" "$SPELL"  "$VERSION" "failure"
       fi
+
       # this actually only returns from the subshell, not the function
-      return ${rc}
-    ) && return 0
+      return $rc
+    ) &&
+    popd &>/dev/null
+    rm -rf $dl_dir
+    rc=$?
   fi
-  return 1
+  return $rc
 }
 
-#---------------------------------------------------------------------
-## @param A list of spells
-## Will call summon_spell for each spell found in "$*"
+#-------------------------------------------------------------------------
+## Helper routine to dump out the files and urls for a spell given that
+## the caller has run run_details.
 ##
-#---------------------------------------------------------------------
-function summon_spells() {
-  local SPELLS="$*"
-  local SPELL
-  [ -z "$SPELLS" ] && return 1
-  for  SPELL  in  $SPELLS;  do
-    summon_spell $SPELL
+## @Stdout multiple lines, one per SOURCE/SOURCEx as "SOURCE SOURCE_URL[0] SOURCE_URL[1]"
+#-------------------------------------------------------------------------
+function get_spell_files_and_urls() {
+  $STD_DEBUG
+  local url src
+  for src in $(real_get_source_nums SOURCE); do
+    url="$src"'_URL[*]'
+    src="${!src}"
+    [[ ${src} ]] && echo ${src} ${!url}
   done
 }
 
-#---------------------------------------------------------------------
-## @param A list of spells
-## @global PRINT_TYPE
-## This is mainly for summon, but might be useful for gaze as its
-## an information query function.
-#---------------------------------------------------------------------
-function summon_print_spells() {
-  local SPELLS="$*"
-  [ -z "$SPELLS" ] && return 1
 
-  for  SPELL  in  $SPELLS;  do
-    # run in a subshell rather than try to unset_details
-    # its a fork either way, and this way leaves us less open for surprises
-    ( run_details  &&
-      get_spell_files_and_urls|while read -a dl_array; do
-        if [ "$PRINT_TYPE" == source ]; then
-          echo "${dl_array[0]}"
-        elif [ "$PRINT_TYPE" == one_url ]; then
-          [ -n "${dl_array[1]}" ] && echo "${dl_array[1]}"
-        elif [ "$PRINT_TYPE" == all_urls ]; then
-          unset dl_array[0]
-          [ -n "${dl_array[*]}" ] && echo "${dl_array[*]}"
-        elif [ "$PRINT_TYPE" == raw ]; then
-          echo "${dl_array[*]}"
-        else
-          echo "unknown value of PRINT_TYPE $PRINT_TYPE we shouldn't get here"
-          echo "please file a bug if you see this, thanks."
-          exit 1
-        fi
-      done
-    )
+#-------------------------------------------------------------------------
+## @param none
+## 
+## Call acquire_src for each SOURCEx_URL
+##
+#-------------------------------------------------------------------------
+function real_default_download() {
+  $STD_DEBUG
+  local SOURCE_NUMBER
+  for SOURCE_NUMBER in $(real_get_source_nums X); do
+    SOURCE_NUMBER=${SOURCE_NUMBER/X/}
+    acquire_src $SOURCE_NUMBER
   done
 }
 
+
+#-------------------------------------------------------------------------
+## @param source number or '' for the first $SOURCE
+##
+## Acquire the source. Check locally unless options insist on not
+## doing so.
+##
+## Inspects $FORCE_DOWNLOAD and ${FORCE_DOWNLOAD[$srcnum]}
+## if either are set then downloading is forced, a local copy of the
+## file is ignored.
+#-------------------------------------------------------------------------
+function real_acquire_src() {
+  $STD_DEBUG
+  local DLNUM="$1"
+  local SVAR="SOURCE${DLNUM}"
+  local target=${!SVAR}
+
+  
+  REASON="for spell ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+
+  # maybe we already have the file
+  # but we can only use it if not FORCE_DOWNLOADing
+  if file_exists "$SOURCE_CACHE/$target " &&
+     ! [[ ${FORCE_DOWNLOAD} ]] &&
+     ! [[ ${FORCE_DOWNLOAD[${DLNUM:-1}]} ]] ; then
+    message  "${MESSAGE_COLOR}Found source file"             \
+             "${FILE_COLOR}${target}${DEFAULT_COLOR}"     \
+             "$REASON in ${FILE_COLOR}${SOURCE_CACHE}${DEFAULT_COLOR}"
+    return 0
+  fi
+  # else the source must be downloaded/updated
+  download_src "$DLNUM"
+}
+
+#-------------------------------------------------------------------------
+## @param source number or '' for the first $SOURCE
+## 
+## Expands $SOURCEx, $SOURCEx_URL[*] and $SOURCEx_HINTS
+## then calls download_src_args with them.
+##
+#-------------------------------------------------------------------------
+function real_download_src() {
+  $STD_DEBUG
+  local DLNUM="$1"
+  local SVAR="SOURCE${DLNUM}"
+  local SURLVAR=${SVAR}'_URL[*]'
+  local SHINTVAR=${SVAR}'_HINTS'
+
+  local target=${!SVAR}
+  local urls=${!SURLVAR}
+  local hints=${!SHINTVAR}
+
+  [[ "$target" ]] || {
+    message "Empty value in $SVAR!!"
+    return 1
+  }
+  [[ "$urls" ]] || {
+    message "No urls in $SURLVAR!!"
+    return 1
+  }
+  download_src_args "$target" "$urls" "$hints"
+}
+
+#-------------------------------------------------------------------------
+## @param file
+## @param url list
+## @param url options
+##
+## Download the resource, handles file and tree discrepencies, if a tree is
+## downloaded it is repackaged as the specified file for later use.
+##
+## Only tar.bz2 files are acceptable caches for repackaged trees
+##
+#-------------------------------------------------------------------------
+function download_src_args() {
+  $STD_DEBUG
+  local target="$1"
+  local urls="$2"
+  local hints="$3"
+
+  message  "${MESSAGE_COLOR}Downloading source file"       \
+           "${FILE_COLOR}${target}${DEFAULT_COLOR}"     \
+           "${REASON}"
+
+  # get the update tree if we think there is one
+  local new_target=$target
+  unpack_for_update "$target" "$urls" "$hints" new_target guess_type
+
+  # this does the actual downloading:
+  local summon_type summon_target
+  if ! download_src_sub "$new_target" "$urls" "$hints" \
+                                       summon_target summon_type; then
+    message  "${PROBLEM_COLOR}Download of"            \
+             "${FILE_COLOR}${target}${DEFAULT_COLOR}"   \
+             "${PROBLEM_COLOR}failed${DEFAULT_COLOR}"
+    return 1
+  fi
+
+  # look at what we got
+  if ! [[ $summon_target ]] ; then
+    message "${PROBLEM_COLOR}Empty value for downloaded target, file a bug" \
+            "if you see this.${DEFAULT_COLOR}"
+    return 255
+  fi
+
+  # repackage if necessary and move to $SOURCE_CACHE
+  if [[ "$summon_type" == tree ]] ; then
+
+    # incorrect guess, set new_target appropriatly
+    if [[ "$guess_type" == file ]] ; then
+      new_target="${target/.tar.bz2/}"
+    fi
+
+    if ! test -d $summon_target; then
+      message "${PROBLEM_COLOR}Value for downloaded target ($summon_target)" \
+              "is not a directory, but a tree was downloaded, file a bug" \
+              "if you see this.${DEFAULT_COLOR}"
+      return 255
+    fi
+    if [[ $summon_target != $new_target ]] ; then
+      mv -f $summon_target $new_target
+    fi &&
+    message "Repackaging $target"
+    tar --remove-files -cjf $target $new_target &&
+    rm -rf $new_target
+  elif [[ "$summon_type" == file ]] ; then
+    # there is no penalty for guessing tree when the result is a file
+
+    if [[ $summon_target != $target ]] ; then
+      mv -f $summon_target $target
+    fi
+  else
+    message "${PROBLEM_COLOR}Unknown download type: \"$summon_type\""\
+            "at \"$summon_target\". Please file a bug if you see this." \
+            "${DEFAULT_COLOR}"
+    return 1
+  fi
+  rm -rf $SOURCE_CACHE/$target &&
+  mv $target $SOURCE_CACHE
+}
+
+#-------------------------------------------------------------------------
+##
+## @param file
+## @param url list
+## @param url options
+## @param summon target return value, pass by reference
+## @param summon type return value, pass by reference
+##
+## Download the resource, first try a leapforward url, then the given
+## urls and finally the fallbacks.
+#-------------------------------------------------------------------------
+function download_src_sub()  {
+
+  $STD_DEBUG
+
+  local target="$1"
+  local url_list="$2"
+  local hints="$3"
+  local _summon_target=$4
+  local _summon_type=$5
+
+  download_from_leapforward "$target" "$url_list" "$hints" \
+                            "$_summon_target" "$_summon_type" ||
+
+  url_download_expand_sort "$target" "$url_list" "$hints" \
+                           "$_summon_target" "$_summon_type" ||
+
+  download_from_fallback "$target" "$url_list" "$hints" \
+                         "$_summon_target" "$_summon_type"
+
+}
+
+#-------------------------------------------------------------------------
+##
+## Download the specified resource from the leapforward url if one is
+## given.
+##
+## @param file
+## @param url list
+## @param url options
+## @param summon target return value, pass by reference
+## @param summon type return value, pass by reference
+#-------------------------------------------------------------------------
+function download_from_leapforward() {
+  $STD_DEBUG
+  if ! [ -n "$LEAPFORWARD_URL" ]; then
+    return 1
+  fi
+
+  local target="$1"
+  local url_list="$2"
+  local hints="$3"
+  local _summon_target=$4
+  local _summon_type=$5
+  
+  message "${MESSAGE_COLOR}Attempting to get file from" \
+          "leap-forward mirror ${DEFAULT_COLOR}${LEAPFORWARD_URL}"
+  # leap forwards dont need to be expanded or sorted
+  url_download "$target" "$LEAPFORWARD_URL/$target" "$hints" \
+                                  "$_summon_target" "$_summon_type"
+}
+
+#-------------------------------------------------------------------------
+##
+## Attempt to get the resource from the fallback urls, try each one in
+## a random order.
+##
+## @param file
+## @param url list
+## @param url options
+## @param summon target return value, pass by reference
+## @param summon type return value, pass by reference
+##
+#-------------------------------------------------------------------------
+function download_from_fallback() {
+  $STD_DEBUG
+  local target="$1"
+  local url_list="$2"
+  local hints="$3"
+  local _summon_target=$4
+  local _summon_type=$5
+
+  message "${MESSAGE_COLOR}Attempting to get file from fall-back mirrors" \
+          "${DEFAULT_COLOR}"
+
+  # slow and painful buildup of all fallback mirrors in quasi random order
+  local i idx
+  local FALL_BACKS
+  local offset=$[${RANDOM} % $FURLNUM]
+  for (( i=0; $i < $FURLNUM; i++ ));  do
+    idx=$[($i + $offset) % $FURLNUM]
+    FALL_BACKS="$FALL_BACKS ${FALLBACK_URL_MIRROR[$idx]}/$target"
+  done
+  [ -n "$FALL_BACKS" ] && 
+  # dont order fall backs, above we use a random ordering
+  url_download "$target" "$FALL_BACKS" "$hints" "$_summon_target" \
+                                                "$_summon_type"
+}
+
+#-------------------------------------------------------------------------
+##
+## Make a guess as to whether or not the resource being downloaded
+## will be a file or a tree if it is a tree and the cached source exists
+## then unpack it in the current directory so it may be updated
+##
+## @param target
+## @param url_list
+## @param hints
+## @param new target return value pass by reference
+## @param guessed type return value pass by reference
+##
+##
+#-------------------------------------------------------------------------
+function unpack_for_update() {
+  $STD_DEBUG
+  local target="$1"
+  local url_list="$2"
+  local hints="$3"
+  local new_target_ref=$4
+  local guess_type_ref=$5
+  local _new_target
+  local _guess_type
+
+  # hard-coded list of url prefixes that generally download trees
+  local tree_prefixes="cvs dir rsync smgl_tla svn"
+  local prefix=$(url_get_prefix $url_list)
+  if ! list_find "$hints" file &&
+     list_find "$hints" tree || list_find "$tree_prefixes" "$prefix" ; then
+    _new_target="${target/.tar.bz2/}"
+    eval "$guess_type_ref=\"tree\""
+    eval "$new_target_ref=\"\$_new_target\""
+
+    # if $target exists in $SOURCE_CACHE and we think the download might be
+    # a tree, unpack it so the tree can be updated
+    if test -f $SOURCE_CACHE/$target && ! list_find "$hints" no_update; then
+      unpack_file_simple $target || return 1
+      if ! test -d "$_new_target" ; then
+        debug "libsummon" "unpacked $target but to somewhere strange"
+      fi
+    fi
+  else
+    eval "$new_target_ref=\"\$target\""
+    eval "$guess_type_ref=\"file\""
+  fi
+  return 0
+}
+#---------------------------------------------------------------------
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#---------------------------------------------------------------------

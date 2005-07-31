@@ -58,6 +58,7 @@ EOF
 ##
 #---------------------------------------------------------------------
 function scribe_add() {
+  $STD_DEBUG
   #For each item listed add it
   if ! [ -d $CODEX_ROOT ] ; then
     message "Main codex directory not present. Creating $CODEX_ROOT."
@@ -97,6 +98,7 @@ function scribe_add() {
 ##
 #---------------------------------------------------------------------
 function scribe_add_worker() {
+  $STD_DEBUG
   local grimoire=$1
   local from=$2
 
@@ -107,17 +109,38 @@ function scribe_add_worker() {
 
   local grim_dir=$(dirname $grimoire)
   local grim_name=$(basename $grimoire)
+  local grim_target="$grim_name.tar.bz2"
 
+  local prefix
   #If the associated FROM is not empty, check it for validity
   if  [ -n "$from" ];  then
-    if  ! url_is_valid "$from";  then
-      #if not valid, use $CODEX_URL
+    if url_is_valid "$from"; then
+      prefix=$(url_get_prefix $from)
+      if list_find "rsync svn cvs smgl_tla dir" $prefix ; then
+        grim_target=$grim_name
+      fi
+    else
+      #if not valid, use default
       message  "Error: $from is not a recognized url. Using default."
-      from="$CODEX_URL/$grim_name.tar.bz2"
+      from=""
     fi
-  else
+  fi
+
+  if  [ -z "$from" ];  then
     #from is empty - use the default
-    from="$CODEX_URL/$grim_name.tar.bz2"
+    prefix=$(url_get_prefix $CODEX_URL)
+    # yet another hard-coded list
+    if list_find "rsync svn cvs smgl_tla dir" $prefix ; then
+      grim_target=$grim_name
+    fi
+    from="$CODEX_URL/$grim_target"
+  fi
+
+  # add a / to the end, if one isnt there, if the user types
+  # rsync://sourcemage.org::codex/games instead of
+  # rsync://sourcemage.org::codex/games/ strange things happen
+  if list_find "rsync" $prefix ; then
+    from=$(echo $from|sed 's!\([^/]\)$!\1/!')
   fi
 
   message "Adding grimoire $grim_name to $grim_dir from $from"
@@ -129,10 +152,12 @@ function scribe_add_worker() {
     message "Found an old grimoire directory, removing it..."
     rm -rf $grimoire
   fi
+  if test -f $grim_target; then
+    rm -f $grim_target
+  fi
 
-  local FILE
-  url_set_options nocache
-  url_download $from
+  local scribe_target scribe_type
+  url_download $grim_target $from "" scribe_target scribe_type
 
   #check the success of the download
   if [ $? != 0 ]; then
@@ -141,53 +166,60 @@ function scribe_add_worker() {
     return 1
   fi
 
-  local tarball=$(basename $from)
+  if [[ "$scribe_type" == file ]] ; then
+    local tarball=$scribe_target
 
-  gpg_verify_grimoire $PWD/$tarball $(dirname $from)
-  rc=$?
+    gpg_verify_grimoire $PWD/$tarball $(dirname $from)
+    rc=$?
 
-  gpg_user_query $rc || return 1
-
-  #if the grimoire is an archive, untar it
-  if [ -e $tarball ] ; then
+    gpg_user_query $rc || return 1
     #if successfuly downloaded, untar it and remove the zip
-    bzcat $tarball | tar -x  1>/dev/null 2>&1 
+    bzcat $tarball | tar -x  1>/dev/null 2>&1
     rm $tarball
+    #make sure that it untarred to the proper dir.
+    if [ -d $grimoire ]; then
+      :
+    elif  [ -d $grim_dir/grimoire ]; then
+      mv -f $grim_dir/grimoire $grimoire
+    else
+      local tmp_name=$grim_dir/${tarball/tar.bz2/}
+      if  [ -d $tmp_name ]; then
+        mv -f $tmp_name $grimoire
+      else
+        message "ERROR: Grimoire tarball for $grimoire not formated correctly!"
+        return 1
+      fi
+    fi
+  elif [[ "$scribe_type" == tree ]]; then
+    if ! test -d "$scribe_target"; then
+      message "Downloaded a tree but directory doesn't exist! file a bug if you see this"
+      return 1
+    fi
+    if [[ "$scribe_target" != "$grim_name" ]] ; then
+      mv -f "$scribe_target" "$grim_name"
+    fi
+
+    #FIXME gpg verification
+    # see bug 8220
+  else
+    message "Unknown download type $scribe_type, file a bug if you see this"
+    return 1
   fi
   popd &>/dev/null
 
-  local found
-  #make sure that it untarred to the proper dir.
-  if [ -d $grimoire ]; then
-    found=yes
-  elif  [ -d $grim_dir/grimoire ]; then
-    mv -f $grim_dir/grimoire $grimoire &&
-    found=yes
-  else
-    local tmp_name=$grim_dir/$(echo $tarball|sed 's/\.tar\.bz2//')
-    if  [ -d $tmp_name ]; then
-      mv -f $tmp_name $grimoire &&
-      found=yes
-    fi
-  fi  
 
-  local error
-  if [ "$found" == "yes" ]; then
-    #success! create a GRIMOIRE file that stores where it was downloaded from
-    echo "FROM_URL=$from" > $grimoire/GRIMOIRE && 
-    chmod +x $grimoire/GRIMOIRE && 
-
-    codex_add_grimoire $grimoire 0 && 
-    codex_create_cache $grimoire && 
-    message "Grimoire \"$grimoire\" successfully added to your codex." ||
-    error=yes
-  fi
-  if [ "$error" == "yes" ] ; then
+  #success! create a GRIMOIRE file that stores where it was downloaded from
+  echo "FROM_URL=$from" > $grimoire/GRIMOIRE && 
+  chmod +x $grimoire/GRIMOIRE && 
+  codex_add_grimoire $grimoire 0 && 
+  codex_create_cache $grimoire && 
+  message "Grimoire \"$grimoire\" successfully added to your codex." ||
+  {
     #dir not found. error.
     #FIXME- add a check for what dir it was and remove that
     message "ERROR: Grimoire tarball for $grimoire not formated correctly!"
     return 1
-  fi 
+  }
 
   return 0
 }
@@ -334,7 +366,7 @@ function scribe_reindex() {
   local paths=""
   local grimoire grimoires grim
   if [[ "$@" ]] ; then
-    grimoires=$@
+    grimoires="$@"
   else
     grimoires=`codex_get_all_grimoires`
   fi
@@ -559,11 +591,11 @@ function scribe_do_update() {
 
   local grim_dir=$(dirname $grimoire)
   local grim_name=$(basename $grimoire)
+  local grim_target=$(basename $from)
   pushd $grim_dir &> /dev/null
 
-  local FILE # this is set from url_download
-  url_set_options nocache
-  url_download $from
+  local scribe_target scribe_type
+  url_download "$grim_target" "$from" "" scribe_target scribe_type
 
   #check the success of the download
   if [ $? != 0 ] ; then
@@ -572,45 +604,54 @@ function scribe_do_update() {
     return 1
   fi
 
-  gpg_verify_grimoire $PWD/$(basename $from) $(dirname $from)
-  rc=$?
+  if [[ "$scribe_type" == file ]] ; then
 
-  gpg_user_query $rc $(basename $from) grimoire || return 1
+    gpg_verify_grimoire $PWD/$(basename $from) $(dirname $from)
+    rc=$?
 
-  # for some reason assume all grimoire tarballs as .tar.bz2
-  # and named after the name of the grimoire, this is kind of
-  # a sneaky way to let rsyncing work also :-/ (afk 2004/10/31)
+    gpg_user_query $rc $(basename $from) grimoire || return 1
 
-  #if the grimoire is an archive, untar it
-  if [ -e $grim_name.tar.bz2 ]; then
+    #if the grimoire is an archive, untar it
     #backup old version until successful untar
     mv $grim_name temp_$grim_name.old
 
     #untar the new grimoire update and remove zip
-    bzcat $grim_name.tar.bz2 | tar -x  1>/dev/null 2>&1 
-    rm $grim_name.tar.bz2
-  fi
+    bzcat $scribe_target | tar -x  1>/dev/null 2>&1
+    rm $scribe_target
 
-  #check for a successful unzip
-  if [ -d $grimoire ]; then
-    #success! create metadata
-    echo "FROM_URL=$2" > $grimoire/GRIMOIRE
-    chmod +x $grimoire/GRIMOIRE
+    #check for a successful unzip
+    if [ -d $grimoire ]; then
 
-    #and remove backup version
-    if [ -e temp_$grim_name.old ]; then
-      rm -rf temp_$grim_name.old
+      #and remove backup version
+      if [ -d temp_$grim_name.old ]; then
+        rm -rf temp_$grim_name.old
+      fi
+
+      #Confirm Success!
+      message "$grim_name Updated!"
+      grimoire_history $grimoire
+    else
+      #uh oh! bad unzip.
+      message "ERROR: Grimoire tarball for $grim_name not formated correctly! Reverting."
+      #phew! we backed it up. restore backed up version
+      mv -f temp_$grim_name.old $grim_name
+    fi 
+  elif [[ "$scribe_type" == tree ]]; then
+    if ! test -d "$scribe_target"; then
+      message "Downloaded a tree but directory doesn't exist! file a bug if you see this"
+      return 1
     fi
-
-    #Confirm Success!
-    message "$grim_name Updated!"
-    grimoire_history $grimoire
+    if [[ "$scribe_target" != "$grim_name" ]] ; then
+      mv -f "$scribe_target" "$grim_name"
+    fi
+    # FIXME gpg verify tree
   else
-    #uh oh! bad unzip.
-    message "ERROR: Grimoire tarball for $grim_name not formated correctly! Reverting."
-    #phew! we backed it up. restore backed up version
-    mv -f temp_$grim_name.old $grim_name
-  fi 
+    message "Unknown download type $scribe_type, file a bug if you see this"
+    return 1
+  fi
+  #success! create metadata
+  echo "FROM_URL=$from" > $grimoire/GRIMOIRE
+  chmod +x $grimoire/GRIMOIRE
 
   #return to directory scribe was run from
   popd &>/dev/null

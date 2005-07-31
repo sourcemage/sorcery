@@ -1,0 +1,142 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for downloading http, https, and ftp urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying 
+## http, https, and ftp urls.  This file uses the "wget" program.
+## 
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+function dl_wget_get() {
+  debug libdownload "$FUNCNAME -- $@"
+  dl_command_check wget || return 254
+
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local rc=1 url
+
+  [[ $target ]] &&
+  dl_connect || return 255
+
+  for url in $url_list; do
+    local WGET_OPTIONS
+    dl_wget_set_options  $url
+    dl_wget_call_wget  $target $url
+    rc=$?
+    [[ $rc == 0 ]] && break
+  done
+
+  dl_disconnect
+
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"file\""
+  return $rc
+
+}
+
+#---------------------------------------------------------------------
+# dl_wget_call_wget <filename> <extension-less filename> <url>
+# 
+# Private Function.  Call wget to download the url.
+#
+#---------------------------------------------------------------------
+function dl_wget_call_wget()  {  
+  local FILE=$1
+  local URL=$2
+  local WGET_OPTIONS
+
+  debug 'dl_wget' "$funcname -- $@"
+
+  wget $WGET_OPTIONS "$URL" 2>&1 &&
+  if ! test -f "$FILE" ; then
+    # stupid http site trying to be nice and re-direct us, this is a failure
+    # even though wget doesnt notice it...
+    rm -f $FILE*
+    return 1
+  fi
+}
+
+#---------------------------------------------------------------------
+# dl_wget_set_wget_options 
+# 
+# Private Function.  Sets wget options
+#
+#---------------------------------------------------------------------
+function dl_wget_set_options()  {
+  local URL=$1
+  if [  -n  "$ACTIVE_FTP"  ] ; then
+    unset  PASSIVE
+  else
+    PASSIVE="--passive-ftp"
+  fi
+
+  # Check for ? in the url, this seems to indicate that there may be
+  # some cgi redirection involved which means continued downloading would
+  # not work (bug 8993). 
+  # The sourceforge check pre-dates that but is lacking any documentation,
+  # I suspect it is a less general attempt to solve the same problem.
+  # (afk 2005-06-25)
+  if echo  "$URL"  |  grep  -q  "\?" ||
+    echo  "$URL"  |  grep  -q  "sourceforge" ; then
+    unset  CONTINUE
+  else         CONTINUE="-c"
+  fi
+
+  if [  -n  "$DOWNLOAD_RATE"  ] ; then
+    RATE="--limit-rate=${DOWNLOAD_RATE}"
+  fi
+
+  if [  -n  "$URL_HTTP_FTP_TIMEOUT"  ] ; then
+    URL_HTTP_TIMEOUT="-T $URL_HTTP_FTP_TIMEOUT"
+  else
+    unset  URL_HTTP_TIMEOUT
+  fi
+
+  if [  -n  "$URL_HTTP_FTP_RETRIES"  ] ; then
+    URL_HTTP_RETRIES="-t $URL_HTTP_FTP_RETRIES"
+  else
+    URL_HTTP_RETRIES="-t 3"
+  fi
+  
+  ONLY_NEWER=""
+  DEREF_SYM="--retr-symlinks"
+
+  WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM"
+  debug 'dl_wget' "wget options: $WGET_OPTIONS"
+} 
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

@@ -5,8 +5,12 @@
 ##
 ##
 ## This file contains functions for downloading and verifying urls.
-## It does this by fowarding url download and verification requests to
-## the appropriate url handler.  For example, the request to download
+## It does this by extracting information from a url with url handlers
+## specific to that url type. The url handler also determines a download
+## handler to actually download the url.
+##
+## FIXME
+## For example, the request to download
 ## the following url is made through the generic F<url_download>
 ## function:
 ##
@@ -47,16 +51,17 @@
 ##
 ## <p>Implement Url Handlers</p>
 ##
-## The next (and final) step is to write the actual functions that
+## The next step is to write the actual functions that
 ## will handle url requests and put them in the new file you just
 ## created.  The functions that must be implemented are:
 ##
-##    url_<URL_PREFIX>_download <url>
-##    url_<URL_PREFIX>_verify <url>
-##    url_<URL_PREFIX>_set_options <option>
-##    url_<URL_PREFIX>_help
+##    url_<URL_PREFIX>_bucketize <url>
+##    url_<URL_PREFIX>_crack <url>
+##    url_<URL_PREFIX>_expand <url>
 ##    url_<URL_PREFIX>_hostname <url>
+##    url_<URL_PREFIX>_is_valid <url>
 ##    url_<URL_PREFIX>_netselect <url>
+##    url_<URL_PREFIX>_verify <url>
 ##
 ## The easiest way to figure out what to do is to look at
 ## one of the existing files (e.g., url_http handles http requests).
@@ -87,114 +92,173 @@ if ! [[ $URL_HANDLER_FILES ]] ; then
   done
 fi
 
-
 #---------------------------------------------------------------------
-## url_name_is_function <function name>
-## @param function name
-## @Type Private
-## @return 0 if argument is a valid function
-## @return 1 otherwise
-## Returns true if input argument is the name of an
-## existing function, false otherwise.
+## @param see url_download
+##
+## This is simply a wrapper around url_download which provides the
+## additional functionality of expanding and ranking urls.
+## Processes like summon should use this, more defined processes
+## like scribe and sorcery update will probably directly call url_download.
 ##
 #---------------------------------------------------------------------
-function url_is_function()  {
-  local  FUNCTION_NAME=$1
-  [  "`type -t $FUNCTION_NAME`"  =  "function"  ]
-}
+function url_download_expand_sort() {
+  $STD_DEBUG
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local udl_target=$4
+  local udl_type=$5
 
+  local url expanded_urls sorted_urls
 
-#---------------------------------------------------------------------
-## @Type Private
-## @param url 
-## @Stdout url prefix
-## @return 0 valid url
-## @return 1 otherwise
-## Takes a url and echos the url prefix.  Returns
-## true if a valid url could be found, returns false otherwise.
-##
-## This is the only place parsing of a url should take place outside of
-## a url_handler. Doing so elsewhere is bugworthy.
-##
-#---------------------------------------------------------------------
-function url_get_prefix()  {
-  local URL=$1
-  local  URL_PREFIX=`echo $URL | sed "s/[\:\/\/].*$//"` 
-  [  -n  "$URL_PREFIX"  ]  &&
-  echo    $URL_PREFIX
-}
+  debug "liburl" "$FUNCNAME -- $@"
+  # you can't expect me to download something without urls...
+  [ -z "$urls" ] && return 255
 
-#---------------------------------------------------------------------
-## @Type Private
-## @param url 
-## @Stdout url hostname
-## @return 0 valid url
-## @return 1 otherwise
-## Takes a url and echos the url hostname. Returns
-## true if a hostname could be found, returns false otherwise.
-##
-#---------------------------------------------------------------------
-function url_get_hostname()  {
-  local tmp_url=$1 tmp_prefix
-  tmp_prefix=$(url_get_prefix $tmp_url)                 &&
-  url_is_function url_${tmp_prefix}_hostname            &&
-  url_${tmp_prefix}_hostname $tmp_url
-}
-
-#---------------------------------------------------------------------
-## @Type Private
-## @param url 
-## @Stdout url netslect output
-## @return 0 valid url
-## @return 1 otherwise
-## Prints the netselect output from the url handlers attempt at
-## running netselect.
-##
-#---------------------------------------------------------------------
-function url_get_netselect()  {
-  local tmp_url=$1 tmp_prefix
-  tmp_prefix=$(url_get_prefix $tmp_url)                 &&
-  url_is_function url_${tmp_prefix}_hostname            &&
-  url_${tmp_prefix}_netselect $tmp_url
-}
-
-
-#---------------------------------------------------------------------
-## @Type Private 
-## @Global BASE_URL FILE
-## If BASE_URL is set, then change URL to 
-## use BASE_URL as the download location.  Also sets FILE variable.
-#---------------------------------------------------------------------
-function url_change_base()  {
-  if  [  -n  "$BASE_URL"  ]  &&  [  -n  "$FILE"  ];  then  
-    URL="$BASE_URL/`basename $FILE`"
+  # expand urls
+  url_expand_urls expanded_urls "$urls"
+  if ! [[ "$expanded_urls" ]] ; then
+    message "No expanded urls! If you get this it is a sorcery bug"
+    return 1
   fi
+  debug "liburl" "expanded urls $expanded_urls"
+  # sort urls 
+  url_sort_urls sorted_urls "$expanded_urls"
+  if ! [[ "$sorted_urls" ]] ; then
+    message "No sorted urls! If you get this it is a sorcery bug"
+    return 1
+  fi
+  debug "liburl" "sorted urls $sorted_urls"
+  url_download "$1" "$sorted_urls" "$3" "$4" "$5"
 }
 
-
 #---------------------------------------------------------------------
-## @param url
-## @return 0 valid url
+## @param target	Expected target file or tree, this is only a
+##                      suggestion, and the download handler may ignore it.
+## @param url_list	List of urls to get the target from
+## @param hints		Hints, these help the function determine what
+##			type of thing it is downloading or other tunables.
+## @param udl_target	Name of variable in which to store the name of the
+##			result directory or file
+## @param udl_type	Name of the variable in which to store the type of
+##			thing downloaded
+##
+## @return 0 if file could be downloaded
 ## @return 1 otherwise
-## Returns true if the given url is a valid url understood by the url
-## library, returns false otherwise.
+## Downloads the specified url.  Returns true if file could be 
+## downloaded, false otherwise.
+##
 ##
 #---------------------------------------------------------------------
-function url_is_valid()  {
-  [ "$1" == " " ] && return 1 #If it's only a space, it's not valid
-  local  URL_PREFIX=`echo $1 | sed "s/[\:\/\/].*$//"` 
-  [  -n  "$URL_PREFIX"  ]  &&
-  url_is_function "url_${URL_PREFIX}_download"
+function url_download() {
+  $STD_DEBUG
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local udl_target=$4
+  local udl_type=$5
+
+  local url
+
+  debug "liburl" "$FUNCNAME -- $@"
+
+  # you can't expect me to download something without urls...
+  [ -z "$url_list" ] && return 255
+
+  # sanity check urls
+  local valid_urls
+  url_get_valid_urls valid_urls "$url_list"
+  if ! [[ "$valid_urls" ]] ; then
+    message "No valid urls!"
+    return 1
+  fi
+
+  hash_reset dl_buckets
+  local bucket
+  # bucketize
+  for url in $valid_urls; do
+    bucket=$(url_bucketize "$url")
+    if [[ $bucket ]] ; then
+      hash_append dl_buckets "$bucket" "$url"
+    else
+      message "Failed to find a download handler for $url, this is likely to be a sorcery bug"
+    fi
+  done
+  
+  # sort buckets, someday a better algorithm may be used, however
+  # this should be sufficient for now.
+  buckets=$(hash_get_table_fields dl_buckets|sort)
+
+  # iterate through buckets
+  for bucket in $buckets; do
+    dl_get_bucket "$bucket" "$target" "$(hash_get dl_buckets $bucket)" \
+                  "$hints" "$udl_target" "$udl_type"
+    rc=$?
+    if [[ $rc == 0 ]] ; then
+      debug "liburl" "url_download -- downloaded $url $udl_r_target $udl_r_type"
+      return 0
+    fi
+  done
+  return 1
 }
 
+
+#---------------------------------------------------------------------
+## @param urllist
+#---------------------------------------------------------------------
+function url_get_valid_urls() {
+  $STD_DEBUG
+  local upvar="$1"
+  local url_list="$2"
+  for url in $url_list; do
+    if url_is_valid "$url"; then
+      list_add $upvar "$url"
+    else
+      message "Invalid url: $url"
+    fi
+  done
+}
+
+
+#---------------------------------------------------------------------
+## @param urllist
+##
+## Frontend to expand urls into a nice list.
+#---------------------------------------------------------------------
+function url_expand_urls() {
+  $STD_DEBUG
+  local upvar="$1"
+  local url_list="$2"
+  for url in $url_list; do
+    # this should expand to something or return itself
+    list_add "$upvar" $(url_expand "$url")
+  done
+}
+
+#---------------------------------------------------------------------
+## @param urllist
+#---------------------------------------------------------------------
+function url_sort_urls() {
+  $STD_DEBUG
+  local upvar="$1"
+  local url_list="$2"
+  if [[ $NET_SELECT == on ]]  &&  spell_installed "netselect" ;  then
+    lock_resources "network" "network"
+    message -n "${CHECK_COLOR}Looking for the fastest mirror site...${DEFAULT_COLOR} "
+    dl_connect
+    url_list=$(url_rank $url_list 2> /dev/null)
+    dl_disconnect
+    unlock_resources "network" "network"
+    message " done."
+  fi
+  eval "$upvar=\$url_list"
+}
 
 #---------------------------------------------------------------------
 ## @param urllist
 ## @Stdout new list
 ## Ranks the urls in order of speed from fastest to slowest using netselect
 ## Makes use of url_<url_type>_hostname functions.
-##
-## T
 ##
 ## If multiple urls from the same hostname are passed in, their ordering
 ## is preserved, although that group of urls may move as a whole in
@@ -222,7 +286,6 @@ function url_rank() {
   function url_rank_divide_by_prefix() {
     local tmp_url=$1 tmp_prefix
     tmp_prefix=$(url_get_prefix $tmp_url)                 &&
-    url_is_function url_${tmp_prefix}_hostname            &&
     hash_append url_div_hash $tmp_prefix $tmp_url
   }
   iterate url_rank_divide_by_prefix " $IFS" $urlList
@@ -236,12 +299,12 @@ function url_rank() {
     # into the following bash code, which is then executed
     # url_speed[69]="${url_speed[69]} url1"
     # url_speed[234]="${url_speed[234]} url2"
-    eval $(url_${tmp_prefix}_netselect $tmp_list|
+    eval $(url_netselect $tmp_list|
       awk '{printf "url_speed[%s]=\"${url_speed[%s]} %s\";",$1,$1,$2}')
   done
   
   # since we put things in url_speed indexed by speed, the * should
-  #expand back in sorted order
+  # expand back in sorted order
 
   sortedList=$(echo ${url_speed[*]})
   debug "liburl" "Ordered list pre-sanity check is $sortedList"
@@ -269,94 +332,156 @@ function url_rank() {
   fi
 }
 
-
-
 #---------------------------------------------------------------------
-## @param url
-## @return 0 if file could be downloaded
+## @Type Private
+## @param url 
+## @Stdout url prefix
+## @return 0 valid url
 ## @return 1 otherwise
-## @Global FILE
-## Downloads the specified url.  Returns true if file could be 
-## downloaded, false otherwise.  The name of the downloaded file
-## is left in the FILE variable.
+## Takes a url and echos the url prefix.  Returns
+## true if a valid url could be found, returns false otherwise.
+##
+## This is the only place parsing of a url should take place outside of
+## a url_handler. Doing so elsewhere is bugworthy.
 ##
 #---------------------------------------------------------------------
-function url_download() {
-  local URL_LIST=$*
-  local SUCCESS=false
-
-  debug "liburl" "url_download() $*"
-
-  # you can't expect me to download something without urls...
-  [ -z "$URL_LIST" ] && return 1
-  
-  if (  [[ $NET_SELECT == on ]]  &&  spell_installed "netselect"  );  then
-    lock_resources "network" "network"
-    message -n "${CHECK_COLOR}Looking for the fastest mirror site...${DEFAULT_COLOR} "
-    URL_LIST=`url_rank $URL_LIST 2> /dev/null` 
-    unlock_resources "network" "network"
-    message " done."
-  fi
-
-  for URL in $URL_LIST; do
-    if  url_is_valid $URL                             &&
-        url_change_base                               &&
-        URL_PREFIX=`url_get_prefix $URL`              &&
-        url_is_function "url_${URL_PREFIX}_download"  && 
-        url_${URL_PREFIX}_download $URL;              then
-        SUCCESS=true
-        break;
-    fi
-  done
-
-
-  $SUCCESS
-}
-
-
-#---------------------------------------------------------------------
-## @param url
-## @return 0 url could be verified
-## @return 1 otherwise
-## Verifies the specified url.  Returns true if file could be 
-## verified, false otherwise.
-##
-#---------------------------------------------------------------------
-function url_verify() {
+function url_get_prefix()  {
+  $STD_DEBUG
   local URL=$1
-  
-  url_change_base
-  URL_PREFIX=`url_get_prefix $URL`            &&
-  url_is_function "url_${URL_PREFIX}_verify"  && 
-  url_${URL_PREFIX}_verify $URL
+  local  URL_PREFIX=`echo $URL | sed "s/[\:\/\/].*$//"` 
+  [  -n  "$URL_PREFIX"  ]  &&
+  echo    $URL_PREFIX
 }
 
 
 #---------------------------------------------------------------------
-## @param option 
-## Set options for url handling
+## @Type Private
+## @param url 
+## @param url prefix
+## @stdout url sans prefix
+#---------------------------------------------------------------------
+function url_strip_prefix() {
+  $STD_DEBUG
+  echo $1 | sed "s!^$2://!!"
+}
+
+#---------------------------------------------------------------------
+## url handler api functions. Use these to access a url specific
+## functionality/data.
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## @param url 
+## @stdout dl handler
+##
+## Get the download handler for this url
+#---------------------------------------------------------------------
+function url_bucketize()  {
+  $STD_DEBUG
+  url_generic_apifunc bucketize $1
+}
+
+#---------------------------------------------------------------------
+## @param url 
+##
+## Parse the url somehow. The results are url specific right now,
+## this is usually only called by dl handlers who know what url types
+## they can handle, and thus, understand the return value.
+#---------------------------------------------------------------------
+function url_crack()  {
+  $STD_DEBUG
+  url_generic_apifunc crack $1
+}
+
+#---------------------------------------------------------------------
+## @param url(s)
+## @stdout urls
+##
+## Attempt to get more similar urls to the given one based on the
+## sorcery mirrors files. Most url types simply expand to the input.
+#---------------------------------------------------------------------
+function url_expand()  {
+  $STD_DEBUG
+  url_generic_apifunc expand "$@"
+}
+
+#---------------------------------------------------------------------
+## @param url 
+##
+## Verify the url, this usually means going out to the internet and
+## somehow determining if the link is good.
+#---------------------------------------------------------------------
+function url_verify()  {
+  $STD_DEBUG
+  url_generic_apifunc verify $1
+}
+
+#---------------------------------------------------------------------
+## @param url 
+## @Stdout url hostname
+## @return 0 valid url
+## @return 1 otherwise
+## Takes a url and echos the url hostname. Returns
+## true if a hostname could be found, returns false otherwise.
 ##
 #---------------------------------------------------------------------
-function url_set_options() {
-  for URL_TYPE in ${URL_TYPES[@]}; do
-    url_is_function url_${URL_TYPE}_set_options &&
-    url_${URL_TYPE}_set_options $@
-  done
+function url_hostname()  {
+  $STD_DEBUG
+  url_generic_apifunc hostname $1
 }
 
-
 #---------------------------------------------------------------------
-## @Stdout help message 
-## Prints help message regarding url handling
+## @param url 
+## @Stdout url netslect output
+## @return 0 valid url
+## @return 1 otherwise
+## Prints the netselect output from the url handlers attempt at
+## running netselect.
 ##
 #---------------------------------------------------------------------
-function url_help() {
-  for URL_TYPE in ${URL_TYPES[@]}; do
-    url_is_function url_${URL_TYPE}_help &&
-    url_${URL_TYPE}_help
-  done
+function url_netselect()  {
+  $STD_DEBUG
+  url_generic_apifunc netselect "$@"
 }
 
+#---------------------------------------------------------------------
+## @param url
+## @return 0 valid url
+## @return 1 otherwise
+## Returns true if the given url is a valid url understood by the url
+## library, returns false otherwise.
+##
+#---------------------------------------------------------------------
+function url_is_valid()  {
+  $STD_DEBUG
+  url_generic_apifunc is_valid $1
+}
+
+
+#---------------------------------------------------------------------
+## @param function name
+## @param url(s)
+##
+## This implements the common code for simple url handler inheritence.
+## The above url api functions call this which then calls the handler
+## specific function, if it exists, or the default version. This
+## allows url handlers to only override functions as necessary.
+##
+## If multiple urls are given, the prefix is assumed of all of them
+## is assumed to be the same.
+##
+#---------------------------------------------------------------------
+function url_generic_apifunc() {
+  local tmp_func=$1
+  shift
+  local tmp_url=$1 tmp_prefix
+  tmp_prefix=$(url_get_prefix $1)
+  if misc_is_function url_${tmp_prefix}_${tmp_func}; then
+    url_${tmp_prefix}_${tmp_func} "$@"
+  else
+    url_default_${tmp_func} "$@"
+  fi
+}
 
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify
@@ -373,4 +498,3 @@ function url_help() {
 ## along with this software; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #---------------------------------------------------------------------
-

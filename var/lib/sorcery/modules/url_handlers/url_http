@@ -20,148 +20,22 @@
 ##
 #---------------------------------------------------------------------
 
-
 #---------------------------------------------------------------------
-# url_http_strip_extension <filename>
-# 
-# Private Function.  Strip tar & compression extensions off filename 
-#
-#---------------------------------------------------------------------
-function url_http_strip_extension()  {  
-  echo  $1               |
-  sed  "s/\.tar\.gz$//"  |
-  sed  "s/\.tgz$//"      |
-  sed  "s/\.tar\.bz2$//"
-}
-
-
-#---------------------------------------------------------------------
-# url_http_set_wget_options 
-# 
-# Private Function.  Sets wget options
-#
-#---------------------------------------------------------------------
-function url_http_set_wget_options()  {
-  if    [  -n  "$ACTIVE_FTP"  ]
-  then  unset  PASSIVE
-  else         PASSIVE="--passive-ftp"
-  fi
-
-  if    echo  "$URL"  |  grep  -q  "sourceforge"
-  then  unset  CONTINUE
-  else         CONTINUE="-c"
-  fi
-
-  if    [  -n  "$DOWNLOAD_RATE"  ]
-  then  RATE="--limit-rate=${DOWNLOAD_RATE}"
-  fi
-
-  if    [  -n  "$URL_HTTP_FTP_TIMEOUT"  ]
-  then         URL_HTTP_TIMEOUT="-T $URL_HTTP_FTP_TIMEOUT"
-  else  unset  URL_HTTP_TIMEOUT
-  fi
-
-  if    [  -n  "$URL_HTTP_FTP_RETRIES"  ]
-  then         URL_HTTP_RETRIES="-t $URL_HTTP_FTP_RETRIES"
-  else         URL_HTTP_RETRIES="-t 3"
-  fi
-  
-  ONLY_NEWER=""
-  DEREF_SYM="--retr-symlinks"
-
-  WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM"
-  debug 'url_http' "wget options: $WGET_OPTIONS"
-}
-
-
-#---------------------------------------------------------------------
-# url_http_erase <file basename>
-# 
-# Private Function.  If download continuation is not set, then remove
-# partially downloaded or previously downloaded files.
-#
-#---------------------------------------------------------------------
-function url_http_erase()  {
-  local  S_FILE=$1
-
-  if  [  -z  "$CONTINUE"  ];  then
-    rm  -f  $S_FILE.tar.gz  $S_FILE.tgz  $S_FILE.tar.bz2
-  fi
-}
-
-
-#---------------------------------------------------------------------
-# url_http_call_wget <filename> <extension-less filename> <url>
-# 
-# Private Function.  Call wget to download the url.  Set's FILE
-# as a side-effect.
-#
-#---------------------------------------------------------------------
-function url_http_call_wget()  {
-  local  FILENAME=$1
-  local  STRIPPED_FILENAME=$2
-  local  URL=$3
-
-  debug 'url_http' "call wget: $*"
-
-  url_http_erase  $STRIPPED_FILENAME   &&
-  wget $WGET_OPTIONS "$URL" 2>&1       &&
-  FILE="$FILENAME"                     &&
-  if [ ! -e "$FILE" ]; then
-    # stupid http site trying to be nice and re-direct us, this is a failure
-    # even though wget doesnt notice it...
-    rm $FILENAME*
-    return 1
-  fi
-}
-
-
-#---------------------------------------------------------------------
-##=item url_http_download <url>
+##=item url_http_bucketize <url>
 ## 
-## Downloads the specified http url.
+## Verifies the specified http url.  Returns true if the url exists
+## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_http_download() {
-  local  URL=$1
-
-  url_http_set_wget_options  $URL
-
-  [  -z  "$FILE"  ]  &&  FILE=`basename  $URL`
-  local  S_FILE=`url_http_strip_extension $FILE`
-
-  url_http_call_wget  $FILE  $S_FILE  $URL
+function url_http_bucketize() {
+  echo wget
 }
-
-
-#---------------------------------------------------------------------
-##=item url_https_download <url>
-## 
-## Downloads the specified https url.
-##
-#---------------------------------------------------------------------
-function url_https_download() {
-  url_http_download  $1
+function url_ftp_bucketize() {
+  echo wget
 }
-
-
-#---------------------------------------------------------------------
-##=item url_ftp_download <url>
-## 
-## Downloads the specified http url.
-##
-#---------------------------------------------------------------------
-function url_ftp_download() {
-  local  URL=$1
-
-  url_http_set_wget_options  $URL
-
-  [[  $FILE  ]]  ||  FILE=`basename  $URL`
-  local  S_FILE=`url_http_strip_extension $FILE`
-
-  url_http_call_wget  $FILE  $S_FILE $URL
+function url_https_bucketize() {
+  echo wget
 }
-
 
 #---------------------------------------------------------------------
 ##=item url_http_verify <url>
@@ -237,10 +111,10 @@ function url_http_hostname() {
   echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
 }
 function url_https_hostname() {
-  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+  url_http_hostname $1
 }
 function url_ftp_hostname() {
-  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+  url_http_hostname $1
 }
 
 #---------------------------------------------------------------------
@@ -251,15 +125,51 @@ function url_ftp_hostname() {
 ##
 #---------------------------------------------------------------------
 function url_http_netselect() {
-  netselect -s 1000 $@ 2>/dev/null
+  netselect -t 3 -s 1000 "$@" 2>/dev/null
 }
 function url_https_netselect() {
-  netselect -s 1000 $@ 2>/dev/null
+  netselect -t 3 -s 1000 "$@" 2>/dev/null
 }
 function url_ftp_netselect() {
-  netselect -s 1000 $@ 2>/dev/null
+  netselect -t 3 -s 1000 "$@" 2>/dev/null
 }
 
+#-------------------------------------------------------------------------
+## expand a url to ALL of the mirrors we think may be related
+## Take the url, find its hostname, if a file in $MIRRORS matches
+## generate new urls from all the mirrors in the file, the original url
+## is kept at the top of the list and not duplicated
+##
+## @param a list of urls
+## @stdout the expanded form of those urls
+#-------------------------------------------------------------------------
+function url_http_expand() {
+  local A=$'\a'
+  local URL rep tgt my_hostname each
+  # put the requested url first
+  echo "$@"
+  for URL in $@ ; do
+    my_hostname=$(url_hostname ${URL})
+    # a mirror is listed in the mirror listings as either
+    # ftp://foo.somemirror.org/stuff
+    # OR
+    # ftp://foo.somemirror.org
+    # note neither ends in a '/' but one has a '/' at the end of the
+    # hostname, the other has an end of line. The \(/\|\$\) stuff matches
+    # either
+    for each in $(grep -l "://$my_hostname\(/\|\$\)" $MIRRORS/*); do
+      rep=$(grep "://$my_hostname\(/\|\$\)" $each|awk '{print $NF; exit 0; }')
+      for tgt in $(awk '{print $NF}' $each); do
+         echo ${URL}|sed "s$A${rep}$A${tgt}$A"
+      done
+    done |grep -v $my_hostname
+  done
+}
+
+function url_ftp_expand() {
+  url_http_expand "$@"
+}
+# note that there is no https_expand
 
 #---------------------------------------------------------------------
 ##=back

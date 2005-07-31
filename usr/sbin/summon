@@ -85,7 +85,7 @@ fi
          --from) SOURCE_CACHE=$2;         shift 2 ;;
          --help) help;                    exit  1 ;;
           --url) BASE_URL="$2" ;          shift 2 ;;
-  -d|--download) FORCE_DOWNLOAD=1;        shift 1 ;;
+  -d|--download) FORCE_DOWNLOAD=on;        shift 1 ;;
   -g|--grimoire) codex_set_grimoires $2;  shift 2 ;;
      -p|--print) set_print_type $2;       shift 2 ;;
         --queue) QUEUE=1;                 shift 1 ;;
@@ -129,6 +129,55 @@ strip_parameters()  {
 
 }
 
+#---------------------------------------------------------------------
+## @param A list of spells
+## @global PRINT_TYPE
+## This is mainly for summon, but might be useful for gaze as its
+## an information query function.
+#---------------------------------------------------------------------
+function summon_print_spells() {
+  local SPELLS="$*"
+  [ -z "$SPELLS" ] && return 1
+
+  for  SPELL  in  $SPELLS;  do
+    # run in a subshell rather than try to unset_details
+    # its a fork either way, and this way leaves us less open for surprises
+    ( run_details  &&
+      get_spell_files_and_urls|while read -a dl_array; do
+        if [ "$PRINT_TYPE" == source ]; then
+          echo "${dl_array[0]}"
+        elif [ "$PRINT_TYPE" == one_url ]; then
+          [ -n "${dl_array[1]}" ] && echo "${dl_array[1]}"
+        elif [ "$PRINT_TYPE" == all_urls ]; then
+          unset dl_array[0]
+          [ -n "${dl_array[*]}" ] && echo "${dl_array[*]}"
+        elif [ "$PRINT_TYPE" == raw ]; then
+          echo "${dl_array[*]}"
+        else
+          echo "unknown value of PRINT_TYPE $PRINT_TYPE we shouldn't get here"
+          echo "please file a bug if you see this, thanks."
+          exit 1
+        fi
+      done
+    )
+  done
+}
+
+#---------------------------------------------------------------------
+## @param A list of spells
+## Will call summon_spell for each spell found in "$*"
+##
+#---------------------------------------------------------------------
+function summon_spells() {
+  local SPELLS="$*"
+  local SPELL
+  [ -z "$SPELLS" ] && return 1
+  for  SPELL  in  $SPELLS;  do
+    summon_spell $SPELL
+  done
+}
+
+
 set_print_type() {
   PRINT_TYPE="$1"
   [ "$PRINT_TYPE" == source ]    ||
@@ -145,8 +194,13 @@ main() {
   process_parameters $*
 
   if [ -n "$RAW" ] ; then
-    # this will read from stdin
-    download_files "for raw mode summon"
+    local line rc
+    while read line; do
+      # eval is needed to preserve quoting
+      eval set -a $line
+      download_src_args "$@" || rc=$?
+    done
+    return $rc
   fi
 
   if  [  -n  "$SUMMON_ALL"  ];  then

@@ -1,0 +1,109 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Download handler for downloading cvs urls.
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for I<downloading> files through cvs.
+##
+## In order for cvs urls to be downloaded, the I<cvs> spell must have been
+## cast. This script first determines if cvs has been installed before 
+## attempting to download a cvs url.
+##
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+## Copyright 2005 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item dl_get_cvs <url>
+## 
+## Fetch the specified cvs url.
+##
+## This function always assumes that a tree is being downloaded (for now).
+## If there is a directory names $target, it is assumed that cvs should be
+## updating, not checking out. If the directory doesnt exist, then checkout
+## is assumed.
+##
+## Assume url is valid.
+##
+## No hints are defined currently.
+##
+#---------------------------------------------------------------------
+function dl_cvs_get() { 
+  dl_command_check cvs || return 254
+
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local rc=1 url
+  local CVS_OPTIONS="-q -z3"
+
+  [[ $target ]] &&
+  dl_connect || return 255
+
+  for url in $url_list ; do
+    local URL CVS_ROOT CVS_MODULE CVS_TAG
+    url_cvs_crack $url
+
+    # if the target is a directory then its quite possible we're
+    # updating a tree rather than checking a new one out
+    if test -d $target; then
+      message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
+      if cd $target; then
+        cvs $CVS_OPTIONS update -d -r $CVS_TAG
+        rc=$?
+        cd ..
+      else
+        dl_disconnect
+        return 1
+      fi
+    else
+      message "${MESSAGE_COLOR}Running cvs checkout...${DEFAULT_COLOR}"
+      cvs $CVS_OPTIONS -d$CVS_ROOT checkout -r $CVS_TAG -d $target $CVS_MODULE
+      rc=$?
+    fi
+    [[ $rc == 0 ]] && break
+  done
+  dl_disconnect
+
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"tree\""
+  return $rc
+}
+
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
+

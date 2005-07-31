@@ -1,0 +1,104 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Synopsis 
+##
+## Default implementations of url_handler api.
+##
+## @Copyright Copyright 2005 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item url_default_bucketize
+## @param url
+## 
+## Outputs file as that is the dl handler for file:// urls
+##
+#---------------------------------------------------------------------
+function url_default_bucketize() {
+  url_get_prefix $1
+}
+
+#---------------------------------------------------------------------
+##=item url_default_crack
+## 
+## Outputs the url with the prefix removed
+##
+#---------------------------------------------------------------------
+function url_default_crack() {
+  url_strip_prefix "$1" $(url_get_prefix $1)
+}
+
+#---------------------------------------------------------------------
+##=item url_default_expand
+#---------------------------------------------------------------------
+function url_default_expand() {
+  echo "$@"
+}
+
+#---------------------------------------------------------------------
+##=item url_default_is_valid
+## @param url 
+##
+## True if url_crack returns true
+## 
+#---------------------------------------------------------------------
+function url_default_is_valid() {
+  [[ "`url_crack $1`" ]]
+}
+
+#---------------------------------------------------------------------
+##=url_default_verify
+## 
+## Always returns true
+##
+#---------------------------------------------------------------------
+function url_default_verify() {
+  true
+}
+
+#---------------------------------------------------------------------
+##=item url_default_hostname
+##
+## Outputs localhost
+##
+#---------------------------------------------------------------------
+function url_default_hostname() {
+  echo localhost
+}
+
+#---------------------------------------------------------------------
+##=item url_default_netselect
+##
+## Fake netselect return 0 for each url
+##
+#---------------------------------------------------------------------
+function url_default_netselect() {
+  local each
+  for each in $@ ; do 
+    echo "0 $each"
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

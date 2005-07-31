@@ -1,0 +1,97 @@
+#!/bin/bash
+## ----------------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for grabbing tla urls.
+##
+##      
+##=head1 COPYRIGHT
+##
+## Copyright 2005 the SourceMage Team
+##
+## ----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+##=item dl_get_tla <url>
+## 
+## Fetch the specified tla url.
+##
+## This handler only supports tree downloads.
+##
+# -----------------------------------------------------------------------------
+function dl_tla_get() { 
+  dl_command_check tla || return 254
+
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local rc=1 url
+
+  [[ $target ]] &&
+  dl_connect || return 255
+
+  for url in $url_list; do
+    local URL TLA_ARCHIVE TLA_LOCATION TLA_REVISION
+  
+    if ! tla archives | grep -q "\<$TLA_ARCHIVE\>"; then
+      tla register-archive $TLA_ARCHIVE $TLA_LOCATION || {
+        message "${PROBLEM_COLOR}Error registering archive${DEFAULT_COLOR}"
+        continue
+      }
+    else
+      debug "archive $TLA_ARCHIVE is already registered"
+    fi
+    if test -d $target; then
+      pushd $target &>/dev/null &&
+      message "${MESSAGE_COLOR}Running tla update...${DEFAULT_COLOR}"
+      tla update $TLA_ARCHIVE/$TLA_REVISION &&
+      tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION &&
+      popd || {
+        message "${PROBLEM_COLOR}Error updating cached archive${DEFAULT_COLOR}"
+        tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION &>/dev/null
+        continue
+      }
+    else
+      message "${MESSAGE_COLOR}Running tla get...${DEFAULT_COLOR}"
+      tla get -A $TLA_ARCHIVE $TLA_REVISION $target &&
+      tla register-archive -d $TLA_ARCHIVE $TLA_LOCATION || {
+        message "${PROBLEM_COLOR}Error checking out archive${DEFAULT_COLOR}"
+        continue
+      }
+    fi
+    rc=0
+    break
+  done
+
+  dl_disconnect
+  
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"tree\""
+  return $rc
+}
+
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

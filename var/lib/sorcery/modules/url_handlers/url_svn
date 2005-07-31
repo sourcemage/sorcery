@@ -7,27 +7,27 @@
 ##
 ##=head1 DESCRIPTION
 ##
-## This file contains functions for I<downloading> files through svn.
-##
-## In order for svn urls to be downloaded, the I<subversion-client> spell 
-## must have been cast. This script first determines if subversion has been 
-## installed before attempting to download a svn url.
+## This file contains functions for parsing svn urls.
 ##
 ##=head1 SVN URL Format
 ##
-## There is no standard (that I know of) for svn urls so we use a 
-## source mage specific format:
+## There did not used to be a standard for svn urls, a source mage
+## specific format was invented:
 ##
 ##      svn://SVNURL:DIR_NAME
 ##
 ## The above url will download the latest version of the specified
-## module (i.e., the HEAD revision).  To specify a specific revision,
+## module (i.e., the HEAD revision). To specify a specific revision,
 ## the following format can be used:
 ##
 ##      svn://SVNURL:DIR_NAME:REVISION_TAG
 ##
-## The SVNURL portion of the url will appear as a normail http url.
+## The SVNURL portion of the url will appear as a normal http url.
 ## The DIR_NAME will be the tail element of the SOURCE_DIRECTORY.
+##
+## Future work will differntiate between real svn urls and our smgl
+## specific version, and expanding our smgl version to use protocols
+## besides http.
 ##
 ## For more details, see the SVN manual at 
 ## http://svnbook.red-bean.com/svnbook/ch03s04.html
@@ -47,12 +47,7 @@
 ## ie. you could use your web browser to access:
 ## http://svn.pld-linux.org/svn/bmp-plugins/trunk
 ##
-## (Note about svn repositories requiring passwords? Haven't seen one yet)
-##
-##=head1 IMPLEMENTATION NOTE
-##
-## Downloading is supported but SVN url verification is not
-## currently supported.
+## svn repositories requiring passwords are not currently supported.
 ##
 ##=head1 COPYRIGHT
 ##
@@ -64,106 +59,48 @@
 ##
 #---------------------------------------------------------------------
 
-
-#---------------------------------------------------------------------
-#=item url_svn_strip_prefix <url>
-# 
-# Private function.  Strips off the svn:// prefix from svn urls
-#
-#---------------------------------------------------------------------
-function url_svn_strip_prefix() {
-  echo $1 | sed 's/^svn:\/\///'
-}
-
-
 #---------------------------------------------------------------------
 ##=item url_file_download <url>
 ## 
-## Fetch the specified svn url.
+## Parse the specified svn url.
+##
+## @Global URL
+## @Global SVN_ROOT
+## @Global SVN_MODULE
+## @Global SVN_TAG
 ##
 #---------------------------------------------------------------------
-function url_svn_download() { 
-  if [ ! -x /usr/bin/svn ]; then
-    return 1;
-  fi
+function url_svn_crack() { 
 
-  local             URL=`url_svn_strip_prefix "$1"`
-  local        SVN_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  local  SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  local      SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2` 
-  local     SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
-  local         SVN_TAG=${SVN_TAGNAME:=HEAD}
+  URL=`url_strip_prefix "$1" svn`
+  SVN_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
+  local SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
+  SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2` 
+  local SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
+  SVN_TAG=${SVN_TAGNAME:=HEAD}
 
-  if [ -z "$SVN_ROOT" -o -z "$SVN_MODULE" ]; then
-    return 1;
-  fi
-
-  if [ -z "$FILE" ]; then
-    return 1;
-  fi
-
-  local S_FILE=`echo $FILE            |
-                sed "s/\.tar\.gz$//"  |
-                sed "s/\.tgz$//"      |
-                sed "s/\.tar\.bz2$//"`
-
-  if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
-    message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
-    tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
-    message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
-    if cd $S_FILE ; then
-        svn update -q --non-interactive -r $SVN_TAG
-        cd ..
-	fi
-  else
-    message "${MESSAGE_COLOR}Running svn checkout...${DEFAULT_COLOR}"
-    #NOTE: hardcoded http:// on next line
-	svn checkout -q -r $SVN_TAG http://$SVN_ROOT $SVN_MODULE
-  fi
-
-  if [[ $nocache == 1 ]] ; then
-    return $?
-  fi
-
-  if [ $? == 0 ]; then
-    message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
-    tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/
-    rm -fr $S_FILE/
-    FILE=$S_FILE.tar.bz2
-  else
-    false;
-  fi
 }
 
-
 #---------------------------------------------------------------------
-##=item url_svn_verify <url>
-## 
-## Verifies the specified svn url exists.  Returns true for now until
-## I get around to implementing it.
+##=item url_svn_is_valid <url>
 ##
-#---------------------------------------------------------------------u
-function url_svn_verify() {
-  true
-}
-
-
+## Ensure that all the fields that should be parsed out from a url
+## do indeed exist
 #---------------------------------------------------------------------
-##=item url_svn_set_options <option>
-##
-## Set options for url handling
-## NOTE!: I dunno what this should do for svn...
-##
-#---------------------------------------------------------------------
-function url_svn_set_options() {
-  eval "$1=1"
+function url_svn_is_valid() {
+  local URL SVN_ROOT SVN_MODULE SVN_TAG item
+  url_svn_crack $1
+  for item in URL SVN_ROOT SVN_MODULE SVN_TAG; do
+    if ! [[ ${!item} ]] ; then
+      return 1
+    fi
+  done
 }
 
 #---------------------------------------------------------------------
 ##=item url_svn_hostname <url>
 ##
 ## Get the hostname of the url
-## NOTE!: I dunno what this should do for svn...
 ##
 #---------------------------------------------------------------------
 function url_svn_hostname() {
@@ -179,9 +116,9 @@ function url_svn_hostname() {
 function url_svn_netselect() {
   local tmp_hostname url_speed each
 
-  for each in $@ ; do
+  for each in "$@" ; do
     tmp_hostname=$(url_svn_hostname $each)
-    # since we had to pull the url appart to give netselect
+    # since we had to pull the url apart to give netselect
     # something it can understand we'll just pretend like
     # multiple A records wont exist for this host...
     url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')

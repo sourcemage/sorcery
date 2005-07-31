@@ -35,19 +35,38 @@
 ##
 #---------------------------------------------------------------------
 
+
 #---------------------------------------------------------------------
-##=item url_dir_verify <url>
+##=item dl_get_dir <url>
 ## 
-## Verifies the specified directory exists.  Returns true if the 
-## directory exists OR if the dir is an empty string.
+## Copies the specified dir url.
 ##
 #---------------------------------------------------------------------
-function url_dir_verify() {
+function url_dir_get() {
 
-  DIRNAME=`url_dir_crack $1`
-  if  [  -n  "$DIRNAME"  ]; then
-      [  -d  "$DIRNAME"  ]
-  fi
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local url rc=1
+  local DIRNAME
+
+  [[ $target ]] || return 255
+
+  for url in $url_list; do
+    DIRNAME=`url_dir_crack $url`
+    if  test -d  "$DIRNAME"  ; then
+      message "Copying $DIRNAME to $target."
+      cp  -aR  $DIRNAME $target &&
+      message "Finished."
+    fi
+  done
+  
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"tree\""
+  return $rc
+
 }
 
 #---------------------------------------------------------------------

@@ -1,54 +1,50 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-##=head1 SYNOPSIS
-## 
-## Url handler functions for grabbing directory urls.
-##
-##=head1 DESCRIPTION
-##
-## This type of url was added as a response to the following request:
-##
-##   I'm an AbiWord developer, and I keep the latest source 
-##   tree in my abi directory. If I could make the abi spell 
-##   (not to be confused with the abispell) use my current 
-##   CVS checked-out tree, that would  be nice.
-##
+## @Synopsis Url handler functions for grabbing file urls.
 ## This file contains functions for I<downloading> (actually it just
-## copies, tars, and compresses) directories which can be accessed 
-## through the local file system.
-##
+## copies) files which can be accessed through the local file system.
 ## Url's of this type are specified using the format 
 ##
-##  dir://<directory>
+##  file://<path>
 ##
-## where <directory> is the full path to a directory that will be
-## tarred and compressed for use by sorcery in casting a spell.
+## where <path> is the full path to the file.
 ##
-##=head1 COPYRIGHT
-##
-## Copyright 2002 by the Source Mage Team
-##
-##=head1 FUNCTIONS
-##
-##=over 4
+## @Copyright Copyright 2002 by the Source Mage Team
 ##
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-##=item url_dir_verify <url>
+## @param url
 ## 
-## Verifies the specified directory exists.  Returns true if the 
-## directory exists OR if the dir is an empty string.
+## Copies the specified file url.
 ##
 #---------------------------------------------------------------------
-function url_dir_verify() {
+function dl_file_get() {
 
-  DIRNAME=`url_dir_crack $1`
-  if  [  -n  "$DIRNAME"  ]; then
-      [  -d  "$DIRNAME"  ]
-  fi
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local url rc=1
+  local FILENAME
+
+  [[ $target ]] || return 255
+
+  for url in $url_list; do
+    FILENAME=`url_file_crack $url`  &&
+    test -f  "$FILENAME" &&
+    test -r  "$FILENAME" &&
+    cp -a $FILENAME $target && break
+  done
+  
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"file\""
+  return $rc
+
 }
+
 
 #---------------------------------------------------------------------
 ##=back

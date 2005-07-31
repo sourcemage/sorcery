@@ -165,7 +165,7 @@ function gpg_verify_sorcery() {
     message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
     return 254
   fi
-  gpg_verify_common $FILENAME $SOURCE_URL $gpg_pub_key sorcery $SIGNATURE
+  gpg_verify_common "$FILENAME" "$SOURCE_URL" "$gpg_pub_key" "sorcery" "$SIGNATURE"
 }
 
 #---------------------------------------------------------------------
@@ -196,13 +196,18 @@ function gpg_verify_common() {
   local SOURCE=$(basename $FILENAME)
 
   local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
+  pushd $TMP_DIR &>/dev/null || 
+  { message "Failed to cd to $TMP_DIR!!"; return 2;}
   if test -z "$SIGNATURE" ; then
     local SIG_URL=$SOURCE_URL/$SIG_FILE
-    echo "$SIG_FILE $SIG_URL" |
-    download_files "for $REASON verification" "$TMP_DIR" "no" "neither" || {
+    local gpg_target gpg_type
+    url_download "$SIG_FILE" "$SIG_URL" "file" gpg_target gpg_type &&
+    [[ $gpg_type == file ]] ||
+    {
       message "Failed to get gpg signature! verification is impossible"
       return 255
     }
+    [[ "$gpg_target" != $SIG_FILE ]] && mv "$gpg_target" "$SIG_FILE"
   else
     cp $SIGNATURE $TMP_DIR/$SIG_FILE
   fi
@@ -210,6 +215,7 @@ function gpg_verify_common() {
   gpg_verify_signature $TMP_DIR/$SIG_FILE $FILENAME $gpg_pub_key
   rc=$?
   rm $TMP_DIR/$SIG_FILE
+  popd &>/dev/null
 
   return $rc
 }

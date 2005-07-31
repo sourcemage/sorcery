@@ -20,7 +20,7 @@
 #---------------------------------------------------------------------
 function update_sorcery_scripts() {
 
-  BRANCH=$1
+  local BRANCH=$1
 
   debug "libsorcery" "update_sorcery_scripts() (sorcery-$BRANCH)"
 
@@ -38,27 +38,33 @@ function update_sorcery_scripts() {
     fi
   }
 
-  FORCE_DOWNLOAD=1
-
+  pushd $TMP_DIR &>/dev/null
   # sorcery is not a spell
   # there is no spoon
-  SOURCE=sorcery-$SORCERY_BRANCH.tar.bz2
+  SOURCE=sorcery-$BRANCH.tar.bz2
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/sorcery
   SOURCE_URL=$SORCERY_URL/$SOURCE
-  FUZZ="off"
 
-  echo "$SOURCE  ${SOURCE_URL}" |
-  download_files "for sorcery update" "$SOURCE_CACHE" "no" "neither" || {
+  message  "${MESSAGE_COLOR}Downloading source file"       \
+           "${FILE_COLOR}${SOURCE}${DEFAULT_COLOR}"     \
+           "for sorcery update."
+  url_download "$SOURCE" "$SOURCE_URL" "" "sr_target" "sr_type" || {
     message "${PROBLEM_COLOR}Failed to download sorcery${DEFAULT_COLOR}"
     return 1
   }
+  if [[ $sr_type != file ]] ; then
+    message "Downloaded type is not a file, file a bug if you see this"
+    return 1
+  fi
+  [[ $sr_target != $SOURCE ]] && mv $sr_target $SOURCE
 
-  FILENAME=`guess_filename $SOURCE_CACHE/$SOURCE`
-
-  gpg_verify_sorcery $FILENAME $SORCERY_URL
+  gpg_verify_sorcery $SOURCE $SORCERY_URL
   rc=$?
 
   gpg_user_query $rc $SORCERY_BRANCH sorcery || return 1
+  popd &>/dev/null
+
+  local FILENAME=$TMP_DIR/$SOURCE
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
   cd $BUILD_DIRECTORY
@@ -82,12 +88,13 @@ function update_sorcery_scripts() {
     ./uninstall
   else
     # rough equivalent to prepare_install...
-    rm $INSTALL_ROOT/etc/sorcery/* 2>/dev/null
-    rm $INSTALL_ROOT/etc/sorcery/licenses/*   2>/dev/null
-    rm $INSTALL_ROOT/etc/sorcery/mirrors/* 2>/dev/null
-    rm $INSTALL_ROOT/var/lib/sorcery/* 2>/dev/null
-    rm -r $INSTALL_ROOT/var/lib/sorcery/archspecs/* 2>/dev/null
-    rm -r $INSTALL_ROOT/var/lib/sorcery/build/* 2>/dev/null
+    rm /etc/sorcery/* 2>/dev/null
+    rm /etc/sorcery/licenses/*   2>/dev/null
+    rm /etc/sorcery/mirrors/* 2>/dev/null
+    rm /var/lib/sorcery/* 2>/dev/null
+    rm -r /var/lib/sorcery/modules/* 2>/dev/null
+    rm -r /var/lib/sorcery/archspecs/* 2>/dev/null
+    rm -r /var/lib/sorcery/build/* 2>/dev/null
   fi
   ./install                                     &&
 
@@ -112,6 +119,7 @@ function update_sorcery_scripts() {
           "sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version" \
           "${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
   sorcery_history
+  rm $FILENAME
 }
 
 #---------------------------------------------------------------------
@@ -215,6 +223,13 @@ function guess_filename()  {
 
 }
 
+#-------------------------------------------------------------------------
+## check if the file exists, or one with a similar compression exists
+## @param file
+#-------------------------------------------------------------------------
+function file_exists()  {
+  guess_filename  $1  >  /dev/null
+}
 
 #---------------------------------------------------------------------
 ##
@@ -1152,10 +1167,7 @@ function sources()  { (
   if  [  -z  "$SOURCE"  ];  then
     codex_set_current_spell_by_name  $1
   fi
-  get_spell_files_and_urls|while read -a line; do
-    echo "${line[0]}"
-  done
-
+  get_spell_files
 
 ) }
 

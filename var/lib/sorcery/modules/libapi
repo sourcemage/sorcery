@@ -10,13 +10,22 @@
 ## @NOTE This library must not contain any logic. It is simply a set of wrapper functions.
 ##
 #---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+# @NOTE: The following list and the function definition should be in
+# alphabetical order.  If this is not the case, please file a bug
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
 # functions defined in here: (in alphabetical order)
+#    acquire_src            (libsummon)
 #    config_query           (libmisc)
 #    config_query_list      (libmisc)
 #    config_query_option    (libmisc)
 #    config_query_string    (libmisc)
 #    conflicts              (libgrimoire)  
 #    default_build          (build_api/...)   
+#    default_download       (libsummon)
 #    default_install        (build_api/api2)   (BUILD_API==2 only)
 #    default_post_build     (build_api/api1)   (BUILD_API==1 only)
 #    default_post_install   (build_api/api2)   (BUILD_API==2 only)
@@ -24,8 +33,11 @@
 #    default_pre_install    (build_api/api2)   (BUILD_API==2 only)
 #    depends                (libdepends)
 #    devoke_installwatch    (libtrack)
+#    download_src           (libsummon)
 #    gather_docs            (build_api/common)
 #    get_spell_provider     (libstate)
+#    get_source_nums        (libmisc)
+#    guess_compressor       (libunpack)
 #    handle_changed_config  (libresurrect)
 #    installed_version      (libgrimoire)   
 #    install_config_file    (libresurrect)
@@ -57,10 +69,10 @@
 #    spell_installed        (libstate)
 #    spell_ok               (libstate)
 #    track_manual           (libtrack)
-#    unpack_file            (libunpack)
-#    unpack                 (libunpack) (deprecated)
-#    guess_compressor       (libunpack)
 #    uncompress             (libunpack)
+#    unpack                 (libunpack) (deprecated)
+#    unpack_file            (libunpack)
+#    unpack_file_simple     (libunpack)
 #
 # Read-only variable that might be of use to a spell:
 # SOURCE_CACHE, OPTS, BUILD HOST, INSTALL_ROOT
@@ -93,9 +105,18 @@
 
 
 #---------------------------------------------------------------------
-# the follow should be arranged in alphabetical order as in the list above
-# if this is not the case, please file a bug
+## @Type API
+## @params Number portion of SOURCE[[:digit:]], eg '', "2", "3", etc.
+## @See <@function var.lib.sorcery.modules.libsummon.html,real_acquire_src> for more details.
+##
+## Get a particular source, check first in $SOURCE_CACHE and respect
+## FORCE_DOWNLOAD. Calls download_src if the file must be downloaded.
+##
 #---------------------------------------------------------------------
+function acquire_src() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_acquire_src "$@"
+}
 
 #---------------------------------------------------------------------
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query> for more details.
@@ -221,17 +242,6 @@ function conflicts () {
     real_conflicts "$@"
 }
 
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_build> for more details.
-## Creates the source directory and unpacks the source package into it.
-## Used if no PRE_BUILD script is found for a spell.
-#---------------------------------------------------------------------
-function default_pre_build () {
-    debug "libapi" "default_pre_build - $*"
-    real_default_pre_build "$@"
-} 
-
 
 #---------------------------------------------------------------------
 ## @Type API
@@ -263,21 +273,19 @@ function default_build () {
     debug "libapi" "default_build - $*"
     real_default_build "$@"
 }
+
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_install> for more details.
-## Only defined for BUILD_API==2
-## Used if no PRE_INSTALL script is found.
-## Default pre_install is:
-## <pre>
-##  prepare_install
-## </pre>
+## @See <@function var.lib.sorcery.modules.libsummon.html,real_default_download> for more details.
+##
+## Default download code, downloads each SOURCE[[:digit:]]*
 ##
 #---------------------------------------------------------------------
-function default_pre_install () {
-    debug "libapi" "default_pre_install - $*"
-    real_default_pre_install "$@"
+function default_download() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_default_download "$@"
 }
+
 #---------------------------------------------------------------------
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_install> for more details.
@@ -293,6 +301,7 @@ function default_install () {
     debug "libapi" "default_install - $*"
     real_default_install "$@"
 }
+
 #---------------------------------------------------------------------
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_post_build> for more details.
@@ -306,6 +315,7 @@ function default_post_build () {
     debug "libapi" "default_post_build - $*"
     real_default_post_build "$@"
 }
+
 #---------------------------------------------------------------------
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_post_install> for more details.
@@ -318,6 +328,33 @@ function default_post_build () {
 function default_post_install () {
     debug "libapi" "default_post_install - $*"
     real_default_post_install "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_build> for more details.
+## Creates the source directory and unpacks the source package into it.
+## Used if no PRE_BUILD script is found for a spell.
+#---------------------------------------------------------------------
+function default_pre_build () {
+    debug "libapi" "default_pre_build - $*"
+    real_default_pre_build "$@"
+} 
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_install> for more details.
+## Only defined for BUILD_API==2
+## Used if no PRE_INSTALL script is found.
+## Default pre_install is:
+## <pre>
+##  prepare_install
+## </pre>
+##
+#---------------------------------------------------------------------
+function default_pre_install () {
+    debug "libapi" "default_pre_install - $*"
+    real_default_pre_install "$@"
 }
 
 #---------------------------------------------------------------------
@@ -346,6 +383,22 @@ function devoke_installwatch () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @params Number portion of SOURCE[[:digit:]], eg '', "2", "3", etc.
+## @See <@function var.lib.sorcery.modules.libsummon.html,real_download_src> for more details.
+##
+## Download a file. If the source is a file tree (eg from cvs or svn)
+## then if there is an existing tarball, it will be unpacked, updated and
+## repackaged as a tar.bz2. If the source is a simple file it will be
+## downloaded as usual.
+##
+#---------------------------------------------------------------------
+function download_src() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_download_src "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @See <@function var.lib.sorcery.modules.build_api.common.html,real_gather_docs> for more details.
 ## Gathers all documentation files from source archive and installs
 ## them as part of the spell
@@ -353,6 +406,21 @@ function devoke_installwatch () {
 function gather_docs() {
     debug "libapi" "gather_docs - $*"
     real_gather_docs "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @params String to prefix on the results.
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_get_source_nums> for more details.
+##
+## Output a list of source numbers associated with the current spell.
+## This is the number portion of SOURCE[[:digit:]], eg '', "2", "3", etc.
+## A prefix may be given and it will be prepended to each result value.
+##
+#---------------------------------------------------------------------
+function get_source_nums() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_get_source_nums "$@"
 }
 
 #---------------------------------------------------------------------
@@ -371,6 +439,21 @@ function gather_docs() {
 function get_spell_provider() {
     debug "libapi" "get_spell_provider - $*"
     real_get_spell_provider "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param filename
+## @Stdout compressor
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_guess_compressor> for more details.
+##
+## Guesses what program was used to compress a file
+## Return value is always success due to `file' workings
+##
+#---------------------------------------------------------------------
+function guess_compressor () {
+    debug "libapi" "guess_compressor - $*"
+    real_guess_compressor "$@"
 }
 
 #------------------------------------------------------------------------
@@ -842,6 +925,20 @@ function spell_exiled() {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param file to uncompress
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_uncompress> for more details.
+##
+## Given a file, uncompress runs the decompression program for that file,
+## Note: zip is a special case because it doesn't work with streams.
+##
+#---------------------------------------------------------------------
+function uncompress () {
+    debug "libapi" "uncompress - $*"
+    real_uncompress "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @param file to unpack 
 ## @param md5sum
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack> for more details.
@@ -874,31 +971,15 @@ function unpack_file () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param file to uncompress
-## @See <@function var.lib.sorcery.modules.libunpack.html,real_uncompress> for more details.
+## @params Name of a file to unpack
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_file_simple> for more details.
 ##
-## Given a file, uncompress runs the decompression program for that file,
-## Note: zip is a special case because it doesn't work with streams.
-##
+## Interface to unpack a file without any verification.
+## 
 #---------------------------------------------------------------------
-function uncompress () {
-    debug "libapi" "uncompress - $*"
-    real_uncompress "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @param filename
-## @Stdout compressor
-## @See <@function var.lib.sorcery.modules.libunpack.html,real_guess_compressor> for more details.
-##
-## Guesses what program was used to compress a file
-## Return value is always success due to `file' workings
-##
-#---------------------------------------------------------------------
-function guess_compressor () {
-    debug "libapi" "guess_compressor - $*"
-    real_guess_compressor "$@"
+function unpack_file_simple() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_unpack_file_simple "$@"
 }
 
 #---------------------------------------------------------------------
@@ -933,3 +1014,4 @@ function track_manual() {
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
+

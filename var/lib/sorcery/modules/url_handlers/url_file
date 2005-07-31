@@ -14,34 +14,8 @@
 ##
 #---------------------------------------------------------------------
 
-
 #---------------------------------------------------------------------
-## @param url
-## 
-## Private function.  Strips off the file:/[//] prefix from file urls
-##
-#---------------------------------------------------------------------
-function url_file_strip_prefix() {
-  echo $1 | sed 's/^file:\/\///' | sed 's/^file://'
-}
-
-
-#---------------------------------------------------------------------
-## @param url
-## 
-## Copies the specified file url.
-##
-#---------------------------------------------------------------------
-function url_file_download() {
-  FILENAME=`url_file_strip_prefix $1`  &&
-  [  -f  "$FILENAME"  ]                &&
-  [  -r  "$FILENAME"  ]                &&
-  cp -a $FILENAME .
-}
-
-
-#---------------------------------------------------------------------
-## @para url 
+## @param url 
 ## 
 ## Verifies the specified file exists.  Returns true if the file exists
 ## OR if the file is an empty string.
@@ -49,36 +23,11 @@ function url_file_download() {
 #---------------------------------------------------------------------
 function url_file_verify() {
   FILENAME=`url_file_strip_prefix $1`
-  if -n "$FILENAME"; then
+  if [[ "$FILENAME" ]] ; then
     [  -f  "$FILENAME"  ] &&
     [  -r  "$FILENAME"  ]
   fi
 }
-
-#---------------------------------------------------------------------
-## @param url
-##
-## Assume that the file is on localhost, someday this should
-## check to see if the directory is on a networked filesystem.
-##
-#---------------------------------------------------------------------
-function url_file_hostname() {
-  echo localhost
-}
-
-#---------------------------------------------------------------------
-## @param url
-##
-## Fake netselect data and assume the data is on the localhost
-##
-#---------------------------------------------------------------------
-function url_file_netselect() {
-  local each
-  for each in $@ ; do 
-    echo "0 $each"
-  done
-}
-
 
 #---------------------------------------------------------------------
 ##=back

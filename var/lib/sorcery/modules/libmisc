@@ -928,6 +928,36 @@ function real_config_query_list () {
   return 0
 }
 
+# FIXME
+function real_get_source_nums() {
+  local foo
+  compgen -v SOURCE |
+  grep '^SOURCE[[:digit:]]*$'|sort|uniq|
+  while read foo; do echo "${1}${foo/SOURCE/}"; done
+}
+
+function get_spell_files() {
+  for src in $(real_get_source_nums SOURCE); do
+    echo ${!src}
+  done
+}
+
+
+#---------------------------------------------------------------------
+## misc_is_function <function name>
+## @param function name
+## @return 0 if argument is a valid function
+## @return 1 otherwise
+## Returns true if input argument is the name of an
+## existing function, false otherwise.
+##
+#---------------------------------------------------------------------
+function misc_is_function()  {
+  local  FUNCTION_NAME=$1
+  [  "`type -t $FUNCTION_NAME`"  =  "function"  ]
+}
+
+
 function remove_files_and_dirs() {
     cat $1 | while read file; do
       test -d $file || rm -f $file
