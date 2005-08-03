@@ -113,10 +113,10 @@ function url_download_expand_sort() {
 
   debug "liburl" "$FUNCNAME -- $@"
   # you can't expect me to download something without urls...
-  [ -z "$urls" ] && return 255
+  [ -z "$url_list" ] && return 255
 
   # expand urls
-  url_expand_urls expanded_urls "$urls"
+  url_expand_urls expanded_urls "$url_list"
   if ! [[ "$expanded_urls" ]] ; then
     message "No expanded urls! If you get this it is a sorcery bug"
     return 1
@@ -128,6 +128,8 @@ function url_download_expand_sort() {
     message "No sorted urls! If you get this it is a sorcery bug"
     return 1
   fi
+  # shorten the list to a manageable amount
+  sorted_urls=$(echo "$sorted_urls"|head -n 20)
   debug "liburl" "sorted urls $sorted_urls"
   url_download "$1" "$sorted_urls" "$3" "$4" "$5"
 }
@@ -210,13 +212,14 @@ function url_get_valid_urls() {
   $STD_DEBUG
   local upvar="$1"
   local url_list="$2"
-  for url in $url_list; do
-    if url_is_valid "$url"; then
-      list_add $upvar "$url"
-    else
-      message "Invalid url: $url"
-    fi
-  done
+  local tmp_list=$(
+    for url in $url_list; do
+      if url_is_valid "$url"; then
+        echo "$url"
+      fi
+    done
+  )
+  eval "$upvar=\"\$tmp_list\""
 }
 
 
@@ -229,10 +232,16 @@ function url_expand_urls() {
   $STD_DEBUG
   local upvar="$1"
   local url_list="$2"
-  for url in $url_list; do
+  local tmp_list
+  tmp_list="$(for url in $url_list; do
     # this should expand to something or return itself
-    list_add "$upvar" $(url_expand "$url")
+    url_expand "$url"
+  done|sort|uniq)"
+  # this ensures that the urls originally specified are given preference
+  for url in $url_list; do
+    tmp_list=$(echo $url;echo "$tmp_list"|grep -v $url)
   done
+  eval "$upvar=\"\$tmp_list\""
 }
 
 #---------------------------------------------------------------------
@@ -246,12 +255,12 @@ function url_sort_urls() {
     lock_resources "network" "network"
     message -n "${CHECK_COLOR}Looking for the fastest mirror site...${DEFAULT_COLOR} "
     dl_connect
-    url_list=$(url_rank $url_list 2> /dev/null)
+    url_list="$(url_rank $url_list 2> /dev/null)"
     dl_disconnect
     unlock_resources "network" "network"
     message " done."
   fi
-  eval "$upvar=\$url_list"
+  eval "$upvar=\"\$url_list\""
 }
 
 #---------------------------------------------------------------------
@@ -348,8 +357,9 @@ function url_rank() {
 function url_get_prefix()  {
   $STD_DEBUG
   local URL=$1
-  local  URL_PREFIX=`echo $URL | sed "s/[\:\/\/].*$//"` 
+  local  URL_PREFIX=${URL/:\/\/*}
   [  -n  "$URL_PREFIX"  ]  &&
+  [  "$URL_PREFIX" != "$URL" ]  &&
   echo    $URL_PREFIX
 }
 

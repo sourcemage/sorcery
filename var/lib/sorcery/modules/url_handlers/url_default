@@ -27,7 +27,9 @@ function url_default_bucketize() {
 ##
 #---------------------------------------------------------------------
 function url_default_crack() {
-  url_strip_prefix "$1" $(url_get_prefix $1)
+  local prefix=$(url_get_prefix $1)
+  [[ $prefix ]] || return 1
+  url_strip_prefix "$1" $prefix
 }
 
 #---------------------------------------------------------------------
@@ -45,7 +47,7 @@ function url_default_expand() {
 ## 
 #---------------------------------------------------------------------
 function url_default_is_valid() {
-  [[ "`url_crack $1`" ]]
+  url_crack $1 >/dev/null
 }
 
 #---------------------------------------------------------------------
