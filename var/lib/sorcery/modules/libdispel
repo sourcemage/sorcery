@@ -228,24 +228,24 @@ function dispel_sustained()  {
 #-----
 function load_spell()  {
   local SPELL=$1
-  if ! tablet_set_spell $SPELL ; then
-    SECTION="`codex_get_spell_section_name  $SPELL`"
+  if tablet_set_spell $SPELL ; then
+    load_functions_file
+  else
     SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
-    codex_set_current_spell $SCRIPT_DIRECTORY
+
     VERSION=`installed_version  $SPELL`
     INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
     MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
-  fi
-  REAL_SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
-}
-
-#-----
-## Run the PRE_REMOVE script if it exists
-#-----
-function pre_pre_remove() {
-  if [ -x $REAL_SCRIPT_DIRECTORY/PRE_PRE_REMOVE ]; then
-    unset  LD_PRELOAD
-    . $REAL_SCRIPT_DIRECTORY/PRE_PRE_REMOVE
+    if [[ $SCRIPT_DIRECTORY ]] ; then
+      codex_set_current_spell $SCRIPT_DIRECTORY
+      load_functions_file
+    else
+      message "Spell is missing from grimoires"
+      message "unable to run any PRE or POST_REMOVE scripts it once had."
+      if ! query "Continue anyway?" y; then
+        return 1
+      fi
+    fi
   fi
 }
 
@@ -253,7 +253,7 @@ function pre_pre_remove() {
 ## Run the PRE_REMOVE script if it exists
 #-----
 function pre_remove() {
-  if [ -x $SCRIPT_DIRECTORY/PRE_REMOVE ]; then
+  if [[ $SCRIPT_DIRECTORY ]] && [ -x $SCRIPT_DIRECTORY/PRE_REMOVE ]; then
     unset  LD_PRELOAD
     . $SCRIPT_DIRECTORY/PRE_REMOVE
   fi
@@ -269,7 +269,7 @@ function post_remove() {
 
   export  LD_PRELOAD="$LD_PRELOAD_OLD"
 
-  if  [  -x  $SCRIPT_DIRECTORY/POST_REMOVE  ]
+  if  [[ $SCRIPT_DIRECTORY ]] && [  -x  $SCRIPT_DIRECTORY/POST_REMOVE  ]
   then     . $SCRIPT_DIRECTORY/POST_REMOVE
   fi
 
@@ -295,7 +295,6 @@ function dispel_spell() {
     (
       # this function messes with the environment a lot leave it in a subshell
       load_spell $SPELL           &&
-      pre_pre_remove              &&
       pre_remove                  &&
       reaper  $INST_LOG  $MD5_LOG &&
       post_remove                 &&
