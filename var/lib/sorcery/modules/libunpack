@@ -112,14 +112,14 @@ function real_unpack_file() {
     debug "libgrimoire" "checking $crypto_func verification"
     local AVAR="SOURCE${GPGNUM}_${crypto_func}"
     local AVARN="$AVAR"
-    local iter=1
+    local iter=0
     local rc=""
     # NOTE ## date: 2005-08-25
     # This while loop runs through the SOURCEn_{GPG|HASH|IGNORE}m not the
     # SOURCEn_*[m] set of vars this is kinda confusing we might rip it out
     while [ -n "${!AVARN}" ]; do
       local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
-      eval 'unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"'
+      unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"
       rc="$?"
       case "$rc" in
         200) debug "libgrimoire" "falling back from $AVARN"; rc="" ;;
@@ -127,7 +127,7 @@ function real_unpack_file() {
           0) uncompress_unpack "${!SVAR}"; return "$?"             ;;
       esac
       (( iter++ ))
-      AVARN="$AVAR$iter"
+      AVARN="$AVAR[$iter]"
     done
     [ -n "$rc" ] && return "$rc"
   done
