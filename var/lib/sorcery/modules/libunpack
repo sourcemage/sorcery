@@ -114,6 +114,9 @@ function real_unpack_file() {
     local AVARN="$AVAR"
     local iter=1
     local rc=""
+    # NOTE ## date: 2005-08-25
+    # This while loop runs through the SOURCEn_{GPG|HASH|IGNORE}m not the
+    # SOURCEn_*[m] set of vars this is kinda confusing we might rip it out
     while [ -n "${!AVARN}" ]; do
       local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
       eval 'unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"'
