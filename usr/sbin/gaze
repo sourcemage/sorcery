@@ -816,8 +816,9 @@ function specific_voyeur()
 #-----
 function any_voyeur()
 {
+  # We happily assume no spell names contain "cast."
   local FILE=`find /tmp/liblock-0 -maxdepth 1 -mindepth 1 -name "cast.*" |
-         sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
+         sed "s/.*\/cast\.//" | head -n 1`
   [ $FILE ] || return 1
   debug "voyeur" "Looking at spell \"$FILE\""
   nice -n +20				\
