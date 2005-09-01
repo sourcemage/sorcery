@@ -277,25 +277,21 @@ function cast_spell()  { (
 #---------------------------------------------------------------------
 ## @Globals SPELLS
 ## @Stdout User information ("Collating dependencies")
-## @Globals SPELL MAKEFILE DEPS_ONLY
+## @Globals SPELL DEPS_ONLY
 ##
-## Basically only gathers all dependencies and creates the Makefile
-## (According to pass_zero it ought to take SPELLS as parameter, but
-## it doesn't)
-## SPELLS is changed to the dependencies of SPELLS if DEPS_ONLY is specified
-## this might effect pass_five
+## Do dependency resolution. Takes the spells in the $SPELLS variable
+## and resolves them. A superset list is created called $SPELLS_TO_CAST
 #---------------------------------------------------------------------
 function pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
 
   echo -n "Computing previously installed dependencies..."
-  compute_installed_depends "already_cast"
+  compute_installed_depends "dep_f_hash"
   echo
   compute_uninstalled_depends "to_cast" "back_hash" "bad_spells" $SPELLS
 
-  local SPELLS_TO_CAST=$(hash_get_table_fields "to_cast")
-  SPELLS=$SPELLS_TO_CAST
+  SPELLS_TO_CAST=$(hash_get_table_fields "to_cast"|tr '\n' ' ')
 
   # special case of no spell making it through dependency resolution
   # or if DEPS_ONLY is set, there arent any dependent spells to cast
@@ -309,37 +305,16 @@ function pass_one()  {
     exit 1
   fi
 
-  # if only doing the deps, find the dependencies
-  #
-  # there are two cases, and its not clear which is the case
-  # a) cast ALL depends of the spells
-  # b) cast the depends which need to be cast (are in the to_cast hash)
-  #
-  # I think the behavior was intended to be case "b", the extra code for
-  # case "a" is below and commented out
-  # note: dependency information for all spells if it exists will be in
-  # either the to_cast hash or the already_cast hash
-  #
-  # note: SPELLS/SPELLS_TO_CAST  is not empty due to the check above
-  #
+  # if only doing the deps, find the dependencies and make them the
+  # SPELLS list
   if  [[ "$DEPS_ONLY" ]] ;  then
     local dep_spell
-    local TMP_SPELLS=$(
-      for spell in $SPELLS_TO_CAST; do
+    local SPELLS=$(
+      for spell in $SPELLS; do
         for dep_spell in $(hash_get to_cast $spell); do
           echo $dep_spell
         done
       done|sort|uniq)
-    for spell in $TMP_SPELLS ; do
-      if echo $SPELLS_TO_CAST|grep -q $spell; then
-        hash_put new_to_cast $spell $(hash_get to_cast $spell)
-      # note, if case "a" (describe above) was intended, uncomment the
-      # following two lines of code
-      # else
-      #   hash_put new_to_cast $spell $(hash_get already_cast $spell)
-      fi
-    done
-    SPELLS=$(hash_get_table_fields new_to_cast)
     if [ -z "$SPELLS" ] ; then 
       local parents=$(hash_get_table_fields "to_cast")
       message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
@@ -354,68 +329,13 @@ function pass_one()  {
 
   message "${MESSAGE_COLOR}Collating dependencies...${DEFAULT_COLOR}"
 
-  if  [[ "$DEPS_ONLY" ]] ;  then  
-    local spell dep_spell
-    depends_to_Makefile new_to_cast already_cast "$SPELLS" > $MAKEFILE
-  else
-    depends_to_Makefile to_cast already_cast "$SPELLS" > $MAKEFILE
-  fi
+  # have new depends overwrite existing ones
+  for i in $SPELLS_TO_CAST; do
+    hash_put dep_f_hash $i "$(hash_get to_cast $i)"
+  done
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"
 
-}
-
-#-----
-## Take the depends hashtable and turn it into the Makefile used later
-## @param Dependencies of spells to cast
-## @param Dependencies of spells not to cast
-## @param list of spells to use for the all target. There should be info in
-## the first param for all of these. If not things will act strangely,
-## but thats not a bug in this function.
-#-----
-function depends_to_Makefile()
-{
-  debug "cast" "depends_to_Makefile - $*"
-
-  # This is needed because compute_installed_depends may have
-  # stale dependency information compared with the information
-  # from compute_uninstalled_depends. So we strip off any depends
-  # info from the installed depends hash.
-  for i in $( { hash_get_table_fields $1 ; hash_get_table_fields $2; } | sort | uniq -d ); do
-    hash_unset "$2" "$i"
-  done
-  
-  [[ $COMPILE ]] && args="-c "
-  
-  # Spells that are actualy going to be cast
-  for i in $( hash_get_table_fields $1 ) ; do
-    echo "$i : $(hash_get "$1" "$i")"
-    echo -e "\t@bash $0 $args $i"
-    echo
-  done
-  
-  #Spells that are already cast
-  #NOTE: For recursive recompile cast, make this loop like loop above
-  for i in $( hash_get_table_fields $2 ) ; do
-    echo "$i : $(hash_get "$2" "$i")"
-    echo
-  done
-
-  # make will run the all target, which would be the spells we care about
-  echo "all : $(echo $3|tr '[:cntrl:]' ' ')"
-  echo
-
-  # if dependency rules fail us, match here after everything else
-  # has had the chance, and do nothing, instead of exit early...
-  echo %:
-  echo -e "\t@echo -n"
-  echo
-
-  # this caused a rather nasty bug where a file in the current directory
-  # had the same name as a spell, and make thought it had already "made"
-  # that spell
-  local all_spells=$( { hash_get_table_fields $1 ; hash_get_table_fields $2 ; } | tr '[:cntrl:]' ' ')
-  echo ".PHONY : all $all_spells"
 }
 
 
@@ -435,24 +355,23 @@ function pass_two()  {
   #  And starts the make process
   debug "cast" "Starting pass_two()"
 
+  unset_details
+
   message "${MESSAGE_COLOR}Spells are to be cast:${DEFAULT_COLOR}"
   message "---------------------------"
-  message "${SPELL_COLOR}${*}" | tr '[:blank:]' '\n' | column 
+  message "${SPELL_COLOR}${SPELLS_TO_CAST}" | tr '[:blank:]' '\n' | column 
   message "${DEFAULT_COLOR}"
-  
+
   if ! query "Do you want to cast these spells?" "y" ; then
     message "Ok, quitting cast. Figure out what you want."
   return 1
   fi
 
-  local REAL_MAKE
-  find_make REAL_MAKE || return $?
-  
-  #make: -k keep going even if there's an error, -s silent, -f <file>
   rm -f $TMP_DIR/pass_three.done # dont return until this file exists
+  MINUS_K=yes
   if  [[  $SEPARATE   ]] ; then
     ( CAST_PASS="three" 
-      $REAL_MAKE -s -j1 -k -f $MAKEFILE $*
+      depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
       if [[ $SCREEN_NAME ]] ; then
         screen_notify "$SCREEN_NAME" "Done downloading"
         screen_kill_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN
@@ -461,34 +380,57 @@ function pass_two()  {
     )
   else
     ( CAST_PASS="three"
-      $REAL_MAKE -s -j1 -k -f $MAKEFILE $*
+      trap exit INT TERM # this keep a rather nasty message
+                                    # from appearing if we get killed
+      depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
       if [[ $SCREEN_NAME ]] ; then
         screen_notify "$SCREEN_NAME" "Done downloading"
         screen_kill_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN
       fi
-      touch $TMP_DIR/pass_three.done
+      touch $TMP_DIR/pass_three.done &>/dev/null
     ) &
   fi
   
   debug "cast" "Starting stage four make."
   
-  ( CAST_PASS="four" ; $REAL_MAKE -j1 -k -f $MAKEFILE $* )
+  (
+    CAST_PASS="four" 
+    depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
+    touch $TMP_DIR/pass_four.done
+  )
+
   
-  # in some very bad situations pass four can complete before three, and if
-  # we return too soon more bad things can happen, so wait at least a little
-  # bit of time before giving up.
+  # pass three might not finish, give it a short amount of time to complete
+  # in case its near the end of a download or something, if after a minute
+  # it doesn't finish just kill everything off.
+  # in 1.14 this may be improved, see bug 8763
   local i
   let i=0
+  if ! test -e $TMP_DIR/pass_three.done; then
+    message "Download pass has not completed yet, pausing momentarily"
+  fi
   while ! test -e $TMP_DIR/pass_three.done; do 
     sleep 5
     let i+=5
-    [[ $i > 60 ]] && break
+    if [[ $i -gt 60 ]] ; then
+      message "Download pass did not finish, killing it off."
+      # this is rather violent, but job control in bash lame and theres
+      # no other way to kill everything off effectively :-(
+      ps x|grep $TMP_DIR|awk '{print $1}'|grep -v $$|xargs kill &>/dev/null
+      echo -n .; sleep 1
+      ps x|grep $TMP_DIR|awk '{print $1}'|grep -v $$|xargs kill &>/dev/null
+      echo -n .; sleep 1
+      ps x|grep $TMP_DIR|awk '{print $1}'|grep -v $$|xargs kill -9 &>/dev/null
+      echo -n .;  sleep 1
+      echo
+      break
+    fi
   done
-  rm $MAKEFILE
 
 }
 
 #---------------------------------------------------------------------
+
 ## @param spellname
 ## @Globals SPELL
 ## Sets SPELL to the spellname and calls summon_spell with spellname
@@ -500,6 +442,7 @@ function pass_two()  {
 function pass_three()  {
   debug "cast" "pass_three - $*"
   unset CAST_PASS
+  trap exit INT TERM
   local SPELL=$1
 
   # download_log is removed with it's .done in libcast
@@ -541,7 +484,6 @@ function pass_three()  {
     fi
   fi
   
-  
   if  [[  $SEPARATE   ]] ; then
     summon_spell "$SPELL" >"$download_log"
   else
@@ -573,7 +515,14 @@ function pass_four()  {
   local VERSION
   unset CAST_PASS
   SPELL=$1
+
+  if test -f $SPELL; then
+    message "$SPELL: Must have already been cast by a trigger! cool!!"
+    return 0
+  fi
+
   trigger "pre_cast"
+
   if ! [[ $COMPILE ]] ; then
     # hacky way to get the latest version
     VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
@@ -604,14 +553,13 @@ function pass_four()  {
     rc=$?
   fi
 
-  # We only want to trigger if the cast or resurect completed properly
-  [ $rc -eq 0 ] && trigger "cast"
   return $rc
 }
 
 
 #---------------------------------------------------------------------
-## @Globals SUCCESS_LIST FAILED_LIST 
+## @Globals SUCCESS_LIST FAILED_LIST CHECK_TRIGGERS_SUCCESS
+## CHECK_TRIGGERS_FAILURE
 ## Does report generation.
 #---------------------------------------------------------------------
 function pass_five()  {
@@ -621,6 +569,8 @@ function pass_five()  {
   # must exist or we get problems with checks here.
   touch $SUCCESS_LIST
   touch $FAILED_LIST
+  touch $CHECK_TRIGGERS_SUCCESS
+  touch $CHECK_TRIGGERS_FAILURE
   touch $CONFLICT_LIST
   
   debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
@@ -643,10 +593,31 @@ function pass_five()  {
 
   fi 
 
+  if  [  -s  $CHECK_TRIGGERS_SUCCESS ] ; then
+    message "${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spells that had a check_self trigger succeed:"
+    message "-----------------------------------------------${SPELL_COLOR}"
+    for item in `cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null`; do
+      message "$item"
+    done | column
+    message "${DEFAULT_COLOR}"
+  fi
+
+  if  [  -s  $CHECK_TRIGGERS_FAILURE ] ; then
+    message "${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spells that had a check_self trigger fail:"
+    message "-----------------------------------------------${SPELL_COLOR}"
+    for item in `cat $CHECK_TRIGGERS_FAILURE 2>/dev/null`; do
+      message "$item"
+    done | column
+    message "${DEFAULT_COLOR}"
+  fi
+
   local NOT_CAST
   NOT_CAST=$( { hash_get_table_fields to_cast 
     cat $SUCCESS_LIST
     cat $FAILED_LIST
+    cat $CHECK_TRIGGERS_SUCCESS
     } | sort | uniq -u ) # all not caught otherwise
   if [[ "$NOT_CAST" ]] ;then
     message "${DEFAULT_COLOR}" #being paranoid
@@ -675,11 +646,6 @@ function pass_five()  {
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that encountered problems:"
     message "---------------------------------${PROBLEM_COLOR}"
-    
-    # for item in $* ; do
-    #  if ! ([ -e $SUCCESS_LIST ] && grep -q "^$item$" $SUCCESS_LIST) ; then
-    #    message "$item"
-    #  fi
 
     for item in `cat $FAILED_LIST 2>/dev/null`; do
       message "$item"
@@ -708,7 +674,7 @@ function pass_zero()  {
   debug "pass_zero" "   and with spells : '$SPELLS'"
   export  CAST_PASS="one";    pass_one $*  &&
   export  CAST_PASS="two";    pass_two $SPELLS
-  #pass_three and _four are hidden inside the makefile
+  #pass_three and _four are run via pass_two
   debug "pass_zero" "Starting pass 5 with: '$@'"
   export  CAST_PASS="five";  pass_five "$@"
 
@@ -724,7 +690,7 @@ function int_trap()
 {
   message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
   message "Cleaning up as well as I can..."
-  cleanup
+  cast_cleanup
   if [[ $SCREEN_NAME ]] ; then
     message -n "Press a key to exit screen."
     read -n 1
@@ -734,19 +700,16 @@ function int_trap()
 }
 
 #---------------------------------------------------------------------
-## @Globals RM_AT_END
-## RM_AT_END is being set in main.
 ## Used for cleaning up. Deleting some files and $TMP_DIR.
 #---------------------------------------------------------------------
-function cleanup() {
-  debug "cleanup" "Cleaning up the contents of `cat $RM_AT_END 2>/dev/null`"
-  rm $(cat $RM_AT_END 2>/dev/null) $RM_AT_END 2>/dev/null
+function cast_cleanup() {
+  $STD_DEBUG
   cleanup_tmp_dir $TMP_DIR
 }
 
 #---------------------------------------------------------------------
 ## @Arguments arguments of cast
-## @Globals FIX RM_AT_END ENV_CACHE CAST_PASS 
+## @Globals FIX CAST_PASS 
 ## @return 0 always
 ## Starts prameter processing and casts the given spells.
 ## The list of given spells is being searched for invalid spells
@@ -755,45 +718,31 @@ function cleanup() {
 #---------------------------------------------------------------------
 function main()  {
   debug "cast" "main() - $*"
-  local T_SPELLS=""
+  local T_SPELLS
   process_parameters        "$@"
   SPELLS=`strip_parameters  "$@"`
 
-  if  [[  $FIX  ]];  then
-    message "${PROBLEM_COLOR}cast --fix is depreciated and will be" \
-            "removed in the next sorcery releae.\nPlease use cleanse --fix" \
-            "instead.${DEFAULT_COLOR}"
-    exit 1
-  else
-
-    for spell in $SPELLS ; do
-      codex_does_spell_exist $spell
-      if [ $? -eq 0 ] ; then
-        T_SPELLS="$T_SPELLS $spell"
-      fi
-    done
-    SPELLS=$T_SPELLS
-  
-    if ! [[ $SPELLS ]]; then
-      return 1
+  for spell in $SPELLS ; do
+    codex_does_spell_exist $spell
+    if [ $? -eq 0 ] ; then
+      T_SPELLS="$T_SPELLS $spell"
     fi
-  
-    MAKEFILE="$TMP_DIR/Makefile"
-    export ENV_CACHE=${ENV_CACHE:-$TMP_DIR/envCache}
-    echo "$SUCCESS_LIST $FAILED_LIST $0 $ENV_CACHE" >> $RM_AT_END
-    export RM_AT_END="$RM_AT_END"
-    BASE_SPELLS=" $SPELLS "
+  done
+  SPELLS=$T_SPELLS
 
-    case  $CAST_PASS  in
-       one)  pass_one    $SPELLS  ;; #Never matches
-       two)  pass_two    $SPELLS  ;; #Never matches
-     three)  pass_three  $SPELLS  ;; #d/l sources, Never matches
-      four)  pass_four   $SPELLS  ;; #real casting, Never matches
-      five)  pass_five   $SPELLS  ;; #cast report
-         *)  pass_zero   $SPELLS  ;; #start everything
-    esac
-    local rc=$?
+  if ! [[ $SPELLS ]]; then
+    return 1
   fi
+
+  case  $CAST_PASS  in
+     one)  pass_one    $SPELLS  ;; #Never matches
+     two)  pass_two    $SPELLS  ;; #Never matches
+   three)  pass_three  $SPELLS  ;; #d/l sources, Never matches
+    four)  pass_four   $SPELLS  ;; #real casting, Never matches
+    five)  pass_five   $SPELLS  ;; #cast report
+       *)  pass_zero   $SPELLS  ;; #start everything
+  esac
+  local rc=$?
 
   return $rc
 }
@@ -815,25 +764,16 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
   # Make a nice dir structure to put stuff in, this exits if it fails
   mk_tmp_dirs cast
 
-  if ! [[ $RM_AT_END ]] ; then
-    #This stuff is here to make sure a user can't make the file
-    # and fill it up with stuff we feel the need to delete
-    export RM_AT_END=${RM_AT_END:-"$TMP_DIR/tmplist"}
-    touch $RM_AT_END
-    chown root:root $RM_AT_END
-    chmod 600 $RM_AT_END
-    echo -n '' > $RM_AT_END
-  fi
-  
-  export SAFE_CAST=$TMP_DIR/casting.safe
+  export SAFE_CAST="$TMP_DIR/casting.safe"
   export SUCCESS_LIST="$TMP_DIR/success_list"
   export FAILED_LIST="$TMP_DIR/failed_list"
   export CONFLICT_LIST="$TMP_DIR/conflict_list"
+  export CHECK_TRIGGERS_SUCCESS="$TMP_DIR/check_trigger_success_list"
+  export CHECK_TRIGGERS_FAILURE="$TMP_DIR/check_trigger_failure_list"
   lock_file $SAFE_CAST
   
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
-  echo "$SAFE_CAST $FAILED_LIST $SUCCESS_LIST $CONFLICT_LIST" >> $RM_AT_END
   exec bash $SAFE_CAST "$@"
   
 else
@@ -907,7 +847,7 @@ else
   rc=$?
   if [ $SHLVL -eq $TOP_LEVEL ] ; then
     unlock_file $SAFE_CAST
-    cleanup
+    cast_cleanup
   fi
   if [[ $SCREEN_NAME ]] && [[ $TOP_LEVEL -eq $SHLVL ]] ;  then
     screen_notify "$SCREEN_NAME" "Done casting"
