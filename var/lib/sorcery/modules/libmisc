@@ -627,7 +627,10 @@ function real_persistent_add () {
   if [[ $PROTECT_SORCERY ]] ; then
     for each in "$@" ; do
       if is_sorcery_var $each; then
-        complain_sorcery_var $each
+        # complain, but not if we're persistent loading, bug 9416
+        if ! [[ $PERSISTENT_LOADING ]] ; then
+          complain_sorcery_var $each
+        fi
       else
         list_add PERSISTENT_VARIABLES $each
       fi
@@ -654,6 +657,7 @@ function real_persistent_remove () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_load () {
+    local PERSISTENT_LOADING=yes
     if [ -f "$SPELL_CONFIG.p" ]; then
         . "$SPELL_CONFIG.p"
         local line
@@ -751,9 +755,11 @@ function real_query_string () {
 #    return 0
 #}
 function config_get_option () {
-  if is_sorcery_var $1; then
-    complain_sorcery_var $1
-    return 1
+  if [[ $PROTECT_SORCERY ]] ; then
+    if is_sorcery_var $1; then
+      complain_sorcery_var $1
+      return 1
+    fi
   fi
 
   # afrayedknot hates variable leakage
