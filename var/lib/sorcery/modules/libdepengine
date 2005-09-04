@@ -221,10 +221,11 @@ function execute_triggers() {
   local trigger rc
   local trg_array trg_action trg_target stuff trg_color
 
-  for trigger in $(hash_get trg_f_hash $spell); do
+  function execute_triggers_sub() {
+    trigger=$1
     explode "$trigger" : trg_array
-    trg_action=${trg_array[0]}
-    trg_target=${trg_array[1]}
+    trg_target=${trg_array[0]}
+    trg_action=${trg_array[1]}
     # get the other spells that trigger this action
     trg_color=$(dpgn_get_spell_color $trg_target)
 
@@ -257,9 +258,8 @@ function execute_triggers() {
       elif [[ $CAST_PASS != three ]] ; then
         # run any other trigger besides the two above
         # but not if we're summoning
-        local TRIGGER=( $spell on_cast $trg_target $trg_action )
         local action=cast
-        do_trigger
+        do_trigger "$spell:on_cast:$trg_target:$trg_action"
       fi
 
       # a brown trigger is a loop, drop it
@@ -270,7 +270,7 @@ function execute_triggers() {
 
     # if there are no white triggerers, we are the last triggerer
     local last=1
-    local triggerers=$(hash_get trg_r_hash $trg_action:$trg_target)
+    local triggerers=$(hash_get trg_r_hash $trg_target:$trg_action)
     for triggerer in $triggerers; do
       [[ $triggerer == $spell ]] && continue
       if [[ $(dpgn_get_spell_color $triggerer) == white ]] ; then
@@ -285,7 +285,8 @@ function execute_triggers() {
           [[ $trg_color != grey ]] ; then
       list_add stuff $trg_target
     fi
-  done
+  }
+  iterate execute_triggers_sub $'\n' "$(hash_get trg_f_hash $spell)"
 
   local curr_list=$stuff
   local prev_list=""

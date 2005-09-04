@@ -163,6 +163,27 @@ function run_depends()
     persistent_save
   fi
 }
+
+#---------------------------------------------------------------------
+## Run a spell's UP_TRIGGERS if it exists
+## @param Spell
+#---------------------------------------------------------------------
+function run_up_triggers() {
+  local SPELL=$1
+  debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+ 
+  local PROTECT_SORCERY=yes
+  if  [  -x  $SCRIPT_DIRECTORY/UP_TRIGGERS ];  then
+    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+             "${CHECK_COLOR}checking for reverse triggers...${DEFAULT_COLOR}"
+    # we need &&'s to preserve the proper return code (persistant_save
+    # will probably succeed even if PREPARE fails)
+    persistent_load &&
+    . $SCRIPT_DIRECTORY/UP_TRIGGERS &&
+    persistent_save
+  fi
+  
+}
 ######################END CALLS TO OUTSIDE WORLD########################
 
 
@@ -333,6 +354,7 @@ function private_run_depends()
     run_configure $SPELL          &&
     run_other $SPELL              &&
     run_depends $SPELL            && 
+    run_up_triggers $SPELL        && 
 
     # possibly recast things that depend on us if option is set (-B)
     private_upward_depends $SPELL &&
@@ -943,6 +965,40 @@ function select_provider()
 }
 
 #---------------------------------------------------------------------
+## @param Target of the trigger
+## @param Action to execute (cast_self, check_self, etc).
+##
+## Create a trigger on ourself effecting the target spell,
+## shorthand for putting a TRIGGERS file in the target spell.
+#---------------------------------------------------------------------
+function real_up_trigger() {
+  private_up_trigger $SPELL "$1" "$2"
+}
+
+#---------------------------------------------------------------------
+## @param Current spell
+## @param Target target of the trigger
+## @param Action to execute (cast_self, check_self, etc).
+##
+## Register a trigger, when $SPELL is cast, a $ACTION is executed
+## on $TARGET
+#---------------------------------------------------------------------
+function private_up_trigger() {
+  local SPELL=$1
+  local TARGET=$2
+  local ACTION=$3
+  # this maps triggerers to their trigerees
+  # perl -> cast_self:perl_module
+  hash_append trg_f_hash  $SPELL "$TARGET:$ACTION" $'\n' &&
+  # this maps trigerees to triggerers
+  # cast_self:perl_module -> perl
+  hash_append trg_r_hash  "$TARGET:$ACTION" " $SPELL "
+  echo $NEW_DEPENDS | grep -q "$TARGET" || 
+  NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
+  triggerees=( ${triggerees[*]} $TARGET )
+}
+
+#---------------------------------------------------------------------
 ## all the depends callbacks eventually bottom out here
 ## if a spell depends or doesnt depend on some other spell
 ## @param Spell
@@ -984,32 +1040,43 @@ function private_add_triggerees() {
   # having duplicate items is okay
   local ACTION TARGET
   local running_trigger
-  for ACTION in cast_self check_self; do
-    for TARGET in $(get_triggerees $SPELL on_cast $ACTION); do
-      running_trigger=0
-      persistent_load
-      if test -x $SCRIPT_DIRECTORY/TRIGGER_CHECK; then
-        source $SCRIPT_DIRECTORY/TRIGGER_CHECK
-      else
-        default_trigger_check
-      fi
-      running_trigger=$?
-      persistent_save
 
-      if [[ $running_trigger == 0 ]] ; then
-        # this maps triggerers to their trigerees
-        # perl -> cast_self:perl_module
-        hash_append trg_f_hash  $SPELL $'\n'$ACTION:$TARGET &&
-        # this maps trigerees to triggerers
-        # cast_self:perl_module -> perl
-        hash_append trg_r_hash  "$ACTION:$TARGET" " $SPELL "
-        echo $NEW_DEPENDS | grep -q $TARGET || 
-        NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
-        triggerees=( ${triggerees[*]} $TARGET )
+  # run the trigger check file
+  # this is made into a sub-function just to reduce duplication...
+  function private_add_triggerees_sub1() {
+    running_trigger=0
+    persistent_load
+    if test -x $SCRIPT_DIRECTORY/TRIGGER_CHECK; then
+      source $SCRIPT_DIRECTORY/TRIGGER_CHECK
+    else
+      default_trigger_check
+    fi
+    running_trigger=$?
+    persistent_save
+    if [[ $running_trigger == 0 ]] ; then
+      private_up_trigger "$SPELL" "$TARGET" "$ACTION"
+    fi
+  }
+
+  # frontend to help with calling the trigger check file
+  function private_add_triggerees_sub2() {
+    local ACTION=$1
+    private_add_triggerees_sub1
+  }
+
+  for ACTION in cast_self check_self dispel_self run_script; do
+    for TARGET in $(get_triggerees $SPELL on_cast $ACTION); do
+      if [[ $ACTION == run_script ]] ; then
+        iterate private_add_triggerees_sub2 $'\n' \
+                          "$(get_run_script_triggers $SPELL on_cast $TARGET)"
+      else
+        private_add_triggerees_sub1
       fi
     done
   done
+  return 0
 }
+
 
 #---------------------------------------------------------------------
 ## Adds the dependency to the hastable 

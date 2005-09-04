@@ -67,14 +67,28 @@ function trigger ()
   iterate do_trigger $'\n' "`grep "^[^:]*:$spell:on_$action" $TRIGGER_LIST`"
 }
 
+#---------------------------------------------------------------------
+## Get the triggerees of a given spell event and action
+#---------------------------------------------------------------------
 function get_triggerees() {
   local spell=$1
-  local action=$2
+  local event=$2
   local each
   # get all the cast/check_self triggers
   for each in $3 ; do
-    grep "[^:]*:$spell:$action:$each" $TRIGGER_LIST|cut -f1 -d:
+    grep "[^:]*:$spell:$event:$each" $TRIGGER_LIST|cut -f1 -d:
   done|sort|uniq|grep -v '^$'
+}
+
+#---------------------------------------------------------------------
+## Get the run_script triggers from $spell on $target when theres a
+## $action
+#---------------------------------------------------------------------
+function get_run_script_triggers() {
+  local spell=$1
+  local event=$2
+  local target=$3
+  grep "$target:$spell:$event:run_script" $TRIGGER_LIST|cut -f4 -d:
 }
 
 #---------------------------------------------------------------------
