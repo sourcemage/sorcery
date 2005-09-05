@@ -827,9 +827,15 @@ function work_optional_depends_spell()
     explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" "$1")" ":" "status"
     if [[ ${status[2]} ]] ; then
       # ah there are! use them
-      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-              "${CHECK_COLOR}optionally depends on" \
-              "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      if [[ ${status[2]} == "on" ]] ; then
+        message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+                "${CHECK_COLOR}optionally depends on" \
+                "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      else
+        message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+                "${CHECK_COLOR}has a disabled optional depends on" \
+                "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      fi
       private_common_depends "$1" "${status[2]}" "optional" "$2" "$3"
       return 0
     fi
@@ -1006,7 +1012,7 @@ function private_up_trigger() {
 #---------------------------------------------------------------------
 function private_common_depends()
 {
-  debug "libdepends" "$FUNCNAME - $@"
+  debug "libdepends" "$FUNCNAME - $SPELL - $@"
   add_depends $spell_depends "$SPELL" "$@"
   
   if [[ $2 == on ]] ; then
