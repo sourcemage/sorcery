@@ -1,10 +1,25 @@
-2005-09-05 Andrew Stitt <astitt@sourcemage.org>
-	* libdepends: add some more debugging info to
-	  private_common_depends, add another output message for when an
-	  optional depends exists, but is disabled
+2005-09-05 David Brown <dmlb2000@gmail.com>
+	* libsorcery: changed out hard coded run compiler dir for an env var
+	* compile_config: added RUN_COMPILER_DIR for where the run_compiler
+	  script is located
+
+2005-09-05 David Brown <dmlb2000@gmail.com>
+	* libunpack: added function comment headers (sucky ones probably) and 
+	  removed tabs for 8 spaces removed redundant else statement in 
+	  is_allowed_hash
+	* sorcery: removed tabs for 8 spaces
+	* libgpg: removed tabs for 8 spaces
 
 2005-09-04 Andrew Stitt <astitt@sourcemage.org>
 	* libtablet: add quotes on iterate calls, bug 9707
+
+2005-09-04 David Brown <dmlb2000@gmail.com>
+	* config: added allow new hashes
+	* sorcery: added option for allowing new hashes
+	* libunpack: added unpack_file_user_query, added hash_user_query to call
+	  unpack_file_user_query
+	* libgpg: modified gpg_user_query to call unpack_file_user_query on a
+	  spell and reverted gpg_verify_signature to set the envar $4
 
 2005-09-03 Andrew Stitt <astitt@sourcemage.org>
 	* protected: avoid a rare race by protecting wget, its in basesystem
@@ -26,6 +41,13 @@
 2005-09-03 Andrew Stitt <astitt@sourcemage.org>
 	* libmisc: remove cache_env and restore_env. they are unused
 
+2005-09-02 David Brown <dmlb2000@gmail.com>
+	* libunpack: added some extra checks and messages for checking gpg
+	  keys and added the integrety checking levels (bug #9515)
+	* sorcery: added the menus for bug #9515 
+	* libgpg: added the spell switch for $3 and made it act like hash
+	  failure
+
 2005-08-31 Andrew Stitt <astitt@sourcemage.org>
 	* libmisc: don't complain about sorcery var's during
 	  persistent_load bug 9416. fix apparently incomplete on/off
@@ -46,6 +68,10 @@
 	* libtriggers: Break trigger execution out into another
 	  function. Add function to get triggerees.
 
+2005-08-30 David Brown <dmlb2000@gmail.com>
+	* etc/sorcery/config: added enumeration for spells to use
+	* usr/sbin/sorcery: made dialogs work
+
 2005-08-29 Andrew Stitt <astitt@sourcemage.org>
 	* libgpg: fix use of list_find
 
@@ -54,6 +80,16 @@
 	  to add/remove gpg signed grimoires
 	* config: added GPG_GRIMOIRE_LIST with a default set of gpg signed
 	  grimoires
+
+2005-08-28 David Brown <dmlb2000@gmail.com>
+	* etc/sorcery/config: added GPG_VERIFY_SPELL_LEVEL default to level 0
+	  and added GPG_ALLOWED_HASHES sentinal value is "" same as allow all
+	  and added GPG_MAX_LEVEL so we can add more by changing the config
+	* var/lib/sorcery/libgpg: removed message from gpg_verify_signature
+	  it now outputs the algorithm used to create the gpg signature
+	* var/lib/sorcery/libunpack: added path message from libgpg to here made
+	  variables local and added a few preliminary vars for use later
+	* usr/sbin/sorcery: added some of the initial menu stuff
 
 2005-08-26 Eric Sandall <eric@sandall.us>
 	* usr/sbin/gaze: Have gaze pick the first file returned by ./find for

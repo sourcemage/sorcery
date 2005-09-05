@@ -980,6 +980,116 @@ function gpg_download_menu() {
   fi
 }
 
+gpg_select_hashes() {
+  local DIALOG_TITLE="Select the GnuPG hashes you would like to use"
+  local DIALOG_HELP="Select the GnuPG hashes you would like to consider valid hashes"
+  local DEFAULT_LIST=$(gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr A-Z a-z) 
+  local rc=0
+  local CHECKS=""
+  local check=""
+  local hash=""
+  local DIALOG_LIST=""
+  if [ -z "$DEFAULT_LIST" ] ; then
+    eval $DIALOG '--title "ERROR" \
+                  --msgbox        \
+                  "ERROR: gpg isn't installed or isn't in your PATH. Please cast gnupg." 20 20' &&
+    return 1
+  else
+    while [[ "$rc" == "0" ]]
+    do
+      DIALOG_LIST=""
+      if [[ -z "$GPG_ALLOWED_HASHES" ]]
+      then
+        for hash in $DEFAULT_LIST
+        do
+          DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
+        done
+      else
+        for hash in $DEFAULT_LIST
+        do
+          if list_find "$GPG_ALLOWED_HASHES" "${hash}:on"
+          then
+            DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
+          else
+            DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was not selected' off "
+          fi
+        done
+      fi
+      if [[ "$GPG_ALLOW_NEW_HASHES" == "on" ]]
+      then
+        DIALOG_LIST="new 'Allow new hashes' on ${DIALOG_LIST}"
+      else
+        DIALOG_LIST="new 'Disallow new hashes' off ${DIALOG_LIST}"
+      fi
+      CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"          \
+                              --ok-label "Select"              \
+                              --cancel-label "Exit"            \
+                              --checklist "$DIALOG_HELP"       \
+                              0 0 0 ' \
+                              ${DIALOG_LIST})
+      rc="$?"
+      if [[ "$rc" == "0" ]]
+      then
+        GPG_ALLOWED_HASHES=""
+        CHECKS=${CHECKS//\"/}
+        if list_find "${CHECKS}" new
+        then
+          GPG_ALLOW_NEW_HASHES=on
+        else
+          GPG_ALLOW_NEW_HASHES=off
+        fi
+        for hash in ${DEFAULT_LIST}
+        do
+          if list_find "${CHECKS}" $hash
+          then
+            GPG_ALLOWED_HASHES="${GPG_ALLOWED_HASHES}${hash}:on "
+          else
+            GPG_ALLOWED_HASHES="${GPG_ALLOWED_HASHES}${hash}:off "
+          fi
+        done
+        modify_local_config GPG_ALLOWED_HASHES "${GPG_ALLOWED_HASHES}"
+        modify_local_config GPG_ALLOW_NEW_HASHES "${GPG_ALLOW_NEW_HASHES}"
+      fi
+    done
+  fi
+  return 0
+}
+
+gpg_spell_menu()  {
+  local DIALOG_TITLE="Source Integrity Checking Levels"
+  local DIALOG_HELP="Select the minimum level for source verification"
+  local DIALOG_LIST=""
+  local inc=0
+  local rc=0
+  while [[ "$rc" == "0" ]]
+  do
+    inc=0
+    DIALOG_LIST=""
+    while [[ $inc -le ${GPG_MAX_LEVEL} ]]
+    do
+      DIALOG_LIST="${DIALOG_LIST}${inc} level "
+      if [[ "$GPG_VERIFY_SPELL_LEVEL" == "$inc" ]] ; then
+        DIALOG_LIST="${DIALOG_LIST}on "
+      else
+        DIALOG_LIST="${DIALOG_LIST}off "
+      fi
+      (( inc++ ))
+    done
+    GPG_VERIFY_SPELL_LEVEL=$(eval $DIALOG ' --title "$DIALOG_TITLE"     \
+                                            --ok-label "Select"         \
+                                            --cancel-label "Exit"       \
+                                            --radiolist "$DIALOG_HELP"  \
+                                            0 0 0                       \
+                                            ${DIALOG_LIST}')
+    rc="$?"
+    GPG_VERIFY_SPELL_LEVEL=${GPG_VERIFY_SPELL_LEVEL//\"/}
+    if [[ "$rc" == "0" ]]
+    then
+      modify_local_config GPG_VERIFY_SPELL_LEVEL $GPG_VERIFY_SPELL_LEVEL
+    fi
+  done
+  return 0
+}
 
 integrity_menu()  {
 
@@ -988,22 +1098,28 @@ integrity_menu()  {
   local FIX_HELP="Set cleanse --fix checks"
   local DL_HELP="Discover corrupted or modified archives during cast"
   local GPG_HELP="Verify GnuPG signatures on sorcery/grimoire tarballs"
+  local SGPG_HELP="Verify GnuPG signatures on spell source tarballs"
+  local HGPG_HELP="Verify GnuPG signatures with selected hashs"
 
-  while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
-                           --cancel-label  "Exit"      \
-			   --ok-label      "Select"    \
-                           --item-help                 \
-                           --menu                      \
-                           "$INT_HELP"                 \
-                           0 0 0                       \
-        "F"  "System integrity"       "$FIX_HELP"      \
-        "D"  "Download integrity"     "$DL_HELP"       \
-        "G"  "GPG Signature Checking" "$GPG_HELP"'`
+  while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"     \
+                           --cancel-label  "Exit"              \
+			   --ok-label      "Select"            \
+                           --item-help                         \
+                           --menu                              \
+                           "$INT_HELP"                         \
+                           0 0 0                               \
+        "F"  "System integrity"               "$FIX_HELP"      \
+        "D"  "Download integrity"             "$DL_HELP"       \
+        "G"  "Sorcery GPG Signature Checking" "$GPG_HELP"      \
+        "S"  "Spell GPG Signature Checking"   "$SGPG_HELP"     \
+        "M"  "Spell GPG Hash List"            "$HGPG_HELP"'`
   do
     case $INT_CHECKS in
       F)  integrity_fix_menu       ;;
       D)  integrity_download_menu  ;;
       G)  gpg_download_menu  ;;
+      S)  gpg_spell_menu ;;
+      M)  gpg_select_hashes ;;
     esac
   done
 
