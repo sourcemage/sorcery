@@ -1140,6 +1140,55 @@ that should receive reports from this box."  \
 
 }
 
+function service_defaults() {
+  local INSTALL_INIT_HELP="Install init.d scripts by default?"
+  local ENABLE_INIT_HELP="If an init.d script is being installed, also enable it by default?"
+  local INSTALL_XINETD_HELP="Install xinetd scripts by default?"
+  local ENABLE_XINETD_HELP="If an xinetd script is being installed, also enable it by default?"
+  local INIT_VS_XINETD="If both xinetd or init.d scripts exist, prefer xinetd over init.d?"
+  
+  local MENU_TITLE="Init.d/Xinetd Default Answer Selection Menu"
+  local MENU_INFO="Choose your defaults\nPer spell answers are remembered on recasts"
+  local RESULT RESULTS TMP i
+  if RESULTS=`eval $DIALOG '--item-help \
+                               --backtitle backtitle \
+                               --separate-output       \
+                               --title "$MENU_TITLE" \
+                               --checklist "$MENU_INFO" \
+                               0 0 0 \
+       "INSTALL_INIT"        "Install init.d scripts by default" \
+       "$DEF_INSTALL_INIT"   "$INSTALL_INIT_HELP" \
+       "ENABLE_INIT"         "Enable init.d scripts by default" \
+       "$DEF_ENABLE_INIT"    "$ENABLE_INIT_HELP" \
+       "INSTALL_XINETD"      "Install xinetd scripts by default" \
+       "$DEF_INSTALL_XINETD" "$INSTALL_XINETD_HELP" \
+       "ENABLE_XINETD"       "Enable xinetd scripts by default" \
+       "$DEF_ENABLE_XINETD"  "$INSTALL_XINETD_HELP" \
+       "INIT_VS_XINETD"      "Prefer xinetd over init.d" \
+       "$DEF_INIT_VS_XINETD" "$INIT_VS_XINETD"'`
+  then
+
+    TEMP=(DEF_INSTALL_INIT DEF_ENABLE_INIT DEF_INSTALL_XINETD DEF_ENABLE_XINETD DEF_INIT_VS_XINETD)
+    for i in ${TEMP[*]} ; do
+      eval $i=off
+    done
+
+    for RESULT in  $RESULTS;  do
+
+      case  $RESULT in
+          INSTALL_INIT) DEF_INSTALL_INIT=on   ;;
+           ENABLE_INIT) DEF_ENABLE_INIT=on    ;;
+        INSTALL_XINETD) DEF_INSTALL_XINETD=on ;;
+         ENABLE_XINETD) DEF_ENABLE_XINETD=on  ;;
+        INIT_VS_XINETD) DEF_INIT_VS_XINETD=on ;;
+      esac
+
+    done
+    for i in ${TEMP[*]} ; do
+      modify_local_config "$i" "${!i}"
+    done
+  fi
+}
 
 function parallel_compilation_menu() {
   local RESULTS KEY rc
@@ -1158,6 +1207,7 @@ function parallel_compilation_menu() {
                           EXTRA_JOBS "$MAKE_NJOBS" \
                           CCACHE_DIR "$CCACHE_DIR"'`)
     rc=$?
+XXX
     [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
     set ${RESULTS[*]}
     KEY=$2
@@ -1556,6 +1606,7 @@ option_menu()  {
   local U_HELP="Enter the permissions mask (umask value) to use for sorcery"
   local S_HELP="Sorcery development options (debugging)"
   local W_HELP="Enter maximum timeout (seconds) for summoning sources"
+  local X_HELP="Init.d/Xinetd Default Answer Selection Menu"
   local Z_HELP="Select sorcery sound scheme"
 
   while
@@ -1583,6 +1634,7 @@ option_menu()  {
                       "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
+                      "X"  "init.d xinetd.d defaults" "$X_HELP" \
                       "Z"  "Select Sound Scheme"      "$Z_HELP"'`
 
   do
@@ -1605,6 +1657,7 @@ option_menu()  {
       S)  sorcery_devel_settings    ;;
       T)  set_compression_type      ;;
       W)  set_http_ftp_timeout      ;;
+      X)  service_defaults          ;;
       Z)  sound_schemes_menu        ;;
 
     esac
