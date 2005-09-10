@@ -392,31 +392,35 @@ function unpack_hash() {
   fi
 
   message "${MESSAGE_COLOR}hash checking source file $1...${DEFAULT_COLOR}"
-
+  local HASH
   if [ "$MD5SUM_DL" != "off" ]; then
 
-    case "$ALGORITHM" in
-                    md5|sha1) unpack_spell_required coreutils "$ALGORITHM" ||
-                                                                 return "$?" ;;
-sha256|sha384|sha512|ripemd160) unpack_spell_required hashsum "$ALGORITHM" ||
-                                                                 return "$?" ;;
-*) message "${PROBLEM_COLOR}algorithm $ALGORITHM is not known!${DEFAULT_COLOR}"
-                                                                 return 200  ;;
-    esac
+    if [[ "$ALGORITHM" == md5 ]] || [[ "$ALGORITHM" == sha1 ]] ; then
+      unpack_spell_required coreutils "$ALGORITHM" || return "$?" 
+      HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
+    else
+      unpack_spell_required gnupg "$ALGORITHM" || return "$?"
+      if list_find "$(gpg_get_hashes)" $ALGORITHM; then
+        HASH="$(gpg_hashsum "${ALGORITHM}" "$FILENAME" | cut -d' ' -f1)"
+      else 
+        message "${PROBLEM_COLOR}Algorithm $ALGORITHM is not"\
+                "known!${DEFAULT_COLOR}"
+        return 200
+      fi
+    fi
+    local rc=$?
 
-    local HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
-
-    if [[ "$HASH" != "$HASHSUM" ]] 
+    if [[ "$HASH" != "$HASHSUM" ]] || [[ $rc != 0 ]]
     then
       message "${PROBLEM_COLOR}$ALGORITHM check failed"  \
               "$HASH != $HASHSUM !${DEFAULT_COLOR}"      &&
-      hash_user_query 1 "$SPELL" spell
+      hash_user_query 1 "$SPELL" spell || return 1
     else
       if is_allowed_hash ${ALGORITHM} ${HLEVEL} ; then rc=0 ; else rc=1 ; fi
       hash_user_query $rc "$SPELL" spell || return 1
     fi
   else
-    message "${RED}Continuing!${DEFAULT_COLOR}"
+    message "${PROBLEM_COLOR}Continuing!${DEFAULT_COLOR}"
   fi
   return 0
 }

@@ -263,6 +263,33 @@ function gpg_user_query() {
 }
 
 
+#---------------------------------------------------------------------
+## @param algorithm to use
+## @param file to get hashsum of
+## @out output is exactly the same format as md5sum/sha1sum, just with
+## a different hashsum. "hashsum<space><space>filename". The hashsum is
+## printed with all lowercase letters.
+##
+## This assumes that the caller has already verified that gpg is
+## installed and supports the specified hash function.
+##
+#---------------------------------------------------------------------
+function gpg_hashsum() {
+  local algorithm=$1
+  local file=$2
+  gpg --print-md "$algorithm" "$file"|tr -d '\n '| tr 'A-F' 'a-f'|
+                                  awk -F: '{printf "%s  %s\n",$2,$1}'
+}
+
+#---------------------------------------------------------------------
+## @out All the hash algorithms supported by gpg, algorithms printed in
+## lower case.
+##
+## This assumes the caller has already verified that gpg is installed.
+#---------------------------------------------------------------------
+function gpg_get_hashes() {
+  gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr 'A-Z' 'a-z'
+}
 
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify
