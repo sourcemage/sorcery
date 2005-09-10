@@ -277,8 +277,9 @@ function gpg_user_query() {
 function gpg_hashsum() {
   local algorithm=$1
   local file=$2
-  gpg --print-md "$algorithm" "$file"|tr -d '\n '| tr 'A-F' 'a-f'|
-                                  awk -F: '{printf "%s  %s\n",$2,$1}'
+  gpg --print-md "$algorithm" "$file"| tr -d '\n '  |cut -f2 -d:|
+                                       tr 'A-F' 'a-f'|tr -d '\n'
+  echo "  $file"
 }
 
 #---------------------------------------------------------------------
