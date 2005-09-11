@@ -40,7 +40,8 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
   # always trust and supply our own keyring.
   # We provide our own trust for the pubkey validity.
 
-  local GPGPROG="`which gpg 2> /dev/null`"
+  local GPGPROG
+  smgl_which gpg GPGPROG 2> /dev/null
 
   if test -z "$GPGPROG" ; then
     message "It appears you do not have gpg (gnupg) in your PATH."
