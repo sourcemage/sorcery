@@ -136,6 +136,46 @@ function gpg_verify_grimoire() {
   gpg_verify_common $FILENAME $SOURCE_URL $gpg_pub_key grimoire $SIGNATURE
 }
 
+
+
+function verify_grimoire_tree() {
+  local grimoire_name=$1
+  local grimoire_dir=$2
+
+  if [[ "$GPG_VERIFY_GRIMOIRE" != on ]] ; then
+    return 253
+  fi
+
+  local gpg_pub_key=$(gpg_get_grimoire_key $grimoire_name)
+  if test -z $gpg_pub_key && test -f $gpg_pub_key ; then
+    message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
+    return 254
+  fi
+
+  manifest=$grimoire_name.manifest.$GRIMOIRE_MANIFEST_ALGORITHM
+  manifest_url=${CODEX_MANIFEST_URL}/$manifest
+
+  pushd $TMP_DIR >/dev/null || return 1
+
+  local manifest_target manifest_type
+  url_download $manifest $manifest_url "" manifest_target manifest_type
+  #check the success of the download
+  if [ $? != 0 ] || [[ "$manifest_type" != file ]] ; then
+    message "Error downloading manifest..."
+    return 1
+  fi
+
+  gpg_verify_common $manifest $CODEX_MANIFEST_URL $gpg_pub_key "grimoire manifest"
+  if ! gpg_user_query $?; then
+    return 2
+  fi
+
+  popd >/dev/null
+
+  verify_grimoire_against_manifest "$grimoire_dir" "$TMP_DIR/$manifest" \
+                                   "$GRIMOIRE_MANIFEST_ALGORITHM"
+}
+
 #---------------------------------------------------------------------
 ## Verify a sorcery tarball's gpg signature
 ## @param file on local disk to verify
@@ -293,6 +333,96 @@ function gpg_get_hashes() {
   gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr 'A-Z' 'a-z'
 }
 
+#---------------------------------------------------------------------
+## Verify a tree against a manifest file
+## @param directory to verify
+## @param manifest file, the format is like what the md5sum tool would
+##        produce
+## @param algorithm to use, this can be anything supported by gpg
+## @param regular expression of files to ignore
+#---------------------------------------------------------------------
+function verify_against_manifest() {
+  local dir=$1
+  local manifest=$2
+  local algorithm=$3
+  local ignore=$4
+  local base=$(basename $dir)
+  local real_list=$TMP_DIR/$base
+  local missing=$TMP_DIR/missing.$base
+  local rc=0
+
+  message "Validating tree at $dir with $manifest"
+  local manifest_format=$(echo $manifest|awk -F. '{print $NF}')
+
+  pushd $dir > /dev/null || return $?
+  find . -type f > $real_list
+  { cat $real_list $real_list ; awk '{print $NF}' $manifest ; } |
+  sort | uniq -c | grep -v '^ *3' | grep -v "$ignore" > $missing
+  NO_TREE=$(grep "^ *1" $missing|sed 's/^ *1 //')
+  if [[ $NO_TREE ]] ; then
+    message "${PROBLEM_COLOR}The following exist only in the manifest" \
+            "and are missing from the tree!${DEFAULT_COLOR}"
+    echo "$NO_TREE"|$PAGER
+    let rc+=1
+  fi
+  NO_MANIFEST=$(grep "^ *2" $missing|sed 's/^ *2 //')
+  if [[ $NO_MANIFEST ]] ; then
+    message "${PROBLEM_COLOR}The following exist only in the tree" \
+            "and are missing from the manifest!${DEFAULT_COLOR}"
+    echo "$NO_MANIFEST"|$PAGER
+    let rc+=1
+  fi
+  local hash r
+  while read hashsum file; do
+    local hash=$(gpg_hashsum $algorithm $file 2>/dev/null|cut -f1 -d' ')
+    r=$?
+    if [[ $hash != $hashsum ]] || [[ $r != 0 ]]; then
+      NOT_OK=( $NOT_OK "$file" )
+    fi
+  done < $manifest
+
+  if [[ $NOT_OK ]] ; then
+    message "${PROBLEM_COLOR}The following have bad checksums${DEFAULT_COLOR}"
+    echo "$NOT_OK"
+    let rc+=1
+  fi
+  popd $dir > /dev/null
+  return $rc
+}
+
+#---------------------------------------------------------------------
+## Verify a grimoire tree and ignore files sorcery adds post-download
+#---------------------------------------------------------------------
+function verify_grimoire_against_manifest() {
+  verify_against_manifest $1 $2 $3 \
+                          '^ *2 \./\(GRIMOIRE\|codex\.index\|provides\.index\)$'
+}
+
+#---------------------------------------------------------------------
+## Ask the user what they want to do if verification of a grimoire tree
+## fails.
+#---------------------------------------------------------------------
+function grimoire_tree_user_query() {
+  local grimoire_name=$1
+  message "${PROBLEM_COLOR}Verification of the grimoire" \
+          "tree ${DEFAULT_COLOR}${SPELL_COLOR}$grimoire_name" \
+          "${DEFAULT_COLOR}${PROBLEM_COLOR}failed!"
+  message "What would you like to do?${DEFAULT_COLOR}"
+  local choice
+  select_list choice 0 "set aside" "remove" "ignore"
+  case "$choice" in
+    "set aside") local tgt=$grimoire_name.$(date +%Y%m%d%H%M).corrupt
+                 message "moving grimoire to $tgt"
+                 mv $grimoire_name $tgt
+                 scribe_remove $grimoire_name &>/dev/null
+                 ;;
+         remove) rm -rf $grimoire_name
+                 scribe_remove $grimoire_name &>/dev/null;;
+         ignore) return 0 ;;
+  esac
+  return 1
+}
+ 
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by

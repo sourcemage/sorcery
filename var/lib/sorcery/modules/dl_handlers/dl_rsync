@@ -100,7 +100,7 @@ function dl_rsync_run_rsync() {
   if [ "$dl_file" == 1 ]; then
     TOTAL=0 # downloading a single file, not a source tree
   else
-    let TOTAL=$(find $2 -type f 2>/dev/null | wc -l)
+    let TOTAL=$(find $1 -type f 2>/dev/null | wc -l)
     if [ "$TOTAL" -lt 2 ] ; then
       let TOTAL=100
       use_spinner=yes
@@ -115,7 +115,7 @@ function dl_rsync_run_rsync() {
     rsync -rz --delete --stats --progress "$url" "$target" #few files - big files
     retcode=$?
   else
-    echo rsync -rz --delete --stats -vv "$url" "$target" 
+    echo rsync -rz --delete --stats -vv "$url" "$target"
     {
       rsync -rz --delete --stats -vv "$url" "$target" 
       echo $? > $TMP_DIR/rsync.rc
@@ -139,6 +139,7 @@ function dl_rsync_run_rsync() {
     done
     retcode=$(<$TMP_DIR/rsync.rc)
     [[ $retcode == 0 ]] &&
+    [[ $use_spinner ]] ||
     progress_bar $TOTAL $TOTAL 50 # make the progress bar show 100, on success
 
     echo
