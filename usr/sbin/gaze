@@ -89,10 +89,14 @@ depends		spell [level]	Displays the spells that explicitly or
                    		 recursively depend on this spell,
 				 up to $level levels (infinity if omitted)
 
-dependencies    [-c ] spell [level]	Displays the spells this spell explicitly 
-				or recursively depends on, up to $level levels (infinity 
-				if omitted). -c turns on compact mode, which will prevent 
-				previously trees from being displayed (avoids loops).
+dependencies    [-c ] [--no-optionals ] spell [level]
+				Displays the spells this spell explicitly
+				 or recursively depends on, up to $level
+				 levels (infinity if omitted). -c turns
+				 on compact mode, which will prevent
+				 previously shown trees from being displayed
+				 (avoids loops). --no-optionals skips
+				 optional spells
 
 SCRIPT NAME	spell		will print the spell script for that spell.
 
@@ -1406,14 +1410,24 @@ function gaze_show_depends() {
 ##
 #-----
 function gaze_show_dependencies() {
-    local FOUND SPELL
+    local FOUND SPELL NO_OPTIONALS
 	
-	# Check for the compact mode flag
-	if [[ $1 == -c ]] ; then
-		FOUND="/tmp/gaze.seen.$$"
-	    echo -n > $FOUND
-		shift
-	fi
+    while true; do
+        # Check for the compact mode flag
+        if [[ $1 == -c ]] ; then
+            FOUND="/tmp/gaze.seen.$$"
+	          echo -n > $FOUND
+		        shift
+            continue
+        fi
+        # Check for the no optionals flag
+        if [[ $1 == --no-optionals ]] ; then
+            NO_OPTIONALS=yes
+		        shift
+            continue
+        fi
+        break
+    done
     SPELL=$1
 	
     [[ $# == 2 ]] && MAX_DEPTH=$2
@@ -1427,6 +1441,7 @@ function gaze_show_dependencies() {
                 return 0
         }
         optional_depends() {
+                [[ $NO_OPTIONALS ]] ||
                 recurse "$1" $DEPTH "optional"
                 return 0
         }
@@ -1724,4 +1739,3 @@ fi
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
-# vim: tabstop=2:shiftwidth=2:expandtab
