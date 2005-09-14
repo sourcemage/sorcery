@@ -128,6 +128,7 @@ EOF
 function _init_install_conf_files()
 {
 
+  mkdir -p $INSTALL_ROOT/etc/sysconfig
   for file in "$@" ; do
     local target_file=${INSTALL_ROOT}/etc/sysconfig/$file
     local file=$SCRIPT_DIRECTORY/init.d/$file.conf
@@ -172,7 +173,8 @@ function init_prepare_install()
   [ -z "$script_provides" ] && return
 
   local default=n
-  if grep -q "$script_provides=$service" \
+  if test -f $INSTALL_ROOT/etc/sysconfig/facilities &&
+     grep -q "$script_provides=$service" \
               $INSTALL_ROOT/etc/sysconfig/facilities ||
      list_find "$service:$script_provides" $old_provides; then
     default=y
@@ -247,6 +249,7 @@ function init_post_install()
   (
     IFS="$WHITESPACE_IFS"
     for sp in $INIT_PROVIDES ; do
+      mkdir -p $INSTALL_ROOT/etc/sysconfig
       mark_file_modified "$INSTALL_ROOT/etc/sysconfig/facilities"
       IFS=":"
       set $sp   # $1 - script name, $2 - facility
