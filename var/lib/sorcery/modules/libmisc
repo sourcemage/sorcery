@@ -335,33 +335,6 @@ function consolidate_params() {
 }
 
 #---------------------------------------------------------------------
-## @param Yes, there is a parameter.. 
-## @Stdout wheee, even output.
-## Dunno what that one does..
-#---------------------------------------------------------------------
-function parent_PIDs()
-{
-  
-  local pid ppid
-  
-  pid="$1"
-  if [[ $1 ]] ; then
-    pid=$1
-  else
-    pid="$$"
-    echo $$
-  fi
-  
-  if [[ $pid == 0 ]] || ! [ -e /proc/$pid/status ] ; then return 0; fi
-  
-  ppid=`grep "^PPid:" /proc/$pid/status | cut -f 2`
-  echo $pid
-  parent_PIDs $ppid
-
-}
-
-
-#---------------------------------------------------------------------
 ## @Stdin directories.
 ## @Stdout directories' basenames
 ## Takes newline separated list of directories
@@ -893,7 +866,11 @@ function real_config_query_list () {
   return 0
 }
 
-# FIXME
+#---------------------------------------------------------------------
+## Output a list of source numbers associated with the current spell.
+## This is the number portion of SOURCE[[:digit:]], eg '', "2", "3", etc.
+## A prefix may be given and it will be prepended to each result value.
+#---------------------------------------------------------------------
 function real_get_source_nums() {
   local foo
   compgen -v SOURCE |
@@ -923,6 +900,13 @@ function misc_is_function()  {
 }
 
 
+#---------------------------------------------------------------------
+## Remove files listed and any directories which become empty after
+## subsequent file removal.
+##
+## @param Filename to read as input, a pipe may not be used.
+## @param Base directory to remove directories up to (usually $INSTALL_ROOT)
+#---------------------------------------------------------------------
 function remove_files_and_dirs() {
     cat $1 | while read file; do
       test -d $file || rm -f $file
