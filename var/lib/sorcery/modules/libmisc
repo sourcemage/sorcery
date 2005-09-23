@@ -548,6 +548,30 @@ function real_list_find () {
     return 1
 }
 
+#---------------------------------------------------------------------
+## @param spell
+## @param variable to read
+## @param variable name
+##
+## finds the persistent var for spell and sets variable name to the value
+## of the variable to read
+##
+#---------------------------------------------------------------------
+function real_persistent_read() {
+  local exfile pfile tb_dir
+  local varin=$2
+  local varout=$3
+  tablet_find_spell_dir $1 tb_dir  || return 2
+  tablet_get_spell_file $tb_dir EXPORTS exfile || return 4
+  tablet_get_persistent_config $tb_dir pfile || return 3
+  if grep -q "^${varin}$" $exfile
+  then
+    eval "$3="'$( . "$pfile" && echo "${!varin}" )'
+  else
+    return 1
+  fi &&
+  return 0
+}
 
 #---------------------------------------------------------------------
 ## @param variables, ...

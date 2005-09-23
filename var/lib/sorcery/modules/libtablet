@@ -199,6 +199,18 @@ function tablet_get_spell_file() {
   return 0
 }
 
+function tablet_get_persistent_config() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/spell_config.p && value=$tb_dir/spell_config.p || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
 function tablet_get_section_file () {
   local tb_dir=$1 tb_version value
   tablet_get_tb_version $tb_dir tb_version
@@ -394,22 +406,6 @@ function tablet_find_resurrect_dir() {
   fi
   eval "$2=\"$__spell_dir\""
   return 0
-}
-
-#----------------------------------------------------------------------
-# @param spell name
-# @param spell file within the tablet
-# @param timestamp (optional)
-# @return always true
-# @stdout the file if it exists, or empty
-#----------------------------------------------------------------------
-function tablet_find_spell_file() {
-  local page_dir
-  if tablet_find_spell_dir $1 page_dir $3; then
-    test -e $page_dir/$2 && echo $page_dir/$2
-  else
-    echo ""
-  fi
 }
 
 #----------------------------------------------------------------------
