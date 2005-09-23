@@ -85,9 +85,11 @@ pam		<empty>		Displays installed or held spells that are
 orphans		<empty>		Displays installed spells that no installed
 				  spells explicitly depend on.
 
-depends		spell [level]	Displays the spells that explicitly or
+depends		[--fast] spell [level]
+                                 Displays the spells that explicitly or
                    		 recursively depend on this spell,
 				 up to $level levels (infinity if omitted)
+                                 --fast omits some information but runs faster
 
 dependencies    [-c ] [--no-optionals ] spell [level]
 				Displays the spells this spell explicitly
@@ -1396,11 +1398,47 @@ function gaze_show_where() {
 ##
 #-----
 function gaze_show_depends() {
-    local spell="$1"
+    local fast
+    while true; do
+        if [[ $1 == --fast ]] ; then
+            fast=yes
+            shift
+            continue
+        fi
+        break
+    done
+    local spell=$1
     local MAX_DEPTH=$2 #as a global for show_depends.
-
-    codex_does_spell_exist "$spell" && show_depends "$spell" | sort | uniq
+    codex_does_spell_exist "$spell"  &&
+    if [[ $fast == yes ]] ; then
+      fast_up_depends "$spell"
+    else
+      show_depends "$spell" | sort | uniq
+    fi
 }
+
+#-----
+## Display the spells that depend on the current spell
+## recurses up the dependency tree
+## @param spell to display
+#-----
+function fast_up_depends () { 
+    local done i=0
+    function fast_up_depends_sub () { 
+        let i++
+        [[ $i > $MAX_DEPTH ]] && return
+        for each in $(hash_get foo $1); do
+            if ! list_find "$done" $each; then
+                list_add done $each
+                echo $each
+                fast_up_depends_sub $each
+            fi
+        done
+    }
+    compute_reverse_installed_depends foo
+    fast_up_depends_sub "$1"
+}
+
 
 #-----
 ##
