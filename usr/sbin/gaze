@@ -1411,7 +1411,7 @@ function gaze_show_depends() {
     local MAX_DEPTH=$2 #as a global for show_depends.
     codex_does_spell_exist "$spell"  &&
     if [[ $fast == yes ]] ; then
-      fast_up_depends "$spell"
+      fast_up_depends "$spell" | sort
     else
       show_depends "$spell" | sort | uniq
     fi
@@ -1423,20 +1423,24 @@ function gaze_show_depends() {
 ## @param spell to display
 #-----
 function fast_up_depends () { 
-    local done i=0
+    local i=0
     function fast_up_depends_sub () { 
         let i++
-        [[ $i > $MAX_DEPTH ]] && return
+        [[ $MAX_DEPTH ]] && [[ $i -gt $MAX_DEPTH ]] && return
         for each in $(hash_get foo $1); do
-            if ! list_find "$done" $each; then
-                list_add done $each
+            if ! [[ $(hash_get done $each) ]] ; then
+                hash_put done $each done
                 echo $each
                 fast_up_depends_sub $each
             fi
         done
     }
+    hash_reset foo
+    hash_reset done
     compute_reverse_installed_depends foo
     fast_up_depends_sub "$1"
+    hash_reset foo
+    hash_reset done
 }
 
 
