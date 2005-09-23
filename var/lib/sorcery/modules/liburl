@@ -129,7 +129,7 @@ function url_download_expand_sort() {
     return 1
   fi
   # shorten the list to a manageable amount
-  sorted_urls=$(echo "$sorted_urls"|head -n 20)
+  sorted_urls=$(echo "$sorted_urls"|head -n 10)
   debug "liburl" "sorted urls $sorted_urls"
   url_download "$1" "$sorted_urls" "$3" "$4" "$5"
 }
@@ -239,8 +239,9 @@ function url_expand_urls() {
   done|sort|uniq)"
   # this ensures that the urls originally specified are given preference
   for url in $url_list; do
-    tmp_list=$(echo $url;echo "$tmp_list"|grep -v $url)
+    tmp_list=$(echo "$tmp_list"|grep -v $url)
   done
+  tmp_list="$(echo $url_list|tr ' ' '\n')"$'\n'"$tmp_list"
   eval "$upvar=\"\$tmp_list\""
 }
 
