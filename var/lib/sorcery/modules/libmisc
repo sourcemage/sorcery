@@ -103,6 +103,39 @@ function real_query()  { (
 
 ) }
 
+#---------------------------------------------------------------------
+## @param return_var
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+##
+#---------------------------------------------------------------------
+function real_query_string () {
+  
+    debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
+    
+    local RESPONSE=""
+    local RETURN=0
+    
+    local DEFAULT=""
+    [ -n "$3" ] && DEFAULT=" [$3] "
+    
+    if [ -z "$SILENT" ]; then
+        echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
+        read -t $PROMPT_DELAY RESPONSE
+    fi
+  
+    [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
+    
+    eval $1=\"${RESPONSE}\"
+    return $RETURN
+}
+
+
 
 #---------------------------------------------------------------------
 ## @Type API
@@ -417,8 +450,8 @@ function iterate()
 }
 
 #---------------------------------------------------------------------
-## @param default choice
 ## @param return_var (must not be i, foo, temp, returnvar, or default)
+## @param default choice
 ## @param elements, ..
 ## 
 ## gives the user some nice select list and puts the selected
@@ -614,10 +647,11 @@ function real_persistent_remove () {
 #---------------------------------------------------------------------
 function real_persistent_load () {
     local PERSISTENT_LOADING=yes
-    if [ -f "$SPELL_CONFIG.p" ]; then
-        . "$SPELL_CONFIG.p"
+    local PERSISTENT_FILE=${1:-$SPELL_CONFIG.p}
+    if [ -f "$PERSISTENT_FILE" ]; then
+        . "$PERSISTENT_FILE"
         local line
-        persistent_add `while read line; do echo ${line%%=*}; done < "$SPELL_CONFIG.p"`
+        persistent_add `while read line; do echo ${line%%=*}; done < "$PERSISTENT_FILE"`
     fi
 }
 
@@ -655,38 +689,6 @@ function real_persistent_clear () {
     unset PERSISTENT_VARIABLES
 }
 
-
-#---------------------------------------------------------------------
-## @param return_var
-## @param question
-## @param default answer
-##
-## @return 0 user supplied answer
-## @return 1 default answer is used
-##
-## Asks user for string, with default answer and timeout (like query)
-##
-#---------------------------------------------------------------------
-function real_query_string () {
-  
-    debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
-    
-    local RESPONSE=""
-    local RETURN=0
-    
-    local DEFAULT=""
-    [ -n "$3" ] && DEFAULT=" [$3] "
-    
-    if [ -z "$SILENT" ]; then
-        echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
-        read -t $PROMPT_DELAY RESPONSE
-    fi
-  
-    [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
-    
-    eval $1=\"${RESPONSE}\"
-    return $RETURN
-}
 
 
 #---------------------------------------------------------------------
@@ -730,6 +732,53 @@ function config_get_option () {
   fi
 }
 
+#---------------------------------------------------------------------
+## @param Name of variable
+## @param return variable
+##
+## @return 0 if the variable could be found, 1 if no old persistent file
+##         exists.
+##
+## Get value of a persistent variable from the previous cast when
+## there is a -r. The persistent data moves to a seperate directory
+## when cast -r is run, this makes the new persistent config clean
+## but allows us to provide the user defaults from the last cast.
+#---------------------------------------------------------------------
+function config_get_last_option() {
+  if [[ $PROTECT_SORCERY ]] ; then
+    if is_sorcery_var $1; then
+      complain_sorcery_var $1
+      return 1
+    fi
+  fi
+
+  local pfile
+  if test -f $ABANDONED_PERSIST/$SPELL.p; then
+    pfile=$ABANDONED_PERSIST/$SPELL.p
+  # leave this out for now until theres a way to disable it
+  # having it enabled will make it difficult to get back to the true defaults
+  #else
+  #  local tb_dir
+  #  tablet_find_spell_dir $SPELL tb_dir &&
+  #  tablet_get_persistent_config $tb_dir pfile || return 1
+  fi
+
+  local foo
+  if [[ $pfile ]] ; then
+    foo=$(
+      persistent_load $pfile
+      if real_list_find $1 $PERSISTENT_VARIABLES; then
+        eval "echo \"\$$1\""
+      fi
+    )
+  else
+    return 1
+  fi
+
+  eval "$2=\"\$foo\""
+  return 0
+}
+
 
 #---------------------------------------------------------------------
 ## @param config file variable
@@ -770,8 +819,12 @@ function real_config_query () {
         # already have a reasonable value...
         [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
     fi
-  
-    if query "$2" $3; then
+
+    local default
+    config_get_last_option "$1" default
+    [[ $default ]] || default="$3"
+
+    if query "$2" "$default"; then
         config_set_option "$1" y
     else
         config_set_option "$1" n
@@ -797,7 +850,7 @@ function real_config_query () {
 ## Return variable is also marked as persistent
 #---------------------------------------------------------------------
 function real_config_query_option () {
-    local ANSWER
+    local ANSWER key
   
     # If the option exists
     # If the option contains option_yes or option_no
@@ -808,13 +861,19 @@ function real_config_query_option () {
         list_find "$ANSWER" $4 && key=y
         list_find "$ANSWER" $5 && key=n
 
-        if [ $key != error ]; then
+        if [[ "$key" ]]; then
             echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
             return 0
         fi
     fi
+
+    local last_answer default=$3
+    config_get_last_option "$1" last_answer
+    # Find out if the option was 'y' or 'n'
+    list_find "$last_answer" $4 && default=y
+    list_find "$last_answer" $5 && default=n
   
-    if query "$2" $3; then
+    if query "$2" "$default"; then
         list_add ANSWER $4
     else
         list_add ANSWER $5
@@ -843,7 +902,10 @@ function real_config_query_string () {
         # option allready answered in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
     else
-        query_string ANSWER "$2" "$3"
+        local default
+        config_get_last_option "$1" default
+        [[ $default ]] || default="$3"
+        query_string ANSWER "$2" "$default"
         config_set_option "$1" "$ANSWER"
     fi
     return 0
@@ -880,9 +942,22 @@ function real_config_query_list () {
     )
     echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
   else
+    # if there was an answer before, find it
+    local default default_num=0 foo
+    config_get_last_option "$VARIABLE" default
+    [[ $default ]] || default="$1"
+    let i=0
+    for foo in "$@"; do
+      if [[ "$foo" == "$default" ]] ; then
+        default_num=$i
+        break
+      fi
+      let i++
+    done
+
     # we have to ask user
     message "$QUESTION"
-    select_list ANSWER 0 "$@"
+    select_list ANSWER ${default_num} "$@"
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 
