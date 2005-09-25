@@ -1,0 +1,139 @@
+#!/bin/bash
+## ----------------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for parsing smgl's tla urls.
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for parsing tla urls.
+##
+##=head1 TLA URL Format
+##
+## There is no standard (that I know of) for tla urls so we use a 
+## source mage specific format:
+##
+##      smgl_tla://location%archive%revision
+##
+## Location is an embedded url, this will be passed directly to tla.
+## Archive is the name of an archive, the format of this is defined by tla.
+## Revision is the category--branch--version[--patch] construct defined by
+## tla.
+##
+## For more details, see the tla manual at 
+## http://www.gnu.org/software/gnu-arch/
+##
+##=head1 EXAMPLES
+##
+## Suppose we want to download the latest version of the emacs-wiki
+## scripts from tla.  We'd use the following url:
+##
+##      smgl_tla://http://sacha.free.net.ph/notebook/arch%sacha@free.net.ph--main%emacs-wiki--stable--1.0 
+##
+## If we want the 1.0.13 release instead (i.e., patch level 13)
+## we would use the following url:
+##
+##      smgl_tla://http://sacha.free.net.ph/notebook/arch%sacha@free.net.ph--main%emacs-wiki--stable--1.0--patch-13
+##      
+##=head1 COPYRIGHT
+##
+## Copyright 2005 the SourceMage Team
+##
+## ----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+##=item url_smgl_tla_bucketize<url>
+##
+## Outputs "tla".
+# -----------------------------------------------------------------------------
+function url_smgl_tla_bucketize() {
+  echo tla
+}
+
+# -----------------------------------------------------------------------------
+##=item url_smgl_tla_crack <url>
+## 
+## Parse the url
+##
+## @global URL
+## @global TLA_LOCATION
+## @global TLA_ARCHIVE
+## @global TLA_REVISION
+##
+# -----------------------------------------------------------------------------
+function url_smgl_tla_crack() { 
+    
+  URL=`url_strip_prefix "$1" smgl_tla`
+  TLA_LOCATION=`echo $URL|cut -d"%" -f1`
+  TLA_ARCHIVE=`echo $URL|cut -d"%" -f2`
+  TLA_REVISION=`echo $URL|cut -d"%" -f3`
+}
+
+
+# -----------------------------------------------------------------------------
+##=item url_smgl_tla_is_valid<url>
+## 
+## Verifies the specified tla url exists.  Returns true for now...
+##
+# ----------------------------------------------------------------------------
+function url_smgl_tla_is_valid() {
+  local URL TLA_LOCATION TLA_ARCHIVE TLA_REVISION item
+  for item in URL TLA_LOCATION TLA_ARCHIVE TLA_REVISION; do
+    [[ ${!item} ]] || return 1
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=item url_smgl_tla_hostname <url>
+##
+## Get the hostname of the url
+##
+#---------------------------------------------------------------------
+function url_smgl_tla_hostname() {
+  local P1=$(echo $1|cut -d"%" -f1)
+  echo $P1|sed 's#^.*://\([^/:]*\)[/:].*$#\1#'
+}
+
+#---------------------------------------------------------------------
+##=item url_svn_netselect <url>
+##
+## Gets a netselect type output for the url
+##
+#---------------------------------------------------------------------
+function url_smgl_tla_netselect() {
+  local tmp_hostname url_speed each
+
+  for each in $@ ; do
+    tmp_hostname=$(url_smgl_tla_hostname $each)
+    # since we had to pull the url appart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

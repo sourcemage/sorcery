@@ -28,11 +28,19 @@ export       DIALOGRC=/etc/sorcery/dialogrc
        SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                  NICE=${NICE:=+10}
                 UMASK=${UMASK:=0022}
+         SORCERY_PATH="/usr/sbin"
+FORCE_BASESYSTEM_DEPENDS=${FORCE_BASESYSTEM_DEPENDS:-off}
 
             LDD_CHECK=${LDD_CHECK:=on}
            FIND_CHECK=${FIND_CHECK:=on}
          MD5SUM_CHECK=${MD5SUM_CHECK:=on}
             SYM_CHECK=${SYM_CHECK:=off}
+
+        # menu defined defaults for dependency following
+        ORPHAN_MENU_DEFAULT=${ORPHAN_MENU_DEFAULT:-ignore}
+     NONORPHAN_MENU_DEFAULT=${NONORPHAN_MENU_DEFAULT:-ignore}
+ RECAST_PARENT_MENU_DEFAULT=${RECAST_PARENT_MENU_DEFAULT:-ignore}
+ DISPEL_PARENT_MENU_DEFAULT=${DISPEL_PARENT_MENU_DEFAULT:-ignore}
 
  URL_HTTP_FTP_TIMEOUT=${URL_HTTP_FTP_TIMEOUT:=90}
 
@@ -58,6 +66,7 @@ export       DIALOGRC=/etc/sorcery/dialogrc
           MEDIA_CONFIG=/etc/sorcery/media
             URL_CONFIG=/etc/sorcery/url
           STATE_CONFIG=/etc/sorcery/state
+         SCREEN_CONFIG=/etc/sorcery/screen
 
           CONFIG_CACHE=/etc/sorcery/local
 
@@ -85,7 +94,26 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
            GPG_SIG_EXT=asc
     GPG_VERIFY_SORCERY=no
    GPG_VERIFY_GRIMOIRE=no
+GPG_VERIFY_SPELL_LEVEL="0"
+         GPG_MAX_LEVEL="5"
+    GPG_ALLOWED_HASHES=""
+  GPG_ALLOW_NEW_HASHES="on"
+     GPG_GRIMOIRE_LIST="test stable-rc stable games z-rejected hardened"
+GRIMOIRE_MANIFEST_ALGORITHM=sha1
 
+# enumeration for spells so they can be changed and still used comparisons
+                IGNORE=0
+	  WORKS_FOR_ME=1
+	 UPSTREAM_HASH=2
+          UPSTREAM_KEY=3
+ VERIFIED_UPSTREAM_KEY=4
+ ID_CHECK_UPSTREAM_KEY=5
+
+      DEF_INSTALL_INIT=off
+       DEF_ENABLE_INIT=off
+    DEF_INSTALL_XINETD=off
+     DEF_ENABLE_XINETD=off
+    DEF_INIT_VS_XINETD=off
 
           SGL_LIBRARY=/var/lib/sorcery
   SGL_LIBRARY_MODULES=${SGL_LIBRARY}/modules
@@ -121,6 +149,8 @@ SM_CONFIG_OPTION_CACHE=/etc/sorcery/local/config_option_cache
               # it is here merely to ensure it is always defined.
               TMP_DIR=${TMP_DIR:-/tmp}
 
+               SCREEN={SCREEN:-off}
+
               TRACKED="/bin /boot /etc /lib /sbin /usr /var"
                  DOCS="README* FAQ* CHAN* doc* DOC* conf SETUP LICENSE COPYING NEWS"
 PROGRESS_SPINNER_CHARS='-\|/'
@@ -138,15 +168,19 @@ PROGRESS_SPINNER_CHARS='-\|/'
 . $STATE_CONFIG
 . $LOCAL_CONFIG
 . $COMPILE_CONFIG
-
+. $SCREEN_CONFIG
 
 [  -r  $GRIMOIRE_LIST  ]  &&  .  $GRIMOIRE_LIST
 
       BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
    DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/share/doc
 
+# this makes appending the sorcery path idempotent
+[ -z ${PATH##*$SORCERY_PATH*} ] || export PATH="$PATH:$SORCERY_PATH"
+
 optimize
 umask $UMASK >/dev/null
 # this fixes breakage with multiply nested triggers, if/when we dont use
 # make anymore this can be removed
 unset MAKELEVEL
+unset MAKEFLAGS

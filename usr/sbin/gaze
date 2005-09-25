@@ -85,13 +85,20 @@ pam		<empty>		Displays installed or held spells that are
 orphans		<empty>		Displays installed spells that no installed
 				  spells explicitly depend on.
 
-depends		spell [level]	Displays the spells that explicitly or
+depends		[--fast] spell [level]
+                                 Displays the spells that explicitly or
                    		 recursively depend on this spell,
 				 up to $level levels (infinity if omitted)
+                                 --fast omits some information but runs faster
 
-dependencies    spell [level]	Displays the spells this spell explicitly or 
-                        	 recursively depends on,
-				 up to $level levels (infinity if omitted)
+dependencies    [-c ] [--no-optionals ] spell [level]
+				Displays the spells this spell explicitly
+				 or recursively depends on, up to $level
+				 levels (infinity if omitted). -c turns
+				 on compact mode, which will prevent
+				 previously shown trees from being displayed
+				 (avoids loops). --no-optionals skips
+				 optional spells
 
 SCRIPT NAME	spell		will print the spell script for that spell.
 
@@ -752,7 +759,7 @@ unset SEARCH_RESULTS
 #-----
 function service()  {
 	
-  for  SPELL  in  `codex_get_all_spells`;  do
+  for  SPELL  in  $(codex_get_all_spells);  do
     if    [  -f  $SPELL/services  ]  &&
 	  grep  -q  -i  "$1"  $SPELL/services
     then  echo  "$( basename  $SPELL )"
@@ -806,7 +813,7 @@ function specific_voyeur()
   fi
   nice -n +20			\
    tail /tmp/$1.compile.log	\
-    --follow=name --pid=`ls "/tmp/liblock-0/cast.$1"` 2>/dev/null
+    --follow=name --pid=$(ls "/tmp/liblock-0/cast.$1") 2>/dev/null
 }
 
 #-----
@@ -815,13 +822,14 @@ function specific_voyeur()
 #-----
 function any_voyeur()
 {
+  # We happily assume no spell names contain "cast."
   local FILE=`find /tmp/liblock-0 -maxdepth 1 -mindepth 1 -name "cast.*" |
-         sed "s/.*\/cast\.//"` # We happily assume no spell names contain "cast."
+         sed "s/.*\/cast\.//" | head -n 1`
   [ $FILE ] || return 1
   debug "voyeur" "Looking at spell \"$FILE\""
   nice -n +20				\
     tail $(find /tmp/sorcery/cast/ -name $FILE.compile.log )\
-         --follow=name --pid=`ls "/tmp/liblock-0/cast.$FILE"` 2>/dev/null
+         --follow=name --pid=$(ls "/tmp/liblock-0/cast.$FILE") 2>/dev/null
 }
 
 #-----
@@ -1390,11 +1398,51 @@ function gaze_show_where() {
 ##
 #-----
 function gaze_show_depends() {
-    local spell="$1"
+    local fast
+    while true; do
+        if [[ $1 == --fast ]] ; then
+            fast=yes
+            shift
+            continue
+        fi
+        break
+    done
+    local spell=$1
     local MAX_DEPTH=$2 #as a global for show_depends.
-
-    codex_does_spell_exist "$spell" && show_depends "$spell" | sort | uniq
+    codex_does_spell_exist "$spell"  &&
+    if [[ $fast == yes ]] ; then
+      fast_up_depends "$spell" | sort
+    else
+      show_depends "$spell" | sort | uniq
+    fi
 }
+
+#-----
+## Display the spells that depend on the current spell
+## recurses up the dependency tree
+## @param spell to display
+#-----
+function fast_up_depends () { 
+    local i=0
+    function fast_up_depends_sub () { 
+        let i++
+        [[ $MAX_DEPTH ]] && [[ $i -gt $MAX_DEPTH ]] && return
+        for each in $(hash_get foo $1); do
+            if ! [[ $(hash_get done $each) ]] ; then
+                hash_put done $each done
+                echo $each
+                fast_up_depends_sub $each
+            fi
+        done
+    }
+    hash_reset foo
+    hash_reset done
+    compute_reverse_installed_depends foo
+    fast_up_depends_sub "$1"
+    hash_reset foo
+    hash_reset done
+}
+
 
 #-----
 ##
@@ -1404,7 +1452,26 @@ function gaze_show_depends() {
 ##
 #-----
 function gaze_show_dependencies() {
-    local SPELL=$1
+    local FOUND SPELL NO_OPTIONALS
+	
+    while true; do
+        # Check for the compact mode flag
+        if [[ $1 == -c ]] ; then
+            FOUND="/tmp/gaze.seen.$$"
+	          echo -n > $FOUND
+		        shift
+            continue
+        fi
+        # Check for the no optionals flag
+        if [[ $1 == --no-optionals ]] ; then
+            NO_OPTIONALS=yes
+		        shift
+            continue
+        fi
+        break
+    done
+    SPELL=$1
+	
     [[ $# == 2 ]] && MAX_DEPTH=$2
 
     (
@@ -1412,15 +1479,16 @@ function gaze_show_dependencies() {
             return 0
         }
         depends() {
-                recurse $1 $DEPTH "depends"
+                recurse "$1" $DEPTH "depends"
                 return 0
         }
         optional_depends() {
-                recurse $1 $DEPTH "optional"
+                [[ $NO_OPTIONALS ]] ||
+                recurse "$1" $DEPTH "optional"
                 return 0
         }
         requires() {
-                recurse $1 $DEPTH "requires"
+                recurse "$1" $DEPTH "requires"
                 return 0
         }
         repeat () {
@@ -1428,30 +1496,56 @@ function gaze_show_dependencies() {
     
             while (( COUNT-- )); do echo -en "$CHAR"; done
         }
+		
+		# These functions shouldn't do anything in this function.
+		# Eventualy, they should be separated into two lists, ones
+		# that may be used in DEPENDS, and ones that shouldn't be
+		define_functions ': ;'			\
+			real_persistent_save real_query_string config_get_option 		\
+			config_set_option real_config_query real_config_query_option 	\
+			real_config_query_string real_list_add
+
+		# real_config_query_list should set $1 to something reasonable:
+		real_config_query_list() { eval "$1='$3'"; }
     
         recurse () {
             local name=$1 DEPTH=$2 WHAT=$3
+			local found_before=""
+			
+			if ! [[ $name ]] ; then
+				return ;
+			fi
+			
     
             [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
-    
-            repeat "\t" $DEPTH
-            echo "$name ($WHAT)"
             grep () {
                local foo
                smgl_which grep foo &&
                $foo "$@"
             }
+			[[ $FOUND ]] && 
+			    grep -q '^'$name'$' $FOUND && 
+				    found_before=" (see above for tree)"
+    
+            repeat "\t" $DEPTH
+            echo "$name ($WHAT)${found_before}"
+			if [[ $found_before ]] ; then 
+			    return ;
+			elif [[ $FOUND ]] ; then
+			    echo "$name" >> $FOUND
+			fi
     
             local SPELL=$(codex_find_spell_by_name $name)
             [[ -e "$SPELL/DEPENDS" ]] &&
             (
-                    (( DEPTH++ ))
-                    grep () { return 0; }
-                    source "$SPELL/DEPENDS" 2>/dev/null
-            )
+				let DEPTH++
+				define_functions ':;' grep
+				source "$SPELL/DEPENDS" 2>/dev/null
+            ) 
         }
         recurse $SPELL
     )
+	[[ $FOUND ]] && rm $FOUND
 }
 
 #-----
@@ -1560,6 +1654,7 @@ parse()  {
        CONFLICTS)  show_spell_component $1 $2            ;;
          DETAILS)  show_spell_component $1 $2            ;;
          DEPENDS)  show_spell_component $1 $2            ;;
+        DOWNLOAD)  show_spell_component $1 $2            ;;
            FINAL)  show_spell_component $1 $2            ;;
          HISTORY)  show_spell_component $1 $2            ;;
          INSTALL)  show_spell_component $1 $2            ;;
@@ -1567,9 +1662,11 @@ parse()  {
       POST_BUILD)  show_spell_component $1 $2            ;;
     POST_INSTALL)  show_spell_component $1 $2            ;;
      POST_REMOVE)  show_spell_component $1 $2            ;;
+  POST_RESURRECT)  show_spell_component $1 $2            ;;
        PRE_BUILD)  show_spell_component $1 $2            ;;
      PRE_INSTALL)  show_spell_component $1 $2            ;;
       PRE_REMOVE)  show_spell_component $1 $2            ;;
+   PRE_RESURRECT)  show_spell_component $1 $2            ;;
          PREPARE)  show_spell_component $1 $2            ;;
         PROVIDES)  show_spell_component $1 $2            ;;
         TRIGGERS)  show_spell_component $1 $2            ;;
@@ -1684,4 +1781,3 @@ fi
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
 #---------------------------------------------------------------------
-# vim: tabstop=2:shiftwidth=2:expandtab

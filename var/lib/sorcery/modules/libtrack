@@ -346,6 +346,17 @@ function log_adjuster() {
   rmdir $TMP_SSF
 }
 
+#---------------------------------------------------------------------
+## Split a log file into data that should be TRACK_ROOT'd versus
+## STATE_ROOT'd.
+##
+## @param filename or - (or /dev/stdin) for a pipe. This routine will
+##        read the input only once in-order to work with pipes.
+## @param filename for non-state files, possibly /dev/stdout or /dev/stderr
+## @param filename for state files, possibly /dev/stdout or /dev/stderr
+##        don't use the same stream for both types.
+##
+#---------------------------------------------------------------------
 function seperate_state_files() {
   local REAL_LOG_DIR=${LOG_DIRECTORY#$STATE_ROOT}
   local REAL_STATE_DIR=${STATE_DIRECTORY#$STATE_ROOT}

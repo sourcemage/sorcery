@@ -1,0 +1,209 @@
+#!/bin/bash
+
+#-----
+## Output a short message about using libscreen
+#-----
+function screen_quick_intro() {
+	message "${MESSAGE_COLOR}Using screen mode. Watch the bottom for notices."
+	message "${MESSAGE_COLOR}Press ^A-n and ^A-p to cycle through windows."
+	message "${MESSAGE_COLOR}Screen help is available with ^A-? (control-a ?)${DEFAULT}"
+}
+
+#-----
+## @param Screen session name
+## @param Command
+## @param (optional) Command parameter
+## @param ...
+## THIS FUNCTION NEVER RETURNS.
+## It execs a screen session with the specified name, with the specified
+## arguments.
+#-----
+function screen_start() {
+  $STD_DEBUG
+  local name="$1"
+  local screen
+  shift
+  if ! smgl_which screen screen > /dev/null  ; then
+    message "Cannot find screen."
+    message "Consider fixing the PATH, or disabling screen mode and casting screen."
+    exit 1
+  fi
+  exec $screen -S "$name" $SCREEN_KEY -c $SCREENRC "$@"
+}
+
+#-----
+## @param Screen session name
+## This function is not used, and probably won't be. It is a way to run 
+## a command in a screen.
+## The .!!| args to exec were determined by trial and error. ::: didn't work.
+#-----
+function screen_command() {
+  $STD_DEBUG
+  local name="$1"
+  shift
+  screen -x "$name" -X exec '.!!|' echo "$@"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## @param Window type
+## @param Name of new window
+## @param Command
+## @param (optional) Command args
+## @param ...
+## Window type may be one of:
+## <li>SCREEN_CAST_WIN
+## <li>SCREEN_SUMMON_WIN
+## <li>SCREEN_MAIN_WIN
+## <li>SCREEN_LAST_FAILED_CAST_WIN
+## <li>SCREEN_DEBUG_WIN
+## Only one of each type is allowed to exist at once
+## They are actualy window numbers in disguise
+#-----
+function screen_new_window() {
+  $STD_DEBUG
+  local screen_name="$1"
+  local win_num="$2"
+  local win_name="$3"
+  shift 3
+  screen -x "$screen_name" -X screen "$win_num" "$@"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+  screen_name_window "$screen_name" "$win_num" "$win_name"
+  screen_notify "$screen_name" "$win_name started"
+}
+
+#-----
+## @param Screen session name
+## Attaches the named screen session to the tty. 
+## Doesn't work properly since screen doesn't like being run in the bg.
+## Default escape code is ^A.
+#-----
+function screen_attach() {
+  $STD_DEBUG
+  screen -r "$1" $SCREEN_KEY &
+}
+
+#-----
+## @param Screen session name
+## Detaches the named screen session from the tty. 
+#-----
+function screen_detach() {
+  $STD_DEBUG
+  screen -x "$1" -X detach
+}
+
+#-----
+## @param Screen session name
+## @param Window number
+## Kills the window in the session. Also notifies the user that the window was
+## closed
+#-----
+function screen_kill_window() {
+  $STD_DEBUG
+  screen -x "$1" -p "$2" -X kill
+  sleep $SCREEN_ANTI_RACE_SLEEP
+  screen_notify "$1" "$2 ended"
+#  screen_switch_window "$1" 0
+}
+
+#-----
+## @param Screen session name
+## @param Window number
+## @param New name
+## Give an existing window a new name
+#-----
+function screen_name_window() {
+  $STD_DEBUG
+  screen -x "$1" -p "$2" -X title "$3"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## Give aname to the current window.
+## There are race conditions aplenty if you're not careful 
+#-----
+function screen_name_curr_window() {
+  $STD_DEBUG
+  screen -x "$1" -X title "$2"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## @param Message
+## Notify the user of something happening using the status bar
+#-----
+function screen_notify() {
+  $STD_DEBUG
+  screen -x "$1" -X echo "$@"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## @param Window to monitor
+## Sets a window to be monitored. The user will be informed of any activity
+## in the window.
+#-----
+function screen_monitor_window() {
+  $STD_DEBUG
+  screen -x "$1" -p "$2" -X monitor on
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## @param Window to monitor
+## Stops a window from being monitored
+#-----
+function screen_unmonitor_window() {
+  $STD_DEBUG
+  screen -x "$1" -p "$2" -X monitor off
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## @param Window to switch to
+## Changes the window the user sees
+#-----
+function screen_switch_window() {
+  $STD_DEBUG
+  screen -x "$1" -X select "$2"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## Ends the screen session. Should end all processes running in the screen.
+#-----
+function screen_quit() {
+  $STD_DEBUG
+  screen -x "$1" -X quit
+}
+
+#-----
+## @param Screen session name
+## @param Window to move to
+## @param Window number to move to
+## Moves a window to a new number
+## If something is already at that number, it swaps them
+#-----
+function screen_move_window() {
+  $STD_DEBUG
+  screen -x "$1" -p "$2" -X number "$3"
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}
+
+#-----
+## @param Screen session name
+## @param Delay in seconds
+## Sets the time screen shows messages for
+#-----
+function screen_set_msgwait() {
+  $STD_DEBUG
+  screen -x "$1" -X msgwait $2
+  sleep $SCREEN_ANTI_RACE_SLEEP
+}

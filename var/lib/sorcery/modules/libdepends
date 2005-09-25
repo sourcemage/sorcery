@@ -163,6 +163,27 @@ function run_depends()
     persistent_save
   fi
 }
+
+#---------------------------------------------------------------------
+## Run a spell's UP_TRIGGERS if it exists
+## @param Spell
+#---------------------------------------------------------------------
+function run_up_triggers() {
+  local SPELL=$1
+  debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+ 
+  local PROTECT_SORCERY=yes
+  if  [  -x  $SCRIPT_DIRECTORY/UP_TRIGGERS ];  then
+    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+             "${CHECK_COLOR}checking for reverse triggers...${DEFAULT_COLOR}"
+    # we need &&'s to preserve the proper return code (persistant_save
+    # will probably succeed even if PREPARE fails)
+    persistent_load &&
+    . $SCRIPT_DIRECTORY/UP_TRIGGERS &&
+    persistent_save
+  fi
+  
+}
 ######################END CALLS TO OUTSIDE WORLD########################
 
 
@@ -177,7 +198,7 @@ function run_depends()
 function compute_installed_depends() {
   #$1==hash table to fill
   local hash=$1
-  touch $DEPENDS_STATUS $SPELL_STATUS
+  touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
@@ -207,6 +228,7 @@ function compute_installed_depends() {
 function compute_reverse_installed_depends() {
   #$1==hash table to fill
   local hash=$1
+  touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
@@ -263,20 +285,20 @@ function compute_uninstalled_depends()
 
   PRETEND_NOT_INSTALLED=" $@ "
 
-  local i
+  local _idx
   
   # All specified spells are assumed to be not installed, or else -c and -r 
   # would have to be specified all the time.
   
-  for (( i=0 ; i<${#spells[*]} ; i++ )) ; do
-    if [[ ! `hash_get depends_looked_at ${spells[$i]}` ]]; then
-      if ! private_run_depends ${spells[$i]} ; then
+  for (( _idx=0 ; _idx<${#spells[*]} ; _idx++ )) ; do
+    if [[ ! `hash_get depends_looked_at ${spells[$_idx]}` ]]; then
+      if ! private_run_depends ${spells[$_idx]} ; then
         # i dont know if this will work, but it will have to suffice
-        private_remove_dependees ${spells[$i]}
+        private_remove_dependees ${spells[$_idx]}
       fi
     else
-      debug "libdepends" "already looked at ${spells[$i]}, skipping"
-   fi
+      debug "libdepends" "already looked at ${spells[$_idx]}, skipping"
+    fi
   done
   # we no longer need this, no sense in keeping it around
   hash_unset depends_looked_at
@@ -296,14 +318,22 @@ function private_run_depends()
   debug "libdepends" "$FUNCNAME - $*"
   local SPELL=$1
   local NEW_DEPENDS=""
+  local triggerees=""
   local spell_depends
   hash_put "depends_looked_at" "$SPELL" "start"
+
+  # move this up to compute_uninstalled_depends?
+  # this is a list of all spells basesystem depends on it is used to
+  # avoid loops with the "everything depends on basesystem" feature
+  local base_deps
+  base_deps=$(search_depends_status $DEPENDS_STATUS basesystem|cut -f2 -d:)
 
   
   # We only need to run the stuff if we are going to be casting.
   # It only needs to be added to the casting hash table if we are
   # really casting it
   if private_should_cast $SPELL ; then
+
     # this cant go in private_should_cast because then the dependee wont
     # have a chance at being fixed, ideally we should check in 
     # depends/optional_depends and fail there
@@ -324,8 +354,11 @@ function private_run_depends()
     run_configure $SPELL          &&
     run_other $SPELL              &&
     run_depends $SPELL            && 
+    run_up_triggers $SPELL        && 
+
     # possibly recast things that depend on us if option is set (-B)
     private_upward_depends $SPELL &&
+    private_add_triggerees        &&
     private_add_depends           ||
     { debug "libdepends" "$FUNCNAME: false inside if." ; return 1; }
     # no point in keeping the file around if its empty...
@@ -365,6 +398,10 @@ function private_should_cast()
     return 0
   elif echo "${UP_DEPENDS[*]}" | grep -q "\<$1\>" ; then
     # if someone has determined this is an upward depend (-B)
+    return 0
+  elif echo "${TRIGGEREES[*]}" | grep -q "\<$1\>" ; then
+    # if its being triggered we need to look at it, despite its
+    # installed status
     return 0
   elif spell_installed $1 ; then
     # spell is installed and no -R or -B, so dont cast
@@ -790,9 +827,15 @@ function work_optional_depends_spell()
     explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" "$1")" ":" "status"
     if [[ ${status[2]} ]] ; then
       # ah there are! use them
-      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-              "${CHECK_COLOR}optionally depends on" \
-              "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      if [[ ${status[2]} == "on" ]] ; then
+        message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+                "${CHECK_COLOR}optionally depends on" \
+                "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      else
+        message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+                "${CHECK_COLOR}has a disabled optional depends on" \
+                "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+      fi
       private_common_depends "$1" "${status[2]}" "optional" "$2" "$3"
       return 0
     fi
@@ -928,6 +971,45 @@ function select_provider()
 }
 
 #---------------------------------------------------------------------
+## @param Target of the trigger
+## @param Action to execute (cast_self, check_self, etc).
+##
+## Create a trigger on ourself effecting the target spell,
+## shorthand for putting a TRIGGERS file in the target spell.
+#---------------------------------------------------------------------
+function real_up_trigger() {
+  message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+           "${CHECK_COLOR}triggers a" \
+           "${SPELL_COLOR}${2}${DEFAULT_COLOR}" \
+           "${CHECK_COLOR}on${DEFAULT_COLOR}" \
+           "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+  private_up_trigger $SPELL "$1" "$2"
+}
+
+#---------------------------------------------------------------------
+## @param Current spell
+## @param Target target of the trigger
+## @param Action to execute (cast_self, check_self, etc).
+##
+## Register a trigger, when $SPELL is cast, a $ACTION is executed
+## on $TARGET
+#---------------------------------------------------------------------
+function private_up_trigger() {
+  local SPELL=$1
+  local TARGET=$2
+  local ACTION=$3
+  # this maps triggerers to their trigerees
+  # perl -> cast_self:perl_module
+  hash_append trg_f_hash  $SPELL "$TARGET:$ACTION" $'\n' &&
+  # this maps trigerees to triggerers
+  # cast_self:perl_module -> perl
+  hash_append trg_r_hash  "$TARGET:$ACTION" " $SPELL "
+  echo $NEW_DEPENDS | grep -q "$TARGET" || 
+  NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
+  triggerees=( ${triggerees[*]} $TARGET )
+}
+
+#---------------------------------------------------------------------
 ## all the depends callbacks eventually bottom out here
 ## if a spell depends or doesnt depend on some other spell
 ## @param Spell
@@ -935,7 +1017,7 @@ function select_provider()
 #---------------------------------------------------------------------
 function private_common_depends()
 {
-  debug "libdepends" "$FUNCNAME - $@"
+  debug "libdepends" "$FUNCNAME - $SPELL - $@"
   add_depends $spell_depends "$SPELL" "$@"
   
   if [[ $2 == on ]] ; then
@@ -948,17 +1030,89 @@ function private_common_depends()
 }
 
 #---------------------------------------------------------------------
+## Default trigger checking function. Asks user if they want to
+## run the trigger.
+#---------------------------------------------------------------------
+function default_trigger_check() {
+  message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+           "${CHECK_COLOR}triggers a" \
+           "${SPELL_COLOR}${ACTION}${DEFAULT_COLOR}" \
+           "${CHECK_COLOR}on${DEFAULT_COLOR}" \
+           "${SPELL_COLOR}${TARGET}${DEFAULT_COLOR}"
+  query "Run the trigger?" y
+}
+
+#---------------------------------------------------------------------
+## Inspects each trigger, asks the user if they want to run it.
+#---------------------------------------------------------------------
+function private_add_triggerees() {
+
+  # add the spells that we trigger to the $spells list
+  # having duplicate items is okay
+  local ACTION TARGET
+  local running_trigger
+
+  # run the trigger check file
+  # this is made into a sub-function just to reduce duplication...
+  function private_add_triggerees_sub1() {
+    running_trigger=0
+    persistent_load
+    if test -x $SCRIPT_DIRECTORY/TRIGGER_CHECK; then
+      source $SCRIPT_DIRECTORY/TRIGGER_CHECK
+    else
+      default_trigger_check
+    fi
+    running_trigger=$?
+    persistent_save
+    if [[ $running_trigger == 0 ]] ; then
+      private_up_trigger "$SPELL" "$TARGET" "$ACTION"
+    fi
+  }
+
+  # frontend to help with calling the trigger check file
+  function private_add_triggerees_sub2() {
+    local ACTION=$1
+    private_add_triggerees_sub1
+  }
+
+  for ACTION in cast_self check_self dispel_self run_script; do
+    for TARGET in $(get_triggerees $SPELL on_cast $ACTION); do
+      if [[ $ACTION == run_script ]] ; then
+        iterate private_add_triggerees_sub2 $'\n' \
+                          "$(get_run_script_triggers $SPELL on_cast $TARGET)"
+      else
+        private_add_triggerees_sub1
+      fi
+    done
+  done
+  return 0
+}
+
+
+#---------------------------------------------------------------------
 ## Adds the dependency to the hastable 
 #---------------------------------------------------------------------
 function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   hash_put "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
+
   for child in ${NEW_DEPENDS[*]}; do
     hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
   done
-  
+
+  # force implied basesystem dependency in the depends tree
+  if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
+     [[ $SPELL != basesystem ]] &&
+     ! echo $base_deps| grep -q $SPELL; then
+    hash_append "$CAST_HASH" "$SPELL" "basesystem"
+    hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
+  fi
+
   spells=( ${spells[*]} ${NEW_DEPENDS[*]} )
+
+  TRIGGEREES=( ${TRIGGEREES[*]} ${triggerees[*]} )
+  spells=( ${spells[*]} ${triggerees[*]} )
 
   hash_put "depends_looked_at" "$SPELL" "done"
 
@@ -1025,88 +1179,9 @@ function show_depends()
       
     }
     
-    iterate "ld99" $'\n' `grep  ":$DEP_SPELL\(([^:]*)\)\?:" $DEPENDS_STATUS`
+    iterate "ld99" $'\n' "$(grep  ":$DEP_SPELL\(([^:]*)\)\?:" $DEPENDS_STATUS)"
 
   fi
-}
-
-#---------------------------------------------------------------------
-# this needs to go away :-/
-#---------------------------------------------------------------------
-function satisfy_depends()
-{
-
-  debug "libdepends" "Running satisfy_depends() on $SPELL"  
-  local DEP
- 
-  unset  OPTS
-
-  # some spells apply changes to OPTS directly
-  run_spell_config
-
-  local LINE=''
-  search_depends_status $DEPENDS_STATUS "$SPELL" | while read LINE; do
-
-    debug "libdepends" "satisfy_depends() - $LINE"
-
-    # line format is:
-    #  spell:dependency(provider):status:something:on-opts:off=opts
-    DEP=()
-    explode "$LINE" ":" "DEP"
-    DEP[1]=${DEP[1]%(*}   # Strip possible provider name
-
-    # If dependency name is "" then don't bother with the rest of this loop.
-    if [[ ! ${DEP[1]} ]] ; then
-      continue
-    fi
-
-    # First, see if the spell exists.
-    DEP_SPELL_LOCATION=`codex_find_spell_by_name ${DEP[1]}`
-    if  [  -z  "$DEP_SPELL_LOCATION"  ];  then
-      message  "${PROBLEM_COLOR}Unable to find previously configured"  \
-               "dependency ${SPELL_COLOR}'${DEP[1]}'${PROBLEM_COLOR}"
-      message  "in grimoire.  Removing spell from cached depends."     \
-               "${DEFAULT_COLOR}"
-      remove_depends_status  "$SPELL"  "${DEP[1]}"
-    else
-
-      #Second, am I trying to cast --fix or is this just a normal cast?
-      if  [[  $FIX  ]] ; then
-      
-	#Third, if it's a fix, and the dependency is on, cast --fix it
-        if  [[ ${DEP[2]} == on ]] 
-	then  debug "libdepends" "cast  $FIX  ${DEP[1]}" && cast  $FIX  ${DEP[1]}
-	else debug "libdepends" "Fix=$FIX, and DEP[2]=${DEP[2]}"
-        fi
-
-      #(second) It's a normal cast, and this may need to be cast
-      elif  [[  ${DEP[2]}  ==  on  ]]; then
-        #
-        # Spell must be installed or help up to this point (this is a guard fence)
-        #
-        if  !  spell_installed  ${DEP[1]}  &&
-            !  spell_held       ${DEP[1]}
-        then
-          message "One of the dependencies of ${DEP[0]} failed to cast."
-          message "You should try to cast ${DEP[1]} manualy."
-          message "Failed to cast ${DEP[1]}. I will have trouble casting ${DEP[0]}."
-          return 1          
-        fi
-        #
-        # End of guard fence
-        #
-      fi
-    fi
-
-  done
-
-  #
-  # TODO: Do something about exiled spells so that they've got `off'
-  #       in DEPENDS_STATUS file, or something else do improve this
-  #
-  local OPTS_DEPENDS=$(get_depends_options $DEPENDS_STATUS "$SPELL")
-  OPTS="$OPTS $OPTS_DEPENDS"
-  debug 'libdepends' "satisfy_depends() - final OPTS=$OPTS"
 }
 
 #---------------------------------------------------------------------

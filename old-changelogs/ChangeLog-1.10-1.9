@@ -1,0 +1,335 @@
+2004-05-28 Andrew Stitt <astitt@sourcemage.org>
+	* Sorcery Release 1.10.0
+
+2004-05-28 Paul Mahon <pmahon@sourcemage.org>
+	* Nasty hack to force cleanse to run first time cast is run	 
+
+2004-05-25 Neuron <vlmarek@volny.cz>
+	* libstate: bug #6898
+
+2004-05-25 Neuron <vlmarek@volny.cz>
+	* libmisc: More robust handling of missing config files
+	* libmisc: some \t changed to spaces
+
+2004-05-24 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery excluded: revert Casey Harkins, blind removal of
+	  the "files", "directories" and "symlinks" functions (change 34187).
+
+2004-05-21 Eric Schabell <eschabell@sourcemage.org>
+	* libcrossinstall: /tmp and /var/tmp given proper permissions, 
+	  bug #6891.
+
+2004-05-23 Neuron <vlmarek@volny.cz>
+	* config_query_* functions now respects reconfigure option for cast
+
+2004-05-23 Neuron <vlmarek@volny.cz>
+	* cosmetic fix for libmisc/config_get_option
+
+2004-05-21 Eric Schabell <eschabell@sourcemage.org>
+	* archspecs/amd64: added two versions for AMD64 specs, one
+	  is for -m64 and one is for 32 bit with -m32, bug #5487.
+	* libcrossinstall, sorcery: added menu to libcrossinstall for
+	  user menu to set install root as he/she pleases, bug #4933.
+	* sorcery: rigorous testing with help from sandall produced
+	  a need to reset install_root when turning off cross install.
+
+2004-05-19 Neuron <vlmarek@volny.cz>
+	* libhash: Applied Afrayedknot's hint on speeding up things,
+	  version 2 :)
+
+2004-05-18 Casey Harkins <charkins@pobox.com>
+	* libsorcery: modified filter() to accept patterns, bug #6423
+	* excluded: added /lib/modules/*/modules.*, bugs #6423, #6331
+
+2004-05-18 Neuron <vlmarek@volny.cz>
+	* libhash: reverted for now
+
+2004-05-18 Neuron <vlmarek@volny.cz>
+	* libhash: Applied Afrayedknot's hint on speeding up things,
+	  which gives us nice -1s per cast
+
+2004-05-17 Eric Schabell <eschabell@sourcemage.org>
+	* subroutines: added fix from alley_cat to make it "ls"
+	  anything independent.
+	* libstate: fixed problem with libstate.modify_local_config()
+	  not passing more than one arg to be set with variable, thanks
+	  to CuZnDragon for pointing out the problem. I am not sure how
+	  this came to be... what has changed that might cause this? Or
+	  was this around longer and just unnoticed?
+
+2004-05-17 Neuron <vlmarek@volny.cz>
+	* subroutines: Fixed 'ls' -> 'ls --color=no'
+
+2004-05-15 Seth Woolley <seth@tautology.org>
+	* libdepends: rycee's fix for uninstalled providers
+
+2004-05-08 Paul Mahon <pmahon@sourcemage.org>
+	* Fix for prune in cleanse
+
+2004-05-06 Eric Schabell <eschabell@sourcemage.org>
+	* libdepends: slight adjustment to get the fix from yesterday
+	  to actually cast the spells chosen, fixes bug #6831.
+	* groups, accounts: added scanlogd:126:126, fixes bug #6745.
+
+2004-05-05 Eric Schabell <eschabell@sourcemage.org>
+	* sorcery: added a one line check for empty sections
+	  when trying to display menu, fixes bug #6829.
+	* libsorcery: removed a basename cut show path where
+	  the 'provider' listings is coming from (which grimoire),
+	  fixes bug #6831 (might want to beautify this later?).
+	* libsorcery, libdepends: changed the previous fix to show
+	  only the basename and also the version number, fixes #6831.
+
+2004-04-03 Seth Woolley <seth@tautology.org>
+	* libdepends: spelling corrections.
+
+2004-04-30 Andrew Stitt <astitt@sourcemage.org>
+	* cast, libdepends: Fixed the private_compute_installed_depends
+	  function. The function was failing to properly create a depends
+	  tree, and was taking too long to run. It now correctly builds the
+	  dependency tree out of installed spells and, most of the processing
+	  is now internal to awk, and thus much faster. One libhash operation
+	  per installed spell in contrast to three or more depending on the
+	  size, and amount of lint in the depends file.
+
+2004-04-26 Andrew Stitt <astitt@sourcemage.org>
+	* libcast: add ability to override functions in the build pipeline with
+	  a FUNCTIONS file in a grimoire or section, and the USE_FUNCTIONS 
+	  variable in DETAILS to control it.
+
+2004-04-22 Neuron <vlmarek@volny.cz>
+	* Fixed 'empty string' warnings for cast -fix (Bug 6771)
+
+2004-04-21 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery, libgrimoire, libtrack, libaccount, libstate:
+	  Move some functions around to hopefully more intuitive places
+	  in an effort to make sorcery more modular and understandable.
+	  Hopefully these efforts will make sorcery calls less of a web
+	  structure.
+
+2004-04-20 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/api1 build_api/api2: Add return values to run_build_spell 
+	  so that the caller can do special stuff this may end up just getting 
+	  passed back to the success/fail api specific function instead. Fixes 
+	  issues with compile log generation after aborts from bad md5s during 
+	  unpack.
+
+2004-04-19 Andrew Stitt <astitt@sourcemage.org>
+	* Adding code for build split. Major changes to cast, libsorcery, 
+	  libgrimoire libcodex and libapi. Addition of 
+	  /var/lib/sorcery/modules/build_api directory and the files api1 
+	  api2 and common to it.
+
+2004-04-18 Eric Schabell <eschabell@sourcemage.org>
+	* install: added sorcery library removal before installing
+	  new version, should prevent problems in the future.
+
+2004-04-16 Karsten Behrmann <bearperson@gmx.net>
+	* usr/sbin/cast: started eliminating the spaces-in-filenames problem
+
+2004-04-16 Eric Schabell <eschabell@sourcemage.org>
+	* libmisc, libapi: spelling fix for 'persistant.'
+
+2004-04-14 Martin Ruderer <martin@lddd.org>
+	* sort of added libstate::modify_config
+	* added libstate::codex_is_local
+	* added scribe localize and unlocalize (Bug 3607)
+
+2004-04-14 Karsten Behrmann <bearperson@gmx.net>
+	* install: first file to get quotes around everything
+
+2004-04-14 Paul Mahon <pmahon@sourcemage.org>
+	* Make cleanse not sweep twice (two functions had the same name)
+
+2004-04-14 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: removed pre-cleanse code for cleaning stale depneds,
+	  part of bug #6534.
+
+2004-04-13 hgg <hgreig@bigpond.net.au>
+	* libcrossinstall: adding /var/spool/mail to list of dirs to be made
+	* Scribe,libcodex: make scribe work with INSTALL_ROOT, adding multiple
+	  grimoires not working yet, but "CROSS_INSTALL=on scribe add stable"
+	  works fine.
+
+2004-04-12 Paul Mahon <pmahon@sourcemage.org>
+	* Addition of cleanse script and man page
+
+2004-04-10 Eric Schabell <eschabell@sourcemage.org>
+	* libinitd: added touch $target_file for tracking of
+	  config scripts in /etc/sysconfig, bug #6640.
+
+2004-04-08 Eric Schabell <eschabell@sourcemage.org>
+	* mirror/SORCERY: updated my mirror to work again.
+
+2004-04-07 hgg <hgreig@bigpond.net.au>
+	* libcrossinstall: minor fixes for a new install structure
+
+2004-04-06 Andrew Stitt <astitt@sourcemage.org>
+	* /usr/sbin/sorcery: added shorter options to sorcery bug #1145
+	* /usr/share/man/man8/sorcery.8: add short options to manual and
+	  add a listing for the upgrade option that seems to be missing.
+
+2004-04-05 Eric Schabell <eschabell@sourcemage.org>
+	* mirror/APACHE: fixed typo in basis url, bug #6552.
+	* accounts, groups: added ntop:132:125: uid/gid, bug #6520.
+
+2004-04-02 Karsten Behrmann <anonymous@sourcemage.org>
+	* usr/sbin/gaze: fixed 'gaze md5sum' for files with spaces
+	* usr/sbin/cast: might fix md5sum check for files with spaces
+
+2004-03-31 Neuron <vlmarek@volny.cz>
+	* Missed one place where new config toys uses "$SPELL_CONFIG.p"
+	  instead of "$SPELL_CONFIG"
+
+2004-03-30 Neuron <vlmarek@volny.cz>
+	* File holding persistent variables is "$SPELL_CONFIG.p" now
+
+2004-03-30 Neuron <vlmarek@volny.cz>
+	* Persistent variables are now automatically (re)stored for:
+	  CONFLICTS CONFIGURE DEPENDS TRIGGERS PRE_BUILD BUILD INSTALL
+	  COMPILE POST_BUILD POST_INSTALL
+
+2004-03-29 hgg <hgreig@bigpond.net.au>
+	* /etc/sorcery/config,libcrossinstall: changing INSTALL_ROOT=* to
+	  INSTALL_ROOT=${INSTALL_ROOT:=*}
+
+2004-03-27 hgg <hgreig@bigpond.net.au>
+	* /etc/sorcery/config: add CROSS_INSTALL=${CROSS_INSTALL:=off}
+	  Sorcery should run correctly without the .../local/config file
+
+2004-03-26 hgg <hgreig@bigpond.net.au>
+	* libsorcery: remove my INSTALL_ROOT paths from LDFLAGS, didn't
+	  mean to submit them.
+
+2004-03-25 hgg <hgreig@bigpond.net.au>
+	* libcrossinstall: add * so it copies the gzipped man pages
+	  and don't copy GRIMOIRE_LIST or the .../depends/*
+	  /var/tmp needed writable permissions
+	* etc/sorcery/config: turn patch and tmpfs off globally, change 
+	  the doc dir to a FHS compliant /usr/share/doc.
+	* libgrimoire: usr/src/deaddir now $INSTALL_ROOT/usr/src/deaddir
+	* libsorcery: /usr/src/ now $INSTALL_ROOT/usr/src,
+	  OMIT now uses $INSTALL_ROOT also
+
+2004-03-18 Eric Schabell <eschabell@sourcemage.org>
+	* libdepends, libstate: rycee patch fixing option_depends, bug #6365.
+
+2004-03-17 Eric Schabell <eschabell@sourcemage.org>
+	* libsecurity: fixed head calls to -n #, mentioned on lists.
+	* libsorcery: fixed to properly deal with tar compression, bug #2054.
+
+2004-03-16 Martin Ruderer <martin@lddd.org>
+	* Documented some of cast's functions.
+	* Fixed some formal mistake in the docs.
+
+2004-03-16 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: fixed check to prevent cast each time for sound spells,
+	  also adjusted spells so that no duplicate config entries made, 
+	  bug #822.
+	* config, libcast, dispel, gaze, sorcery, libsorcery: updated
+	  patch for current sorcery, sorcery menu option for compression
+	  choice for user (bzip/gzip), bug #2045.
+	* Pulling groups and accounts into stable as verified and needed,
+	  will not make new release announcement.
+	* groups, accounts: added mysql:121 to groups, small cleanup
+	  in accounts (too many :'s), bug #5547.
+
+2004-03-15 Andrew Stitt <astitt@sourcemage.org>
+	* Changelog: fix several typos in previous Changelog message.
+	* cast, libcast: pulled code from cast into libcast, added some
+	  documentation.
+
+2004-03-14 Eric Schabell <eschabell@sourcemage.org>
+	* libmisc: arwed's patch to fix sed problem, bug #6350.
+	* libdepends: andrew's patch to fix make depends output, bug #6267.
+
+2004-03-12 Eric Schabell <eschabell@sourcemage.org>
+	* libapi, libgrimoire, cast: applied patches for conflicting dispel 
+	  option to be set with auto 'y', bug #6344.
+	* gaze: small adjustment to optimization patch.
+	* gaze: added optimizations patch for search, thanks Neuron, bug #6335.
+
+2004-03-11 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: fixed a typo, damnit...
+	* sorcery, libsorcery: added two functions and adjusted menu
+	  to deal nicely with sound theme selection, bug #822.
+	* gaze: patch gaze html, now xhmtl/css validated, bug #6301.
+	* libgrimoire: create_account() modified to allow spell writers
+	  to pass home dir and shell options to useradd functions, is
+	  optional so nothing should be affected, bug #6336.
+	* libsorcery: typo fixed for LD_LIBRARY_PATH reference, bug #6332.
+
+2004-03-10 Eric Schabell <eschabell@sourcemage.org>
+	* gaze: applied gaze orphans patch (minus -q flag), bug #6302.
+	* libgrimoire: a bit of a cleanup, added another useradd
+	  return code to the loop, bug #6317.
+
+2004-03-09 Eric Schabell <eschabell@sourcemage.org>
+	* groups, accounts: adjusted clamav uid:guid, bug #6317.
+
+2004-03-08 Eric Schabell <eschabell@sourcemage.org>
+	* cast, summon, dispel, scribe: user allowed to --help now, bug #6291.
+	* cast: added ldconfig after resurrect, bug #6278.
+	* libgrimoire: reversing this fix... not borking sorcery, but seems
+	  not to work either... see bug for comments, #1817.
+	* libgrimoire: install_xinetd_confs() patched to add xinetd to SPELLS
+	  to be cast, bug #1817.
+
+2004-03-06 Paul Mahon <pmahon@sourcemage.org>
+	* Fix sorcery UI install queue locking problem
+	* Fix for select_list and multi-word options
+
+2004-03-04 Eric Schabell <eschabell@sourcemage.org>
+	* libmisc: explode function speedups from Arwed, bug #6296.
+
+2004-02-27 Seth Woolley <seth@tautology.org>
+	* gaze, libsecurity: made sure to put checkmd5s in gaze and fixed 
+	  a cosmetic bug in gaze checkmd5s
+
+2004-02-27 Martin Ruderer <martin@lddd.org>
+	* Documented some of cast's functions.
+	* corrected some mistakes in the docs.
+
+2004-02-26 Eric Schabell <eschabell@sourcemage.org>
+	* config, summon, scribe, sorcery, cast, libsorcery: applied ally_cat
+	  patch for setting nice values for sorcery processes, bug #720.
+	* libsorcery: small fix to bashdoc for set_nice(). 
+	* gaze.1, gaze, libsecurity: added libsecurity, added checkmd5s option
+	  to gaze and updated man page, thanks to swoolley for the work,
+	  bug #1409
+
+2004-02-25 Martin Ruderer <martin@lddd.org>
+	* added http://osdn.dl.sourceforge.net/sourceforge/ to 
+	  /etc/sorcery/mirrors/SOURCEFORGE
+
+2004-02-25 Eric Schabell <eschabell@sourcemage.org>
+	* libsorcery: added stale depends cleaning to gaze prune, now
+	  provides depends.stale file for removed stale dependencies, bug #6237.
+	* libsorcery: cleaned up ugly tabs.
+	* libsorcery: added LC_ALL=C to optimize setup, bug #2910.
+	* libsorcery: simplified the logic in stale deps cleanup, bug #6237.
+
+2004-02-24 Eric Schabell <eschabell@sourcemage.org>
+	* accounts: mysql and clamav spell accounts added for treeve.
+	* libsorcery: optimize() added "-O" to CXXFLAGS, bug #1514.
+	* libsorcery: optimize() patch adjusted to add to CFLAGS and in 
+	  proper order, bug #1514.
+	* libgrimoire: fixed useradd checks in create_account(), bug #5790.
+
+2004-02-23 Paul Mahon <pmahon@sourcemage.org>
+	* Bug 3765: Full dependency ordering for already cast spells
+
+2004-02-23 Eric Schabell <eschabell@sourcemage.org>
+	* libgrimoire: added some return code checking for useradd function
+	  to try and make less fail sensitive to existing uid/guid's, related 
+	  to bug #5790.
+	* libgrimoire: fixed failing rejected casts, bug #6093.
+	* config: added fallback mirror for Adam Clark's mirror and
+	  LEAPFORWARD_URL default set to empty (can specify default fallback).
+	* libgrimoire: adjusted the useradd fixes, bug #5790.
+
+2004-02-22 Eric Schabell <eschabell@sourcemage.org>
+	* groups: fix bug for firebird, bug #5790.
+	* libgrimoire: added -f option to groupadd command, returns success if
+	  the group already exists, bug #5790.
+

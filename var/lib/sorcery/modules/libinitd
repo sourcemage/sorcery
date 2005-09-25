@@ -94,6 +94,7 @@ function _init_merge_config_file()
   # for now the file is always modified...
   if [ -z "$new_opts" ] ; then
     message "  No new options to merge into $2..."
+    track_manual $2 # but we still need to track it.
     return 0
   fi
 
@@ -213,6 +214,9 @@ function init_install()
 
   (
     . ${INSTALL_ROOT}/etc/sysconfig/init
+
+    # /etc/sysconfig/init might not exist yet so we define this in case
+    RUNLEVELS_DIR="${RUNLEVELS_DIR:-$INSTALL_ROOT/etc/init.d/runlevels}"
     
     local runlevel_dir="$RUNLEVELS_DIR/%$script_runlevel"
 

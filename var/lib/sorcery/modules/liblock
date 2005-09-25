@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #----------------------
 ## @Author : Benoit PAPILLAULT <benoit.papillault@free.fr>
@@ -357,6 +357,104 @@ function lock_kill_transaction()
     grep -v `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
   done
   unlock_file $LOCK_TRANSACTIONS  
+}
+
+#---------------------------------------------------------------------
+## Increment a counter
+##
+## @param Type of resource
+## @param Name of resource
+##
+## Processes should call counter_down when done with the resource
+## however counter_down and counter_check will clean up after misbehaving
+## processes.
+#---------------------------------------------------------------------
+function counter_up() {
+  local counterfile="$1.$2"
+  # we replace / with ^
+  counterfile="${LOCK_DIR}/${counterfile//\//^}"
+
+  touch $counterfile
+  lock_file $counterfile
+  echo $$ > $counterfile
+  unlock_file $counterfile
+}
+#---------------------------------------------------------------------
+## Decrement a counter
+##
+## @param Type of resource
+## @param Name of resource
+#---------------------------------------------------------------------
+function counter_down() {
+  local counterfile="$1.$2"
+  local foo each
+  # we replace / with ^
+  counterfile="${LOCK_DIR}/${counterfile//\//^}"
+
+  touch $counterfile
+  local tc=$(lock_start_transaction $counterfile)
+  for each in $(counter_clean $tc); do
+    [[ $foo ]] && echo $each && continue
+    if [[ $each == $$ ]] ; then foo=found ; else echo $each; fi
+  done > $tc
+  lock_commit_transaction $counterfile
+}
+#---------------------------------------------------------------------
+##
+## Destroy a counter
+##
+## @param Type of resource
+## @param Name of resource
+##
+#---------------------------------------------------------------------
+function counter_reset() {
+  local counterfile="$1.$2"
+  local foo each
+  # we replace / with ^
+  counterfile="${LOCK_DIR}/${counterfile//\//^}"
+  lock_file $counterfile
+  rm "${LOCK_DIR}/${counterfile//\//^}"
+  unlock_file $counterfile
+}
+
+#---------------------------------------------------------------------
+##
+## Check the value of a counter
+##
+## @param Type of resource
+## @param Name of resource
+##
+## Also cleans stale items
+##
+#---------------------------------------------------------------------
+function counter_check() {
+  local counterfile="$1.$2"
+  # we replace / with ^
+  counterfile="${LOCK_DIR}/${counterfile//\//^}"
+  if test -f $counterfile ; then
+    local tc=$(lock_start_transaction $counterfile)
+    # sort saves a temp file since it has to read all the input
+    counter_clean $tc |sort > $tc
+    lock_commit_transaction $counterfile
+    cat $counterfile|wc -l
+  else
+    echo 0
+  fi
+}
+
+#---------------------------------------------------------------------
+## 
+## @Internal
+## @param counter file
+##
+## Print out the file with non-existent pids removed
+## Caller must hold a lock on the file
+##
+#---------------------------------------------------------------------
+function counter_clean() {
+  for each in $(cat $1) ; do
+    ps -A|grep -q $each && echo $each
+  done
 }
 
 #---------------------------------------------------------------------

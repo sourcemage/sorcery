@@ -23,14 +23,15 @@
 ##    5: no keyring
 ##  200: gpg isnt installed
 ##
-## @stdout annoying message instructing user to install gnupg if its
-##         not installed
+## @stdout message when gpg is not installed
+##
 #---------------------------------------------------------------------
-function gpg_verify_signature() { # $1 sig $2 file $3 pubring
+function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
 
   local signature=$1
   local file=$2
   local keyring=$3
+  local algo=""
 
   test -f $signature || return 3
   test -f $file || return 4
@@ -49,18 +50,20 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring
             "should be done for you on a system update.${DEFAULT_COLOR}"
     return 200
   else
-    gpg --no-default-keyring  \
-        --always-trust        \
-        --keyring $keyring    \
-        --batch               \
-        --verify              \
-        $signature            \
-        $file 2> /dev/null ||
+    algo=$(gpg --no-default-keyring  \
+               --always-trust        \
+               --keyring $keyring    \
+               --batch               \
+               --verbose             \
+               --verify              \
+               $signature            \
+               $file 2>&1 | grep 'digest algorithm' | awk '{ print $NF }' | 
+               tr A-Z a-z || return 1 ) || 
     return 1      # error out if verification fails.
   fi
+  [ ! -z "$4" ] && eval "$4=\"$algo\""
   return 0
 }
-
 
 #---------------------------------------------------------------------
 ## Get the sorcery gpg key file associated with a branch
@@ -133,6 +136,46 @@ function gpg_verify_grimoire() {
   gpg_verify_common $FILENAME $SOURCE_URL $gpg_pub_key grimoire $SIGNATURE
 }
 
+
+
+function verify_grimoire_tree() {
+  local grimoire_name=$1
+  local grimoire_dir=$2
+
+  if [[ "$GPG_VERIFY_GRIMOIRE" != on ]] ; then
+    return 253
+  fi
+
+  local gpg_pub_key=$(gpg_get_grimoire_key $grimoire_name)
+  if test -z $gpg_pub_key && test -f $gpg_pub_key ; then
+    message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
+    return 254
+  fi
+
+  manifest=$grimoire_name.manifest.$GRIMOIRE_MANIFEST_ALGORITHM
+  manifest_url=${CODEX_MANIFEST_URL}/$manifest
+
+  pushd $TMP_DIR >/dev/null || return 1
+
+  local manifest_target manifest_type
+  url_download $manifest $manifest_url "" manifest_target manifest_type
+  #check the success of the download
+  if [ $? != 0 ] || [[ "$manifest_type" != file ]] ; then
+    message "Error downloading manifest..."
+    return 1
+  fi
+
+  gpg_verify_common $manifest $CODEX_MANIFEST_URL $gpg_pub_key "grimoire manifest"
+  if ! gpg_user_query $?; then
+    return 2
+  fi
+
+  popd >/dev/null
+
+  verify_grimoire_against_manifest "$grimoire_dir" "$TMP_DIR/$manifest" \
+                                   "$GRIMOIRE_MANIFEST_ALGORITHM"
+}
+
 #---------------------------------------------------------------------
 ## Verify a sorcery tarball's gpg signature
 ## @param file on local disk to verify
@@ -166,7 +209,7 @@ function gpg_verify_sorcery() {
     message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
     return 254
   fi
-  gpg_verify_common $FILENAME $SOURCE_URL $gpg_pub_key sorcery $SIGNATURE
+  gpg_verify_common "$FILENAME" "$SOURCE_URL" "$gpg_pub_key" "sorcery" "$SIGNATURE"
 }
 
 #---------------------------------------------------------------------
@@ -197,13 +240,18 @@ function gpg_verify_common() {
   local SOURCE=$(basename $FILENAME)
 
   local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
+  pushd $TMP_DIR &>/dev/null || 
+  { message "Failed to cd to $TMP_DIR!!"; return 2;}
   if test -z "$SIGNATURE" ; then
     local SIG_URL=$SOURCE_URL/$SIG_FILE
-    echo "$SIG_FILE $SIG_URL" |
-    download_files "for $REASON verification" "$TMP_DIR" "no" "neither" || {
+    local gpg_target gpg_type
+    url_download "$SIG_FILE" "$SIG_URL" "file" gpg_target gpg_type &&
+    [[ $gpg_type == file ]] ||
+    {
       message "Failed to get gpg signature! verification is impossible"
       return 255
     }
+    [[ "$gpg_target" != $SIG_FILE ]] && mv "$gpg_target" "$SIG_FILE"
   else
     cp $SIGNATURE $TMP_DIR/$SIG_FILE
   fi
@@ -211,6 +259,7 @@ function gpg_verify_common() {
   gpg_verify_signature $TMP_DIR/$SIG_FILE $FILENAME $gpg_pub_key
   rc=$?
   rm $TMP_DIR/$SIG_FILE
+  popd &>/dev/null
 
   return $rc
 }
@@ -234,22 +283,146 @@ function gpg_user_query() {
     message "${MESSAGE_COLOR}gpg verification is disabled${DEFAULT_COLOR}"
   else
     message "${PROBLEM_COLOR}Failure to verify gpg signature${DEFAULT_COLOR}"
-
-    if [[ "$3" == "grimoire" ]] ; then
-      if [[ "$2" == devel ]] || [[ "$2" == test ]] || [[ "$2" == stable ]] ||
-         [[ "$2" == z-rejected ]] || [[ "$2" == games ]] ; then
+    case "$3" in
+      grimoire)
+        if list_find "$GPG_GRIMOIRE_LIST" $2 > /dev/null 2>&1 ; then
+          query "Continue anyway?" n || return 1
+        else
+          # if its not one of our grimoires may want the default to be y
+          query "Continue anyway?" y || return 1
+        fi
+        ;;
+      spell)
+        unpack_file_user_query $rc || return 1
+        ;;
+      *)
         query "Continue anyway?" n || return 1
-      else
-        # if its not one of our grimoires may want the default to be y
-        query "Continue anyway?" y || return 1
-      fi
-    else
-      query "Continue anyway?" n || return 1
-    fi
+        ;;
+    esac
   fi
   return 0
 }
 
+
+#---------------------------------------------------------------------
+## @param algorithm to use
+## @param file to get hashsum of
+## @out output is exactly the same format as md5sum/sha1sum, just with
+## a different hashsum. "hashsum<space><space>filename". The hashsum is
+## printed with all lowercase letters.
+##
+## This assumes that the caller has already verified that gpg is
+## installed and supports the specified hash function.
+##
+#---------------------------------------------------------------------
+function gpg_hashsum() {
+  local algorithm=$1
+  local file=$2
+  gpg --print-md "$algorithm" "$file"| tr -d '\n '  |cut -f2 -d:|
+                                       tr 'A-F' 'a-f'|tr -d '\n'
+  echo "  $file"
+}
+
+#---------------------------------------------------------------------
+## @out All the hash algorithms supported by gpg, algorithms printed in
+## lower case.
+##
+## This assumes the caller has already verified that gpg is installed.
+#---------------------------------------------------------------------
+function gpg_get_hashes() {
+  gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr 'A-Z' 'a-z'
+}
+
+#---------------------------------------------------------------------
+## Verify a tree against a manifest file
+## @param directory to verify
+## @param manifest file, the format is like what the md5sum tool would
+##        produce
+## @param algorithm to use, this can be anything supported by gpg
+## @param regular expression of files to ignore
+#---------------------------------------------------------------------
+function verify_against_manifest() {
+  local dir=$1
+  local manifest=$2
+  local algorithm=$3
+  local ignore=$4
+  local base=$(basename $dir)
+  local real_list=$TMP_DIR/$base
+  local missing=$TMP_DIR/missing.$base
+  local rc=0
+
+  message "Validating tree at $dir with $manifest"
+  local manifest_format=$(echo $manifest|awk -F. '{print $NF}')
+
+  pushd $dir > /dev/null || return $?
+  find . -type f > $real_list
+  { cat $real_list $real_list ; awk '{print $NF}' $manifest ; } |
+  sort | uniq -c | grep -v '^ *3' | grep -v "$ignore" > $missing
+  NO_TREE=$(grep "^ *1" $missing|sed 's/^ *1 //')
+  if [[ $NO_TREE ]] ; then
+    message "${PROBLEM_COLOR}The following exist only in the manifest" \
+            "and are missing from the tree!${DEFAULT_COLOR}"
+    echo "$NO_TREE"|$PAGER
+    let rc+=1
+  fi
+  NO_MANIFEST=$(grep "^ *2" $missing|sed 's/^ *2 //')
+  if [[ $NO_MANIFEST ]] ; then
+    message "${PROBLEM_COLOR}The following exist only in the tree" \
+            "and are missing from the manifest!${DEFAULT_COLOR}"
+    echo "$NO_MANIFEST"|$PAGER
+    let rc+=1
+  fi
+  local hash r
+  while read hashsum file; do
+    local hash=$(gpg_hashsum $algorithm $file 2>/dev/null|cut -f1 -d' ')
+    r=$?
+    if [[ $hash != $hashsum ]] || [[ $r != 0 ]]; then
+      NOT_OK=( $NOT_OK "$file" )
+    fi
+  done < $manifest
+
+  if [[ $NOT_OK ]] ; then
+    message "${PROBLEM_COLOR}The following have bad checksums${DEFAULT_COLOR}"
+    echo "$NOT_OK"
+    let rc+=1
+  fi
+  popd $dir > /dev/null
+  return $rc
+}
+
+#---------------------------------------------------------------------
+## Verify a grimoire tree and ignore files sorcery adds post-download
+#---------------------------------------------------------------------
+function verify_grimoire_against_manifest() {
+  verify_against_manifest $1 $2 $3 \
+                          '^ *2 \./\(GRIMOIRE\|codex\.index\|provides\.index\)$'
+}
+
+#---------------------------------------------------------------------
+## Ask the user what they want to do if verification of a grimoire tree
+## fails.
+#---------------------------------------------------------------------
+function grimoire_tree_user_query() {
+  local grimoire_name=$1
+  message "${PROBLEM_COLOR}Verification of the grimoire" \
+          "tree ${DEFAULT_COLOR}${SPELL_COLOR}$grimoire_name" \
+          "${DEFAULT_COLOR}${PROBLEM_COLOR}failed!"
+  message "What would you like to do?${DEFAULT_COLOR}"
+  local choice
+  select_list choice 0 "set aside" "remove" "ignore"
+  case "$choice" in
+    "set aside") local tgt=$grimoire_name.$(date +%Y%m%d%H%M).corrupt
+                 message "moving grimoire to $tgt"
+                 mv $grimoire_name $tgt
+                 scribe_remove $grimoire_name &>/dev/null
+                 ;;
+         remove) rm -rf $grimoire_name
+                 scribe_remove $grimoire_name &>/dev/null;;
+         ignore) return 0 ;;
+  esac
+  return 1
+}
+ 
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
