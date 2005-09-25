@@ -37,6 +37,7 @@ function remove_triggers ()
 { 
   debug "libtriggers" "remove_triggers - $*"
 
+  [ -f $TRIGGER_LIST ] || return 0
   tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
   [ -f $tTRIGGER_LIST ] || return 0
   grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
@@ -75,6 +76,7 @@ function get_triggerees() {
   local event=$2
   local each
   # get all the cast/check_self triggers
+  [ -f $TRIGGER_LIST ] || return 0
   for each in $3 ; do
     grep "[^:]*:$spell:$event:$each" $TRIGGER_LIST|cut -f1 -d:
   done|sort|uniq|grep -v '^$'
