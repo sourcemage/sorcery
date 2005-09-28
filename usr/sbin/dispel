@@ -170,19 +170,25 @@ function process_parameters()  {
                       shift ;;
        --non-orphan)  validate_param $2 NONORPHAN_DEFAULT
                       shift ;;
-        --user-deps)  ORPHAN_DEFAULT=$ORPHAN_MENU_DEFAULT
-                      NONORPHAN_DEFAULT=$NONORPHAN_MENU_DEFAULT
-                      RECAST_PARENT_DEFAULT=$RECAST_PARENT_MENU_DEFAULT 
-                      DISPEL_PARENT_DEFAULT=$DISPEL_PARENT_MENU_DEFAULT
+        --user-deps)  validate_param "$ORPHAN_MENU_DEFAULT" ORPHAN_DEFAULT
+                      validate_param "$NONORPHAN_MENU_DEFAULT" NONORPHAN_DEFAULT
+                      validate_param "$RECAST_PARENT_MENU_DEFAULT" \
+                                     RECAST_PARENT_DEFAULT
+                      validate_param "$DISPEL_PARENT_MENU_DEFAULT" \
+                                     DISPEL_PARENT_DEFAULT
                       shift 1 ;;
-  --user-child-deps)  ORPHAN_DEFAULT=$ORPHAN_MENU_DEFAULT
-                      NONORPHAN_DEFAULT=$NONORPHAN_MENU_DEFAULT;;
+  --user-child-deps)  validate_param "$ORPHAN_MENU_DEFAULT" ORPHAN_DEFAULT
+                      validate_param "$NONORPHAN_MENU_DEFAULT" NONORPHAN_DEFAULT
+                      shift ;; 
     --recast-parent)  validate_param $2 RECAST_PARENT_DEFAULT
                       shift ;;
     --dispel-parent)  validate_param $2 DISPEL_PARENT_DEFAULT
                       shift ;;
- --user-parent-deps)  RECAST_PARENT_DEFAULT=$RECAST_PARENT_MENU_DEFAULT 
-                      DISPEL_PARENT_DEFAULT=$DISPEL_PARENT_MENU_DEFAULT ;;
+ --user-parent-deps)  validate_param "$RECAST_PARENT_MENU_DEFAULT" \
+                                     RECAST_PARENT_DEFAULT
+                      validate_param "$DISPEL_PARENT_MENU_DEFAULT" \
+                                     DISPEL_PARENT_DEFAULT
+                      shift ;; 
      --debug-dispel)  DEBUG_DISPEL=yes ; shift 1 ;;
                   *)  help                          ;;
       esac
@@ -195,7 +201,9 @@ function process_parameters()  {
 function validate_param() {
   case $1 in
     ask-yes|ask-no|ignore|always)  eval "$2=\"$1\"" ;;
-    *) help ;;
+    *) message "\"$1\" is not a valid option, use ask-yes, ask-no," \
+               "ignore or always"
+       help ;;
   esac
 }
 
