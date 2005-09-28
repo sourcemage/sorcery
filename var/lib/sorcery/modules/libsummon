@@ -189,8 +189,19 @@ function download_src_args() {
 
   # this does the actual downloading:
   local summon_type summon_target
-  if ! download_src_sub "$new_target" "$urls" "$hints" \
+  if ! download_src_sub "$new_target" "$urls" "$hints" "$guess_type" \
                                        summon_target summon_type; then
+    if [[ $guess_type == tree ]] && test -f $SOURCE_CACHE/$target; then
+      if [[ $STRICT_SCM_UPDATE == off ]] ; then
+        message  "${PROBLEM_COLOR}Update of"            \
+             "${FILE_COLOR}${target}${DEFAULT_COLOR}"   \
+             "${PROBLEM_COLOR}failed, falling back to old" \
+             "version${DEFAULT_COLOR}"
+        # cleanup unpacked tree
+        rm -rf $new_target
+        return 0
+      fi
+    fi
     message  "${PROBLEM_COLOR}Download of"            \
              "${FILE_COLOR}${target}${DEFAULT_COLOR}"   \
              "${PROBLEM_COLOR}failed${DEFAULT_COLOR}"
@@ -258,8 +269,9 @@ function download_src_sub()  {
   local target="$1"
   local url_list="$2"
   local hints="$3"
-  local _summon_target=$4
-  local _summon_type=$5
+  local guess_type=$4
+  local _summon_target=$5
+  local _summon_type=$6
 
   download_from_leapforward "$target" "$url_list" "$hints" \
                             "$_summon_target" "$_summon_type" ||
@@ -267,8 +279,11 @@ function download_src_sub()  {
   url_download_expand_sort "$target" "$url_list" "$hints" \
                            "$_summon_target" "$_summon_type" ||
 
-  download_from_fallback "$target" "$url_list" "$hints" \
-                         "$_summon_target" "$_summon_type"
+  { # dont use fallback if the type is not a file (bug 9847)
+    [[ $guess_type == file ]] &&
+    download_from_fallback "$target" "$url_list" "$hints" \
+                           "$_summon_target" "$_summon_type"
+  }
 
 }
 
