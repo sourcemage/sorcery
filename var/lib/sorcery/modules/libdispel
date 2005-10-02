@@ -357,7 +357,7 @@ function dispel_depends_menu_template() {
   local TITLE=$1
   local DEFAULT_NAME=$2
   local DEFAULT=$3
-  local always ask_yes ask_no ignore
+  local always ask_yes ask_no ignore rc
   dispel_depends_value_to_items $DEFAULT
   RESULT=`eval $DIALOG ' --title "$TITLE"   \
            --radiolist                     \
@@ -367,10 +367,12 @@ function dispel_depends_menu_template() {
            ask-yes "" $ask_yes             \
            ask-no  "" $ask_no              \
            ignore  "" $ignore'`
-  if [[ $RESULT ]] ; then
+  rc=$?
+  if [[ $rc == 0 ]] ; then
     # remove spurious ""
     RESULT=`echo "${RESULT}" | sed -e 's/^"//' -e 's/"$//'`
     modify_local_config $DEFAULT_NAME "$RESULT"
+    eval "$DEFAULT_NAME=\"$RESULT\""
   fi
 }
 
