@@ -419,7 +419,10 @@ function private_should_cast()
 function private_upward_depends() {
   if [[ "$RECAST_UP" ]] ; then
     local tmp
-    tmp=$(search_depends_status $DEPENDS_STATUS '.*' "$1"|cut -f1 -d:|tr "\n" " ")
+    # Note, use the reverse depends tree for this when we get a chance
+    # and/or move the weird pattern into library functions...
+    # (afrayedknot 2005-10-02)
+    tmp=$(grep "^.*:$1\(([^:]*)\)\?" $DEPENDS_STATUS|cut -f1 -d:|tr "\n" " ")
     local j each
     let j=${#UP_DEPENDS[*]}
     for each in $tmp; do
