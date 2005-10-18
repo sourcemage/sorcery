@@ -65,6 +65,9 @@ function update_sorcery_scripts() {
   popd &>/dev/null
 
   local FILENAME=$TMP_DIR/$SOURCE
+  # copy the tarball to /var/spool/sorcery after we've downloaded and
+  # verified it.
+  cp $FILENAME $SOURCE_CACHE
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
   cd $BUILD_DIRECTORY
@@ -1210,6 +1213,7 @@ function generate_keep_list()  {
     codex_get_all_spells
   fi |
   (
+  echo sorcery-$SORCERY_BRANCH.tar.bz2
   while read SPELL_DIRECTORY ; do
     codex_set_current_spell_quick  $SPELL_DIRECTORY &>/dev/null
     sources 2>/dev/null
