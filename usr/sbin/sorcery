@@ -1057,7 +1057,7 @@ gpg_spell_menu()  {
   local DIALOG_TITLE="Source Integrity Checking Levels"
   local DIALOG_HELP="Select the minimum level for source verification"
   local DIALOG_LIST=""
-  local inc=0 RESULT
+  local inc=0 RESULT lstring lint
   local rc=0
   while [[ "$rc" == "0" ]]
   do
@@ -1065,8 +1065,9 @@ gpg_spell_menu()  {
     DIALOG_LIST=""
     while [[ $inc -le ${GPG_MAX_LEVEL} ]]
     do
-      DIALOG_LIST="${DIALOG_LIST}${inc} level "
-      if [[ "$GPG_VERIFY_SPELL_LEVEL" == "$inc" ]] ; then
+      gpg_level_to_string ${inc} lstring
+      DIALOG_LIST="${DIALOG_LIST}\"${lstring}\" level "
+      if [[ "$GPG_VERIFY_SPELL_LEVEL" == "$lstring" ]] ; then
         DIALOG_LIST="${DIALOG_LIST}on "
       else
         DIALOG_LIST="${DIALOG_LIST}off "
@@ -1078,11 +1079,11 @@ gpg_spell_menu()  {
                                             --cancel-label "Exit"       \
                                             --radiolist "$DIALOG_HELP"  \
                                             0 0 0                       \
-                                            ${DIALOG_LIST}')
+                                            '${DIALOG_LIST})
     rc="$?"
     if [[ "$rc" == "0" ]]
     then
-      GPG_VERIFY_SPELL_LEVEL=${RESULT//\"/}
+      GPG_VERIFY_SPELL_LEVEL=${RESULT}
       modify_local_config GPG_VERIFY_SPELL_LEVEL $GPG_VERIFY_SPELL_LEVEL
     fi
   done

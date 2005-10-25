@@ -268,11 +268,15 @@ function unpack_spell_required() {
 function is_allowed_hash_level() {
   local rc=0
   local GPGLEVEL=$1
-  if [[ "$GPG_VERIFY_SPELL_LEVEL" -le "$GPGLEVEL" ]]
+  local USR_GPG_LEVEL STR_GPGLEVEL
+  gpg_level_to_string $GPGLEVEL STR_GPGLEVEL
+  gpg_string_to_level $GPG_VERIFY_SPELL_LEVEL USR_GPG_LEVEL
+  message "${MESSAGE_COLOR}Checking user level: ${GPG_VERIFY_SPELL_LEVEL}, against spell level: ${STR_GPGLEVEL}${DEFAULT_COLOR}"
+  if [[ "$USR_GPG_LEVEL" -le "$GPGLEVEL" ]]
   then
-    message "${MESSAGE_COLOR}File passed user specified level${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spell level is more secure than user specified level${DEFAULT_COLOR}"
   else
-    message "${PROBLEM_COLOR}File does not pass user specified level${DEFAULT_COLOR}"
+    message "${PROBLEM_COLOR}Spell level is not more secure than user specified level${DEFAULT_COLOR}"
     rc=1
   fi
   return $rc
@@ -334,6 +338,9 @@ function unpack_gpg() {
   if [[ -z $GPGLEVEL ]]
   then
     GPGLEVEL=1
+  elif ! isdigit $GPGLEVEL
+  then
+    gpg_string_to_level $GPGLEVEL GPGLEVEL
   fi
   local GPGALGO_USED=""
   local message_file=""
