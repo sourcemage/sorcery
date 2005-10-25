@@ -410,6 +410,23 @@ function add_spell()  {
   add_spell_status $1 $2 $3
 }
 
+#---------------------------------------------------------------------
+## @param spell status file
+## @param spell
+## @param version (optional)
+## @Stdout mathing lines
+##
+## Arguments can be regexp
+##
+## Prints out the matching line(s)
+##
+#---------------------------------------------------------------------
+function search_spell_status() {
+  local spell_status=$1
+  shift
+  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $spell_status
+  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $spell_status
+}
 
 #---------------------------------------------------------------------
 ##
@@ -710,7 +727,21 @@ function modify_config()  {
   if [[ $3 == command ]] 
   then separator=" " 
   else separator="=" ; fi
-  
+
+  if ! test -f $FILE; then
+    if ! test -d $(basename $FILE); then
+      if test -e $(basename $FILE); then
+        message "Trying to modify $FILE, but $(basename $FILE) is not a directory"
+        return 1
+      fi
+      mkdir -p $(basename $FILE)
+    fi &&
+    touch $FILE || {
+      message "Failed to create $FILE"
+      return 1
+    }
+  fi
+
   # remove previous reference
   tFILE=`lock_start_transaction $FILE`
   grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE

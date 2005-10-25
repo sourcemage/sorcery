@@ -41,7 +41,9 @@ function reap_config_files()  {
   local FILE
   while  read  FILE;  do
     [[ $FILE ]] || continue
-    if grep -q "$(md5sum "$FILE" )" "$MD5S"; then
+    if [[ $TOTAL_DISPEL ]] ; then
+      rm -f "$FILE"
+    elif grep -q "$(md5sum "$FILE" )" "$MD5S"; then
       debug libdispel "$FILE is a config file that hasnt changed, removing..."
       rm -f "$FILE"
     else

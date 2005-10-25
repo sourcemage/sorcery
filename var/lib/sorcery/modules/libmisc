@@ -1331,6 +1331,30 @@ function define_functions() {
   done
 }
 
+#---------------------------------------------------------------------
+## @param target
+## @param value
+## Set variable by name, useful for setting variables that were passed
+## by reference.
+## Example:
+##
+## function uber() {
+##   local x
+##  unter x 5
+##  echo $x
+## }
+## function unter() {
+##   local var=$1 y=$2
+##   read -p "enter value (default $2)" y
+##   upvar $var $y
+## }
+## 
+#---------------------------------------------------------------------
+function upvar() {
+  eval "$1=\"$2\""
+
+}
+
 # Standard debug line:
 # file "function@line" "all" "args"
 STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ; 

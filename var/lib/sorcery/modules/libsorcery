@@ -743,6 +743,56 @@ function list_install_queue() {
   fi
 }
 
+#---------------------------------------------------------------------
+## Frontend routine to encapsulate whether or not a spell needs updating
+## 
+#---------------------------------------------------------------------
+function does_spell_need_update() {
+  local line curr_updated curr_version status
+  local spell=$1
+  # this is in a subshell because the caller may not want to actually load
+  # the spell yet
+  (
+    line=$(search_spell_status $SPELL_STATUS $spell)
+    codex_set_current_spell_by_name  $spell
+    explode "$line" ":" "info"
+    does_spell_need_update_sub "$spell" "${info[3]}" "${info[1]}" /dev/null
+  )
+}
+
+#---------------------------------------------------------------------
+##
+## common code between update_install_queue and does_spell_need_update
+## This helps keep update_install_queue optimized.
+#---------------------------------------------------------------------
+function does_spell_need_update_sub() {
+  local spell=$1
+  local curr_version=$2
+  local curr_updated=$3
+  local tmp_queue=$4
+  if  [[ $VERSION != $curr_version ]] ; then
+    echo $spell >> $tmp_queue
+    return 0
+  else
+    curr_patchlevel=0
+    curr_sec_patch=0
+    if tablet_find_spell_dir $spell page_dir ; then
+      curr_updated=0
+      tablet_get_updated $page_dir curr_updated
+      tablet_get_patchlevel $page_dir curr_patchlevel
+      tablet_get_security_patch $page_dir curr_sec_patch
+    fi
+    if (( "${PATCHLEVEL:-0}" >  "$curr_patchlevel" )) ||
+       # the following is subject to change
+       (( "${SECURITY_PATCH:-0}" >  "$curr_sec_patch" )) ||
+       (( "${UPDATED:-0}" >  "${curr_updated:-0}" )) ; then
+      echo $spell >> $tmp_queue
+      return 0
+    fi
+  fi
+  return 1
+}
+
 
 #---------------------------------------------------------------------
 ##
@@ -769,24 +819,8 @@ function update_install_queue()  {
       # still want queueing to work
       if  [[  "$status"  ==  "installed"  ]] &&
         codex_set_current_spell_by_name  $spell;  then
-        if  [[ $VERSION != $curr_version ]] ; then
-          echo $spell >> $tmp_queue
-        else
-          curr_patchlevel=0
-          curr_sec_patch=0
-          if tablet_find_spell_dir $spell page_dir ; then
-            curr_updated=0
-            tablet_get_updated $page_dir curr_updated
-            tablet_get_patchlevel $page_dir curr_patchlevel
-            tablet_get_security_patch $page_dir curr_sec_patch
-          fi
-          if (( "${PATCHLEVEL:-0}" >  "$curr_patchlevel" )) ||
-             # the following is subject to change
-             (( "${SECURITY_PATCH:-0}" >  "$curr_sec_patch" )) ||
-             (( "${UPDATED:-0}" >  "${curr_updated:-0}" )) ; then
-            echo $spell >> $tmp_queue
-          fi
-        fi
+        does_spell_need_update_sub "$spell" "$curr_version" \
+                                   "$curr_updated" "$tmp_queue"
       fi
     )
   done
