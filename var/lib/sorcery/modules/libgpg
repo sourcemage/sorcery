@@ -265,6 +265,49 @@ function gpg_verify_common() {
 }
 
 #---------------------------------------------------------------------
+## Turns a gpg string to an integer level for ease of comparison with the spell
+## level
+##
+## @param string name of level to convert
+## @param upvar to put it in
+## @return 0 if the level is valid otherwise 1
+#---------------------------------------------------------------------
+function gpg_string_to_level()
+{
+	case "$1" in
+		"IGNORE")                eval $2'=0' ;;
+		"WORKS_FOR_ME")          eval $2'=1' ;;
+		"UPSTREAM_HASH")         eval $2'=2' ;;
+		"UPSTREAM_KEY")          eval $2'=3' ;;
+		"VERFIED_UPSTREAM_KEY")  eval $2'=4' ;;
+		"ID_CHECK_UPSTREAM_KEY") eval $2'=5' ;;
+		*) return 1 ;;
+	esac &&
+	return 0
+}
+
+#---------------------------------------------------------------------
+## Turns an integer into a string to save in config file (mainly)
+##
+## @param int level to convert
+## @param upvar to save level string
+## @return 0 if the level is valid otherwise 1
+#--------------------------------------------------------------------
+function gpg_level_to_string()
+{
+	case "$1" in
+		0) eval $2'="IGNORE"' ;;
+		1) eval $2'="WORKS_FOR_ME"' ;;
+		2) eval $2'="UPSTREAM_HASH"' ;;
+		3) eval $2'="UPSTREAM_KEY"' ;;
+		4) eval $2'="VERIFIED_UPSTREAM_KEY"' ;;
+		5) eval $2'="ID_CHECK_UPSTREAM_KEY"' ;;
+		*) return 1 ;;
+	esac &&
+	return 0
+}
+
+#---------------------------------------------------------------------
 ## Handles interpriting the output of gpg_verify_sorcery or
 ## gpg_verify_grimoire.
 ##
