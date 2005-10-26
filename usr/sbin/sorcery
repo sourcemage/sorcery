@@ -979,8 +979,8 @@ function gpg_download_menu() {
 }
 
 gpg_select_hashes() {
-  local DIALOG_TITLE="Select the GnuPG hashes you would like to use"
-  local DIALOG_HELP="Select the GnuPG hashes you would like to consider valid hashes"
+  local DIALOG_TITLE="Select the source hashes you would like to use"
+  local DIALOG_HELP="Select the source hashes you would like to consider valid hashes"
   local DEFAULT_LIST=$(gpg_get_hashes)
   local rc=0
   local CHECKS=""
@@ -1057,34 +1057,62 @@ gpg_spell_menu()  {
   local DIALOG_TITLE="Source Integrity Checking Levels"
   local DIALOG_HELP="Select the minimum level for source verification"
   local DIALOG_LIST=""
-  local inc=0 RESULT lstring lint
+  local CHECKS level
   local rc=0
   while [[ "$rc" == "0" ]]
   do
-    inc=0
     DIALOG_LIST=""
-    while [[ $inc -le ${GPG_MAX_LEVEL} ]]
-    do
-      gpg_level_to_string ${inc} lstring
-      DIALOG_LIST="${DIALOG_LIST}\"${lstring}\" level "
-      if [[ "$GPG_VERIFY_SPELL_LEVEL" == "$lstring" ]] ; then
-        DIALOG_LIST="${DIALOG_LIST}on "
-      else
-        DIALOG_LIST="${DIALOG_LIST}off "
-      fi
-      (( inc++ ))
-    done
-    RESULT=$(eval $DIALOG ' --title "$DIALOG_TITLE"     \
+    if [[ -z "$GPG_ALLOWED_LEVELS" ]]
+    then
+      for level in $GPG_VERIFY_SPELL_LEVELS
+      do
+        DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
+      done
+    else
+      for level in $GPG_VERIFY_SPELL_LEVELS
+      do
+        if list_find "$GPG_ALLOWED_LEVELS" "${level}:on"
+	then
+	  DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
+	else
+	  DIALOG_LIST="${DIALOG_LIST}${level} '${level} was not selected' off "
+	fi
+      done
+    fi
+    if [[ "$GPG_ALLOW_NEW_LEVELS" == "on" ]]
+    then
+      DIALOG_LIST="new 'Allow new levels' on ${DIALOG_LIST}"
+    else
+      DIALOG_LIST="new 'Disallow new levels' off ${DIALOG_LIST}"
+    fi
+    CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"     \
                                             --ok-label "Select"         \
                                             --cancel-label "Exit"       \
-                                            --radiolist "$DIALOG_HELP"  \
+                                            --checklist "$DIALOG_HELP"  \
                                             0 0 0                       \
                                             '${DIALOG_LIST})
     rc="$?"
     if [[ "$rc" == "0" ]]
     then
-      GPG_VERIFY_SPELL_LEVEL=${RESULT}
-      modify_local_config GPG_VERIFY_SPELL_LEVEL $GPG_VERIFY_SPELL_LEVEL
+      GPG_ALLOWED_LEVELS=""
+      CHECKS=${CHECKS//\"/}
+      if list_find "${CHECKS}" new
+      then
+        GPG_ALLOW_NEW_LEVELS=on
+      else
+        GPG_ALLOW_NEW_LEVELS=off
+      fi
+      for level in ${GPG_VERIFY_SPELL_LEVELS}
+      do
+        if list_find "${CHECKS}" $level
+        then
+          GPG_ALLOWED_LEVELS="${GPG_ALLOWED_LEVELS}${level}:on "
+        else
+          GPG_ALLOWED_LEVELS="${GPG_ALLOWED_LEVELS}${level}:off "
+        fi
+      done
+      modify_local_config GPG_ALLOWED_LEVELS "${GPG_ALLOWED_LEVELS}"
+      modify_local_config GPG_ALLOW_NEW_LEVELS "${GPG_ALLOW_NEW_LEVELS}"
     fi
   done
   return 0
@@ -1110,8 +1138,8 @@ integrity_menu()  {
         "F"  "System integrity"               "$FIX_HELP"      \
         "D"  "Download integrity"             "$DL_HELP"       \
         "G"  "Sorcery GPG Signature Checking" "$GPG_HELP"      \
-        "S"  "Spell GPG Signature Checking"   "$SGPG_HELP"     \
-        "M"  "Spell GPG Hash List"            "$HGPG_HELP"'`
+        "S"  "Spell Source Signature Checking"   "$SGPG_HELP"     \
+        "M"  "Spell Source Hash List"            "$HGPG_HELP"'`
   do
     case $INT_CHECKS in
       F)  integrity_fix_menu       ;;

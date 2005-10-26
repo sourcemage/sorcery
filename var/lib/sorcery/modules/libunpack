@@ -269,15 +269,18 @@ function is_allowed_hash_level() {
   local rc=0
   local GPGLEVEL=$1
   local USR_GPG_LEVEL STR_GPGLEVEL
-  gpg_level_to_string $GPGLEVEL STR_GPGLEVEL
-  gpg_string_to_level $GPG_VERIFY_SPELL_LEVEL USR_GPG_LEVEL
-  message "${MESSAGE_COLOR}Checking user level: ${GPG_VERIFY_SPELL_LEVEL}, against spell level: ${STR_GPGLEVEL}${DEFAULT_COLOR}"
-  if [[ "$USR_GPG_LEVEL" -le "$GPGLEVEL" ]]
+  message "${MESSAGE_COLOR}Checking spell level ${GPGLEVEL}${DEFAULT_COLOR}"
+  if list_find "${GPG_ALLOWED_LEVELS}" "${GPGLEVEL}:on"
   then
-    message "${MESSAGE_COLOR}Spell level is more secure than user specified level${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spell level is an allowed level${DEFAULT_COLOR}"
   else
-    message "${PROBLEM_COLOR}Spell level is not more secure than user specified level${DEFAULT_COLOR}"
-    rc=1
+    if [[ "${GPG_ALLOW_NEW_LEVELS}" == "on" ]]
+    then
+      message "${MESSAGE_COLOR}Spell level is a new allowed level: ${GPGLEVEL}${DEFAULT_COLOR}"
+    else
+      message "${PROBLEM_COLOR}Spell level is not an allowed level${DEFAULT_COLOR}"
+      rc=1
+    fi
   fi
   return $rc
 }
@@ -337,10 +340,11 @@ function unpack_gpg() {
   local GPGLEVEL="$( echo "$2" | cut -d: -f3 )"
   if [[ -z $GPGLEVEL ]]
   then
-    GPGLEVEL=1
-  elif ! isdigit $GPGLEVEL
+    GPGLEVEL=$GPG_DEFAULT_SPELL_LEVEL
+  elif ! list_find "${GPG_VERIFY_SPELL_LEVELS}" "${GPGLEVEL}"
   then
-    gpg_string_to_level $GPGLEVEL GPGLEVEL
+    message "${PROBLEM_COLOR}This is probably a spell bug ${GPGLEVEL} is not in ${GPG_VERIFY_SPELL_LEVELS}${DEFAULT_COLOR}" &&
+    return 1
   fi
   local GPGALGO_USED=""
   local message_file=""
