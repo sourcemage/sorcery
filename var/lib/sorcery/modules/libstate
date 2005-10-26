@@ -729,12 +729,12 @@ function modify_config()  {
   else separator="=" ; fi
 
   if ! test -f $FILE; then
-    if ! test -d $(basename $FILE); then
-      if test -e $(basename $FILE); then
-        message "Trying to modify $FILE, but $(basename $FILE) is not a directory"
+    if ! test -d $(dirname $FILE); then
+      if test -e $(dirname $FILE); then
+        message "Trying to modify $FILE, but $(dirname $FILE) is not a directory"
         return 1
       fi
-      mkdir -p $(basename $FILE)
+      mkdir -p $(dirname $FILE)
     fi &&
     touch $FILE || {
       message "Failed to create $FILE"
