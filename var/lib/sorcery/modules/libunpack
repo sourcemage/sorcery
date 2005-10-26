@@ -273,6 +273,10 @@ function is_allowed_hash_level() {
   if list_find "${GPG_ALLOWED_LEVELS}" "${GPGLEVEL}:on"
   then
     message "${MESSAGE_COLOR}Spell level is an allowed level${DEFAULT_COLOR}"
+  elif list_find "${GPG_ALLOWED_LEVELS}" "${GPGLEVEL}:off"
+  then
+      message "${PROBLEM_COLOR}Spell level is not an allowed level${DEFAULT_COLOR}"
+      rc=1
   else
     if [[ "${GPG_ALLOW_NEW_LEVELS}" == "on" ]]
     then
