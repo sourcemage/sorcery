@@ -28,19 +28,20 @@
 ## takes and needs: '' '2' '3', etc.  It is run in default_pre_build for the
 ## null argument only.  Custom unpacking still requires a custom PRE_BUILD.
 ##
-## nine valid formats: vendor-provided gpg, guru-provided gpg, md5sum
-## compressed md5sum, sha1sum, sha256sum, sha384sum, sha512sum, ripemd160sum
+## valid formats: vendor-provided gpg, guru-provided gpg, any
+## hash-algorithm provided by gpg (currently md5, sha1, sha256, sha384,
+## sha512, ripemd160
 ##
 ##           SOURCE=blah
 ##          SOURCE2=blah.asc
 ##       SOURCE_URL=http://blah.com/$SOURCE
 ##      SOURCE2_URL=http://blah.com/$SOURCE2
-##       SOURCE_GPG=blah.gpg:$SOURCE2
+##       SOURCE_GPG=blah.gpg:$SOURCE2:UPSTREAM_KEY
 ##   SOURCE2_IGNORE=signature # for auditing purposes
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
-##       SOURCE_GPG=swoolley.gpg:$SOURCE.asc
+##       SOURCE_GPG=swoolley.gpg:$SOURCE.asc:WORKS_FOR_ME
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
@@ -48,18 +49,20 @@
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
-##       SOURCE_HASH=md5:d41d8cd98f00b204e9800998ecf8427e
-##
-## hashes supported: sha1 md5 (more with hashsum installed ;) )
+##       SOURCE_HASH=md5:d41d8cd98f00b204e9800998ecf8427e:WORKS_FOR_ME
 ##
 ## In GPG mode:
+##   Validates the verification level (the third parameter) and the
+##   hash algorithm against user defined lists.
 ##   It finds the public key and signature using locate_spell_file,
 ##   Then it validates it at the beginning.
 ##   see unpack_gpg()
 ##
 ## In HASH mode:
-##   It puts "sum" after the algorithm name, then
-##   executes it, expecting md5sum-compatible behavior.
+##   Validates the verification level (the third parameter) and the
+##   hash algorithm against user defined lists.
+##   It uses gpg to calculate the hash value except for md5 and sha1, which
+##   coreutils provides.
 ##   see unpack_hash()
 ##
 ## In IGNORE mode:
@@ -75,6 +78,21 @@
 ## (or for now)
 ## Otherwise, it falls back to old uncompressed md5sum check with MD5[n].
 ##   see real_unpack()
+##
+## The default verification level is "WORKS_FOR_ME"
+##
+## Verification levels are, these indicate how much effort was put into
+## validating the integrity of the source from the upstream vendor.
+##   WORKS_FOR_ME No verification was done.
+##   UPSTREAM_HASH Checked the upstream hash file
+##   UPSTREAM_KEY Checked upstream (gpg) key, signature matched, but the
+##                key was not validated
+##   ESTABLISHED_UPSTREAM_KEY Upstream key was not validated against
+##                            multiple independent sources, but has been
+##                            in use for several years
+##   VERIFIED_UPSTREAM_KEY Upstream key id was verified against multiple
+##                         independent sources.
+##   ID_CHECK_UPSTREAM_KEY Key was verified in person with a photo id check.
 ##
 ## Also if you want to include more than one signature, hash, etc, just put
 ## a 2, 3, 4, etc on the end of the variable like so:
@@ -258,26 +276,32 @@ function unpack_spell_required() {
 #===================== libunpack newworld ============================
 
 #--------------------------------------------------------------------
-## @param checks the hash level
+## @param the verification level
 ##
-## checks GPG_VERIFY_SPELL_LEVEL against the gpg level in the spell
-## Returns 0 if the GPG_VERIFY_SPELL_LEVEL is less than or equal to the spell
-## level otherwise returns 1
+## returns 0 if the specified verification level is in the user's
+## list of allowed verification levels, or if they allow unknown
+## verification levels, 1 otherwise
 ##
 #--------------------------------------------------------------------
-function is_allowed_hash_level() {
+function is_allowed_verf_level() {
   local rc=0
-  local GPGLEVEL=$1
-  local USR_GPG_LEVEL STR_GPGLEVEL
-  gpg_level_to_string $GPGLEVEL STR_GPGLEVEL
-  gpg_string_to_level $GPG_VERIFY_SPELL_LEVEL USR_GPG_LEVEL
-  message "${MESSAGE_COLOR}Checking user level: ${GPG_VERIFY_SPELL_LEVEL}, against spell level: ${STR_GPGLEVEL}${DEFAULT_COLOR}"
-  if [[ "$USR_GPG_LEVEL" -le "$GPGLEVEL" ]]
+  local VRFLEVEL=$1
+  message "${MESSAGE_COLOR}Checking spell level ${VRFLEVEL}${DEFAULT_COLOR}"
+  if list_find "${VRF_ALLOWED_LEVELS}" "${VRFLEVEL}:on"
   then
-    message "${MESSAGE_COLOR}Spell level is more secure than user specified level${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Spell level is an allowed level${DEFAULT_COLOR}"
+  elif list_find "${VRF_ALLOWED_LEVELS}" "${VRFLEVEL}:off"
+  then
+      message "${PROBLEM_COLOR}Spell level is not an allowed level${DEFAULT_COLOR}"
+      rc=1
   else
-    message "${PROBLEM_COLOR}Spell level is not more secure than user specified level${DEFAULT_COLOR}"
-    rc=1
+    if [[ "${VRF_ALLOW_NEW_LEVELS}" == "on" ]]
+    then
+      message "${MESSAGE_COLOR}Spell level is a new allowed level${DEFAULT_COLOR}"
+    else
+      message "${PROBLEM_COLOR}Spell level is not an allowed level${DEFAULT_COLOR}"
+      rc=1
+    fi
   fi
   return $rc
 }
@@ -288,29 +312,29 @@ function is_allowed_hash_level() {
 ##
 ## first checks if the hash is in the user specified list in an on state then
 ## checks if the hash is there in an off state, if it can't find either then
-## it checks the state of GPG_ALLOW_NEW_HASHES to see if we should succeed or
+## it checks the state of VRF_ALLOW_NEW_HASHES to see if we should succeed or
 ## not
-## Returns 0 if the hash is allowed or (GPG_ALLOW_NEW_HASHES is on and the hash
+## Returns 0 if the hash is allowed or (VRF_ALLOW_NEW_HASHES is on and the hash
 ## is not present in the hash list)
 ##
 #--------------------------------------------------------------------
 function is_allowed_hash() {
   local rc=0
   local hash=$1
-  local GPGLEVEL=$2
+  local HASHLEVEL=$2
   message "${MESSAGE_COLOR}Algorithm used: ${hash}${DEFAULT_COLOR}" &&
-  if list_find "$GPG_ALLOWED_HASHES" "${hash}:on"
+  if list_find "$VRF_ALLOWED_HASHES" "${hash}:on"
   then
     message "${MESSAGE_COLOR}Algorithm checks out${DEFAULT_COLOR}"
-    if is_allowed_hash_level $GPGLEVEL ; then rc=0 ; else rc=1 ; fi
-  elif list_find "$GPG_ALLOWED_HASHES" "${hash}:off"
+    if is_allowed_verf_level $HASHLEVEL ; then rc=0 ; else rc=1 ; fi
+  elif list_find "$VRF_ALLOWED_HASHES" "${hash}:off"
   then
     message "${PROBLEM_COLOR}Algorithm is not in user selected list${DEFAULT_COLOR}"
     rc=1
-  elif [[ "$GPG_ALLOW_NEW_HASHES" == "on" ]]
+  elif [[ "$VRF_ALLOW_NEW_HASHES" == "on" ]]
   then
-    message "${MESSAGE_COLOR}Allowing new hash ${hash}${DEFAULT_COLOR}"
-    if is_allowed_hash_level $GPGLEVEL ; then rc=0 ; else rc=1; fi
+    message "${MESSAGE_COLOR}Allowing new hash${hash}${DEFAULT_COLOR}"
+    if is_allowed_verf_level $HASHLEVEL ; then rc=0 ; else rc=1; fi
   else
     message "${PROBLEM_COLOR}Disallowing new hash ${hash}${DEFAULT_COLOR}"
     rc=1
@@ -337,10 +361,11 @@ function unpack_gpg() {
   local GPGLEVEL="$( echo "$2" | cut -d: -f3 )"
   if [[ -z $GPGLEVEL ]]
   then
-    GPGLEVEL=1
-  elif ! isdigit $GPGLEVEL
+    GPGLEVEL=$VRF_DEFAULT_SPELL_LEVEL
+  elif ! list_find "${VERIFY_SPELL_LEVELS}" "${GPGLEVEL}"
   then
-    gpg_string_to_level $GPGLEVEL GPGLEVEL
+    message "${PROBLEM_COLOR}This is probably a spell bug ${GPGLEVEL} is not in ${VERIFY_SPELL_LEVELS}${DEFAULT_COLOR}"
+    return 1
   fi
   local GPGALGO_USED=""
   local message_file=""

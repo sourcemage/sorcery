@@ -710,7 +710,21 @@ function modify_config()  {
   if [[ $3 == command ]] 
   then separator=" " 
   else separator="=" ; fi
-  
+
+  if ! test -f $FILE; then
+    if ! test -d $(dirname $FILE); then
+      if test -e $(dirname $FILE); then
+        message "Trying to modify $FILE, but $(dirname $FILE) is not a directory"
+        return 1
+      fi
+      mkdir -p $(dirname $FILE)
+    fi &&
+    touch $FILE || {
+      message "Failed to create $FILE"
+      return 1
+    }
+  fi
+
   # remove previous reference
   tFILE=`lock_start_transaction $FILE`
   grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
