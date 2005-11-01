@@ -19,6 +19,50 @@ is part of the
 source-code package management suite. It is a command-line tool
 for automatically uninstalling a package and its associated
 files. 
+.SH "DEPENDENCY FOLLOWING"
+.I dispel
+has options to follow spell dependencies. For example, you
+can dispel xorg and dispel can remove spells
+that xorg depends on, and spells those spells depends on, all the way down the dependency tree. Similarly spells that depend on xorg can be removed (and the spells that depend on those spells...).
+.PP
+To understand this there are a few terms to understand:
+.IP
+A
+.I child
+is a spell that the current spell depends on, for example, fontconfig is a child of xorg.
+.IP
+An
+.I orphan
+is a child that is only depended on by the current spell. In other words, no other spell depends on the child and gaze orphans will include this spell. It can be safely removed without breaking any dependencies.
+.IP
+A
+.I non-orphan
+is a child that other spells besides the current spell depend on. If this spell is removed, it will break its parent spells.
+.IP
+A
+.I parent
+is a spell that depends on the current spell, for example,
+blackbox (a window manager) depends on xorg.
+.PP
+If you dispel a spell and supply options to dispel child spells, dispel
+will travel down the depends tree removing spells (depending on options
+it will ask you what to do for each spell). Once that is complete,
+dispel will inspect the parents of spells that were removed. A parent
+spell may have had only optional dependencies removed, if this is the
+case it may be possible to recast the spell without those optional
+dependencies. If this is not possible, or you elect to not recast,
+you can either dispel the parent, or ignore the problem. If you choose
+to ignore the problem please run cleanse --prune to fix the dependency
+tree. Once all the parents have been accounted for, dispel will again
+travel down the depends tree for the newly removed parent spells, and
+then inspect the parents of those newly removed children.
+.PP
+There are several options, described below, for dependency following. They accept one of the following four parameters:
+.I always
+.I ask-yes
+.I ask-no
+.I ignore.
+
 .SH "OPTIONS"
 .SS "-d, --downgrade <spell> <version>"
 remove the selected spell and restore to the given
@@ -42,6 +86,29 @@ dispel the spell without removing its files
 .SS "--no-reap-depends"
 Dont remove dependency information, do not use this unless you know exactly
 what you are doing, and dont complain if it breaks your box.
+
+.SS "--orphan <quad-opt>"
+Default action for dispelling a newly orphaned child spell.
+.SS "--non-orphan <quad-opt>"
+Default action for dispelling a dependee of another spell, that is not an orphan (doing this will break the spells that still depend on it).
+
+.SS "--child <quad-opt>"
+Default action for dispelling a child spell that is either an orphan or non-orphan.
+
+.SS "--recast-parent <quad-opt>"
+If a spell has a child removed from under it, the
+spell is considered broken, if all of the removed
+children are optional, the spell may be recast
+without those depends. This option controls the
+default for this action.
+.SS "--dispel-parent <quad-opt>"
+Default action for dispelling broken parents,
+the user is asked for recasting if possible first.
+.SS "--user-deps"
+.SS "--user-child-deps"
+.SS "--user-parent-deps"
+Use defaults for dependency following from the sorcery menu for child and/or parent dependency following.
+
 .SS "-h, --help"
 outputs short help
 .SH "FILES"

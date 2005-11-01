@@ -28,19 +28,20 @@
 ## takes and needs: '' '2' '3', etc.  It is run in default_pre_build for the
 ## null argument only.  Custom unpacking still requires a custom PRE_BUILD.
 ##
-## nine valid formats: vendor-provided gpg, guru-provided gpg, md5sum
-## compressed md5sum, sha1sum, sha256sum, sha384sum, sha512sum, ripemd160sum
+## valid formats: vendor-provided gpg, guru-provided gpg, any
+## hash-algorithm provided by gpg (currently md5, sha1, sha256, sha384,
+## sha512, ripemd160
 ##
 ##           SOURCE=blah
 ##          SOURCE2=blah.asc
 ##       SOURCE_URL=http://blah.com/$SOURCE
 ##      SOURCE2_URL=http://blah.com/$SOURCE2
-##       SOURCE_GPG=blah.gpg:$SOURCE2
+##       SOURCE_GPG=blah.gpg:$SOURCE2:UPSTREAM_KEY
 ##   SOURCE2_IGNORE=signature # for auditing purposes
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
-##       SOURCE_GPG=swoolley.gpg:$SOURCE.asc
+##       SOURCE_GPG=swoolley.gpg:$SOURCE.asc:WORKS_FOR_ME
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
@@ -48,18 +49,20 @@
 ##
 ##           SOURCE=blah
 ##       SOURCE_URL=http://blah.com/$SOURCE
-##       SOURCE_HASH=md5:d41d8cd98f00b204e9800998ecf8427e
-##
-## hashes supported: sha1 md5 (more with hashsum installed ;) )
+##       SOURCE_HASH=md5:d41d8cd98f00b204e9800998ecf8427e:WORKS_FOR_ME
 ##
 ## In GPG mode:
+##   Validates the verification level (the third parameter) and the
+##   hash algorithm against user defined lists.
 ##   It finds the public key and signature using locate_spell_file,
 ##   Then it validates it at the beginning.
 ##   see unpack_gpg()
 ##
 ## In HASH mode:
-##   It puts "sum" after the algorithm name, then
-##   executes it, expecting md5sum-compatible behavior.
+##   Validates the verification level (the third parameter) and the
+##   hash algorithm against user defined lists.
+##   It uses gpg to calculate the hash value except for md5 and sha1, which
+##   coreutils provides.
 ##   see unpack_hash()
 ##
 ## In IGNORE mode:
@@ -75,6 +78,21 @@
 ## (or for now)
 ## Otherwise, it falls back to old uncompressed md5sum check with MD5[n].
 ##   see real_unpack()
+##
+## The default verification level is "WORKS_FOR_ME"
+##
+## Verification levels are, these indicate how much effort was put into
+## validating the integrity of the source from the upstream vendor.
+##   WORKS_FOR_ME No verification was done.
+##   UPSTREAM_HASH Checked the upstream hash file
+##   UPSTREAM_KEY Checked upstream (gpg) key, signature matched, but the
+##                key was not validated
+##   ESTABLISHED_UPSTREAM_KEY Upstream key was not validated against
+##                            multiple independent sources, but has been
+##                            in use for several years
+##   VERIFIED_UPSTREAM_KEY Upstream key id was verified against multiple
+##                         independent sources.
+##   ID_CHECK_UPSTREAM_KEY Key was verified in person with a photo id check.
 ##
 ## Also if you want to include more than one signature, hash, etc, just put
 ## a 2, 3, 4, etc on the end of the variable like so:
@@ -112,11 +130,14 @@ function real_unpack_file() {
     debug "libgrimoire" "checking $crypto_func verification"
     local AVAR="SOURCE${GPGNUM}_${crypto_func}"
     local AVARN="$AVAR"
-    local iter=1
+    local iter=0
     local rc=""
+    # NOTE ## date: 2005-08-25
+    # This while loop runs through the SOURCEn_{GPG|HASH|IGNORE}m not the
+    # SOURCEn_*[m] set of vars this is kinda confusing we might rip it out
     while [ -n "${!AVARN}" ]; do
       local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
-      eval 'unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"'
+      unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"
       rc="$?"
       case "$rc" in
         200) debug "libgrimoire" "falling back from $AVARN"; rc="" ;;
@@ -124,7 +145,7 @@ function real_unpack_file() {
           0) uncompress_unpack "${!SVAR}"; return "$?"             ;;
       esac
       (( iter++ ))
-      AVARN="$AVAR$iter"
+      AVARN="$AVAR[$iter]"
     done
     [ -n "$rc" ] && return "$rc"
   done
@@ -189,7 +210,7 @@ function unpack_core() {
                     tar   --owner=root  --group=root  -xf  /dev/stdin \
                           2> /dev/null  ||  cat > /dev/null            ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
-	            unzip  -q  "$1"                                    ;;
+                    unzip  -q  "$1"                                    ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
                 *)  cat > /dev/null                                    ;;
   esac
@@ -254,6 +275,73 @@ function unpack_spell_required() {
 
 #===================== libunpack newworld ============================
 
+#--------------------------------------------------------------------
+## @param the verification level
+##
+## returns 0 if the specified verification level is in the user's
+## list of allowed verification levels, or if they allow unknown
+## verification levels, 1 otherwise
+##
+#--------------------------------------------------------------------
+function is_allowed_verf_level() {
+  local rc=0
+  local VRFLEVEL=$1
+  message "${MESSAGE_COLOR}Checking spell level ${VRFLEVEL}${DEFAULT_COLOR}"
+  if list_find "${VRF_ALLOWED_LEVELS}" "${VRFLEVEL}:on"
+  then
+    message "${MESSAGE_COLOR}Spell level is an allowed level${DEFAULT_COLOR}"
+  elif list_find "${VRF_ALLOWED_LEVELS}" "${VRFLEVEL}:off"
+  then
+      message "${PROBLEM_COLOR}Spell level is not an allowed level${DEFAULT_COLOR}"
+      rc=1
+  else
+    if [[ "${VRF_ALLOW_NEW_LEVELS}" == "on" ]]
+    then
+      message "${MESSAGE_COLOR}Spell level is a new allowed level${DEFAULT_COLOR}"
+    else
+      message "${PROBLEM_COLOR}Spell level is not an allowed level${DEFAULT_COLOR}"
+      rc=1
+    fi
+  fi
+  return $rc
+}
+
+#--------------------------------------------------------------------
+## @param hash used
+## @param spells verification level
+##
+## first checks if the hash is in the user specified list in an on state then
+## checks if the hash is there in an off state, if it can't find either then
+## it checks the state of VRF_ALLOW_NEW_HASHES to see if we should succeed or
+## not
+## Returns 0 if the hash is allowed or (VRF_ALLOW_NEW_HASHES is on and the hash
+## is not present in the hash list)
+##
+#--------------------------------------------------------------------
+function is_allowed_hash() {
+  local rc=0
+  local hash=$1
+  local HASHLEVEL=$2
+  message "${MESSAGE_COLOR}Algorithm used: ${hash}${DEFAULT_COLOR}" &&
+  if list_find "$VRF_ALLOWED_HASHES" "${hash}:on"
+  then
+    message "${MESSAGE_COLOR}Algorithm checks out${DEFAULT_COLOR}"
+    if is_allowed_verf_level $HASHLEVEL ; then rc=0 ; else rc=1 ; fi
+  elif list_find "$VRF_ALLOWED_HASHES" "${hash}:off"
+  then
+    message "${PROBLEM_COLOR}Algorithm is not in user selected list${DEFAULT_COLOR}"
+    rc=1
+  elif [[ "$VRF_ALLOW_NEW_HASHES" == "on" ]]
+  then
+    message "${MESSAGE_COLOR}Allowing new hash${hash}${DEFAULT_COLOR}"
+    if is_allowed_verf_level $HASHLEVEL ; then rc=0 ; else rc=1; fi
+  else
+    message "${PROBLEM_COLOR}Disallowing new hash ${hash}${DEFAULT_COLOR}"
+    rc=1
+  fi
+  return $rc
+}
+
 #---------------------------------------------------------------------
 ## @param file to unpack 
 ## @param gpg public key file (.gpg) ":" gpg signature file  (.asc)
@@ -267,19 +355,44 @@ function unpack_spell_required() {
 function unpack_gpg() {
   debug "libgrimoire" "Running unpack_gpg -- $*"
 
-  FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
-  PFNAME="$( echo "$2" | cut -d: -f1  )"
-  SFNAME="$( echo "$2" | cut -d: -f2  )"
+  local FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
+  local PFNAME="$( echo "$2" | cut -d: -f1  )"
+  local SFNAME="$( echo "$2" | cut -d: -f2  )"
+  local GPGLEVEL="$( echo "$2" | cut -d: -f3 )"
+  if [[ -z $GPGLEVEL ]]
+  then
+    GPGLEVEL=$VRF_DEFAULT_SPELL_LEVEL
+  elif ! list_find "${VERIFY_SPELL_LEVELS}" "${GPGLEVEL}"
+  then
+    message "${PROBLEM_COLOR}This is probably a spell bug ${GPGLEVEL} is not in ${VERIFY_SPELL_LEVELS}${DEFAULT_COLOR}"
+    return 1
+  fi
+  local GPGALGO_USED=""
+  local message_file=""
 
   message "${MESSAGE_COLOR}GPG checking source file $1...${DEFAULT_COLOR}"
 
   unpack_spell_required gnupg || return "$?"
 
-  gpg_verify_signature "$( locate_spell_file "$SFNAME" )" "$FILENAME" \
-                       "$( locate_spell_file "$PFNAME" securely)"
+  gpg_verify_signature "$( locate_spell_file "$SFNAME" )" \
+                       "$FILENAME" \
+                       "$( locate_spell_file "$PFNAME" securely)" GPGALGO_USED
   rc="$?"
-
-  if [ "$rc" -eq 200 ]; then return 200; fi
+  case "$rc" in
+    0)
+      if is_allowed_hash $GPGALGO_USED $GPGLEVEL ; then rc=0 ; else rc=1 ; fi
+      ;;
+    3) message_file="Signature" ;;
+    4) message_file="Source" ;;
+    5) message_file="Keyring" ;;
+  esac
+  if [[ $message_file ]]
+  then
+      message "${PROBLEM_COLOR}AHHH!!! ${message_file} file not found${DEFAULT_COLOR}"
+  fi
+  if [ "$rc" -eq 200 ]; then 
+    return 200
+  fi
   
   gpg_user_query $rc $SPELL spell || return 1
   return 0
@@ -300,42 +413,97 @@ function unpack_gpg() {
 function unpack_hash() {
   debug "libgrimoire" "Running unpack_hash() on $1"
 
-  FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
-  ALGORITHM="$( echo "$2" | cut -d: -f1  )"
-  HASHSUM="$(   echo "$2" | cut -d: -f2  )"
-
-  message "${MESSAGE_COLOR}hash checking source file $1...${DEFAULT_COLOR}"
-
-  if [ "$MD5SUM_DL" != "off" ]; then
-
-    case "$ALGORITHM" in
-                    md5|sha1) unpack_spell_required coreutils "$ALGORITHM" ||
-                                                                 return "$?" ;;
-sha256|sha384|sha512|ripemd160) unpack_spell_required hashsum "$ALGORITHM" ||
-                                                                 return "$?" ;;
-*) message "${PROBLEM_COLOR}algorithm $ALGORITHM is not known!${DEFAULT_COLOR}"
-                                                                 return 200  ;;
-    esac
-
-    local HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
-
-    [ "$HASH" == "$HASHSUM" ]  ||  {
-      message "${PROBLEM_COLOR}$ALGORITHM check failed"  \
-              "$HASH != $HASHSUM !${DEFAULT_COLOR}"      &&
-      case "$MD5SUM_DL" in
-          ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
- ask_risky|ask_abort)  query "Abort?" "y"         && return 1   ||  return 0 ;;
-      on|abort_all|*)  message "${RED}Aborting.${DEFAULT_COLOR}"  ; return 1 ;;
-      esac
-
-    }
-  else
-    message "${RED}Continuing!${DEFAULT_COLOR}"
-    return 0
+  local FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
+  local ALGORITHM="$( echo "$2" | cut -d: -f1  )"
+  local HASHSUM="$(   echo "$2" | cut -d: -f2  )"
+  local HLEVEL="$(    echo "$2" | cut -d: -f3  )"
+  local rc=0
+  if [[ -z "$HLEVEL" ]]
+  then
+    HLEVEL=1
   fi
 
+  message "${MESSAGE_COLOR}hash checking source file $1...${DEFAULT_COLOR}"
+  local HASH
+  if [ "$MD5SUM_DL" != "off" ]; then
+
+    if [[ "$ALGORITHM" == md5 ]] || [[ "$ALGORITHM" == sha1 ]] ; then
+      unpack_spell_required coreutils "$ALGORITHM" || return "$?" 
+      HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
+    else
+      unpack_spell_required gnupg "$ALGORITHM" || return "$?"
+      if list_find "$(gpg_get_hashes)" $ALGORITHM; then
+        HASH="$(gpg_hashsum "${ALGORITHM}" "$FILENAME" | cut -d' ' -f1)"
+      else 
+        message "${PROBLEM_COLOR}Algorithm $ALGORITHM is not"\
+                "known!${DEFAULT_COLOR}"
+        return 200
+      fi
+    fi
+    local rc=$?
+
+    if [[ "$HASH" != "$HASHSUM" ]] || [[ $rc != 0 ]]
+    then
+      message "${PROBLEM_COLOR}$ALGORITHM check failed"  \
+              "$HASH != $HASHSUM !${DEFAULT_COLOR}"      &&
+      hash_user_query 1 "$SPELL" spell || return 1
+    else
+      if is_allowed_hash ${ALGORITHM} ${HLEVEL} ; then rc=0 ; else rc=1 ; fi
+      hash_user_query $rc "$SPELL" spell || return 1
+    fi
+  else
+    message "${PROBLEM_COLOR}Continuing!${DEFAULT_COLOR}"
+  fi
+  return 0
 }
 
+#--------------------------------------------------------------------
+## @param return code from unpack_hash
+## @param spell name 
+## 
+## Does some basic output to tell the user what failed and how then calls
+## unpack_file_user_query
+## Returns 0 if hash succeeded otherwise returns 1 if unpack_file_user_query 
+## fails
+##
+#--------------------------------------------------------------------
+function hash_user_query() {
+  local rc=$1
+  local spell=$2
+  case "$rc" in
+    0) 
+      message "${MESSAGE_COLOR}hash verification succeeded${DEFAULT_COLOR}"
+      ;;
+    *)
+      message "${PROBLEM_COLOR}hash verification failure${DEFAULT_COLOR}"
+      unpack_file_user_query $rc || return 1
+      ;;
+  esac
+  return 0
+}
+
+#--------------------------------------------------------------------
+## @param return code from the unpack_gpg or unpack_hash
+##
+## checks MD5SUM_DL to abort or not 
+## Returns what query returns if it's called
+##
+#--------------------------------------------------------------------
+function unpack_file_user_query() {
+  local rc=$1
+  case "$rc" in
+    0)
+      ;;
+    *)
+      case "$MD5SUM_DL" in
+        ask_ignore)  query "Abort?" "n" && return 1  ;;
+        ask_risky|ask_abort)  query "Abort?" "y" && return 1 ;;
+        on|abort_all|*) message "${RED}Aborting.${DEFAULT_COLOR}" ; return 1 ;;
+      esac
+      ;;
+  esac
+  return 0
+}
 
 #---------------------------------------------------------------------
 ## @param file to unpack 
@@ -427,6 +595,14 @@ function uncompress_unpack() {
   uncompress_core "$FILENAME" "$COMPRESSOR" |
       unpack_core "$FILENAME" "$COMPRESSOR"
 }
+
+#---------------------------------------------------------------------
+## @param file to unpack 
+##
+## Interface to unpack a file without any verification.
+##
+#---------------------------------------------------------------------
+function real_unpack_file_simple() { uncompress_unpack "$@"; }
 
 
 #---------------------------------------------------------------------

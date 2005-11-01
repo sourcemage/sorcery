@@ -7,11 +7,7 @@
 ##
 ##=head1 DESCRIPTION
 ##
-## This file contains functions for I<downloading> files through cvs.
-##
-## In order for cvs urls to be downloaded, the I<cvs> spell must have been
-## cast. This script first determines if cvs has been installed before 
-## attempting to download a cvs url.
+## This file contains functions for parsing cvs urls.
 ##
 ##=head1 CVS URL Format
 ##
@@ -40,12 +36,12 @@
 ## Suppose we want to download the latest version of the sorcery
 ## scripts from cvs.  We'd use the following url:
 ##
-##      cvs://:pserver:anoncvs@subversions.gnu.org:/cvsroot/sorcerer:sorcery
+##      cvs://:pserver:anonymous@mplayerhq.hu:/cvsroot/mplayer:main
 ##
-## If we want the 0.1.4 release instead (i.e., those files tagged with
-## release-0_1_4, we would use the following url:
+## If we want the 1.0pre7 release instead (i.e., those files tagged with
+## 1_0pre7, we would use the following url:
 ##
-##      cvs://:pserver:anoncvs@subversions.gnu.org:/cvsroot/sorcerer:sorcery:release-0_1_4
+##      cvs://:pserver:anonymous@mplayerhq.hu:/cvsroot/mplayer:main:1_0pre7
 ##
 ## Some cvs repositories require passwords.  One such repository is the
 ## cvs repository for the ROOT package (an object-oriented data analysis 
@@ -63,11 +59,6 @@
 ##
 ##       cvs://:pserver:cvs:cvs@root.cern.ch:/user/cvs:root
 ##
-##=head1 IMPLEMENTATION NOTE
-##
-## Downloading is supported but CVS url verification is not
-## currently supported.
-##
 ##=head1 COPYRIGHT
 ##
 ## Copyright 2002 by the Source Mage Team
@@ -78,98 +69,42 @@
 ##
 #---------------------------------------------------------------------
 
-
-#---------------------------------------------------------------------
-#=item url_cvs_strip_prefix <url>
-# 
-# Private function.  Strips off the cvs:// prefix from cvs urls
-#
-#---------------------------------------------------------------------
-function url_cvs_strip_prefix() {
-  echo $1 | sed 's/^cvs:\/\///'
-}
-
-
 #---------------------------------------------------------------------
 ##=item url_file_download <url>
 ## 
-## Fetch the specified cvs url.
+## Parse the specified cvs url.
+##
+## @global URL
+## @global CVS_ROOT
+## @global CVS_MODULE
+## @global CVS_TAG
 ##
 #---------------------------------------------------------------------
-function url_cvs_download() { 
-  if [ ! -x /usr/bin/cvs ]; then
-    return 1;
-  fi
+function url_cvs_crack() { 
 
-  local             URL=`url_cvs_strip_prefix "$1"`
-  local        CVS_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  local  CVS_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  local      CVS_MODULE=`echo $CVS_MODULE_TAG | cut -d : -f2` 
-  local     CVS_TAGNAME=`echo $CVS_MODULE_TAG | cut -d : -f3`
-  local         CVS_TAG=${CVS_TAGNAME:=HEAD}
-  local CVS_COMPRESSION="-z3"
+  URL=`url_strip_prefix "$1" cvs`
+  CVS_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
+  local CVS_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
+  CVS_MODULE=`echo $CVS_MODULE_TAG | cut -d : -f2` 
+  local CVS_TAGNAME=`echo $CVS_MODULE_TAG | cut -d : -f3`
+  CVS_TAG=${CVS_TAGNAME:=HEAD}
 
-  if [ -z "$CVS_ROOT" -o -z "$CVS_MODULE" ]; then
-    return 1;
-  fi
-
-  if [ -z "$FILE" ]; then
-    return 1;
-  fi
-
-  local S_FILE=`echo $FILE            |
-                sed "s/\.tar\.gz$//"  |
-                sed "s/\.tgz$//"      |
-                sed "s/\.tar\.bz2$//"`
-
-  if [ -f $SOURCE_CACHE/$S_FILE.tar.bz2 ]; then
-    message "${MESSAGE_COLOR}Previous source found. Extracting package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
-    tar --bzip2 -xf $SOURCE_CACHE/$S_FILE.tar.bz2
-    message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
-    if cd $S_FILE ; then
-        cvs $CVS_COMPRESSION -q update -dP -r $CVS_TAG
-        cd ..
-	fi
-  else
-    message "${MESSAGE_COLOR}Running cvs checkout...${DEFAULT_COLOR}"
-	cvs $CVS_COMPRESSION -q -d$CVS_ROOT checkout -r $CVS_TAG -d $S_FILE $CVS_MODULE
-  fi
-
-  if [[ $nocache == 1 ]] ; then
-    return $?
-  fi
-
-  if [ $? == 0 ]; then
-    message "${MESSAGE_COLOR}Creating package $S_FILE.tar.bz2...${DEFAULT_COLOR}"
-    tar --bzip2 --remove-files -cf $S_FILE.tar.bz2 $S_FILE/
-    rm -fr $S_FILE/
-    FILE=$S_FILE.tar.bz2
-  else
-    false;
-  fi
 }
 
-
 #---------------------------------------------------------------------
-##=item url_cvs_verify <url>
-## 
-## Verifies the specified cvs url exists.  Returns true for now until
-## I get around to implementing it.
+##=item url_cvs_is_valid <url>
 ##
-#---------------------------------------------------------------------u
-function url_cvs_verify() {
-  true
-}
-
-
+## Ensure that all the fields that should be parsed out from a url
+## do indeed exist
 #---------------------------------------------------------------------
-##=item url_cvs_set_options <option>
-##
-## Set options for url handling
-##
-#---------------------------------------------------------------------
-function url_cvs_set_options() {
-  eval "$1=1"
+function url_cvs_is_valid() {
+  local URL CVS_ROOT CVS_MODULE CVS_TAG item
+  url_cvs_crack $1
+  for item in URL CVS_ROOT CVS_MODULE CVS_TAG; do
+    if ! [[ ${!item} ]] ; then
+      return 1
+    fi
+  done
 }
 
 #---------------------------------------------------------------------

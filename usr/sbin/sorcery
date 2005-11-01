@@ -32,7 +32,7 @@ Usage:          sorcery [parameters]
 
 Optional Parameters:
 
--h  |  --help		Display this help screen
+-h  |  --help  |  help	Display this help screen
 
 -s  |  system-update	Perform a system update (updates sorcery, grimoire,
 			  and spells).
@@ -45,9 +45,14 @@ Optional Parameters:
 
 -q  |  queue		Compare installed grimoire to installed spells,
 			  generate queue of spells needing to be updated.
+       queue-security	Same as queue, but only for spells that need
+			  updating due to security fixes.
 
 review-queue		Review the install queue for each spell's history 
 			  since each was last installed.
+
+add-queue <spell|s>	Add spell(s) to install queue
+remove-queue <spell|s>	Remove spell(s) from install queue
 
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
@@ -80,7 +85,7 @@ default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
 EOF
 
   exit 1
-
+#' <-- fix for syntax highlighting in nedit
 }
 
 mirror_list()  {
@@ -154,7 +159,7 @@ mirror_menu()  {
          MIRROR_URL=`eval $DIALOG '  --inputbox  "Please enter the URL."  0 0'`
       fi  &&
 
-      remove_config $LOCAL_CONFIG "$MIRROR" "$MIRROR_URL" &&
+      remove_config $LOCAL_CONFIG "$MIRROR" &&
       modify_config $LOCAL_URL_CONFIG "$MIRROR" "$MIRROR_URL" &&
 
       eval $DIALOG  '--msgbox  "$MIRROR=$MIRROR_URL saved in $LOCAL_CONFIG" 0 0'
@@ -430,7 +435,7 @@ function make_restore_script() {
 # actually have their values filed in at script generation time
 # everything else must be back-quoted to work properly
 
-  rm $RESTORE_SCRIPT
+  rm -f $RESTORE_SCRIPT
   cat  << EOF >  $RESTORE_SCRIPT
 #!/bin/bash
 ############################################################
@@ -493,36 +498,18 @@ update_queue () {
     list_install_queue
 }
 
+update_security_queue () {
+    update_security_install_queue
+    list_install_queue
+}
+
 rebuild()  {
 
+  lock_file $INSTALL_QUEUE
   rm  -rf  $INSTALL_QUEUE
-
-  message  "To do a non recursive rebuild"
-  message  "all installed spells must be fixed first."
-  sleep  3
-  cleanse --fix
-
-  for  LINE  in  `cat  $SPELL_STATUS`;  do
-      SPELL=`echo  "$LINE"  |  cut  -d : -f1`
-     STATUS=`echo  "$LINE"  |  cut  -d : -f3`
-    SECTION=`find_section  $SPELL`
-    if  [  "$STATUS"   ==  "installed"  ]   &&
-        [  "$SECTION"  !=  "sgl"        ]   &&
-        [  "$SECTION"  !=  "sections"   ]   &&
-	! spell_exiled $SPELL           ;  then
-      echo  $SPELL  >>  $INSTALL_QUEUE
-    fi
-  done
-
-  unset  SPELL
-  cast --queue
-
-#Taken care of cast --queue now:
-#  if    query  "Edit Rebuild/Install Queue?" n
-#  then  edit_file  $INSTALL_QUEUE
-#  fi
-#  cast --compile  `cat  $INSTALL_QUEUE`
-#  rm                      $INSTALL_QUEUE
+  get_all_spells_with_status installed >> $INSTALL_QUEUE
+  unlock_file $INSTALL_QUEUE
+  cast -c -b --queue
 
 }
 
@@ -735,6 +722,7 @@ architecture_menu() {
   debug "sorcery" "architecture_menu()"
   local  SPECFILE
   local  LIST CPUNAME specname
+  local specname CPUNAME
   hash_reset archspec_hash
   # this loop finds archspecs, it uses a hash table to ensure that theres
   # only one entry per archspec (there could be several archspecs with the
@@ -805,7 +793,6 @@ optimization_menu(){
   local   PRELINK_HELP="Speed up loading applications by pre-linking libraries (CFLAGS=-DPIC -fPIC)"
   local     RISKY_HELP="Optimize by violating ANSI/IEEE (unsafe) (CFLAGS=-ffast-math -funroll-loops)"
   local    SPEEDY_HELP="Optimize generated code, conflicts with 'tiny' (CFLAGS=$FAST)"
-  local    STATIC_HELP="Compile libraries statically (LDFLAGS=-static)"
   local     STRIP_HELP="Remove all symbol table and relocation (debugging) information (LDFLAGS=-s)"
   local      TINY_HELP="Optimize to smaller generated code, conflicts with 'speedy' (CFLAGS=$SMALL)"
 
@@ -820,7 +807,6 @@ optimization_menu(){
         "prelink"   "          +speed"  "$PRELINK"   "$PRELINK_HELP"   \
         "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
         "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
-        "static"    " ++size   +speed"  "$STATIC"    "$STATIC_HELP"    \
         "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
         "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"'`
   then
@@ -965,7 +951,7 @@ function gpg_download_menu() {
   local INT_TITLE="GnuPG Signature Checking Selection Menu"
   local INT_HELP="Enable/Disable GnuPG signature checking here"
   local SRY_HELP="Toggle sorcery gpg signature checking on sorcery update"
-  local GRM_HELP="This does nothing right now, but if it did, it would: Toggle grimoire gpg signature checking on scribe update"
+  local GRM_HELP="Toggle grimoire gpg signature checking on scribe update"
 
   if  CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"  \
                            --no-cancel            \
@@ -992,6 +978,172 @@ function gpg_download_menu() {
   fi
 }
 
+function vrf_select_hashes() {
+  local DIALOG_TITLE="Select the source hashes you would like to use"
+  local DIALOG_HELP="Select the source hashes you would like to consider valid hashes"
+  local DEFAULT_LIST=$(gpg_get_hashes)
+  local rc=0
+  local CHECKS=""
+  local check=""
+  local hash=""
+  local DIALOG_LIST=""
+  if [ -z "$DEFAULT_LIST" ] ; then
+    eval $DIALOG '--title "ERROR" \
+                  --msgbox        \
+                  "ERROR: gpg isn't installed or isn't in your PATH. Please cast gnupg." 20 20' &&
+    return 1
+  else
+    # move old values (named with GPG) to new ones
+    # this can be removed after 11/26/05 (afk -- 10/26/05)
+    if [[ -n "GPG_ALLOWED_HASHES" ]] ; then
+      VRF_ALLOWED_HASHES=$GPG_ALLOWED_HASHES
+      modify_config $LOCAL_CONFIG "VRF_ALLOWED_HASHES" "$VRF_ALLOWED_HASHES"
+    fi
+    if [[ -n "GPG_ALLOW_NEW_HASHES" ]] ; then
+      VRF_ALLOW_NEW_HASHES=$GPG_ALLOW_NEW_HASHES
+      modify_config $LOCAL_CONFIG "VRF_ALLOW_NEW_HASHES" "$VRF_ALLOW_NEW_HASHES"
+    fi
+    remove_config $LOCAL_CONFIG "GPG_ALLOWED_HASHES"
+    remove_config $LOCAL_CONFIG "GPG_ALLOW_NEW_HASHES"
+
+    while [[ "$rc" == "0" ]]
+    do
+      DIALOG_LIST=""
+      if [[ -z "$VRF_ALLOWED_HASHES" ]]
+      then
+        for hash in $DEFAULT_LIST
+        do
+          DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
+        done
+      else
+        for hash in $DEFAULT_LIST
+        do
+          if list_find "$VRF_ALLOWED_HASHES" "${hash}:on"
+          then
+            DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
+          else
+            DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was not selected' off "
+          fi
+        done
+      fi
+      if [[ "$VRF_ALLOW_NEW_HASHES" == "on" ]]
+      then
+        DIALOG_LIST="new 'Allow new hashes' on ${DIALOG_LIST}"
+      else
+        DIALOG_LIST="new 'Disallow new hashes' off ${DIALOG_LIST}"
+      fi
+      CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"          \
+                              --ok-label "Select"              \
+                              --cancel-label "Exit"            \
+                              --checklist "$DIALOG_HELP"       \
+                              0 0 0 ' \
+                              ${DIALOG_LIST})
+      rc="$?"
+      if [[ "$rc" == "0" ]]
+      then
+        VRF_ALLOWED_HASHES=""
+        CHECKS=${CHECKS//\"/}
+        if list_find "${CHECKS}" new
+        then
+          VRF_ALLOW_NEW_HASHES=on
+        else
+          VRF_ALLOW_NEW_HASHES=off
+        fi
+        for hash in ${DEFAULT_LIST}
+        do
+          if list_find "${CHECKS}" $hash
+          then
+            VRF_ALLOWED_HASHES="${VRF_ALLOWED_HASHES}${hash}:on "
+          else
+            VRF_ALLOWED_HASHES="${VRF_ALLOWED_HASHES}${hash}:off "
+          fi
+        done
+        modify_local_config VRF_ALLOWED_HASHES "${VRF_ALLOWED_HASHES}"
+        modify_local_config VRF_ALLOW_NEW_HASHES "${VRF_ALLOW_NEW_HASHES}"
+      fi
+    done
+  fi
+  return 0
+}
+
+function vrf_select_level()  {
+  local DIALOG_TITLE="Source Verification Level Checking"
+  local DIALOG_HELP="Select the minimum level for source verification"
+  local DIALOG_LIST=""
+  local CHECKS level
+  local rc=0
+
+  # move old values (named with GPG) to new ones
+  # this can be removed after 11/26/05 (afk -- 10/26/05)
+  if [[ -n "GPG_ALLOWED_LEVELS" ]] ; then
+    VRF_ALLOWED_LEVELS=$GPG_ALLOWED_LEVELS
+    modify_config $LOCAL_CONFIG "VRF_ALLOWED_LEVELS" "$VRF_ALLOWED_LEVELS"
+  fi
+  if [[ -n "GPG_ALLOW_NEW_LEVELS" ]] ; then
+    VRF_ALLOW_NEW_LEVELS=$GPG_ALLOW_NEW_LEVELS
+    modify_config $LOCAL_CONFIG "VRF_ALLOW_NEW_LEVELS" "$VRF_ALLOW_NEW_LEVELS"
+  fi
+  remove_config $LOCAL_CONFIG "GPG_ALLOWED_LEVELS"
+  remove_config $LOCAL_CONFIG "GPG_ALLOW_NEW_LEVELS"
+
+  while [[ "$rc" == "0" ]]
+  do
+    DIALOG_LIST=""
+    if [[ -z "$VRF_ALLOWED_LEVELS" ]]
+    then
+      for level in $VERIFY_SPELL_LEVELS
+      do
+        DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
+      done
+    else
+      for level in $VERIFY_SPELL_LEVELS
+      do
+        if list_find "$VRF_ALLOWED_LEVELS" "${level}:on"
+	then
+	  DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
+	else
+	  DIALOG_LIST="${DIALOG_LIST}${level} '${level} was not selected' off "
+	fi
+      done
+    fi
+    if [[ "$VRF_ALLOW_NEW_LEVELS" == "on" ]]
+    then
+      DIALOG_LIST="new 'Allow new levels' on ${DIALOG_LIST}"
+    else
+      DIALOG_LIST="new 'Disallow new levels' off ${DIALOG_LIST}"
+    fi
+    CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"     \
+                                            --ok-label "Select"         \
+                                            --cancel-label "Exit"       \
+                                            --checklist "$DIALOG_HELP"  \
+                                            0 0 0                       \
+                                            '${DIALOG_LIST})
+    rc="$?"
+    if [[ "$rc" == "0" ]]
+    then
+      VRF_ALLOWED_LEVELS=""
+      CHECKS=${CHECKS//\"/}
+      if list_find "${CHECKS}" new
+      then
+        VRF_ALLOW_NEW_LEVELS=on
+      else
+        VRF_ALLOW_NEW_LEVELS=off
+      fi
+      for level in ${VERIFY_SPELL_LEVELS}
+      do
+        if list_find "${CHECKS}" $level
+        then
+          VRF_ALLOWED_LEVELS="${VRF_ALLOWED_LEVELS}${level}:on "
+        else
+          VRF_ALLOWED_LEVELS="${VRF_ALLOWED_LEVELS}${level}:off "
+        fi
+      done
+      modify_local_config VRF_ALLOWED_LEVELS "${VRF_ALLOWED_LEVELS}"
+      modify_local_config VRF_ALLOW_NEW_LEVELS "${VRF_ALLOW_NEW_LEVELS}"
+    fi
+  done
+  return 0
+}
 
 integrity_menu()  {
 
@@ -1000,22 +1152,28 @@ integrity_menu()  {
   local FIX_HELP="Set cleanse --fix checks"
   local DL_HELP="Discover corrupted or modified archives during cast"
   local GPG_HELP="Verify GnuPG signatures on sorcery/grimoire tarballs"
+  local SGPG_HELP="Verify GnuPG signatures on spell source tarballs"
+  local HGPG_HELP="Verify GnuPG signatures with selected hashs"
 
-  while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"    \
-                           --cancel-label  "Exit"      \
-			   --ok-label      "Select"    \
-                           --item-help                 \
-                           --menu                      \
-                           "$INT_HELP"                 \
-                           0 0 0                       \
-        "F"  "System integrity"       "$FIX_HELP"      \
-        "D"  "Download integrity"     "$DL_HELP"       \
-        "G"  "GPG Signature Checking" "$GPG_HELP"'`
+  while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"     \
+                           --cancel-label  "Exit"              \
+			   --ok-label      "Select"            \
+                           --item-help                         \
+                           --menu                              \
+                           "$INT_HELP"                         \
+                           0 0 0                               \
+        "F"  "System integrity"               "$FIX_HELP"      \
+        "D"  "Download integrity"             "$DL_HELP"       \
+        "G"  "Sorcery GPG Signature Checking" "$GPG_HELP"      \
+        "S"  "Spell Source Verification Level Checking"   "$SGPG_HELP"     \
+        "M"  "Spell Source Hash List"            "$HGPG_HELP"'`
   do
     case $INT_CHECKS in
       F)  integrity_fix_menu       ;;
       D)  integrity_download_menu  ;;
       G)  gpg_download_menu  ;;
+      S)  vrf_select_level ;;
+      M)  vrf_select_hashes ;;
     esac
   done
 
@@ -1036,6 +1194,55 @@ that should receive reports from this box."  \
 
 }
 
+function service_defaults() {
+  local INSTALL_INIT_HELP="Install init.d scripts by default?"
+  local ENABLE_INIT_HELP="If an init.d script is being installed, also enable it by default?"
+  local INSTALL_XINETD_HELP="Install xinetd scripts by default?"
+  local ENABLE_XINETD_HELP="If an xinetd script is being installed, also enable it by default?"
+  local INIT_VS_XINETD="If both xinetd or init.d scripts exist, prefer xinetd over init.d?"
+  
+  local MENU_TITLE="Init.d/Xinetd Default Answer Selection Menu"
+  local MENU_INFO="Choose your defaults\nPer spell answers are remembered on recasts"
+  local RESULT RESULTS TMP i
+  if RESULTS=`eval $DIALOG '--item-help \
+                               --backtitle backtitle \
+                               --separate-output       \
+                               --title "$MENU_TITLE" \
+                               --checklist "$MENU_INFO" \
+                               0 0 0 \
+       "INSTALL_INIT"        "Install init.d scripts by default" \
+       "$DEF_INSTALL_INIT"   "$INSTALL_INIT_HELP" \
+       "ENABLE_INIT"         "Enable init.d scripts by default" \
+       "$DEF_ENABLE_INIT"    "$ENABLE_INIT_HELP" \
+       "INSTALL_XINETD"      "Install xinetd scripts by default" \
+       "$DEF_INSTALL_XINETD" "$INSTALL_XINETD_HELP" \
+       "ENABLE_XINETD"       "Enable xinetd scripts by default" \
+       "$DEF_ENABLE_XINETD"  "$INSTALL_XINETD_HELP" \
+       "INIT_VS_XINETD"      "Prefer xinetd over init.d" \
+       "$DEF_INIT_VS_XINETD" "$INIT_VS_XINETD"'`
+  then
+
+    TEMP=(DEF_INSTALL_INIT DEF_ENABLE_INIT DEF_INSTALL_XINETD DEF_ENABLE_XINETD DEF_INIT_VS_XINETD)
+    for i in ${TEMP[*]} ; do
+      eval $i=off
+    done
+
+    for RESULT in  $RESULTS;  do
+
+      case  $RESULT in
+          INSTALL_INIT) DEF_INSTALL_INIT=on   ;;
+           ENABLE_INIT) DEF_ENABLE_INIT=on    ;;
+        INSTALL_XINETD) DEF_INSTALL_XINETD=on ;;
+         ENABLE_XINETD) DEF_ENABLE_XINETD=on  ;;
+        INIT_VS_XINETD) DEF_INIT_VS_XINETD=on ;;
+      esac
+
+    done
+    for i in ${TEMP[*]} ; do
+      modify_local_config "$i" "${!i}"
+    done
+  fi
+}
 
 function parallel_compilation_menu() {
   local RESULTS KEY rc
@@ -1051,8 +1258,10 @@ function parallel_compilation_menu() {
                           23 70 9 \
                           DISTCC_HOSTS "$DISTCC_HOSTS" \
                           JOBS_PER_HOST "$JOBS_PER_HOST" \
-                          EXTRA_JOBS "$MAKE_NJOBS"'`)
+                          EXTRA_JOBS "$MAKE_NJOBS" \
+                          CCACHE_DIR "$CCACHE_DIR"'`)
     rc=$?
+
     [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
     set ${RESULTS[*]}
     KEY=$2
@@ -1061,6 +1270,7 @@ function parallel_compilation_menu() {
       DISTCC_HOSTS) DISTCC_HOSTS="$@"  ;;
       JOBS_PER_HOST) JOBS_PER_HOST="$@" ;;
       EXTRA_JOBS) MAKE_NJOBS="$@" ;;
+      CCACHE_DIR) CCACHE_DIR="$@" ;;
     esac
   done
 
@@ -1069,9 +1279,9 @@ function parallel_compilation_menu() {
     modify_config $LOCAL_COMPILE_CONFIG DISTCC_HOSTS "$DISTCC_HOSTS"
     modify_config $LOCAL_COMPILE_CONFIG JOBS_PER_HOST "$JOBS_PER_HOST"
     modify_config $LOCAL_COMPILE_CONFIG MAKE_NJOBS "$MAKE_NJOBS"
+    modify_config $LOCAL_COMPILE_CONFIG CCACHE_DIR "$CCACHE_DIR"
   fi
 }
-
 
 set_branch() {
 
@@ -1329,6 +1539,7 @@ feature_menu()  {
   local CI_HELP="Non-native installation / cross compilation"
   local ST_HELP="Set xterm title/screen window title on cast?"
   local UF_HELP="Ensure a sane environment before sorcery update"
+  local SCR_HELP="Toggle usage of screen in cast"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -1350,6 +1561,7 @@ STORE_CONF_LOG=${STORE_CONF_LOG:-off}
   CLEAN_SOURCE=${CLEAN_SOURCE:=off}
  CROSS_INSTALL=${CROSS_INSTALL:=off}
 SET_TERM_TITLE=${SET_TERM_TITLE:=off}
+        SCREEN=${SCREEN:-off}
 
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
@@ -1360,7 +1572,7 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
                         0 0 0                   \
       "ARCHIVE"        "Toggle"  "$ARCHIVE"        "$I_HELP"   \
       "AUTOFIX"        "Toggle"  "$AUTOFIX"        "$F_HELP"   \
-      "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"   \
+      "UPDATEFIX"      "Toggle"  "$UPDATEFIX"      "$UF_HELP"  \
       "AUTOPRUNE"      "Toggle"  "$AUTOPRUNE"      "$U_HELP"   \
       "CCACHE"         "Toggle"  "$CCACHE"         "$G_HELP"   \
       "COLOR"          "Toggle"  "$COLOR"          "$C_HELP"   \
@@ -1373,13 +1585,14 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "VIEW_REPORTS"   "Toggle"  "$VIEW_REPORTS"   "$R_HELP"   \
       "VOYEUR"         "Toggle"  "$VOYEUR"         "$V_HELP"   \
       "REAP"           "Toggle"  "$REAP"           "$E_HELP"   \
-      "STORE_CONF_LOG" "Toggle"  "$STORE_CONF_LOG" "$SCL_HELP"   \
+      "STORE_CONF_LOG" "Toggle"  "$STORE_CONF_LOG" "$SCL_HELP" \
       "NET_SELECT"     "Toggle"  "$NET_SELECT"     "$NS_HELP"  \
       "CLEAN_SOURCE"   "Toggle"  "$CLEAN_SOURCE"   "$CS_HELP"  \
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
-      "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"'`
+      "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"  \
+      "SCREEN"         "Toggle"  "$SCREEN"         "$SCR_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1408,11 +1621,12 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
         CLEAN_SOURCE)   CLEAN_SOURCE=on  ;;
        CROSS_INSTALL)  CROSS_INSTALL=on  ;;
       SET_TERM_TITLE) SET_TERM_TITLE=on  ;;
+              SCREEN)         SCREEN=on  ;;
       esac
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1438,7 +1652,7 @@ option_menu()  {
   local M_HELP="Select ftp and http mirrors for faster downloads"
   local O_HELP="Select architecture optimizations"
   local I_HELP="Select the test that cleanse --fix, and AUTOFIX execute"
-  local J_HELP="Enter the number of jobs 'make' should run at the same time"
+  local J_HELP="User defined defaults for depends following"
   local C_HELP="Setup distributed compilation"
   local R_HELP="Enter the maximum rate for downloading"
   local T_HELP="Select compression program for logs and archives"
@@ -1446,6 +1660,7 @@ option_menu()  {
   local U_HELP="Enter the permissions mask (umask value) to use for sorcery"
   local S_HELP="Sorcery development options (debugging)"
   local W_HELP="Enter maximum timeout (seconds) for summoning sources"
+  local X_HELP="Init.d/Xinetd Default Answer Selection Menu"
   local Z_HELP="Select sorcery sound scheme"
 
   while
@@ -1466,12 +1681,14 @@ option_menu()  {
                       "E"  "Email of Sorcerer"        "$E_HELP" \
                       "F"  "Feature Menu"             "$F_HELP" \
                       "I"  "Integrity Checking"       "$I_HELP" \
-                      "C"  "parallel/distribute compilation"  "$C_HELP" \
+                      "C"  "Parallel/Cached/Distributed Compiling"  "$C_HELP" \
+                      "J"  "Dependency Following"     "$J_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
                       "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
+                      "X"  "init.d xinetd.d defaults" "$X_HELP" \
                       "Z"  "Select Sound Scheme"      "$Z_HELP"'`
 
   do
@@ -1487,12 +1704,14 @@ option_menu()  {
       E)  set_email                 ;;
       F)  feature_menu              ;;
       I)  integrity_menu            ;;
+      J)  dispel_depends_defaults_menu ;;
       C)  parallel_compilation_menu ;;
       M)  mirror_menu               ;;
       O)  optimize_architecture     ;;
       S)  sorcery_devel_settings    ;;
       T)  set_compression_type      ;;
       W)  set_http_ftp_timeout      ;;
+      X)  service_defaults          ;;
       Z)  sound_schemes_menu        ;;
 
     esac
@@ -1700,6 +1919,41 @@ sorcery_remove_defaults () {
   remove_default_provider $DEFAULT_PROVIDERS "$@"
 }
 
+#---------------------------------------------------------------------
+#-item sorcery_queue_add <spells>
+##
+## Used for adding spells to install queue
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_queue_add() {
+  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  for SPELL in "$@"; do
+    grep -qE "^$SPELL\$" "$tINSTALL_QUEUE" || echo "$SPELL" >> "$tINSTALL_QUEUE"
+  done
+  lock_commit_transaction "$INSTALL_QUEUE"
+}
+
+#---------------------------------------------------------------------
+#-item sorcery_queue_remove <spells>
+##
+## Used for removing spells from install queue
+##
+## cli function
+#---------------------------------------------------------------------
+sorcery_queue_remove() {
+  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  for SPELL in "$@"; do
+    if grep -qE "^$SPELL\$" "$tINSTALL_QUEUE"; then
+      grep -vE "^$SPELL\$" "$tINSTALL_QUEUE" > "$TMP_DIR/tmp_queue"
+      mv "$TMP_DIR/tmp_queue" "$tINSTALL_QUEUE"
+    else
+      message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}$SPELL${PROBLEM_COLOR} not found in install queue!${DEFAULT_COLOR}"
+    fi
+  done
+  lock_commit_transaction "$INSTALL_QUEUE"
+}
+
 main() {
 
   rm  -f  $UPDATE_SCRIPT
@@ -1712,16 +1966,19 @@ main() {
      -s|system-update)  update_pkgs  autoupdate                 ;;
            -g|upgrade)  update_pkgs  upgrade                    ;;
              -q|queue)  update_queue                            ;;
-         review-queue)  install_queue_history                   ;;
+       queue-security)  update_security_queue                   ;;
            -r|rebuild)  rebuild                                 ;;
+         review-queue)  install_queue_history                   ;;
+            add-queue) shift; sorcery_queue_add "$@"            ;;
+         remove-queue) shift; sorcery_queue_remove "$@"         ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
                 exile) shift; set_exiled $@                     ;;
               unexile) shift; set_unexiled $@                   ;;
               default*) shift; sorcery_cli_defaults "$@"        ;;
 
-            -h|--help)  help                                    ;;
-         -v|--version)  echo $SORCERY_VERSION                   ;;
+       -h|--help|help)  help                                    ;;
+ -v|--version|version)  echo $SORCERY_VERSION                   ;;
                     *)  help                                    ;;
     esac
   fi
@@ -1741,10 +1998,10 @@ if  [  "$UID"  ==  0  ];  then
   cleanup_tmp_dir $TMP_DIR
   exit $rc
 else
-  if [[ $1 == -h ]] || [[ $1 == --help ]]; then 
+  if [[ $1 == -h ]] || [[ $1 == --help ]] || [[ $1 == help ]]; then 
     help
   else
-    if [[ $1 == -v ]] || [[ $1 == --version ]]; then
+    if [[ $1 == -v ]] || [[ $1 == --version ]] || [[ $1 == version ]]; then
       echo  $( cat /etc/sorcery/version )
     else
       echo  "Enter the root password, please."

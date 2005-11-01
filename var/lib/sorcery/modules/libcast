@@ -189,18 +189,33 @@ function query_services() {
     list_find $tmp $BOTH || list_add XINETD $tmp
   done
 
+  local d1 d2
   for tmp in $BOTH ; do
     message "${QUERY_COLOR}Would you like to install the init and/or" \
             "xinetd script for $tmp?${DEFAULT_COLOR}"
+
+    if [[ $DEF_INIT_VS_XINETD == on ]]; then
+      d1=$DEF_INSTALL_INIT; d2=n
+    else
+      d1=n; d2=$DEF_INSTALL_XINETD
+    fi
     dual_service_query $tmp choice "$XINETD_INSTALLED" "$XINETD_NOT_INSTALLED" \
-                                   "$INIT_INSTALLED" "$INIT_NOT_INSTALLED" n n
+                                   "$INIT_INSTALLED" "$INIT_NOT_INSTALLED" \
+                                   "$d1" "$d2"
     if [[ $choice == both ]] ; then
       list_add new_init_inst $tmp
       list_add new_xinetd_inst $tmp
       message "${QUERY_COLOR}Would you like to enable $tmp through init" \
               "and/or xinetd?${DEFAULT_COLOR}"
+
+      if [[ $DEF_INIT_VS_XINETD ]]; then
+        d1=$DEF_ENABLE_INIT; d2=n
+      else
+        d1=n;d2=$DEF_ENABLE_XINETD
+      fi
       dual_service_query $tmp choice "$XINETD_ENABLED" "$XINETD_DISABLED" \
-                                     "$INIT_ENABLED" "$INIT_DISABLED" n n
+                                     "$INIT_ENABLED" "$INIT_DISABLED" \
+                                     "$d1" "$d2"
 
       case $choice in
           both) list_add new_init_enab $tmp
@@ -220,14 +235,16 @@ function query_services() {
       list_add new_init_inst $tmp
       list_add new_xinetd_ninst $tmp
       if service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
-                          "$INIT_DISABLED" n new_init_enab new_init_disab; then
+                            "$INIT_DISABLED" "$DEF_ENABLE_INIT" \
+                             new_init_enab new_init_disab; then
         init_prepare_install "$tmp" "$INIT_PROVIDES" new_init_provides
       fi
     elif [[ $choice == xinetd ]] ; then
       list_add new_init_ninst $tmp
       list_add new_xinetd_inst $tmp
       service_query $tmp "Enable xinetd script $tmp?" "$XINETD_ENABLED" \
-                           "$XINETD_DISABLED" n new_xinetd_enab new_xinetd_disab
+                         "$XINETD_DISABLED" "$DEF_ENABLE_XINETD" \
+                         new_xinetd_enab new_xinetd_disab
     else
       list_add new_init_ninst $tmp
       list_add new_xinetd_ninst $tmp
@@ -244,18 +261,22 @@ function query_services() {
             "\nit is recommended that you answer yes to the following queries."
     fi
     if service_query $tmp "Install init script $tmp?" "$INIT_INSTALLED" \
-                     "$INIT_NOT_INSTALLED" n new_init_inst new_init_ninst; then
+                          "$INIT_NOT_INSTALLED" "$DEF_INSTALL_INIT" \
+                          new_init_inst new_init_ninst; then
       if service_query $tmp "Enable init script $tmp?" "$INIT_ENABLED" \
-                          "$INIT_DISABLED" n new_init_enab new_init_disab; then
+                            "$INIT_DISABLED" "$DEF_ENABLE_INIT" \
+                            new_init_enab new_init_disab; then
         init_prepare_install "$tmp" "$INIT_PROVIDES" new_init_provides
       fi
     fi
   done
   for tmp in $XINETD; do
     if service_query $tmp "Install xinetd script $tmp?" "$XINETD_INSTALLED" \
-                "$XINETD_NOT_INSTALLED" n new_xinetd_inst new_xinetd_ninst; then
+                          "$XINETD_NOT_INSTALLED" "$DEF_INSTALL_XINETD" \
+                          new_xinetd_inst new_xinetd_ninst; then
       service_query $tmp "Enable xinetd script $tmp?" "$XINETD_ENABLED" \
-                          "$XINETD_DISABLED" n new_xinetd_enab new_xinetd_disab
+                         "$XINETD_DISABLED" "$DEF_ENABLE_XINETD" \
+                         new_xinetd_enab new_xinetd_disab
     fi
   done
 
@@ -323,6 +344,11 @@ function dual_service_query() {
   local xinetd_default=$7
   local init_default=$8
 
+  [[ $xinetd_default == off ]] && xinetd_default=n
+  [[ $xinetd_default == on ]] && xinetd_default=y
+  [[ $init_default == off ]] && init_default=n
+  [[ $init_default == on ]] && init_default=y
+
   if list_find $service $XY ; then
     xinetd_default=y
   elif list_find $service $XN ; then
@@ -376,6 +402,8 @@ function service_query() {
   elif list_find $service $L2 ; then
     default=n
   else
+    [[ $real_default == off ]] && real_default=n
+    [[ $real_default == on ]] && real_default=y
     default=$real_default
   fi
 
@@ -597,9 +625,9 @@ function report_install()  {
 ## @param download log file name
 #---------------------------------------------------------------------
 function show_download_progress()  {
-
+  [[ $SCREEN_NAME ]] && return
   local download_log=$1
-  if  [  -f  "$download_log"   ]   &&
+  if  [  -e  "$download_log"   ]   &&
       [  -z  "$SILENT"  ];  then
 
     LC_OLD=${LC_OLD:-0}
@@ -631,7 +659,7 @@ function show_downloading()  {
 
   # poke around waiting for downloading to start
   while ! ( [[ $download_log ]] && 
-            [  -f "$download_log"  ] ) 
+            [  -e "$download_log"  ] ) 
   do
     sleep 1
   done
@@ -643,7 +671,6 @@ function show_downloading()  {
   done
   
   show_download_progress $download_log
-  rm $download_log $download_log.done
   debug "libcast" "Out of show_downloading"
 }
 

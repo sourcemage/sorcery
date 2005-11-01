@@ -23,6 +23,7 @@ rm -rf $SORCERY_LIBS
 
 SORCERY_INSTALL_LOG=$INSTALL_ROOT/etc/sorcery/install.log
 rm -f $SORCERY_INSTALL_LOG
+mkdir -p $(dirname $SORCERY_INSTALL_LOG)
 echo /etc/sorcery/install.log > $SORCERY_INSTALL_LOG
 
 
@@ -42,18 +43,21 @@ echo ${line}.gz
 done >> $SORCERY_INSTALL_LOG
 install__find_non_volatile usr/share/man | (
   while read DOC; do
+    # remove incorrectly installed manuals
+    rm -f $INSTALL_ROOT/${DOC/share\/}
     /usr/bin/install --owner=root --group=root --mode=644 -pD "${DOC}"    "${INSTALL_ROOT}/${DOC}"
     gzip  --best  -f "${INSTALL_ROOT}/${DOC}"
   done
 )
 
 # Install the GNU General Public License
-  /usr/bin/install --owner=root --group=root --mode=644 -pD "COPYING"   "${INSTALL_ROOT}/usr/doc/sorcery/COPYING"
-    echo /usr/doc/sorcery/COPYING >> $SORCERY_INSTALL_LOG
+mkdir -p  ${INSTALL_ROOT}/usr/share/doc
+/usr/bin/install --owner=root --group=root --mode=644 -pD "COPYING"   "${INSTALL_ROOT}/usr/share/doc/sorcery/COPYING"
+echo /usr/share/doc/sorcery/COPYING >> $SORCERY_INSTALL_LOG
 
 # Install the ChangeLog
-  /usr/bin/install --owner=root --group=root --mode=644 -pD "ChangeLog"   "${INSTALL_ROOT}/usr/doc/sorcery/ChangeLog"
-    echo /usr/doc/sorcery/ChangeLog >> $SORCERY_INSTALL_LOG
+/usr/bin/install --owner=root --group=root --mode=644 -pD "ChangeLog"   "${INSTALL_ROOT}/usr/share/doc/sorcery/ChangeLog"
+echo /usr/share/doc/sorcery/ChangeLog >> $SORCERY_INSTALL_LOG
 
 # Install the run_compiler script with the same names as gcc
 echo "Setting up build symlinks"

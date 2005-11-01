@@ -189,22 +189,6 @@ function install_pam_confs()  {
 }
 
 #---------------------------------------------------------------------
-## Checks for a TRIGGERS file in SCRIPT_DIRECTORY, and if it is
-## executable, runs it.
-#---------------------------------------------------------------------
-function run_triggers() {
-  debug "build_api/common" "Starting run_triggers() on $SPELL"
-
-  if    [  -x  $SCRIPT_DIRECTORY/TRIGGERS  ]
-  then
-    persistent_load
-    . $SCRIPT_DIRECTORY/TRIGGERS
-    persistent_save
-  fi
-
-}
-
-#---------------------------------------------------------------------
 ## Stuff that should be done if run_build_spell succeeds
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
@@ -255,6 +239,9 @@ function run_spell_success() {
       message  "${MESSAGE_COLOR}Creating tablet in directory"        \
                "${FILE_COLOR}${tablet_dir}${DEFAULT_COLOR}"
       tablet_install_spell_files $tablet_dir
+
+      # this data is now doubly stale, remove it
+      rm  -f $ABANDONED_PERSIST/$SPELL.p
     fi
 
     # install log
@@ -275,6 +262,9 @@ function run_spell_success() {
     create_md5list $TMP_INST_LOG $TMP_MD5_LOG
     log_adjuster $TMP_MD5_LOG $MD5_LOG root log md5_log_filter
 
+    # do this before cache archive creation (bug 8249)
+    rm_source_dir
+
     # cache archive
 
     # Archives are stored with INSTALL_ROOT and STATE_ROOT stripped.
@@ -283,7 +273,6 @@ function run_spell_success() {
     create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
-    rm_source_dir
     rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends
 }
 

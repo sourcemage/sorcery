@@ -35,54 +35,6 @@
 ##
 #---------------------------------------------------------------------
 
-
-#---------------------------------------------------------------------
-##=item url_dir_strip_prefix <url>
-# 
-# Private function.  Strips off the dir:/[//] prefix from dir urls
-#
-#---------------------------------------------------------------------
-function url_dir_strip_prefix() {
-  echo $1 | sed 's/^dir:\/\///' | sed 's/^dir://'
-}
-
-
-#---------------------------------------------------------------------
-##=item url_dir_download <url>
-## 
-## Copies the specified dir url.
-##
-#---------------------------------------------------------------------
-function url_dir_download() {
-
-  local DIRNAME=`url_dir_strip_prefix $1`
-
-  local S_FILE=`echo $SOURCE          | 
-                sed "s/\.tar\.gz$//"  |
-                sed "s/\.tgz$//"      |
-                sed "s/\.tar\.bz2$//"`
-  rm  -f  $S_FILE.tar.gz  $S_FILE.tgz  $S_FILE.tar.bz2
-
-  if  [  -d  "$DIRNAME"  ]; then
-
-    local S_DIR=`echo $SOURCE_DIRECTORY | sed "s#$BUILD_DIRECTORY/##"`
-    cp  -aR  $DIRNAME     $S_DIR  &&
-    tar  cf  $S_FILE.tar  $S_DIR  &&
-    rm  -rf  $S_DIR               &&
-    bzip2    $S_FILE.tar          &&
-    FILE=$S_FILE.tar.bz2          &&
-    echo  "Finished."
-
-  else
-
-    echo  "Failed."  &&
-    false
-
-  fi
-
-}
-
-
 #---------------------------------------------------------------------
 ##=item url_dir_verify <url>
 ## 
@@ -92,37 +44,11 @@ function url_dir_download() {
 #---------------------------------------------------------------------
 function url_dir_verify() {
 
-  DIRNAME=`url_dir_strip_prefix $1`
+  DIRNAME=`url_dir_crack $1`
   if  [  -n  "$DIRNAME"  ]; then
       [  -d  "$DIRNAME"  ]
   fi
 }
-
-#---------------------------------------------------------------------
-##=item url_dir_hostname <url>
-##
-## Assume that the directory is on localhost, someday this should
-## check to see if the directory is on a networked filesystem.
-##
-#---------------------------------------------------------------------
-function url_dir_hostname(){
-  echo localhost
-}
-
-#---------------------------------------------------------------------
-##=item url_dir_netselect <url>
-##
-## fake netselect data on the assumption that the data is on the
-## localhost
-##
-#---------------------------------------------------------------------
-function url_dir_netselect() {
-  local each
-  for each in $@; do
-    echo "0 $each"
-  done
-}
-
 
 #---------------------------------------------------------------------
 ##=back

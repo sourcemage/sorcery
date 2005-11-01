@@ -1,0 +1,402 @@
+#!/bin/bash
+#------------------------------------------------------------------------
+## @Synopsis Implements sorcery's dependency/trigger tree walking engine.
+##
+## @Copyright (C) 2005 The Source Mage Team <http://www.sourcemage.org>
+##
+## In the simple model, without triggers, we color graph nodes (spells)
+## white, and as we recursiely visit them, mark them grey. When all of
+## a spell's children have been visited, and successfully cast, we
+## cast the spell, and mark the node either black:0 or black:1 for success
+## or failure respectively. If a child fails we mark the current node
+## black:1 and return. In the case that we visit a child that is grey,
+## a dependency loop is detected, currently we ignore it and build the
+## tail spell anyway, in the future we could break optional depends and
+## cast some spell twice.
+##
+## The more complex model implemented below includes the above, but after
+## a spell builds (or fails), it colors itself brown and executes its triggers.
+## This is a little more complicated because there could be multiple
+## triggers on a single spell and cycles are frequent. If successful, the
+## spell marks each trigger as a 'pending trigger' . Then if that spell is
+## the last triggerer, the trigger is registered (possibly from another
+## spell), and the trigger is not grey (depends cycle, indicating it is
+## unsafe to cast the spell) the spell is cast in a special variant of the
+## above algorithm. The key difference is that if a grey node is encountered
+## (depends cycle), instead of breaking it, the spell gracefully backs
+## off and the trigger is left on the pending triggers list while other
+## triggers are executed. All the triggers for the spell are executed
+## similarly until there are no triggers left, or no progress is made. If
+## after all spells are cast there are still pending triggers they are
+## built at that point without the graceful cycle handling.
+##
+#------------------------------------------------------------------------
+
+
+#------------------------------------------------------------------------
+## This is the entry point for the dependency engine, it handles top level
+## tasks. It invokes the cast_engine on each requested spell and cleans
+## up any left-over pending triggers.
+#------------------------------------------------------------------------
+function depengine_entry_point() {
+  $STD_DEBUG
+  local spell_list=$1
+  local need_cast_list=$2
+  local spell pending_list spell_status rc
+  for spell in $(hash_get_table_fields dep_f_hash); do
+    dpgn_set_spell_color $spell white
+  done
+
+  for spell in $spell_list; do
+    spell_status=$(dpgn_get_spell_color $spell)
+    if [[ $spell_status != white ]] ; then
+      debug "libdepengine" "already did $spell"
+    else
+      depengine_cast_engine $spell
+    fi
+  done
+
+  pending_list=$(dpgn_get_all_pending_triggers)
+  while [[ $pending_list ]] ; do
+    for spell in $pending_list; do
+      if dpgn_is_pending_trigger_registered $spell; then
+        depengine_cast_engine $spell
+        rc=$?
+        [[ $rc == 1 ]] && dpgn_unregister_pending_trigger $spell
+      fi
+    done
+    pending_list=$(dpgn_get_all_pending_triggers)
+  done
+  return 0
+}
+
+#------------------------------------------------------------------------
+## Top level routine for executing a graph node
+## Builds the children, then itself, then executes triggers.
+##
+## @param Spell to cast
+## @param In trigger flag, default 0. If 1 and a depends loop exists
+##        back-off and fail gracefully.
+#------------------------------------------------------------------------
+function depengine_cast_engine() {
+  $STD_DEBUG
+  local spell=$1
+  local in_trigger=${2:-0}
+  local org_color=$(dpgn_get_spell_color $spell)
+  local rc
+
+  dpgn_set_spell_color $spell grey
+
+  recurse_depends $spell $in_trigger
+  rc=$?
+  if [[ $in_trigger != 0 ]] && [[ $rc == 2 ]] ; then
+    dpgn_set_spell_color $spell $org_color
+    return 2
+  fi
+
+  spell_status=$(dpgn_get_spell_color $spell)
+  if [[ $spell_status == grey ]] && [[ $rc == 0 ]] ; then
+    dpgn_cast_spell_front $spell
+    rc=$?
+  fi
+
+  dpgn_set_spell_color $spell brown
+
+  if [[ $rc == 0 ]] ; then
+    # if some other spell is going to trigger us *and* it is marked
+    # grey, this is a cycle involving triggers (yuck!)
+    # when that happens dont execute $spell's triggers
+    # because it will be re-triggered
+    local grey_trigerer=0
+    for trigerer in $(hash_get trg_r_hash cast_self:$spell); do
+      # note that $spell's status is grey
+      [[ $trigerer == $spell ]] && continue
+      child_status=$(hash_get state_hash $trigerer)
+      if [[ $child_status == grey ]] ; then
+         #[[ $child_status == brown ]] && [[ $org_color == brown ]] ; then
+        debug "libdepengine" "$spell has a $child_status trigerer on $trigerer!"
+        grey_trigerer=1
+        break
+      fi
+    done
+    if [[ $grey_trigerer == 0 ]] ; then
+      execute_triggers $spell 0
+    fi
+  else
+    # execute triggers that were delayed because of us
+    # despite the fact that we failed
+    execute_triggers $spell 1
+  fi
+  
+  dpgn_set_spell_color $spell black:$rc
+
+  return $rc
+}
+
+#------------------------------------------------------------------------
+## Iterative recursive step. Build each of the spell's dependencies.
+## @param Spell
+## @param In trigger flag (optional) if 1, then back off more readily in
+## the event of a dependency loop.
+## @global MINUS_K if set, then act like make -k and continue building
+## dependent spells even if another one fails.
+##
+#------------------------------------------------------------------------
+function recurse_depends() {
+  $STD_DEBUG
+  local spell=$1
+  local in_trigger=${2:-0}
+  local rc=0
+
+  for child in $(hash_get dep_f_hash $spell); do
+
+    # check if any of our dependencies failed while we weren't looking
+    # if one did, bail out, if MINUS_K is set then skip this and build
+    # everything we can
+    if ! [[ $MINUS_K ]] ; then
+      for _child in $(hash_get dep_f_hash $spell); do
+        if [[ $(dpgn_get_spell_color $_child) == black:1 ]] ; then
+          debug libdepengine "$spell already had a failed dep on $_child"
+          return 1
+        fi
+      done
+    fi
+
+    child_status=$(dpgn_get_spell_color $child)
+    case $child_status in
+      white)
+        tmp_rc=0
+        if list_find "$need_cast_list" $child; then
+          depengine_cast_engine $child $in_trigger
+          tmp_rc=$?
+          if [[ $tmp_rc != 0 ]] ; then
+            rc=$tmp_rc
+            [[ $MINUS_K ]] || break
+          fi
+        fi
+      ;;
+      grey)
+       if [[ $in_trigger != 0 ]] ; then
+         debug "libdepengine" "found grey depend from trigger $spell -> $child"
+         return 2
+       else
+         debug "libdepengine" "detected a dependency loop $spell -> $child"
+       fi
+      ;;
+      brown)
+        debug "libdepengine" "found brown depend $spell -> $child"
+      ;;
+      black:0)
+        debug "libdepengine" "$child already built properly, continuing"
+      ;;
+      black:1)
+        rc=1
+        [[ $MINUS_K ]] || break
+      ;;
+    esac
+  done
+  # build triggering spells, this helps keep the order
+  # its true however that most of the time, we'll also depend on the
+  # triggerer, this just catches those cases where we dont, but doesn't
+  # worry too much about a failure
+  for triggerer in $(hash_get trg_r_hash cast_self:$spell); do
+    trgrr_status=$(dpgn_get_spell_color $child)
+    if [[ "$trgrr_status" == "white" ]] ; then
+      if list_find "$need_cast_list" $child; then
+        depengine_cast_engine $child $in_trigger
+      fi
+    fi
+  done
+  return $rc
+}
+
+#------------------------------------------------------------------------
+## Attempt to run all this spell's triggers. Some triggers may not be
+## runable at this time, or it may be better to run them later.
+#------------------------------------------------------------------------
+function execute_triggers() {
+  $STD_DEBUG
+  local spell=$1
+  local failed=$2
+  local trigger rc
+  local trg_array trg_action trg_target stuff trg_color
+
+  function execute_triggers_sub() {
+    trigger=$1
+    explode "$trigger" : trg_array
+    trg_target=${trg_array[0]}
+    trg_action=${trg_array[1]}
+    # get the other spells that trigger this action
+    trg_color=$(dpgn_get_spell_color $trg_target)
+
+    # do trigger specific stuff, set needs_register to 1 if
+    # casting is needed
+    if [[ $failed == 0 ]]; then
+      local needs_register=""
+
+      if [[ $trg_action == cast_self ]] ; then
+        if ! [[ $CAST_PASS == three ]] ; then
+          message "${MESSAGE_COLOR}Queued cast_self on" \
+                  "${SPELL_COLOR}$trg_target${DEFAULT_COLOR}."
+        fi
+        needs_register=1
+      elif [[ $trg_action == check_self ]] ; then
+        if [[ $trg_color != brown ]] ; then
+          if [[ $CAST_PASS == three ]] ; then
+            needs_register=1
+          else
+            message "${MESSAGE_COLOR}Performing check_self on" \
+                    "${SPELL_COLOR}$trg_target${DEFAULT_COLOR}"
+            if cleanse --nofix_quick "$trg_target"; then
+              echo "${trg_target}" >> $CHECK_TRIGGERS_SUCCESS
+            else
+              echo "${trg_target}" >> $CHECK_TRIGGERS_FAILURE
+              needs_register=1
+            fi
+          fi
+        fi
+      elif [[ $CAST_PASS != three ]] ; then
+        # run any other trigger besides the two above
+        # but not if we're summoning
+        local action=cast
+        do_trigger "$spell:on_cast:$trg_target:$trg_action"
+      fi
+
+      # a brown trigger is a loop, drop it
+      if [[ $needs_register ]] && [[ $trg_color != brown ]] ; then
+        dpgn_register_pending_trigger $trg_target
+      fi
+    fi
+
+    # if there are no white triggerers, we are the last triggerer
+    local last=1
+    local triggerers=$(hash_get trg_r_hash $trg_target:$trg_action)
+    for triggerer in $triggerers; do
+      [[ $triggerer == $spell ]] && continue
+      if [[ $(dpgn_get_spell_color $triggerer) == white ]] ; then
+        last=0
+        break
+      fi
+    done
+
+    # decide if the trigger should be executed
+    if [[ $last == 1 ]] &&
+          dpgn_is_pending_trigger_registered $trg_target &&
+          [[ $trg_color != grey ]] ; then
+      list_add stuff $trg_target
+    fi
+  }
+  iterate execute_triggers_sub $'\n' "$(hash_get trg_f_hash $spell)"
+
+  local curr_list=$stuff
+  local prev_list=""
+  local item
+  # execute triggers, so may not be executable so delay them and try
+  # again. Give up when there are no triggers left, or no progress
+  # is made. Left-over triggers are cleaned up at the end.
+  while [[ $curr_list ]] && [[ "$curr_list" != "$prev_list" ]] ; do
+    prev_list="$curr_list"
+    for item in $prev_list; do
+      if dpgn_is_pending_trigger_registered $item; then
+        depengine_cast_engine $item 1
+        rc=$?
+        if [[ $rc == 2 ]] ; then
+          list_add curr_list $item
+        fi
+      fi
+    done
+  done
+  return 0
+}
+
+### helpers ####
+#------------------------------------------------------------------------
+## frontend to cast spells, unregisters pending triggers if any
+#------------------------------------------------------------------------
+function dpgn_cast_spell_front() {
+  if ! [[ $CAST_PASS ]] ; then
+    message "ERROR: Missing cast pass variable!!"
+    exit 1
+  fi
+
+  [[ $COMPILE ]] && args="-c "
+
+  if [[ $CAST_PASS == three ]] ; then
+    # pass four can finish first if there are triggers that aren't run
+    # or spells fail.
+    if test -f $TMP_DIR/pass_four.done; then
+      message "Pass four completed! bailing out!!!"
+      # we're in a seperate bash subshell, exiting here is okay
+      exit
+    fi
+    bash $SAFE_CAST $args $1 &>/dev/null
+  else
+    bash $SAFE_CAST $args $1
+  fi
+  local rc=$?
+
+  dpgn_unregister_pending_trigger $1
+  return $rc
+}
+
+#------------------------------------------------------------------------
+## set the spell color
+#------------------------------------------------------------------------
+function dpgn_set_spell_color() {
+  hash_put state_hash $1 $2
+}
+#------------------------------------------------------------------------
+## get the spell color
+#------------------------------------------------------------------------
+function dpgn_get_spell_color() {
+  hash_get state_hash $1
+}
+
+#------------------------------------------------------------------------
+## Mark this spell as a pending trigger
+#------------------------------------------------------------------------
+function dpgn_register_pending_trigger() {
+  hash_put pending_triggers $1 1
+}
+
+#------------------------------------------------------------------------
+## determine if a trigger is pending or not
+#------------------------------------------------------------------------
+function dpgn_is_pending_trigger_registered() {
+  [[ $(hash_get pending_triggers $1) == 1 ]]
+}
+
+#------------------------------------------------------------------------
+## mark spell as no longer needing a trigger
+#------------------------------------------------------------------------
+function dpgn_unregister_pending_trigger() {
+  hash_unset pending_triggers $1
+}
+
+#------------------------------------------------------------------------
+## return all the pending triggers
+#------------------------------------------------------------------------
+function dpgn_get_all_pending_triggers() {
+  hash_get_table_fields pending_triggers
+}
+
+#------------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#------------------------------------------------------------------------

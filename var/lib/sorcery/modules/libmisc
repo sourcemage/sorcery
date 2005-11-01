@@ -60,6 +60,28 @@ function real_sedit()  {
   sed -i "$1" "$2"
 }
 
+#---------------------------------------------------------------------
+## @Type API
+## @param string to check
+##
+## Argument is a string to check if the string contains all digits or
+## not
+#--------------------------------------------------------------------
+function isdigit() {
+	echo $1 | grep '[[:digit:]]+' >> /dev/null 2>&1 &&
+	return 0
+}
+
+#--------------------------------------------------------------------
+## @Type API
+## @param string to check
+##
+## Argumtemt is a string to check if it contains all chars a-zA-Z
+#--------------------------------------------------------------------
+function isalpha() {
+	echo $1 | grep '[[:alpha:]]+' >> /dev/null 2>&1 &&
+	return 0
+}
 
 #---------------------------------------------------------------------
 ## @Type API
@@ -72,7 +94,9 @@ function real_sedit()  {
 ## Asks the user a yes/no question.  First argument is the question to
 ## ask, second argument is the default answer.  If a timeout occurs
 ## before the question is answered, the given default answer is 
-## applied.  Returns true or false based on the answer given.
+## applied. Pressing spacebar or enter applies the default answer
+## immediatelly without waiting for timeout.
+## Returns true or false based on the answer given.
 ##
 #---------------------------------------------------------------------
 function real_query()  { (
@@ -101,16 +125,47 @@ function real_query()  { (
 
 ) }
 
+#---------------------------------------------------------------------
+## @param return_var
+## @param question
+## @param default answer
+##
+## @return 0 user supplied answer
+## @return 1 default answer is used
+##
+## Asks user for string, with default answer and timeout (like query)
+##
+#---------------------------------------------------------------------
+function real_query_string () {
+  
+    debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
+    
+    local RESPONSE=""
+    local RETURN=0
+    
+    local DEFAULT=""
+    [ -n "$3" ] && DEFAULT=" [$3] "
+    
+    if [ -z "$SILENT" ]; then
+        echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
+        read -t $PROMPT_DELAY RESPONSE
+    fi
+  
+    [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
+    
+    eval $1=\"${RESPONSE}\"
+    return $RETURN
+}
+
+
 
 #---------------------------------------------------------------------
 ## @Type API
 ## @param message to echo
 ## @Stdout message
 ## echo's the given arguments if SILENT is not set.
-##
 #---------------------------------------------------------------------
 function real_message()    {
-
   if  [  !  -n  "$SILENT"  ];  then
     if  [  "$1"  ==  "-n"  ];  then
       shift  1
@@ -137,10 +192,14 @@ function debug()  {
   [[ $DEBUG ]] || return 0
   
   local debugVar="DEBUG_${1}"
+  local i
   if [[ ${!debugVar} != "no" ]] ; then
     echo -n "$1($$): " >>$DEBUG
     shift
-    echo $* >>$DEBUG
+    for i in "$@" ; do
+      echo -n " \"$i\"" >>$DEBUG
+    done
+    echo >>$DEBUG
   fi
 
   true
@@ -331,33 +390,6 @@ function consolidate_params() {
 }
 
 #---------------------------------------------------------------------
-## @param Yes, there is a parameter.. 
-## @Stdout wheee, even output.
-## Dunno what that one does..
-#---------------------------------------------------------------------
-function parent_PIDs()
-{
-  
-  local pid ppid
-  
-  pid="$1"
-  if [[ $1 ]] ; then
-    pid=$1
-  else
-    pid="$$"
-    echo $$
-  fi
-  
-  if [[ $pid == 0 ]] || ! [ -e /proc/$pid/status ] ; then return 0; fi
-  
-  ppid=`grep "^PPid:" /proc/$pid/status | cut -f 2`
-  echo $pid
-  parent_PIDs $ppid
-
-}
-
-
-#---------------------------------------------------------------------
 ## @Stdin directories.
 ## @Stdout directories' basenames
 ## Takes newline separated list of directories
@@ -395,7 +427,7 @@ function get_dirnames() {
 ##  $3 is optional, when it isn't used, 
 ##  stdin is used and only the first letter in $2 is used. Note, using stdin
 ##  can have odd side effects when your function uses read and stdin itself.
-#3
+##
 ## Special vars: 
 ##  BREAK: Use this to break out of the loop prematurely, also causes a return of 1.
 ##
@@ -408,7 +440,7 @@ function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
 #  debug "libmisc" "iterate - $@"
   
-  [ $# -lt 3 ] && return 2
+  [ $# -lt 2 ] && return 2
   
   local oldIFS="$IFS"
   local token
@@ -430,7 +462,7 @@ function iterate()
       eval "$func \"$token\""
       [[ $BREAK ]] && break
     done
-    echo "leftover token: $token" >> $DEBUG
+#   debug "leftover token: $token"
   fi
   
   returnValue=$?
@@ -440,49 +472,8 @@ function iterate()
 }
 
 #---------------------------------------------------------------------
-## not yet implemented
-#---------------------------------------------------------------------
-function cache_env() 
-{
-
-	debug "libmisc" "Storing environment for $1 in $2"
-	echo "function ${1}_env()" >> $2
-	echo "{" >> $2
-
-	local exp_vars=`export | sed 's/declare -x //' | cut -d= -f1`
-	local set_vars=`set | \
-		awk 'BEGIN {funcs=0;} /^[^=]*[[:blank:]]/{funcs=1;} {if(funcs==0) print $0;}' | cut -d= -f1`
-	local special_vars=`echo -e "BASH\nBASH_VERSINFO\nBASH_VERSION\nCOLUMNS\nDIRSTACK\nEUID
-FUNCNAME\nGROUPS\nHISTFILE\nHISTFILESIZE\nHISTSIZE\nHOSTNAME\nHOSTTYPE\nIFS\nLINES\nMACHTYPE
-MAILCHECK\nOPTERR\nOPTIND\nOSTYPE\nPATH1\nPATH2\nPATH3\nPATH4\nPIPESTATUS\nPPID\nPS2
-PS4\nSHELLOPTS\nUID\n_"`
-	local vars_to_cache=`{ echo "$exp_vars" ; echo "$special_vars" ; echo "$set_vars" ; echo "$set_vars" ; echo "$set_vars"; } | \
-		sort | uniq -c | awk '$1=3{print $2;}' | egrep -v '^([[:punct:]]*|.*COLOR.*)$'`
-	
-	for i in $vars_to_cache ; do
-		echo ${i}"='${!i}'" >> $2
-	done
-	
-	echo "}" >> $2
-	less $2
-	echo "Check it."
-	read
-	
-}
-#---------------------------------------------------------------------
-## not yet implemented
-#---------------------------------------------------------------------
-function restore_env()
-{
-	debug "libmisc" "Restoring env for $1 from $2"
-	. $2
-	${1}_env 2>/dev/null
-	
-}
-
-#---------------------------------------------------------------------
-## @param default choice
 ## @param return_var (must not be i, foo, temp, returnvar, or default)
+## @param default choice
 ## @param elements, ..
 ## 
 ## gives the user some nice select list and puts the selected
@@ -607,11 +598,35 @@ function real_list_find () {
     shift
 
     for i in $@; do
-        eval "echo \" $input \" | grep -qE -e \"[[:space:]]$i[[:space:]]\" && return 0"
+        eval "echo \" $input \" | grep -q -e \"[[:space:]]$i[[:space:]]\" && return 0"
     done
     return 1
 }
 
+#---------------------------------------------------------------------
+## @param spell
+## @param variable to read
+## @param variable name
+##
+## finds the persistent var for spell and sets variable name to the value
+## of the variable to read
+##
+#---------------------------------------------------------------------
+function real_persistent_read() {
+  local exfile pfile tb_dir
+  local varin=$2
+  local varout=$3
+  tablet_find_spell_dir $1 tb_dir  || return 2
+  tablet_get_spell_file $tb_dir EXPORTS exfile || return 4
+  tablet_get_persistent_config $tb_dir pfile || return 3
+  if grep -q "^${varin}$" $exfile
+  then
+    eval "$3="'$( . "$pfile" && echo "${!varin}" )'
+  else
+    return 1
+  fi &&
+  return 0
+}
 
 #---------------------------------------------------------------------
 ## @param variables, ...
@@ -623,7 +638,10 @@ function real_persistent_add () {
   if [[ $PROTECT_SORCERY ]] ; then
     for each in "$@" ; do
       if is_sorcery_var $each; then
-        complain_sorcery_var $each
+        # complain, but not if we're persistent loading, bug 9416
+        if ! [[ $PERSISTENT_LOADING ]] ; then
+          complain_sorcery_var $each
+        fi
       else
         list_add PERSISTENT_VARIABLES $each
       fi
@@ -650,10 +668,12 @@ function real_persistent_remove () {
 ##
 #---------------------------------------------------------------------
 function real_persistent_load () {
-    if [ -f "$SPELL_CONFIG.p" ]; then
-        . "$SPELL_CONFIG.p"
+    local PERSISTENT_LOADING=yes
+    local PERSISTENT_FILE=${1:-$SPELL_CONFIG.p}
+    if [ -f "$PERSISTENT_FILE" ]; then
+        . "$PERSISTENT_FILE"
         local line
-        persistent_add `while read line; do echo ${line%%=*}; done < "$SPELL_CONFIG.p"`
+        persistent_add `while read line; do echo ${line%%=*}; done < "$PERSISTENT_FILE"`
     fi
 }
 
@@ -692,38 +712,6 @@ function real_persistent_clear () {
 }
 
 
-#---------------------------------------------------------------------
-## @param return_var
-## @param question
-## @param default answer
-##
-## @return 0 user supplied answer
-## @return 1 default answer is used
-##
-## Asks user for string, with default answer and timeout (like query)
-##
-#---------------------------------------------------------------------
-function real_query_string () {
-  
-    debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
-    
-    local RESPONSE=""
-    local RETURN=0
-    
-    local DEFAULT=""
-    [ -n "$3" ] && DEFAULT=" [$3] "
-    
-    if [ -z "$SILENT" ]; then
-        echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
-        read -t $PROMPT_DELAY RESPONSE
-    fi
-  
-    [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
-    
-    eval $1=\"${RESPONSE}\"
-    return $RETURN
-}
-
 
 #---------------------------------------------------------------------
 ## @param config file variable
@@ -747,9 +735,11 @@ function real_query_string () {
 #    return 0
 #}
 function config_get_option () {
-  if is_sorcery_var $1; then
-    complain_sorcery_var $1
-    return 1
+  if [[ $PROTECT_SORCERY ]] ; then
+    if is_sorcery_var $1; then
+      complain_sorcery_var $1
+      return 1
+    fi
   fi
 
   # afrayedknot hates variable leakage
@@ -762,6 +752,53 @@ function config_get_option () {
     eval "unset \"$1\""
     return 1
   fi
+}
+
+#---------------------------------------------------------------------
+## @param Name of variable
+## @param return variable
+##
+## @return 0 if the variable could be found, 1 if no old persistent file
+##         exists.
+##
+## Get value of a persistent variable from the previous cast when
+## there is a -r. The persistent data moves to a seperate directory
+## when cast -r is run, this makes the new persistent config clean
+## but allows us to provide the user defaults from the last cast.
+#---------------------------------------------------------------------
+function config_get_last_option() {
+  if [[ $PROTECT_SORCERY ]] ; then
+    if is_sorcery_var $1; then
+      complain_sorcery_var $1
+      return 1
+    fi
+  fi
+
+  local pfile
+  if test -f $ABANDONED_PERSIST/$SPELL.p; then
+    pfile=$ABANDONED_PERSIST/$SPELL.p
+  # leave this out for now until theres a way to disable it
+  # having it enabled will make it difficult to get back to the true defaults
+  #else
+  #  local tb_dir
+  #  tablet_find_spell_dir $SPELL tb_dir &&
+  #  tablet_get_persistent_config $tb_dir pfile || return 1
+  fi
+
+  local foo
+  if [[ $pfile ]] ; then
+    foo=$(
+      persistent_load $pfile
+      if real_list_find $1 $PERSISTENT_VARIABLES; then
+        eval "echo \"\$$1\""
+      fi
+    )
+  else
+    return 1
+  fi
+
+  eval "$2=\"\$foo\""
+  return 0
 }
 
 
@@ -804,8 +841,12 @@ function real_config_query () {
         # already have a reasonable value...
         [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
     fi
-  
-    if query "$2" $3; then
+
+    local default
+    config_get_last_option "$1" default
+    [[ $default ]] || default="$3"
+
+    if query "$2" "$default"; then
         config_set_option "$1" y
     else
         config_set_option "$1" n
@@ -831,7 +872,7 @@ function real_config_query () {
 ## Return variable is also marked as persistent
 #---------------------------------------------------------------------
 function real_config_query_option () {
-    local ANSWER
+    local ANSWER key
   
     # If the option exists
     # If the option contains option_yes or option_no
@@ -842,13 +883,19 @@ function real_config_query_option () {
         list_find "$ANSWER" $4 && key=y
         list_find "$ANSWER" $5 && key=n
 
-        if [ $key != error ]; then
+        if [[ "$key" ]]; then
             echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
             return 0
         fi
     fi
+
+    local last_answer default=$3
+    config_get_last_option "$1" last_answer
+    # Find out if the option was 'y' or 'n'
+    list_find "$last_answer" $4 && default=y
+    list_find "$last_answer" $5 && default=n
   
-    if query "$2" $3; then
+    if query "$2" "$default"; then
         list_add ANSWER $4
     else
         list_add ANSWER $5
@@ -877,7 +924,10 @@ function real_config_query_string () {
         # option allready answered in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
     else
-        query_string ANSWER "$2" "$3"
+        local default
+        config_get_last_option "$1" default
+        [[ $default ]] || default="$3"
+        query_string ANSWER "$2" "$default"
         config_set_option "$1" "$ANSWER"
     fi
     return 0
@@ -914,9 +964,22 @@ function real_config_query_list () {
     )
     echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
   else
+    # if there was an answer before, find it
+    local default default_num=0 foo
+    config_get_last_option "$VARIABLE" default
+    [[ $default ]] || default="$1"
+    let i=0
+    for foo in "$@"; do
+      if [[ "$foo" == "$default" ]] ; then
+        default_num=$i
+        break
+      fi
+      let i++
+    done
+
     # we have to ask user
     message "$QUESTION"
-    select_list ANSWER 0 "$@"
+    select_list ANSWER ${default_num} "$@"
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 
@@ -924,6 +987,47 @@ function real_config_query_list () {
   return 0
 }
 
+#---------------------------------------------------------------------
+## Output a list of source numbers associated with the current spell.
+## This is the number portion of SOURCE[[:digit:]], eg '', "2", "3", etc.
+## A prefix may be given and it will be prepended to each result value.
+#---------------------------------------------------------------------
+function real_get_source_nums() {
+  local foo
+  compgen -v SOURCE |
+  grep '^SOURCE[[:digit:]]*$'|sort|uniq|
+  while read foo; do echo "${1}${foo/SOURCE/}"; done
+}
+
+function get_spell_files() {
+  for src in $(real_get_source_nums SOURCE); do
+    echo ${!src}
+  done
+}
+
+
+#---------------------------------------------------------------------
+## misc_is_function <function name>
+## @param function name
+## @return 0 if argument is a valid function
+## @return 1 otherwise
+## Returns true if input argument is the name of an
+## existing function, false otherwise.
+##
+#---------------------------------------------------------------------
+function misc_is_function()  {
+  local  FUNCTION_NAME=$1
+  [  "`type -t $FUNCTION_NAME`"  =  "function"  ]
+}
+
+
+#---------------------------------------------------------------------
+## Remove files listed and any directories which become empty after
+## subsequent file removal.
+##
+## @param Filename to read as input, a pipe may not be used.
+## @param Base directory to remove directories up to (usually $INSTALL_ROOT)
+#---------------------------------------------------------------------
 function remove_files_and_dirs() {
     cat $1 | while read file; do
       test -d $file || rm -f $file
@@ -1029,6 +1133,10 @@ function smgl_which() {
       BREAK=yes
     fi
   }
+	if [ -z "$1" -o -z "$2" ]; then
+		echo "smgl_which: Not enough arguments"
+		return 1
+	fi
   location=$(iterate smgl_which_sub : "$PATH")
   if [[ "$location" ]]  ; then
     eval "$2=$location"
@@ -1091,7 +1199,7 @@ function cleanup_tmp_dir() {
 ## someone will forget and start using it in places that arent safe...
 #---------------------------------------------------------------------
 function is_sorcery_var() {
-  local vars="TOP_LEVEL DISPLAY PATH RM_AT_END TMP_DIR SAFE_CAST \
+  local vars="TOP_LEVEL DISPLAY PATH TMP_DIR SAFE_CAST \
   FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY \
   CAST_PASS download_log IW_LOG OPTS SOLO QUIET INSTALL_QUEUE \
   OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS \
@@ -1122,6 +1230,113 @@ function complain_sorcery_var() {
           "YOU CONTINUE."
   message "\n\nPLEASE REPORT A BUG IMMEDIATLY!!${DEFAULT_COLOR}\n\n"
 }
+
+#-------------------------------------------------------------------
+## @param (optional) Architecture to use
+## Sets the SPECFILE glocal variable and the SMGL_COMPAT_ARCHS global array
+## SPECFILE contains the compiler and other arch specifications
+## SMGL_COMPAT_ARCHS is an array that holds architectures which are compatible 
+## with the desired architecture. The desired architecture is determined as 
+## follows:
+## 1) If function is gien an argument, the argument is used, or
+## 2) If cross-install is on, the TARGET architecture is used, or
+## 3) The local ARCHITECTURE is used
+##
+## The least specific arch is in SMGL_COMPAT_ARCHS[0], 
+## SMGL_COMPAT_ARCHS[1] is more specific, et cetera. For example:
+## desired architecture="athlon-xp" might result in:
+## SPECFILE=/usr/share/archspecs/ia32/amd/athlon-xp
+## SMGL_COMPAT_ARCHS=("ia32" "amd" "athlon-xp")
+##
+## ARCHITECTURE is also modified to be an array, the reverse of 
+## SMGL_COMPAT_ARCHS. The result is an array from most specific arch to least
+## specific. $ARCHITECTURE does not change meaning since $A == ${A[0]}.
+#-------------------------------------------------------------------
+function set_architecture() {
+
+  $STD_DEBUG
+  local specdir
+  local i j
+  unset SPECFILE
+
+  # If given an argument, treat as the architecture to use
+  local arch=${1}
+  
+  # If no arch is specified, see if this is a cross-install, if so, set arch to 
+  # the target arch
+  if  [[ ! $arch ]] &&
+      [[ $CROSS_INSTALL == on ]] &&
+      [[ $TARGET ]]
+  then
+    debug "libmisc" "set_architecture: using cross-install's target arch"
+    arch=${arch:-$TARGET}
+  fi
+  
+  # If no arch given and this isn't a cross-install, then default to the ARCHITECTURE var
+  if ! [[ $arch ]] ; then
+    arch=$ARCHITECTURE
+  fi
+  
+  # Find the specfile to use
+  local find_compat=0
+  find --version|grep -q 'version 4\.1\.' && find_compat=1
+  for specdir in ${ARCH_SPECS[@]} ; do
+    if [[ $find_compat == 1 ]] ; then
+      # older find still exists run in slower compatibility mode
+      SPECFILE=$(find ${specdir} -perm -400 -type f -name "$arch" -print 2>/dev/null)
+    else
+      # -L so symlinks work, -type f so it won't match dirs, -quit so it
+      # stops searching when it finds the answer
+      SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "$arch" -print -quit 2>/dev/null)
+    fi
+    [ $SPECFILE ] && break
+  done
+  if [[ ! $SPECFILE ]] ; then 
+    message "${PROBLEM_COLOR}Cannot find arch spec for $arch!"
+    return 1
+  fi
+  debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
+  
+  # turn the path into an array, but remove $specdir from the start first
+  unset SMGL_COMPAT_ARCHS 
+  explode "${SPECFILE#$specdir/}" '/' SMGL_COMPAT_ARCHS
+
+    unset ARCHITECTURE
+    # Reverse the array so that the most specific arch is first
+    j=0
+    for(( i=${#SMGL_COMPAT_ARCHS[@]}-1; i>=0; i--)) ; do
+      ARCHITECTURE[j++]=${SMGL_COMPAT_ARCHS[i]}
+    done
+    
+    source "$SPECFILE"
+}
+
+#---------------------------------------------------------------------
+## @param Function body
+## @param Function name
+## @param (optional) Function name
+## @param ...
+## Creates functions with identical bodies. It is useful if you need 
+## to override a bunch of functions which have already been defined.
+#--------------------------------------------------------------------- 
+function define_functions() {
+  local funcName
+  local funcContent="$1"
+  shift
+  for funcName in $* ; do
+    debug "libmisc" "define_functions - redefining $funcName"
+    eval "function $funcName () { \
+      $funcContent \
+    }"
+  done
+}
+
+# Standard debug line:
+# file "function@line" "all" "args"
+STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ; 
+  _stddbg_file=${_stddbg_file##*/};
+  debug "${_stddbg_file}" "${FUNCNAME[0]}@$LINENO" "$@"'
+
 
 #---------------------------------------------------------------------
 ## @License
