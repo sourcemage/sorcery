@@ -995,73 +995,68 @@ function vrf_select_hashes() {
   else
     # move old values (named with GPG) to new ones
     # this can be removed after 11/26/05 (afk -- 10/26/05)
-    if [[ -n "GPG_ALLOWED_HASHES" ]] ; then
+    if [[ -n "$GPG_ALLOWED_HASHES" ]] ; then
       VRF_ALLOWED_HASHES=$GPG_ALLOWED_HASHES
       modify_config $LOCAL_CONFIG "VRF_ALLOWED_HASHES" "$VRF_ALLOWED_HASHES"
     fi
-    if [[ -n "GPG_ALLOW_NEW_HASHES" ]] ; then
+    if [[ -n "$GPG_ALLOW_NEW_HASHES" ]] ; then
       VRF_ALLOW_NEW_HASHES=$GPG_ALLOW_NEW_HASHES
       modify_config $LOCAL_CONFIG "VRF_ALLOW_NEW_HASHES" "$VRF_ALLOW_NEW_HASHES"
     fi
     remove_config $LOCAL_CONFIG "GPG_ALLOWED_HASHES"
     remove_config $LOCAL_CONFIG "GPG_ALLOW_NEW_HASHES"
 
-    while [[ "$rc" == "0" ]]
-    do
-      DIALOG_LIST=""
-      if [[ -z "$VRF_ALLOWED_HASHES" ]]
-      then
-        for hash in $DEFAULT_LIST
-        do
-          DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
-        done
-      else
-        for hash in $DEFAULT_LIST
-        do
-          if list_find "$VRF_ALLOWED_HASHES" "${hash}:on"
-          then
-            DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
-          else
-            DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was not selected' off "
-          fi
-        done
-      fi
-      if [[ "$VRF_ALLOW_NEW_HASHES" == "on" ]]
-      then
-        DIALOG_LIST="new 'Allow new hashes' on ${DIALOG_LIST}"
-      else
-        DIALOG_LIST="new 'Disallow new hashes' off ${DIALOG_LIST}"
-      fi
-      CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"          \
-                              --ok-label "Select"              \
-                              --cancel-label "Exit"            \
-                              --checklist "$DIALOG_HELP"       \
-                              0 0 0 ' \
-                              ${DIALOG_LIST})
-      rc="$?"
-      if [[ "$rc" == "0" ]]
-      then
-        VRF_ALLOWED_HASHES=""
-        CHECKS=${CHECKS//\"/}
-        if list_find "${CHECKS}" new
+    DIALOG_LIST=""
+    if [[ -z "$VRF_ALLOWED_HASHES" ]]
+    then
+      for hash in $DEFAULT_LIST
+      do
+        DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
+      done
+    else
+      for hash in $DEFAULT_LIST
+      do
+        if list_find "$VRF_ALLOWED_HASHES" "${hash}:on"
         then
-          VRF_ALLOW_NEW_HASHES=on
+          DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was selected' on "
         else
-          VRF_ALLOW_NEW_HASHES=off
+          DIALOG_LIST="${DIALOG_LIST}${hash} '${hash} was not selected' off "
         fi
-        for hash in ${DEFAULT_LIST}
-        do
-          if list_find "${CHECKS}" $hash
-          then
-            VRF_ALLOWED_HASHES="${VRF_ALLOWED_HASHES}${hash}:on "
-          else
-            VRF_ALLOWED_HASHES="${VRF_ALLOWED_HASHES}${hash}:off "
-          fi
-        done
-        modify_local_config VRF_ALLOWED_HASHES "${VRF_ALLOWED_HASHES}"
-        modify_local_config VRF_ALLOW_NEW_HASHES "${VRF_ALLOW_NEW_HASHES}"
+      done
+    fi
+    if [[ "$VRF_ALLOW_NEW_HASHES" == "on" ]]
+    then
+      DIALOG_LIST="new 'Allow new hashes was selected' on ${DIALOG_LIST}"
+    else
+      DIALOG_LIST="new 'Allow new hashes was not selected' off ${DIALOG_LIST}"
+    fi
+    CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"          \
+                            --checklist "$DIALOG_HELP"       \
+                            0 0 0 ' \
+                            ${DIALOG_LIST})
+    rc="$?"
+    if [[ "$rc" == "0" ]]
+    then
+      VRF_ALLOWED_HASHES=""
+      CHECKS=${CHECKS//\"/}
+      if list_find "${CHECKS}" new
+      then
+        VRF_ALLOW_NEW_HASHES=on
+      else
+        VRF_ALLOW_NEW_HASHES=off
       fi
-    done
+      for hash in ${DEFAULT_LIST}
+      do
+        if list_find "${CHECKS}" $hash
+        then
+          VRF_ALLOWED_HASHES="${VRF_ALLOWED_HASHES}${hash}:on "
+        else
+          VRF_ALLOWED_HASHES="${VRF_ALLOWED_HASHES}${hash}:off "
+        fi
+      done
+      modify_local_config VRF_ALLOWED_HASHES "${VRF_ALLOWED_HASHES}"
+      modify_local_config VRF_ALLOW_NEW_HASHES "${VRF_ALLOW_NEW_HASHES}"
+    fi
   fi
   return 0
 }
@@ -1075,73 +1070,68 @@ function vrf_select_level()  {
 
   # move old values (named with GPG) to new ones
   # this can be removed after 11/26/05 (afk -- 10/26/05)
-  if [[ -n "GPG_ALLOWED_LEVELS" ]] ; then
+  if [[ -n "$GPG_ALLOWED_LEVELS" ]] ; then
     VRF_ALLOWED_LEVELS=$GPG_ALLOWED_LEVELS
     modify_config $LOCAL_CONFIG "VRF_ALLOWED_LEVELS" "$VRF_ALLOWED_LEVELS"
   fi
-  if [[ -n "GPG_ALLOW_NEW_LEVELS" ]] ; then
+  if [[ -n "$GPG_ALLOW_NEW_LEVELS" ]] ; then
     VRF_ALLOW_NEW_LEVELS=$GPG_ALLOW_NEW_LEVELS
     modify_config $LOCAL_CONFIG "VRF_ALLOW_NEW_LEVELS" "$VRF_ALLOW_NEW_LEVELS"
   fi
   remove_config $LOCAL_CONFIG "GPG_ALLOWED_LEVELS"
   remove_config $LOCAL_CONFIG "GPG_ALLOW_NEW_LEVELS"
 
-  while [[ "$rc" == "0" ]]
-  do
-    DIALOG_LIST=""
-    if [[ -z "$VRF_ALLOWED_LEVELS" ]]
-    then
-      for level in $VERIFY_SPELL_LEVELS
-      do
-        DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
-      done
-    else
-      for level in $VERIFY_SPELL_LEVELS
-      do
-        if list_find "$VRF_ALLOWED_LEVELS" "${level}:on"
-	then
-	  DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
-	else
-	  DIALOG_LIST="${DIALOG_LIST}${level} '${level} was not selected' off "
-	fi
-      done
-    fi
-    if [[ "$VRF_ALLOW_NEW_LEVELS" == "on" ]]
-    then
-      DIALOG_LIST="new 'Allow new levels' on ${DIALOG_LIST}"
-    else
-      DIALOG_LIST="new 'Disallow new levels' off ${DIALOG_LIST}"
-    fi
-    CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"     \
-                                            --ok-label "Select"         \
-                                            --cancel-label "Exit"       \
-                                            --checklist "$DIALOG_HELP"  \
-                                            0 0 0                       \
-                                            '${DIALOG_LIST})
-    rc="$?"
-    if [[ "$rc" == "0" ]]
-    then
-      VRF_ALLOWED_LEVELS=""
-      CHECKS=${CHECKS//\"/}
-      if list_find "${CHECKS}" new
+  DIALOG_LIST=""
+  if [[ -z "$VRF_ALLOWED_LEVELS" ]]
+  then
+    for level in $VERIFY_SPELL_LEVELS
+    do
+      DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
+    done
+  else
+    for level in $VERIFY_SPELL_LEVELS
+    do
+      if list_find "$VRF_ALLOWED_LEVELS" "${level}:on"
       then
-        VRF_ALLOW_NEW_LEVELS=on
-      else
-        VRF_ALLOW_NEW_LEVELS=off
-      fi
-      for level in ${VERIFY_SPELL_LEVELS}
-      do
-        if list_find "${CHECKS}" $level
-        then
-          VRF_ALLOWED_LEVELS="${VRF_ALLOWED_LEVELS}${level}:on "
+          DIALOG_LIST="${DIALOG_LIST}${level} '${level} was selected' on "
         else
-          VRF_ALLOWED_LEVELS="${VRF_ALLOWED_LEVELS}${level}:off "
+          DIALOG_LIST="${DIALOG_LIST}${level} '${level} was not selected' off "
         fi
       done
-      modify_local_config VRF_ALLOWED_LEVELS "${VRF_ALLOWED_LEVELS}"
-      modify_local_config VRF_ALLOW_NEW_LEVELS "${VRF_ALLOW_NEW_LEVELS}"
+  fi
+  if [[ "$VRF_ALLOW_NEW_LEVELS" == "on" ]]
+  then
+    DIALOG_LIST="new 'Allow new levels was selected' on ${DIALOG_LIST}"
+  else
+    DIALOG_LIST="new 'Allow new levels was not selected' off ${DIALOG_LIST}"
+  fi
+  CHECKS=$(eval $DIALOG ' --title "$DIALOG_TITLE"     \
+                                          --checklist "$DIALOG_HELP"  \
+                                          0 0 0                       \
+                                          '${DIALOG_LIST})
+  rc="$?"
+  if [[ "$rc" == "0" ]]
+  then
+    VRF_ALLOWED_LEVELS=""
+    CHECKS=${CHECKS//\"/}
+    if list_find "${CHECKS}" new
+    then
+      VRF_ALLOW_NEW_LEVELS=on
+    else
+      VRF_ALLOW_NEW_LEVELS=off
     fi
-  done
+    for level in ${VERIFY_SPELL_LEVELS}
+    do
+      if list_find "${CHECKS}" $level
+      then
+        VRF_ALLOWED_LEVELS="${VRF_ALLOWED_LEVELS}${level}:on "
+      else
+        VRF_ALLOWED_LEVELS="${VRF_ALLOWED_LEVELS}${level}:off "
+      fi
+    done
+    modify_local_config VRF_ALLOWED_LEVELS "${VRF_ALLOWED_LEVELS}"
+    modify_local_config VRF_ALLOW_NEW_LEVELS "${VRF_ALLOW_NEW_LEVELS}"
+  fi
   return 0
 }
 
