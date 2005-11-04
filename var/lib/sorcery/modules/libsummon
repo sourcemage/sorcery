@@ -273,8 +273,11 @@ function download_src_sub()  {
   local _summon_target=$5
   local _summon_type=$6
 
-  download_from_leapforward "$target" "$url_list" "$hints" \
-                            "$_summon_target" "$_summon_type" ||
+  { 
+    [[ $guess_type == file ]] &&
+    download_from_leapforward "$target" "$url_list" "$hints" \
+                            "$_summon_target" "$_summon_type"
+  } ||
 
   url_download_expand_sort "$target" "$url_list" "$hints" \
                            "$_summon_target" "$_summon_type" ||
