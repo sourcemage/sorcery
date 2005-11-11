@@ -943,7 +943,7 @@ function select_provider()
     shift 3
 
     local each default_char=0 stuff=()
-    local char answer spell
+    local char
 
     # we can only read one character so use every one we can, I dont expect
     # there to be more than 62 providers
@@ -975,22 +975,9 @@ function select_provider()
       let i++
     done
 
-    message -n "\n${QUERY_COLOR}Which one do you want? " \
-               "[$default_char]$DEFAULT_COLOR "
-    read   -t  $PROMPT_DELAY  -n  1 answer 
-    [[ $answer ]] || answer=$default_char
-    spell="$(hash_get CHAR_TO_SPELL $answer)"
-
-    while [[ ! $spell ]] ; do
-      message -n "\n${QUERY_COLOR}Which one do you want? " \
-                 "[$default_char]$DEFAULT_COLOR "
-      read   -t  $PROMPT_DELAY  -n  1 answer 
-      [[ $answer ]] || answer=$default_char
-      spell=$(hash_get CHAR_TO_SPELL $answer)
-    done
-    echo
+    local msg="\n${QUERY_COLOR}Which one do you want? [$default_char]$DEFAULT_COLOR "
+    select_list_sub "$returnvar" CHAR_TO_SPELL "$msg" "$default_char"
     hash_unset CHAR_TO_SPELL
-    eval $returnvar=\"$spell\"
 }
 
 #---------------------------------------------------------------------

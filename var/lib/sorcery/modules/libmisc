@@ -472,7 +472,7 @@ function iterate()
 }
 
 #---------------------------------------------------------------------
-## @param return_var (must not be i, foo, temp, returnvar, or default)
+## @param return_var (must not be i, foo, temp, returnvar, stuff or default)
 ## @param default choice
 ## @param elements, ..
 ## 
@@ -486,26 +486,50 @@ function select_list()
     local foo temp number
     local returnvar=$1
     local default=$2
+    local stuff=()
+
     shift 2
+    hash_unset select_list_hash
+    # see note in select_provider
+    stuff=(0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z)
+    
     let i=0
     for foo in "$@"; do
-        message "\t$DEFAULT_COLOR($i)  $SPELL_COLOR$foo$DEFAULT_COLOR"
-        temp[$i]="$foo"
+        message "\t$DEFAULT_COLOR(${stuff[$i]})  $SPELL_COLOR$foo$DEFAULT_COLOR"
+        hash_put select_list_hash "${stuff[$i]}" "$foo"
         let i++
     done
 
-    message -n "\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
-    read   -t  $PROMPT_DELAY  -n  1  number
-    if [[ ! $number ]] ; then number=$default; fi
-    while [[ $number != [0-9]* ]] || (( $number >= $i )) ; do
-        message -n "\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
-        read -n 1 number
-        if [[ ! $number ]] ; then number=$default; fi
-    done
+    local msg="\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
+    select_list_sub "$returnvar" select_list_hash "$msg" "$default"
+    hash_unset select_list_hash
+}
 
-    echo
+#---------------------------------------------------------------------
+## Common code for select_list and select_provider
+## The user should have already printed out the menu, this handles
+## getting a valid answer from the user.
+## @param name of return value
+## @param name of hash table mapping answers to results
+## @param message to print out for the query
+## @param default answer
+#---------------------------------------------------------------------
+function select_list_sub() {
+  local returnvar=$1
+  local hashname=$2
+  local msgstr=$3
+  local default=$4
 
-    eval $returnvar=\"${temp[$number]}\"
+  local result
+
+  while [[ ! $result ]] ; do
+    message -n "$msgstr"
+    read   -t  $PROMPT_DELAY  -n  1  answer
+    [[ $answer ]] || answer=$default
+    result="$(hash_get $hashname $answer)"
+  done
+  echo
+  eval $returnvar=\"$result\"
 }
 
 #---------------------------------------------------------------------
