@@ -124,8 +124,11 @@ function real_acquire_src() {
   if file_exists "$SOURCE_CACHE/$target " &&
      ! [[ ${FORCE_DOWNLOAD} ]] &&
      ! [[ ${FORCE_DOWNLOAD[${DLNUM:-1}]} ]] ; then
+    # file_exists does a fuzzy match with gz, tgz and bz2
+    # lookup what file it actually found and use that for the message
+    local real_target=$(guess_filename $SOURCE_CACHE/$target)
     message  "${MESSAGE_COLOR}Found source file"             \
-             "${FILE_COLOR}${target}${DEFAULT_COLOR}"     \
+             "${FILE_COLOR}${real_target}${DEFAULT_COLOR}"     \
              "$REASON in ${FILE_COLOR}${SOURCE_CACHE}${DEFAULT_COLOR}"
     return 0
   fi
