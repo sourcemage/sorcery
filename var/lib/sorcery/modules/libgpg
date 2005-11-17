@@ -50,16 +50,23 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
             "should be done for you on a system update.${DEFAULT_COLOR}"
     return 200
   else
-    algo=$(gpg --no-default-keyring  \
+    gpg --no-default-keyring  \
                --always-trust        \
                --keyring $keyring    \
                --batch               \
                --verbose             \
                --verify              \
                $signature            \
-               $file 2>&1 | grep 'digest algorithm' | awk '{ print $NF }' | 
-               tr A-Z a-z || return 1 ) || 
-    return 1      # error out if verification fails.
+               $file 2>/dev/null || return 1
+    algo=$( gpg --no-default-keyring  \
+               --always-trust        \
+               --keyring $keyring    \
+               --batch               \
+               --verbose             \
+               --verify              \
+               $signature            \
+               $file 2>&1 | grep 'digest algorithm' | awk '{ print $NF }' |
+               tr A-Z a-z)
   fi
   [ ! -z "$4" ] && eval "$4=\"$algo\""
   return 0
