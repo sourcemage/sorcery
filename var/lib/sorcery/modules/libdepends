@@ -345,7 +345,9 @@ function private_run_depends()
     get_uncommitted_depends_file $SPELL spell_depends
     if  [  -n  "$RECONFIGURE"  ];  then
       rm  -f  $DEPENDS_CONFIG/$SPELL
-      rm  -f  $DEPENDS_CONFIG/$SPELL.p
+      test -f $DEPENDS_CONFIG/$SPELL.p &&
+      mkdir -p $ABANDONED_PERSIST      &&
+      mv  -f  $DEPENDS_CONFIG/$SPELL.p $ABANDONED_PERSIST/$SPELL.p
     fi
     prepare_spell_config
     SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
