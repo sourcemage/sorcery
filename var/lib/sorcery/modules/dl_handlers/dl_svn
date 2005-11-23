@@ -35,17 +35,18 @@ function dl_svn_get () {
 
   for url in $url_list; do
     local URL SVN_ROOT SVN_MODULE SVN_TAG
-    url_svn_crack $url
+    url_crack "$url" "$hints"
 
     if test -d $target; then
       message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
+      echo svn update -q --non-interactive -r $SVN_TAG $target
       svn update -q --non-interactive -r $SVN_TAG $target
       rc=$?
       eval "$dl_target=\"$target\""
     else
       message "${MESSAGE_COLOR}Running svn checkout...${DEFAULT_COLOR}"
-      # hard-coded http :-(
-      svn checkout -r $SVN_TAG http://$SVN_ROOT $SVN_MODULE
+      echo svn checkout -r $SVN_TAG $SVN_ROOT $SVN_MODULE
+      svn checkout -r $SVN_TAG $SVN_ROOT $SVN_MODULE
       rc=$?
       eval "$dl_target=\"$SVN_MODULE\""
     fi

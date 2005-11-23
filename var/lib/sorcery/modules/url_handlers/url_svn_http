@@ -3,58 +3,55 @@
 ##
 ##=head1 SYNOPSIS
 ## 
-## Url handler functions for parsing subversion urls.
+## Url handler functions for parsing subversion over http urls.
 ##
-##=head1 SVN URL Format
+##=head1 DESCRIPTION
 ##
-## The source mage specific format is:
+## This file contains functions for parsing svn_http urls.
 ##
-##      svn://SVNURL:DIR_NAME
+##=head1 SVN HTTP URL Format
+##
+## The sourcemage specific svn+ssh url is as follows:
+## specific format was invented:
+##
+##      svn_http://SVNURL:DIR_NAME
+##
+## The above url will download the latest version of the specified
+## module (i.e., the HEAD revision). To specify a specific revision,
+## the following format can be used:
+##
 ##      svn://SVNURL:DIR_NAME:REVISION_TAG
 ##
-## It is exactly the same as a standard svn:// url, with additional
-## tokens at the end DIR_NAME and optional REVISITION_TAG
-##
-## The svn://SVNURL portion of the url will appear on the svn command
-## line as the url.
+## The SVNURL portion of the url will appear as a normal http url
+## sans http:// prefix.
 ##
 ## The DIR_NAME will be the tail element of the SOURCE_DIRECTORY.
 ##
-## In order to maintain compatibility with the original svn url format,
-## which uses http:// as the underlying protocol, a hint may be specified
-## named "old_svn_compat".
-##
-## For more details, see the SVN manual at 
+## For more details, see the SVN manual at
 ## http://svnbook.red-bean.com/svnbook/ch03s04.html
-##
-##=head1 EXAMPLES
-##
-## Suppose we want to download the latest version of bmp-plugins
-## from svn.  We'd use the following url:
-##
-##      svn://svn.pld-linux.org/svn/bmp-plugins/trunk:bmp-plugins-svn
-##
-## If we want the 4474 revision number we would use the following url:
-##
-##      svn://svn.pld-linux.org/svn/bmp-plugins/trunk:bmp-plugins-svn:4474
-##
-## svn repositories requiring passwords are not currently supported.
+## and url_svn.
 ##
 ##=head1 COPYRIGHT
 ##
 ## Copyright 2004 by the Source Mage Team
 ## Copyright 2005 by the Source Mage Team
 ##
-##=head1 FUNCTIONS
-##
-##=over 4
-##
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-##=item url_svn_crack <url>
+##=item url_svn_http_bucketize
+## @param url
 ## 
-## Parse the specified svn url.
+## Outputs svn as that is the dl handler for svn_http:// urls
+#---------------------------------------------------------------------
+function url_svn_http_bucketize() {
+  echo svn
+}
+
+#---------------------------------------------------------------------
+##=item url_file_download <url>
+## 
+## Parse the specified svn_http url.
 ##
 ## @Global URL
 ## @Global SVN_ROOT
@@ -62,15 +59,10 @@
 ## @Global SVN_TAG
 ##
 #---------------------------------------------------------------------
-function url_svn_crack() { 
+function url_svn_http_crack() { 
 
-  URL=`url_strip_prefix "$1" svn`
-  SVN_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  if list_find "$2" old_svn_compat; then
-    SVN_ROOT=http://$SVN_ROOT
-  else
-    SVN_ROOT=svn://$SVN_ROOT
-  fi
+  URL=`url_strip_prefix "$1" svn_http`
+  SVN_ROOT=http://`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
   local SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
   SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2` 
   local SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
@@ -79,42 +71,36 @@ function url_svn_crack() {
 }
 
 #---------------------------------------------------------------------
-##=item url_svn_is_valid <url>
+##=item url_svn_http_is_valid <url>
 ##
 ## Ensure that all the fields that should be parsed out from a url
 ## do indeed exist
 #---------------------------------------------------------------------
-function url_svn_is_valid() {
-  local URL SVN_ROOT SVN_MODULE SVN_TAG item
-  url_svn_crack $1
-  for item in URL SVN_ROOT SVN_MODULE SVN_TAG; do
-    if ! [[ ${!item} ]] ; then
-      return 1
-    fi
-  done
+function url_svn_http_is_valid() {
+  url_svn_is_valid "$@"
 }
 
 #---------------------------------------------------------------------
-##=item url_svn_hostname <url>
+##=item url_svn_http_hostname <url>
 ##
 ## Get the hostname of the url
 ##
 #---------------------------------------------------------------------
-function url_svn_hostname() {
-  echo $1|sed 's#^svn://\([^/:]*\)[/:].*$#\1#'
+function url_svn_http_hostname() {
+  echo $1|sed 's#^svn_http://\([^/:]*\)[/:].*$#\1#'
 }
 
 #---------------------------------------------------------------------
-##=item url_svn_netselect <url>
+##=item url_svn_http_netselect <url>
 ##
 ## Gets a netselect type output for the url
 ##
 #---------------------------------------------------------------------
-function url_svn_netselect() {
+function url_svn_http_netselect() {
   local tmp_hostname url_speed each
 
   for each in "$@" ; do
-    tmp_hostname=$(url_svn_hostname $each)
+    tmp_hostname=$(url_svn_http_hostname $each)
     # since we had to pull the url apart to give netselect
     # something it can understand we'll just pretend like
     # multiple A records wont exist for this host...
