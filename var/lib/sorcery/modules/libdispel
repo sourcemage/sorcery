@@ -117,6 +117,7 @@ function reaper()  {
   local REAPER_FILES="$TMP_DIR/reaper.$UNIQUE.files"
   local REAPER_DIRS="$TMP_DIR/reaper.$UNIQUE.dirs"
   local REAPER_SYMS="$TMP_DIR/reaper.$UNIQUE.syms"
+  local REAPER_SPECIAL="$TMP_DIR/reaper.$UNIQUE.special"
 
   rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
 
@@ -131,6 +132,9 @@ function reaper()  {
     if   test -h  "$ITEM"; then echo "$ITEM" >> $REAPER_SYMS
     elif test -f  "$ITEM"; then echo "$ITEM" >> $REAPER_FILES
     elif test -d  "$ITEM"; then echo "$ITEM" >> $REAPER_DIRS
+    # if it isn't a symlink, regular file or directory, assume it is a
+    # special file (character, block, or fifo)
+    elif test -e  "$ITEM"; then echo "$ITEM" >> $REAPER_SPECIAL
     fi
   done
 
@@ -149,10 +153,11 @@ function reaper()  {
   fi
 
   [ -f $REAPER_SYMS ] && rm -f `cat $REAPER_SYMS` 2>/dev/null
+  [ -f $REAPER_SPECIAL ] && rm -f `cat $REAPER_SPECIAL` 2>/dev/null
   [ -f $REAPER_DIRS ] && rmdir `sort -r $REAPER_DIRS` 2>/dev/null
   [ -f $REAPER_FILES ] && rmdir `dirnames < $REAPER_FILES |uniq|sort  -r` 2>/dev/null
 
-  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS $REAPER_SPECIAL
 }
 
 #---------------------------------------------------------------------
