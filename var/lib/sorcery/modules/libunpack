@@ -207,8 +207,8 @@ function unpack_core() {
 
   case  "$2"  in
             bzip2|gzip|compress*|tar)
-                    tar   --owner=root  --group=root  -xf  /dev/stdin \
-                          2> /dev/null  ||  cat > /dev/null            ;;
+                    tar   --owner=root  --group=root --no-same-permissions -xf \
+		          /dev/stdin 2> /dev/null  ||  cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
                     unzip  -q  "$1"                                    ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
