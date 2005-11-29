@@ -706,42 +706,36 @@ function real_short_search() {
 #-----------------------------------------------------------------------
 function real_long_search()  {
   local atSpell=0
-  local file
-  local SEARCH
+  local file pattern
+  local SEARCH SEARCH_RESULTS
 
   if ! [[ $GAZE_VERBOSE == 0 ]] ; then
 	echo  "Searching...   "
   fi
 
-  let j=0	
-
-  SEARCH=''
   for pattern in "$@"; do
     SEARCH="$SEARCH -e $pattern"
   done
 
   for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il $SEARCH`; do
-     for pattern in "$@"; do
-       SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
-         /'"${pattern}"'/{
-           if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
-           if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
-           if(inLongDesc) {print "(Description)";       exit 0;}
-         }
-         /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
-         /^EOF$/{inLongDesc=0;} ' $file)
+    for pattern in "$@"; do
+      SEARCH_RESULTS=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
+        /'"${pattern}"'/{
+          if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
+          if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
+          if(inLongDesc) {print "(Description)";       exit 0;}
+        }
+        /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
+        /^EOF$/{inLongDesc=0;} ' $file)
 
-      if [[ ${SEARCH_RESULTS[$j]} ]]; then
-        SEARCH_RESULTS[$j]="$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS[$j]}"
+      if [[ ${SEARCH_RESULTS} ]]; then
         if [[ $GAZE_VERBOSE == 0 ]]; then
-          basename $SPELL_DIRECTORY
+          basename $(dirname $file)
         else
           clear_line
-          echo ${SEARCH_RESULTS[$j]}
+          echo "$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS}"
         fi
-        let j++
       fi
-
     done
   done
 
@@ -749,7 +743,6 @@ function real_long_search()  {
     clear_line
   fi
 
-unset SEARCH_RESULTS
 
 }
 
