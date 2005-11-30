@@ -511,7 +511,7 @@ function newer()  {
   local COMPUTE
 
   if [ x"$DATE" == x"last_sorcery_update" ]; then
-    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $5 ; exit } }'
+    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $1 ; exit } }'
   elif [ x"$DATE" == x"last_cast" ]; then
     COMPUTE='($3 == "cast" && $6 == "success") { print $1 ; exit }'
   fi
@@ -1234,13 +1234,10 @@ function gaze_show_license_table()  {
 #---------------------------------------------------------------------
 function gaze_show_grimoires()  {
 
-	echo  ""
-	echo  ""
-	echo  "Installed Grimoires: " $(codex_get_all_grimoires | get_basenames)
-	echo  ""
-	echo  ""
-	exit
-	
+  ! [[ $GAZE_VERBOSE == 0 ]] &&  echo -n "Installed Grimoires: "
+  echo $(codex_get_all_grimoires | get_basenames)
+  exit
+
 }
 
 
@@ -1304,20 +1301,25 @@ function gaze_show_license()  {
 function gaze_show_installed() {
 
   local total_rc=0
-  if    [  -z  "$1"    ]
-        then  grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
+  if [ -z  "$1" ]
+  then
+    if [[ $GAZE_VERBOSE == 0 ]]; then
+      grep -v ':exiled:[^:]*$' $SPELL_STATUS
+    else
+      grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
+    fi
   else
-        for spell in $@; do
-                ! [[ $GAZE_VERBOSE == 0 ]] &&
-                message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
-                VERSION=$(installed_version  $spell)
-                if  [  -n  "$VERSION"  ]; then
-                        echo   "$VERSION"
-                else
-                        total_rc=1
-                        message  "not installed"
-                fi
-        done
+    for spell in "$@"; do
+      ! [[ $GAZE_VERBOSE == 0 ]] &&
+      message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+      VERSION=$(installed_version  $spell)
+      if  [  -n  "$VERSION"  ]; then
+        echo "$VERSION"
+      else
+        total_rc=1
+        message  "not installed"
+      fi
+    done
   fi
   return $total_rc
 }
