@@ -7,12 +7,12 @@
 ## In the simple model, without triggers, we color graph nodes (spells)
 ## white, and as we recursiely visit them, mark them grey. When all of
 ## a spell's children have been visited, and successfully cast, we
-## cast the spell, and mark the node either black:0 or black:1 for success
-## or failure respectively. If a child fails we mark the current node
-## black:1 and return. In the case that we visit a child that is grey,
-## a dependency loop is detected, currently we ignore it and build the
-## tail spell anyway, in the future we could break optional depends and
-## cast some spell twice.
+## cast the spell, and mark the node either black:0 or
+## black:<non-zero> (eg black:34) for success or failure respectively.
+## If a child fails we mark the current node black:<non-zero> and
+## return. In the case that we visit a child that is grey, a dependency
+## loop is detected, currently we ignore it and build the tail spell anyway,
+## in the future we could break optional depends and cast some spell twice.
 ##
 ## The more complex model implemented below includes the above, but after
 ## a spell builds (or fails), it colors itself brown and executes its triggers.
@@ -155,10 +155,15 @@ function recurse_depends() {
     # everything we can
     if ! [[ $MINUS_K ]] ; then
       for _child in $(hash_get dep_f_hash $spell); do
-        if [[ $(dpgn_get_spell_color $_child) == black:1 ]] ; then
-          debug libdepengine "$spell already had a failed dep on $_child"
-          return 1
-        fi
+        case $(dpgn_get_spell_color $_child) in
+          black:0)
+            :
+          ;;
+          black:*)
+            debug libdepengine "$spell already had a failed dep on $_child"
+            return 1
+          ;;
+        esac
       done
     fi
 
@@ -189,7 +194,7 @@ function recurse_depends() {
       black:0)
         debug "libdepengine" "$child already built properly, continuing"
       ;;
-      black:1)
+      black:*)
         rc=1
         [[ $MINUS_K ]] || break
       ;;
@@ -200,10 +205,10 @@ function recurse_depends() {
   # triggerer, this just catches those cases where we dont, but doesn't
   # worry too much about a failure
   for triggerer in $(hash_get trg_r_hash cast_self:$spell); do
-    trgrr_status=$(dpgn_get_spell_color $child)
+    trgrr_status=$(dpgn_get_spell_color $triggerer)
     if [[ "$trgrr_status" == "white" ]] ; then
-      if list_find "$need_cast_list" $child; then
-        depengine_cast_engine $child $in_trigger
+      if list_find "$need_cast_list" $triggerer; then
+        depengine_cast_engine $triggerer $in_trigger
       fi
     fi
   done
