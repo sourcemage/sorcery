@@ -63,6 +63,8 @@
 ##        tablet_get_patchlevel
 ##        tablet_get_security_patch
 ##        tablet_get_depends
+##        tablet_get_sub_depends
+##        tablet_get_rsub_depends
 ##        tablet_get_status
 ##        tablet_get_sources
 ##        tablet_get_spell_filter
@@ -163,6 +165,29 @@ function tablet_get_depends() {
   return 0
 }
 
+function tablet_get_sub_depends() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/sub_depends && value=$tb_dir/sub_depends|| return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+function tablet_get_rsub_depends() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/rsub_depends && value=$tb_dir/rsub_depends|| return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
 function tablet_get_status() {
   local tb_dir=$1 tb_version value
   tablet_get_tb_version $tb_dir tb_version
@@ -446,7 +471,16 @@ function tablet_install_spell_files() {
   test -e $SPELL_CONFIG.p && cp ${SPELL_CONFIG}.p spell_config.p
 
   # depends info
+  get_uncommitted_depends_file $SPELL spell_depends &&
   test -e $spell_depends && cp $spell_depends depends
+
+  # sub-depends we provide
+  local sub_depends_file rsub_depends_file
+  get_uncommitted_sub_depends_file $SPELL sub_depends_file &&
+  test -e $sub_depends_file && cp $sub_depends_file sub_depends
+  # get sub-depend we request
+  get_uncommitted_rsub_depends_file $SPELL sub_depends_file &&
+  test -e $rsub_depends_file && cp $sub_depends_file rsub_depends
 
   # logs
   mkdir logs

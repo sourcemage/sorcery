@@ -88,6 +88,22 @@ function reap_depends()  {
   # to always run this code to remove old depends.
   if [[ $NO_REAP_DEPENDS != "on" ]] ; then
     remove_depends_status $DEPENDS_STATUS $SPELL
+
+    # remove a sub-depends when both the requester and sub-dependee are not
+    # installed
+    for triple in $(search_sub_depends "$SUB_DEPENDS_STATUS" "$SPELL" '.*'); do
+      tmp=${triple%:*}
+      sub_dependee=${tmp#*:}
+      if ! spell_ok $sub_dependee; then
+        remove_sub_depends "$SUB_DEPENDS_STATUS" "$SPELL" "$sub_dependee"
+      fi
+    done
+    for triple in $(search_sub_depends "$SUB_DEPENDS_STATUS" '.*' "$SPELL"); do
+      requester=${triple%%:*}
+      if ! spell_ok $requester; then
+        remove_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$SPELL"
+      fi
+    done
   fi
 }
 

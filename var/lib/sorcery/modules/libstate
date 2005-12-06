@@ -9,7 +9,7 @@
 
 #---------------------------------------------------------------------
 ##
-## Adds a dependency to the a depends database file.  Returns 1 is the 
+## Adds a dependency to the a depends database file.  Returns 1 is the
 ## 3rd or 4th fields are not valid.
 ##
 ## @param  Depends status file
@@ -25,56 +25,28 @@
 #---------------------------------------------------------------------
 function add_depends()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
-	debug "libstate" "add_depends() - $*"
+  debug "libstate" "add_depends() - $*"
 
-	#already here for some reason
-	search_depends_status_exact "$@" >/dev/null  && return 0
-	
-        #probably not needed with commit on succeed
-	#remove stale depends info
-	search_depends_status "$@" >/dev/null && remove_depends_status "$@"
+  #already here for some reason
+  search_depends_status_exact "$@" >/dev/null  && return 0
 
-        local depends_status=$1
-        shift
-	
-	#ensure the info is valid (perhaps add check that spells exist?)
-	if ( [[ $3 != on ]]       && [[ $3 != off ]]       )   ||
-           ( [[ $4 != required ]] && [[ $4 != optional ]]  )
-	then
-	  return 1 
-	fi
-	
-	echo "$1:$2:$3:$4:$5:$6" >> $depends_status
-	
-	return 0	
+  #probably not needed with commit on succeed
+  #remove stale depends info
+  search_depends_status "$@" >/dev/null && remove_depends_status "$@"
 
-}
+  local depends_status=$1
+  shift
 
-#---------------------------------------------------------------------
-## Sets up the uncommitted depends file. If the name isn't
-## found in the hash table create it. If the file already exists
-## move it to the abandoned depends directory and start with a new one.
-## The uncommitted_hash hash table should be hash_export'ed to
-## make it through the call to make.
-##
-## @param spell
-## @param variable name to put the filename name in (pass by reference)
-##
-#---------------------------------------------------------------------
-function get_uncommitted_depends_file() {
-    local SPELL=$1
-    local temp_spell_depends=$(hash_get "uncommitted_hash" $SPELL)
-    if ! [[ $temp_spell_depends ]] ; then
-      temp_spell_depends="$UNCOMMITTED_DEPENDS/$SPELL"
-      hash_put "uncommitted_hash" "$SPELL" "$temp_spell_depends"
-    fi
-    eval "$2=\"$temp_spell_depends\""
-    if [ -e $temp_spell_depends ]; then
-      mkdir -p "$ABANDONED_DEPENDS"
-      mv "$temp_spell_depends" "$ABANDONED_DEPENDS"
-    fi
-    mkdir -p "$UNCOMMITTED_DEPENDS"
-    touch "$temp_spell_depends"
+  #ensure the info is valid (perhaps add check that spells exist?)
+  if ( [[ $3 != on ]]       && [[ $3 != off ]]      ) ||
+     ( [[ $4 != required ]] && [[ $4 != optional ]] ); then
+    return 1
+  fi
+
+  echo "$1:$2:$3:$4:$5:$6" >> $depends_status
+
+  return 0
+
 }
 
 #---------------------------------------------------------------------
@@ -97,13 +69,46 @@ function get_uncommitted_depends_file() {
 function search_depends_status_exact()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
 
-        local depends_status=$1
-        shift
+  local depends_status=$1
+  shift
 
-	local a1 a2 a3 a4 a5 a6
-	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
-        debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
-	grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $depends_status
+  local a1 a2 a3 a4 a5 a6
+  a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
+  debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
+  grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $depends_status
+
+}
+
+#---------------------------------------------------------------------
+##
+## Search depends status, dont do anything escaping.
+##
+## Arguments can be regexp
+##
+## Prints out the matching line(s)
+## @Stdout the matching line(s)
+## @param depends file
+## @param spell
+## @param depends
+## @param on/off (optional)
+## @param optional/required (optional)
+## @param on arg (optional)
+## @param off arg (optional)
+##
+#---------------------------------------------------------------------
+function search_depends_status_simple()
+{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
+
+    local depends_status=$1
+    shift
+
+    local a1 a2 a3 a4 a5 a6
+    a1=`esc_str "$1"` ; a2=`esc_str "$2"`
+    a3=${3:-.*} ; a4=${4:-.*}
+    a5=`esc_str "$5"`; a6=`esc_str "$6"`
+    a5=${5:-.*} ; a6=${6:-.*}
+
+    grep "^$a1:$a2\(([^:]*)\)\?:$a3:$a4:$a5:$a6$" $depends_status
 
 }
 
@@ -134,7 +139,7 @@ function search_depends_status()
 
 
 #---------------------------------------------------------------------
-## 
+##
 ## @param depends file
 ## @param spell
 ## @param dependency spell
@@ -181,28 +186,154 @@ function get_depends_options()
 function remove_depends_status()
 { # $1=depends file $2=spell, $3=(OPT)depends, $4=(OPT)on/off, $5=(OPT)optional/required, $6=(OPT)on arg, $7=(OPT)off arg
 
-        local depends_status=$1
-        shift
+   local depends_status=$1
+   shift
 
-	local a1 a2 a3 a4 a5 a6
-        # why do we esc_str the args? spells shouldnt have regexps in their name
-        # and "on" "off" "optional" and "required" are the only valid
-        # values for a3 and a4, also, with the exception of dispel depends
-        # this isnt ever called with more than a1 as a parameter...
-	#a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3` ; a4=`esc_str $4`;
-	a1=$1 ; a2=$2 ; a3=$3 ; a4=$4;
-        a5=`esc_str $5`; a6=`esc_str $6`
-	
-	a2=${a2:-.*}
-	a3=${a3:-.*}
-	a4=${a4:-.*}
-	a5=${a5:-.*}
-	a6=${a6:-.*}
+    local a1 a2 a3 a4 a5 a6
+    # arguments 1 and 2 are spell names, which might have characters that
+    # look like regexps, 5 and 6 might like funny too
+    # contrast 3 and 4 which are "on", "off", "required" or "optional"
+    # if they are regexps its probably desired so dont escape those
+    a1=`esc_str "$1"`; a2=`esc_str "$2"`
+    a1=${a1:-.*}; a2=${a2:-.*}
 
-	[[ "$a5" == "[none]" ]] && a5="\\[none\\]"
+    a3=${3:-.*} ; a4=${4:-.*}
 
-	sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" $depends_status
+    a5=`esc_str "$5"`; a6=`esc_str "$6"`
+    a5=${a5:-.*}; a6=${a6:-.*}
+    [[ "$a5" == "[none]" ]] && a5="\\[none\\]"
 
+    sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" $depends_status
+
+}
+
+#---------------------------------------------------------------------
+## Sets up the uncommitted depends file. If the name isn't
+## found in the hash table create it. If the file already exists
+## move it to the abandoned depends directory and start with a new one.
+## The uncommitted_hash hash table should be hash_export'ed to
+## make it through the call to make.
+##
+## @param spell
+## @param variable name to put the filename name in (pass by reference)
+##
+#---------------------------------------------------------------------
+function get_uncommitted_depends_file() {
+    local SPELL=$1
+    local temp_spell_depends=$(hash_get "uncommitted_hash" $SPELL)
+    if ! [[ $temp_spell_depends ]] ; then
+      temp_spell_depends="$UNCOMMITTED_DEPENDS/$SPELL"
+      hash_put "uncommitted_hash" "$SPELL" "$temp_spell_depends"
+      if [ -e "$temp_spell_depends" ]; then
+        mkdir -p "$ABANDONED_DEPENDS"
+        mv "$temp_spell_depends" "$ABANDONED_DEPENDS" &>/dev/null
+        mv "$temp_spell_depends:*" "$ABANDONED_DEPENDS" &>/dev/null
+      fi
+      mkdir -p "$UNCOMMITTED_DEPENDS"
+      touch "$temp_spell_depends"
+    fi
+    eval "$2=\"$temp_spell_depends\""
+}
+
+#---------------------------------------------------------------------
+## Get the uncommitted sub-depends file. Uses get_uncommitted_depends_file.
+## This file is intended for use by the sub-dependee.
+##
+## @param spell
+## @param variable name to put the filename in
+#---------------------------------------------------------------------
+function get_uncommitted_sub_depends_file() {
+  local SPELL=$1
+  local upvar=$2
+  local __tmp
+  get_uncommitted_depends_file "$SPELL" __tmp
+  # : cannot be in spell names, so we can take advantage of the namespace
+  __tmp=${__tmp}:s
+  # we can assume that the parent directory exists because
+  # get_uncommitted_depends_file creates it
+  touch "$__tmp"
+  eval "$2=\"$__tmp\""
+}
+
+#---------------------------------------------------------------------
+## Get the uncommitted sub-depends file. Uses get_uncommitted_depends_file
+## This file is intended for use by the requester.
+##
+## @param spell
+## @param variable name to put the filename in
+#---------------------------------------------------------------------
+function get_uncommitted_rsub_depends_file() {
+  local SPELL=$1
+  local upvar=$2
+  local __tmp
+  get_uncommitted_depends_file "$SPELL" __tmp
+  # : cannot be in spell names, so we can take advantage of the namespace
+  __tmp=${__tmp}:rs
+  # we can assume that the parent directory exists because
+  # get_uncommitted_depends_file creates it
+  touch "$__tmp"
+  eval "$2=\"$__tmp\""
+}
+
+#---------------------------------------------------------------------
+## Add a sub-dependency.
+##
+## @param sub-depends file
+## @param requester file
+## @param sub-dependee
+## @param sub-depends
+#---------------------------------------------------------------------
+function add_sub_depends() {
+  $STD_DEBUG
+  remove_sub_depends "$@" || return 1
+  local file=$1
+  shift
+  # FIXME LOCK
+  echo "$1:$2:$3" >> "$file"
+}
+
+#---------------------------------------------------------------------
+## Search in sub-depends file.
+##
+## @param sub-depends file
+## @param requester file (optional)
+## @param sub-dependee (optional)
+## @param sub-depends (optional)
+#---------------------------------------------------------------------
+function search_sub_depends() {
+  $STD_DEBUG
+  local file=$1
+  shift
+  local a1 a2 a3
+  a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
+  a1=${a1:-.*}
+  a2=${a2:-.*}
+  a3=${a3:-.*}
+  # FIXME LOCK
+  grep "^$a1:$a2:$a3$" "$file"
+}
+
+#---------------------------------------------------------------------
+## Remove a sub-depends.
+##
+## @param sub-depends file
+## @param requester file
+## @param sub-dependee
+## @param sub-depends
+#---------------------------------------------------------------------
+function remove_sub_depends() {
+  $STD_DEBUG
+  local file=$1
+  shift
+
+  test -f $file || return
+
+  local a1 a2 a3
+  a1=`esc_str "$1"`; a2=`esc_str "$2"`; a3=`esc_str "$3"`
+  a1=${a1:-.*}; a2=${a2:-.*}; a3=${a3:-.*}
+
+  # FIXME LOCK
+  sedit "/^$a1:$a2:$a3/D" "$file"
 }
 
 #---------------------------------------------------------------------
@@ -219,7 +350,7 @@ function remove_depends_status()
 # default provider examples:
 # use xorg as X11-LIBS even if its optional
 # xorg:X11-LIBS:on
-# 
+#
 # use xfree86 as X11-LIBS unless the [none] option exists (and use that instead)
 # xfree86:X11-LIBS:off
 #---------------------------------------------------------------------
@@ -263,7 +394,7 @@ function add_default_depends() {
         remove_default_depends $tfile $1 $2
         echo "$1:$2:$3" >> $tfile
         lock_commit_transaction $file
-       
+
        return 0
 
 }
@@ -285,12 +416,12 @@ function remove_default_depends() {
         shift
         test -e $file || return
 
-	local a1 a2 a3
-	a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3`
-	
-	a3=${a3:-.*}
+        local a1 a2 a3
+        a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3`
 
-	sedit "/^$a1:$a2:$a3$/D" $file
+        a3=${a3:-.*}
+
+        sedit "/^$a1:$a2:$a3$/D" $file
 }
 
 #---------------------------------------------------------------------
@@ -309,12 +440,12 @@ function search_default_depends() {
         shift
         [[ -s $default_depends ]] || return
 
-	local a1 a2 a3
-	a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
-	a3=${a3:-.*}
+        local a1 a2 a3
+        a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
+        a3=${a3:-.*}
 
         debug "libstate" "search_default_depends: [$a1:$a2:$a3]"
-	grep "^$a1:$a2:$a3$" $default_depends
+        grep "^$a1:$a2:$a3$" $default_depends
 }
 
 
@@ -329,40 +460,41 @@ function search_default_depends() {
 ##
 #---------------------------------------------------------------------
 function add_default_provider() {
-	debug "libstate" "add_default_depends() - $*"
+  debug "libstate" "add_default_depends() - $*"
 
-	#already here
-	search_default_provider "$@" >/dev/null  && return 0
+  #already here
+  search_default_provider "$@" >/dev/null  && return 0
 
-        local file=$1
-        shift
+  local file=$1
+  shift
 
-	#ensure the info is valid...
-        { [[ ! $1 ]] && [[ ! $2 ]] ; } && return 1
-        { [[ $3 != on ]] && [[ $3 != off ]] ; } && return 1
-        if [[ $1 ]] && ! codex_does_spell_exist $1 &>/dev/null ; then
-          return 1
-        fi
-        if [[ $2 ]] && ! codex_does_service_exist $2 &>/dev/null ; then
-          return 1
-        fi
+  #ensure the info is valid...
+  { [[ ! $1 ]] && [[ ! $2 ]] ; } && return 1
+  { [[ $3 != on ]] && [[ $3 != off ]] ; } && return 1
 
-        tfile=`lock_start_transaction $file`
-        remove_default_provider $tfile "" $2
-	echo "$1:$2:$3" >> $tfile
-        lock_commit_transaction $file
-	
-	return 0	
+  if [[ $1 ]] && ! codex_does_spell_exist $1 &>/dev/null ; then
+    return 1
+  fi
+  if [[ $2 ]] && ! codex_does_service_exist $2 &>/dev/null ; then
+    return 1
+  fi
+
+  tfile=`lock_start_transaction $file`
+  remove_default_provider $tfile "" $2
+  echo "$1:$2:$3" >> $tfile
+  lock_commit_transaction $file
+
+  return 0
 }
 
 # these are the same, as their countparts but are here for completeness
 # and incase they do someday diverge
 function remove_default_provider() {
-        remove_default_depends "$@"
+  remove_default_depends "$@"
 }
 
 function search_default_provider() {
-        search_default_depends "$@"
+  search_default_depends "$@"
 }
 
 #---------------------------------------------------------------------
@@ -439,18 +571,18 @@ function search_spell_status() {
 ## a version.
 ##
 ## Prints out the matching spell's status
-## Returns 1 only for critical problems ( missing SPELL_STAUS file ) 
+## Returns 1 only for critical problems ( missing SPELL_STAUS file )
 ##         0 for all other cases ( even when spell is not found )
 ##
 #---------------------------------------------------------------------
 function query_spell_status()
 { #$1=spell, $2=(OPT)version
 
-	local version
-	version=`esc_str ${2:-".*"}`
+  local version
+  version=`esc_str ${2:-".*"}`
 
-	tac $SPELL_STATUS | grep -m 1 "^$1:.*:.*:$version$" | \
-		cut -d ":" -f 3
+  tac $SPELL_STATUS | grep -m 1 "^$1:.*:.*:$version$" | \
+  cut -d ":" -f 3
 }
 
 #---------------------------------------------------------------------
@@ -481,7 +613,7 @@ function real_spell_held()      {
 ## @return 0 if the given spell's status is "installed" or "held"
 #---------------------------------------------------------------------
 function real_spell_ok() {
-  local res="$(  query_spell_status  $1  )"
+  ''local res="$(  query_spell_status  $1  )"
   [  "$res"  ==  "installed"  ] || [  "$res"  ==  "held" ]
 }
 
@@ -509,6 +641,7 @@ function real_provider_ok() {
 ## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS
 ##
 ## @return 0 if a provider could be found 1 if not
+## @return 0 if a dependency from $1 on $2 is enabled, 1 otherwise.
 ## @stdout the provider name(s)
 #---------------------------------------------------------------------
 function real_get_spell_provider() {
@@ -521,6 +654,28 @@ function real_get_spell_provider() {
   fi
   search_depends_status_exact $dep_status "$1" ".*($2)" \
                  'on' '.*'  '.*' '.*' |cut -f2 -d:|cut -f1 -d\(|sort|uniq
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param Spell name
+## @param Target spell name
+## @param If empty get the uncommited spell info, if anything else get
+## info from the committed ($DEPENDS_STATUS) database. If the uncommited
+## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS
+##
+## @return 0 if a dependency from $1 on $2 is enabled, 1 otherwise.
+## @stdout the provider name(s)
+#---------------------------------------------------------------------
+function real_is_depends_enabled() {
+  local dep_status
+  if [[ $3 ]] ; then
+    dep_status=$DEPENDS_STATUS
+  else
+    dep_status=$(hash_get uncommitted_hash $1)
+    [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
+  fi
+  [[ -n $(search_depends_status_simple $dep_status "$1" "$2" 'on' ) ]]
 }
 
 
@@ -546,7 +701,7 @@ function remove_spell_status()
   tSPELL_STATUS=`lock_start_transaction $SPELL_STATUS`
   grep  -v  "^$1:" $SPELL_STATUS  >  $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
-    
+
 }
 
 #---------------------------------------------------------------------
@@ -689,7 +844,7 @@ function get_all_spells_with_status () {
 ## @param command (optional)
 ##
 ## Modifies (or adds) an entry in the local/config.
-## If "command" is the third argument, a space will separate the 
+## If "command" is the third argument, a space will separate the
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
@@ -706,7 +861,7 @@ function modify_local_config() {
 ## @param command (optional)
 ##
 ## Modifies (or adds) an entry in the local/config.
-## If "command" is the third argument, a space will separate the 
+## If "command" is the third argument, a space will separate the
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
@@ -715,17 +870,17 @@ function modify_config()  {
   debug "libstate" "modify_config() - $*"
   local FILE=$1
   shift;
-  
+
   if ! [[ $1 ]]; then
     debug "libstate" "modify_config() - Warning: No name given for config option."
     return 1
   fi
-  
+
   local TEMP separator EQUALS_COL VARIABLE
-  
+
   # what to use as separator?
-  if [[ $3 == command ]] 
-  then separator=" " 
+  if [[ $3 == command ]]
+  then separator=" "
   else separator="=" ; fi
 
   if ! test -f $FILE; then
@@ -753,13 +908,13 @@ function modify_config()  {
   for (( ; EQUALS_COL>0 ; EQUALS_COL-- )) ; do
     TEMP="$TEMP "
   done
-  
+
   debug "libstate" "modify_config() - entering new value $VARIABLE $seperator $@ into $tFILE"
   # put new value and justification in
   echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
   lock_commit_transaction $FILE
-    
+
 }
 
 #---------------------------------------------------------------------
@@ -768,7 +923,7 @@ function modify_config()  {
 ## @param command (optional)
 ##
 ## Modifies (or adds) an entry in the local/config.
-## If "command" is the third argument, a space will separate the 
+## If "command" is the third argument, a space will separate the
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
@@ -777,24 +932,24 @@ function remove_config()  {
   debug "libstate" "remove_config() - $*"
   local FILE=$1
   shift;
-  
+
   if ! [[ $1 ]]; then
     debug "libstate" "remove_config() - Warning: No name given for config option."
     return 1
   fi
-  
+
   local TEMP separator EQUALS_COL VARIABLE
-  
+
   # what to use as separator?
-  if [[ $2 == command ]] 
-  then separator=" " 
+  if [[ $2 == command ]]
+  then separator=" "
   else separator="=" ; fi
-  
+
   # remove previous reference
   tFILE=`lock_start_transaction $FILE`
   grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
   lock_commit_transaction $FILE
-    
+
 }
 
 #---------------------------------------------------------------------
@@ -803,16 +958,16 @@ function remove_config()  {
 ## returns true if the grimoire is set local, false otherwise.
 #---------------------------------------------------------------------
 function codex_is_local () {(
-    local g_name=$1
+  local g_name=$1
 
-    local grimoire=$(codex_find_grimoire $g_name)
-    if ! [[ $grimoire ]]; then
-        return 1
-    fi
+  local grimoire=$(codex_find_grimoire $g_name)
+  if ! [[ $grimoire ]]; then
+    return 1
+  fi
 
-    . "$grimoire/GRIMOIRE"
+  . "$grimoire/GRIMOIRE"
 
-    [[ $CODEX_IS_LOCAL == "yes" ]]
+  [[ $CODEX_IS_LOCAL == "yes" ]]
 )}
 
 

@@ -187,7 +187,7 @@ function delint()
   
   lock_file $DEPENDS_STATUS
   
-  message "Pass one (malformed lines)"
+  message "Pass one (malformed depends lines)"
   # This grep will pull out malformed lines from the depends file
   regex='^[^:]*:[^:]*:(on|off):(optional|required):'
   lines=$(grep -v -E "$regex" $DEPENDS_STATUS)
@@ -209,7 +209,7 @@ function delint()
     fi
   fi
   
-  message "Pass two (stale entries)"
+  message "Pass two (stale depends entries)"
 
   # This baby will spit out lines that have a package that isn't installed
   # If the first is not installed, it bitches.
@@ -235,7 +235,7 @@ function delint()
     cp $TMP_DIR/depends.delint.2.2 $DEPENDS_STATUS
   fi
 
-  message "Pass three (duplicate entries)"
+  message "Pass three (duplicate depends entries)"
   for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/p' $DEPENDS_STATUS | sed 's/+/\\+/' | sort | uniq -d ) ; do
     message
     options=()
@@ -256,6 +256,45 @@ function delint()
   done
 
   unlock_file $DEPENDS_STATUS
+
+  touch $SUB_DEPENDS_STATUS
+  lock_file $SUB_DEPENDS_STATUS
+
+  message "Pass four (duplicate sub_depends entries)"
+  for LINE in $(sort $SUB_DEPENDS_STATUS | uniq -d ) ; do
+    options=()
+    if test $(grep -E "^$LINE$" "$SUB_DEPENDS_STATUS"|wc -l) -gt 1; then
+      message "Duplicated line removed: $LINE"
+      grep -Ev "^$LINE$" $SUB_DEPENDS_STATUS > $TMP_DIR/delint.5
+      echo "$LINE" >> $TMP_DIR/delint.5
+      mv $TMP_DIR/delint.5 $SUB_DEPENDS_STATUS
+    fi
+  done
+
+  message "Pass five (stale sub_depends entries)"
+  awk -F: '
+    BEGIN { 
+      while (getline < "'$SPELL_STATUS'") 
+        Installed[$1] = 1; 
+    } 
+    { 
+      if ( ! Installed[$1] && ! Installed[$2] ) 
+        print $0;  
+    }' "$SUB_DEPENDS_STATUS" |tee $TMP_DIR/sub_depends.delint.2
+  t=$(wc -l $TMP_DIR/sub_depends.delint.2 | awk '{print $1;}')
+  message "\t$t bad lines, $(( $(wc -l $SUB_DEPENDS_STATUS | cut -f1 -d' ') - t))" \
+          "good lines in your sub_depends file."
+  if [[ $t -gt 0 ]] ; then
+    t=$(date +%Y%m%d%s)
+    message "\tSaving bad lines to $BACKUPDIR/sub_depends.stale.$t"
+    cp $TMP_DIR/sub_depends.delint.2 $BACKUPDIR/sub_depends.stale.$t
+    message "\tRemoving bad entries"
+    cat $SUB_DEPENDS_STATUS >> $TMP_DIR/sub_depends.delint.2
+    sort $TMP_DIR/sub_depends.delint.2 | uniq -u > $TMP_DIR/sub_depends.delint.2.2
+    cp $TMP_DIR/sub_depends.delint.2.2 $SUB_DEPENDS_STATUS
+  fi
+
+  unlock_file $SUB_DEPENDS_STATUS
   message "Delint done."
 }
 

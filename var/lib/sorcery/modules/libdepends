@@ -184,9 +184,106 @@ function run_up_triggers() {
   fi
   
 }
+
+#---------------------------------------------------------------------
+## process any sub-depends the current spell is going to provide
+## These come from the live sub-depends table and from spells that
+## have already been processed
+#---------------------------------------------------------------------
+function run_our_sub_depends() {
+  $STD_DEBUG
+  local sub_depends pair
+  # do all sub-depends on us from live-table first, they get priority
+  # in case there is a conflict
+  for triple in $(search_sub_depends "$SUB_DEPENDS_STATUS" '.*' "$SPELL") ; do
+    # parse the line out, eventually these silly variable expansions should
+    # be in functions or benchmarked against explode
+    tmp=${triple%:*};
+    requester=${tmp%:*};
+    sub_dependee=${tmp#*:};
+    sub_depends=${triple##*:}
+
+    process_sub_depends "$requester" "$sub_dependee" "$sub_depends" || return 1
+  done
+
+  # do all sub-depends from sub_dep_r_hash (things that we provide)
+  for pair in $(hash_get sub_dep_r_hash $SPELL) ; do
+    requester=${pair%:*}
+    sub_depends=${pair#*:}
+
+    process_sub_depends "$requester" "$SPELL" "$sub_depends" || return 1
+  done
+}
+
+#---------------------------------------------------------------------
+## run any sub-depends that we requested on behalf of the sub-dependee
+#---------------------------------------------------------------------
+function run_other_sub_depends() {
+  $STD_DEBUG
+  local this_spell=$1
+  local SPELL sub_dependee sub_depends pair
+  # do all sub-depends from sub_dep_f_hash (things we request)
+  for pair in $(hash_get sub_dep_f_hash $this_spell) ; do
+    # FIXME, do this one spell at a time, rather than in whatever order we
+    # see them it will reduce the number of run_details
+    sub_dependee=${pair%:*}
+    sub_depends=${pair#*:}
+    if [[ $(hash_get depends_looked_at $sub_dependee) == done ]] ; then
+      # load the spell and clear out any special variables
+      SPELL=$sub_dependee
+      run_details
+      local NEW_SUB_DEPENDEES=""
+      local NEW_DEPENDS=()
+      process_sub_depends "$this_spell" "$sub_dependee" "$sub_depends" ||
+      return 1
+
+      # this is needed in case processing the sub-depends added a depends
+      # isnt this fun?
+      private_add_depends
+    fi
+  done
+}
+
+#---------------------------------------------------------------------
+## Run a spell's SUB_DEPENDS file for a specific sub-depends.
+## This is idempotent, if a sub-depends has already been processed it will
+## not run the SUB_DEPENDS file again.
+##
+## Expects the sub-dependee to be loaded.
+## If the spell does not have a SUB_DEPENDS file, it is a failure.
+#---------------------------------------------------------------------
+function process_sub_depends() {
+  $STD_DEBUG
+  local requester=$1
+  local sub_dependee=$2
+  local sub_depends=$3
+
+  if test -x $SCRIPT_DIRECTORY/SUB_DEPENDS; then
+    if ! list_find "$(hash_get processed_sub_depends $sub_dependee)" "$sub_depends"; then
+      local rc=0
+
+      local THIS_SUB_DEPENDS=$sub_depends
+      local PROCESSED_SUB_DEPENDS=$(hash_get processed_sub_depends $sub_dependee)
+      persistent_load &&
+      source $SCRIPT_DIRECTORY/SUB_DEPENDS &&
+      persistent_save || return 1
+      hash_append processed_sub_depends $sub_dependee $sub_depends
+    else
+      debug libdepends "SUB_DEPENDS: $sub_dependee needs to provide $sub_depends but has already been processed"
+    fi
+  else
+    # sub-depends file doesnt exist, something messed up somewhere
+    return 1
+  fi
+  # add the information to the uncommitted depends file
+  local sub_depends_file rsub_depends_file
+  get_uncommitted_sub_depends_file "$sub_dependee" sub_depends_file || return 1
+  add_sub_depends "$sub_depends_file" "$requester" "$sub_dependee" "$sub_depends"
+  get_uncommitted_rsub_depends_file "$requester" rsub_depends_file || return 1
+  add_sub_depends "$rsub_depends_file" "$requester" "$sub_dependee" "$sub_depends"
+}
+
 ######################END CALLS TO OUTSIDE WORLD########################
-
-
 
 #---------------------------------------------------------------------
 ## Create a map of spells to their dependent spells.
@@ -300,11 +397,14 @@ function compute_uninstalled_depends()
       debug "libdepends" "already looked at ${spells[$_idx]}, skipping"
     fi
   done
-  # we no longer need this, no sense in keeping it around
+  # we no longer need these, no sense in keeping them around
   hash_unset depends_looked_at
+  hash_unset sub_dep_f_hash
+  hash_unset sub_dep_r_hash
+  hash_unset sub_depends_process
+  hash_unset processed_sub_depends
 
-  # we need this so processes on the other side of make know whats
-  # going on
+  # we need this so processes on the other side of make know whats going on
   hash_export uncommitted_hash
 }
 
@@ -317,9 +417,14 @@ function private_run_depends()
 {
   debug "libdepends" "$FUNCNAME - $*"
   local SPELL=$1
+
+  # special accumulators for the current spell
   local NEW_DEPENDS=""
+  local NEW_SUB_DEPENDEES=""
   local triggerees=""
   local spell_depends
+  local spell_sub_depends
+
   hash_put "depends_looked_at" "$SPELL" "start"
 
   # move this up to compute_uninstalled_depends?
@@ -343,6 +448,7 @@ function private_run_depends()
       return 1
     fi
     get_uncommitted_depends_file $SPELL spell_depends
+    spell_sub_depends=$spell_depends.sub
     if  [  -n  "$RECONFIGURE"  ];  then
       rm  -f  $DEPENDS_CONFIG/$SPELL
       test -f $DEPENDS_CONFIG/$SPELL.p &&
@@ -357,15 +463,20 @@ function private_run_depends()
     run_other $SPELL              &&
     run_depends $SPELL            && 
     run_up_triggers $SPELL        && 
+    run_our_sub_depends $SPELL        &&
 
     # possibly recast things that depend on us if option is set (-B)
     private_upward_depends $SPELL &&
     private_recast_optionals $SPELL &&
     private_add_triggerees        &&
     private_add_depends           ||
-    { debug "libdepends" "$FUNCNAME: false inside if." ; return 1; }
+    { debug "libdepends" "$FUNCNAME failed to process $SPELL." ; return 1; }
     # no point in keeping the file around if its empty...
-    test -s $spell_depends || rm $spell_depends
+    test -s $spell_depends || rm -f $spell_depends $spell_sub_depends
+
+    # this processes any sub-depends we requested and the sub-dependee
+    # has already been processed, so we must process them on their behalf
+    run_other_sub_depends "$SPELL" || return 1
   else 
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
              "${CHECK_COLOR}No work to do.${DEFAULT_COLOR}"
@@ -385,7 +496,7 @@ function private_run_depends()
 #---------------------------------------------------------------------
 function private_should_cast()
 {
-  local decision
+  local each
   # order is important here...
   if ! codex_does_spell_exist $1; then
     return 1
@@ -405,6 +516,8 @@ function private_should_cast()
   elif echo "${TRIGGEREES[*]}" | grep -q "\<$1\>" ; then
     # if its being triggered we need to look at it, despite its
     # installed status
+    return 0
+  elif [[ "$(hash_get sub_depends_process $1)" != "" ]] ; then
     return 0
   elif spell_installed $1 ; then
     # returns success if want to cast
@@ -481,6 +594,11 @@ function private_recast_optionals() {
 #---------------------------------------------------------------------
 function real_depends()
 {
+  if [[ "$1" == "-sub" ]] ; then
+    local requested_sub_depends=$2
+    shift 2
+  fi
+
   # see if theres another grimoire
   if [[ "$4" ]] ; then
     local grimoire here nothere current
@@ -550,12 +668,19 @@ function real_depends()
     fi
   fi
 
+  local target_spell
   if ! codex_does_spell_exist $1 &> /dev/null; then
-    work_depends_provider "$@"
+    work_depends_provider "$@" &&
+    if [[ "$requested_sub_depends" ]]; then
+      target_spell=$(get_spell_provider "$SPELL" "$1")
+    fi
   else
-    work_depends_spell "$@"
-  fi
-
+    work_depends_spell "$@" &&
+    target_spell=$1
+  fi &&
+  for sub_depend in $requested_sub_depends; do
+    sub_depends "$target_spell" "$sub_depend" || return 1
+  done
 }
 
 #---------------------------------------------------------------------
@@ -568,6 +693,10 @@ function real_depends()
 #---------------------------------------------------------------------
 function real_optional_depends()
 {
+  if [[ "$1" == "-sub" ]] ; then
+    local requested_sub_depends=$2
+    shift 2
+  fi
 
   # see if theres another grimoire
   if [[ "$5" ]] ; then
@@ -636,10 +765,22 @@ function real_optional_depends()
     fi
   fi
 
+  local target_spell
   if ! codex_does_spell_exist $1 &> /dev/null; then
-    work_optional_depends_provider "$@"
+    work_optional_depends_provider "$@" &&
+    if [[ "$requested_sub_depends" ]]; then
+      target_spell=$(get_spell_provider "$SPELL" "$1")
+    fi
   else
-    work_optional_depends_spell "$@" 
+    work_optional_depends_spell "$@"  &&
+    target_spell=$1
+  fi &&
+  if [[ "$requested_sub_depends" ]] &&
+     [[ "$target_spell" ]] &&
+     is_depends_enabled "$SPELL" "$target_spell"; then
+    for sub_depend in $requested_sub_depends; do
+      sub_depends "$target_spell" "$sub_depend" || return 1
+    done
   fi
 
 }
@@ -941,7 +1082,6 @@ function work_optional_depends_spell()
   private_common_depends "$1" "$install" "optional" "$2" "$3"
 }
 
-
 #---------------------------------------------------------------------
 ## @param  name of return variable
 ## @param  default answer
@@ -1036,6 +1176,47 @@ function private_up_trigger() {
 }
 
 #---------------------------------------------------------------------
+## @param spell providing the sub-depends
+## @param name of sub-depends
+##
+## Request a sub-depends from $SPELL on $1 for $2
+## This queues the sub-depends for later processing.
+#---------------------------------------------------------------------
+function real_sub_depends() {
+  $STD_DEBUG
+  local requester=$SPELL
+  local sub_dependee=$1
+  local sub_depends=$2
+
+  # add to hashes for lookup later in depends resolution
+  hash_append sub_dep_f_hash $requester $sub_dependee:$sub_depends $'\n' &&
+  hash_append sub_dep_r_hash $sub_dependee $requester:$sub_depends $'\n'
+
+  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+          "${CHECK_COLOR}requests" \
+          "${SPELL_COLOR}$sub_dependee${DEFAULT_COLOR}${CHECK_COLOR}" \
+          "with ${SPELL_COLOR}$sub_depends${DEFAULT_COLOR}"
+  if spell_ok $sub_dependee &&
+     # FIXME, could check tablet and do more clever things here
+     [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$sub_dependee" "$sub_depends") != "" ]]; then
+    debug "libdepends" "$FUNCNAME -- $requester -> $sub_dependee -> $sub_depends provided by installed spell"
+  else
+    if ! echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 "  &&
+       spell_held $sub_dependee; then
+      # sub-depends isnt in already installed spell, and spell is held
+      # so we cant recast it; so fail here as early in the process as possible
+      message "${PROBLEM_COLOR}Sub-depends requested on a held spell${DEFAULT_COLOR}"
+      return 1
+    fi
+    # spell is either not installed, or is installed but without the sub-depends
+    # in either case, it must be processed
+    NEW_SUB_DEPENDEES=( ${NEW_SUB_DEPENDEES[*]} $sub_dependee )
+    hash_put sub_depends_process $sub_dependee"yes"
+  fi
+
+}
+
+#---------------------------------------------------------------------
 ## all the depends callbacks eventually bottom out here
 ## if a spell depends or doesnt depend on some other spell
 ## @param Spell
@@ -1121,7 +1302,7 @@ function private_add_triggerees() {
 function private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
-  hash_put "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
+  hash_append "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
 
   for child in ${NEW_DEPENDS[*]}; do
     hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
@@ -1135,7 +1316,7 @@ function private_add_depends()
     hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
   fi
 
-  spells=( ${spells[*]} ${NEW_DEPENDS[*]} )
+  spells=( ${spells[*]} ${NEW_DEPENDS[*]} ${NEW_SUB_DEPENDEES[*]} )
 
   TRIGGEREES=( ${TRIGGEREES[*]} ${triggerees[*]} )
   spells=( ${spells[*]} ${triggerees[*]} )
