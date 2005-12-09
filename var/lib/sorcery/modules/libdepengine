@@ -107,19 +107,18 @@ function depengine_cast_engine() {
     # grey, this is a cycle involving triggers (yuck!)
     # when that happens dont execute $spell's triggers
     # because it will be re-triggered
-    local grey_trigerer=0
-    for trigerer in $(hash_get trg_r_hash cast_self:$spell); do
+    local grey_triggerer=0
+    for triggerer in $(hash_get trg_r_hash $spell:cast_self); do
       # note that $spell's status is grey
-      [[ $trigerer == $spell ]] && continue
-      child_status=$(hash_get state_hash $trigerer)
+      [[ $triggerer == $spell ]] && continue
+      child_status=$(hash_get state_hash $triggerer)
       if [[ $child_status == grey ]] ; then
-         #[[ $child_status == brown ]] && [[ $org_color == brown ]] ; then
-        debug "libdepengine" "$spell has a $child_status trigerer on $trigerer!"
-        grey_trigerer=1
+        debug "libdepengine" "$spell has a $child_status triggerer on $triggerer!"
+        grey_triggerer=1
         break
       fi
     done
-    if [[ $grey_trigerer == 0 ]] ; then
+    if [[ $grey_triggerer == 0 ]] ; then
       execute_triggers $spell 0
     fi
   else
@@ -138,7 +137,7 @@ function depengine_cast_engine() {
 ## @param Spell
 ## @param In trigger flag (optional) if 1, then back off more readily in
 ## the event of a dependency loop.
-## @global MINUS_K if set, then act like make -k and continue building
+## @global MINUS_K if 'yes', then act like make -k and continue building
 ## dependent spells even if another one fails.
 ##
 #------------------------------------------------------------------------
@@ -153,7 +152,7 @@ function recurse_depends() {
     # check if any of our dependencies failed while we weren't looking
     # if one did, bail out, if MINUS_K is set then skip this and build
     # everything we can
-    if ! [[ $MINUS_K ]] ; then
+    if [[ $MINUS_K == no ]] ; then
       for _child in $(hash_get dep_f_hash $spell); do
         case $(dpgn_get_spell_color $_child) in
           black:0)
@@ -176,7 +175,7 @@ function recurse_depends() {
           tmp_rc=$?
           if [[ $tmp_rc != 0 ]] ; then
             rc=$tmp_rc
-            [[ $MINUS_K ]] || break
+            [[ $MINUS_K == no ]] && break
           fi
         fi
       ;;
@@ -195,23 +194,26 @@ function recurse_depends() {
         debug "libdepengine" "$child already built properly, continuing"
       ;;
       black:*)
+        debug "libdepengine" "$child failed, minus_k is $MINUS_K"
         rc=1
-        [[ $MINUS_K ]] || break
+        [[ $MINUS_K == no ]] && break
       ;;
     esac
   done
-  # build triggering spells, this helps keep the order
-  # its true however that most of the time, we'll also depend on the
-  # triggerer, this just catches those cases where we dont, but doesn't
-  # worry too much about a failure
-  for triggerer in $(hash_get trg_r_hash cast_self:$spell); do
-    trgrr_status=$(dpgn_get_spell_color $triggerer)
-    if [[ "$trgrr_status" == "white" ]] ; then
-      if list_find "$need_cast_list" $triggerer; then
-        depengine_cast_engine $triggerer $in_trigger
+  # build anything that will trigger us. this helps keep the order right.
+  # most of the time, we'll also depend on the triggerer, this just
+  # catches those cases where we dont, and doesn't worry too much
+  # about a failure
+  if [[ $rc == 0 ]] ; then
+    for triggerer in $(hash_get trg_r_hash $spell:cast_self); do
+      trgrr_status=$(dpgn_get_spell_color $triggerer)
+      if [[ "$trgrr_status" == "white" ]] ; then
+        if list_find "$need_cast_list" $triggerer; then
+          depengine_cast_engine $triggerer $in_trigger
+        fi
       fi
-    fi
-  done
+    done
+  fi
   return $rc
 }
 
@@ -275,7 +277,7 @@ function execute_triggers() {
 
     # if there are no white triggerers, we are the last triggerer
     local last=1
-    local triggerers=$(hash_get trg_r_hash $trg_action:$trg_target)
+    local triggerers=$(hash_get trg_r_hash $trg_target:$trg_action)
     for triggerer in $triggerers; do
       [[ $triggerer == $spell ]] && continue
       if [[ $(dpgn_get_spell_color $triggerer) == white ]] ; then
