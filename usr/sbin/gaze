@@ -592,7 +592,11 @@ function show_spell_component()  {
   local       SPELL_NAME=$2
   local  SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL_NAME`
   if  [  -e  $SPELL_DIRECTORY/$COMPONENT  ];  then
-    cat      $SPELL_DIRECTORY/$COMPONENT
+    if [[ $GAZE_VERBOSE == 0 ]]; then
+      cat $SPELL_DIRECTORY/$COMPONENT
+    else
+      $PAGER $SPELL_DIRECTORY/$COMPONENT
+    fi
   fi
 
 }
@@ -713,12 +717,18 @@ function real_long_search()  {
 	echo  "Searching...   "
   fi
 
+  let i=0
+
   for pattern in "$@"; do
-    SEARCH="$SEARCH -e $pattern"
+    SEARCH[$i]=-e
+    let i++
+    SEARCH[$i]=$pattern
+    let i++
   done
 
-  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il $SEARCH`; do
-    for pattern in "$@"; do
+  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il "${SEARCH[@]}"`; do
+    for ((i=1;i<${#SEARCH[@]};i+=2)) ; do
+      pattern=${SEARCH[$i]}
       SEARCH_RESULTS=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
         /'"${pattern}"'/{
           if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
@@ -1665,6 +1675,7 @@ parse()  {
          PREPARE)  show_spell_component $1 $2            ;;
         PROVIDES)  show_spell_component $1 $2            ;;
         TRIGGERS)  show_spell_component $1 $2            ;;
+     UP_TRIGGERS)  show_spell_component $1 $2            ;;
 
         # Other options
             html)  shift; gaze_catalog_html $@           ;;
