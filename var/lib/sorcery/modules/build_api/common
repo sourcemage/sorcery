@@ -216,7 +216,7 @@ function run_spell_success() {
     local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $t_DEPENDS_STATUS $SPELL
-    local spell_depends
+    local spell_depends spell_sub_depends spell_rsub_depends
     get_uncommitted_depends_file $SPELL spell_depends
     if [ -e $spell_depends ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
@@ -237,6 +237,7 @@ function run_spell_success() {
       cat  $spell_sub_depends >> $t_SUB_DEPENDS_STATUS
     fi
     lock_commit_transaction $SUB_DEPENDS_STATUS
+    get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
 
     # compile log
     create_compile_log
@@ -285,7 +286,8 @@ function run_spell_success() {
     create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
-    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends
+    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends \
+           "$spell_sub_depends" "$spell_rsub_depends"
 }
 
 #---------------------------------------------------------------------
@@ -309,7 +311,8 @@ function run_spell_failure() {
 
     # put the answers somewhere where they can still be used later
     mkdir -p $ABANDONED_DEPENDS
-    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    local spell_depends
+    get_uncommitted_depends_file $SPELL spell_depends
     [ -e $spell_depends ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL
 
     # This may have been locked if there was a failure during the install
@@ -319,6 +322,11 @@ function run_spell_failure() {
     devoke_installwatch
 
     rm -f $IW_LOG $C_LOG
+
+    local spell_sub_depends spell_rsub_depends
+    get_uncommitted_sub_depends_file $SPELL spell_sub_depends
+    get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
+    rm -f "$spell_sub_depends" "$spell_rsub_depends"
 
     [[  $CLEAN_SOURCE == on ]] && rm_source_dir
     CAST_EXIT_STATUS=1
