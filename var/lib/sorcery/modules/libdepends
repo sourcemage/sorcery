@@ -1180,7 +1180,8 @@ function private_up_trigger() {
 ## @param name of sub-depends
 ##
 ## Request a sub-depends from $SPELL on $1 for $2
-## This queues the sub-depends for later processing.
+## This queues the sub-depends for later processing, if the sub-dependee
+## does not already support the sub-depends.
 #---------------------------------------------------------------------
 function real_sub_depends() {
   $STD_DEBUG
@@ -1204,16 +1205,35 @@ function real_sub_depends() {
     if ! echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 "  &&
        spell_held $sub_dependee; then
       # sub-depends isnt in already installed spell, and spell is held
-      # so we cant recast it; so fail here as early in the process as possible
+      # (and not specified on cli) so we cant recast it.
+      # Fail here as early in the process as possible
       message "${PROBLEM_COLOR}Sub-depends requested on a held spell${DEFAULT_COLOR}"
       return 1
     fi
-    # spell is either not installed, or is installed but without the sub-depends
-    # in either case, it must be processed
+    if spell_installed "$sub_dependee"; then
+      # the spell is installed, as a last ditch effort, run the
+      # "PRE_SUB_DEPENDS" file, to see if it provides the sub-depends but
+      # just doesn't have it listed
+      (
+        THIS_SUB_DEPENDS=$sub_depends
+        codex_set_current_spell_by_name $sub_dependee || return 1
+        test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
+        persistent_load &&
+        source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
+        persistent_save
+        return $rc
+      ) && {
+        debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
+        add_sub_depends "$SUB_DEPENDS_FILE" "$requester" "$sub_dependee" "$sub_depends"
+        return 0
+      }
+    fi
+    # spell is either not installed, or is installed but without the
+    # sub-depends, we must (re)cast it
     NEW_SUB_DEPENDEES=( ${NEW_SUB_DEPENDEES[*]} $sub_dependee )
     hash_put sub_depends_process $sub_dependee "yes"
   fi
-
+  return 0
 }
 
 #---------------------------------------------------------------------

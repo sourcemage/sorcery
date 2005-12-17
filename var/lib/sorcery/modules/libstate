@@ -30,12 +30,13 @@ function add_depends()
   #already here for some reason
   search_depends_status_exact "$@" >/dev/null  && return 0
 
-  #probably not needed with commit on succeed
-  #remove stale depends info
-  search_depends_status "$@" >/dev/null && remove_depends_status "$@"
-
   local depends_status=$1
   shift
+
+  # Allow add_depends to override previous ones for the same pair of spells
+  search_depends_status "$depends_status" "$1" "$2" >/dev/null &&
+  remove_depends_status "$depends_status" "$1" "$2"
+
 
   #ensure the info is valid (perhaps add check that spells exist?)
   if ( [[ $3 != on ]]       && [[ $3 != off ]]      ) ||
@@ -224,11 +225,11 @@ function get_uncommitted_depends_file() {
     if ! [[ $temp_spell_depends ]] ; then
       temp_spell_depends="$UNCOMMITTED_DEPENDS/$SPELL"
       hash_put "uncommitted_hash" "$SPELL" "$temp_spell_depends"
-      if [ -e "$temp_spell_depends" ]; then
-        mkdir -p "$ABANDONED_DEPENDS"
-        mv "$temp_spell_depends" "$ABANDONED_DEPENDS" &>/dev/null
-        mv "$temp_spell_depends:*" "$ABANDONED_DEPENDS" &>/dev/null
-      fi
+
+      mkdir -p "$ABANDONED_DEPENDS"
+      mv "$temp_spell_depends" "$ABANDONED_DEPENDS" &>/dev/null
+      mv "$temp_spell_depends:*" "$ABANDONED_DEPENDS" &>/dev/null
+
       mkdir -p "$UNCOMMITTED_DEPENDS"
       touch "$temp_spell_depends"
     fi
