@@ -32,7 +32,7 @@ provides	feature 	Displays spells that provide the feature.
 
 what		spell		Prints the spell's description.
 short           spell           Prints the spell's short description.
-where		spell		Prints the spell's section.
+where	-path	spell		Prints the spell's section or full path.
 website | url	spell		Prints the spell's website.
 install		spell		Views an install log, and sorcery log files for to the spell.
 install-full		spell		Views an install log including all sorcery state files.
@@ -265,7 +265,9 @@ function alien()  {
 function gaze_catalog()  {
 
   local grimoire
-
+  local pager=$PAGER
+  [[ $GAZE_VERBOSE == 0 ]] && pager=cat
+  {
   if [[ $# -gt 0 ]]; then
         grimoire=$(codex_find_grimoire $1)
         if [[ $? != 0 ]]; then
@@ -274,7 +276,7 @@ function gaze_catalog()  {
         fi  
   fi
 
-  echo  "Sorcery Grimoire for `date  -u`"
+  [[ $GAZE_VERBOSE != 0 ]] && echo  "Sorcery Grimoire for `date  -u`"
 
   if [ $grimoire ]; then
         echo "Grimoire: " $(basename $grimoire)
@@ -282,22 +284,27 @@ function gaze_catalog()  {
         echo "Grimoires: " $(codex_get_all_grimoires | get_basenames)
   fi
 
-  ((  COUNT=0  ))
+  COUNT=0
 
   for  SECTION  in  `codex_get_all_sections $grimoire`;  do
-    echo 
-    echo  "-------------------------------------------------"
-    echo  "SECTION:  $(  basename  $SECTION  )"  
-    echo  "-------------------------------------------------"
+    if [[ $GAZE_VERBOSE != 0 ]]; then
+      echo 
+      echo  "-------------------------------------------------"
+      echo  "SECTION: $(  basename  $SECTION  )"  
+      echo  "-------------------------------------------------"
+    else
+      echo
+      echo  "SECTION: $(  basename  $SECTION  )"
+    fi
     for  spell  in  `codex_get_spells_in_section $SECTION`;  do
-       echo `basename $spell`
+      echo `basename $spell` #keeps head from breaking pipes
       ((  COUNT++  ))
     done
   done
 
   echo
   echo  "Total spells:  $COUNT"
-
+  } | $pager
 }
 
 #-----
@@ -1382,18 +1389,30 @@ function gaze_show_long_description() {
 ##
 #-----
 function gaze_show_where() {
-	for spell in $@; do
-		SECTION=$(codex_get_spell_section_name  $spell)
-                if ! [[ $GAZE_VERBOSE == 0 ]]; then
-		        if [[ $SECTION ]]; then
-			        message "$spell -> $SECTION"
-                        else
-                                message "$spell -> no such spell"
-                        fi
-		else
-                        [[ $SECTION ]] && message "$SECTION"
-		fi
-	done
+
+  local SHOW_PATH
+  if [[ $1 == "-path" ]]; then
+    SHOW_PATH=true
+    shift
+  fi
+
+  for spell in $@; do
+    if [[ $SHOW_PATH == true ]]; then
+      SECTION="$(codex_find_spell_by_name $spell)"
+    else
+      SECTION="$(codex_get_spell_section_name $spell)"
+    fi
+
+    if ! [[ $GAZE_VERBOSE == 0 ]]; then
+      if [[ $SECTION ]]; then
+        message "$spell -> $SECTION"
+      else
+        message "$spell -> no such spell"
+      fi
+    else
+      [[ $SECTION ]] && message "$SECTION"
+    fi
+  done
 }
 
 #-----
@@ -1692,7 +1711,7 @@ parse()  {
            older)  older             $2                  ;;
          sources)  sources           $SPELL              ;;
      source_urls)  source_urls       $SPELL              ;;
-        grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
+        grimoire)  shift; gaze_catalog $@                ;;
        grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
          service)  service       "$2"                    ;;
