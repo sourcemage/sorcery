@@ -367,8 +367,22 @@ function tablet_get_path() {
 # @param spell name
 # @param upvar
 # @param timestamp (optional)
+#
+# @global TABLET_IGNORE if set means that there isnt a tablet for this
+# and somewhere up the stack knows this
+# @global TABLET_SPELL_DIR if set, is the value of the tablet for this
+# spell, because somewhere up the stack it was just created (so dont bother
+# looking for it)
+#
+# the idea for the two globals is to simplify the layers in-between
+# and skip searching when it isn't necessary
 #----------------------------------------------------------------------
 function tablet_find_spell_dir() {
+  [[ $TABLET_IGNORE ]] && return 1
+  if [[ $TABLET_SPELL_DIR ]] ; then
+    eval "$2=\"$TABLET_SPELL_DIR\""
+    return 0
+  fi
   local SPELL=$1
   if ! test -d $TABLET_PATH; then
     mkdir -p $TABLET_PATH

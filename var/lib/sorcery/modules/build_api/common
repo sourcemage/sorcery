@@ -248,10 +248,12 @@ function run_spell_success() {
       message "failed to make a tablet directory: $tablet_dir" \
               "this may be a bug"
       unset tablet_dir
+      local TABLET_IGNORE=yes
     else
       message  "${MESSAGE_COLOR}Creating tablet in directory"        \
                "${FILE_COLOR}${tablet_dir}${DEFAULT_COLOR}"
       tablet_install_spell_files $tablet_dir
+      local TABLET_SPELL_DIR=$tablet_dir
 
       # this data is now doubly stale, remove it
       rm  -f $ABANDONED_PERSIST/$SPELL.p
