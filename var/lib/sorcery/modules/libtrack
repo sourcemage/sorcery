@@ -325,11 +325,7 @@ function log_adjuster() {
     fi
   fi
 
-  local TMP_SSF=$TMP_DIR/$RANDOM
-  while ! mkdir $TMP_SSF; do
-    TMP_SSF=$TMP_DIR/$RANDOM
-    sleep 1
-  done
+  local TMP_SSF=$(make_safe_dir)
   local TMP_DATA=$TMP_SSF/foo.data
   local TMP_MDATA=$TMP_SSF/foo.mdata
   
@@ -344,6 +340,7 @@ function log_adjuster() {
   } > $output
   rm $TMP_DATA $TMP_MDATA
   rmdir $TMP_SSF
+  return 0
 }
 
 #---------------------------------------------------------------------
@@ -362,19 +359,51 @@ function seperate_state_files() {
   local REAL_STATE_DIR=${STATE_DIRECTORY#$STATE_ROOT}
 
   # the input file is almost certainly a pipe, and things get weird
-  # since we have to grep twice, so just dump the data into a unique
-  # file, the loop below shouldn't go forever unless there's ~30,000 pipes
+  # since we have to grep twice, so just dump the data into a unique file
 
-  local FILE=$TMP_DIR/ssf.$RANDOM
-  while test -e $FILE; do
-    FILE=$TMP_DIR/ssf.$RANDOM
-  done
+  local TMP_SSF=$(make_safe_dir)
+  local FILE=$TMP_SSF/ssf
   cat $1 > $FILE
   grep -v "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE | grep -xv '' > $2
   grep    "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE | grep -xv '' > $3
   rm $FILE
+  rmdir $TMP_SSF
   return 0
 }
+
+#---------------------------------------------------------------------
+## Try to make a unique directory using $RANDOM, leverage the fact that
+## two simultaneous mkdir's will have one succeed and the other fail.
+##
+## This is run from log_adjuster primarily which may be invoked several
+## times in a pipe, when this happens, bash does a fork, but does not
+## seem to reseed the random number generator, causing a high rate of
+## collisions. This is not easily reproducable outside of sorcery at
+## the time of writing, but inside it happens nearly everytime with bash
+## 3.1. This may actually be a bash 3.1 bug.
+##
+## The collisions aren't bad necessarily, but they result in un-necesary
+## delay.
+##
+## Setting RANDOM re-seeds the random number generator.
+##
+## Despite the fact that the subshell and invocation of date are slow
+## the consequence for not doing them are worse. The nano-seconds
+## are usually going to be different between forks so the liklihood
+## of a collision is greatly reduced.
+#---------------------------------------------------------------------
+function make_safe_dir() { (
+  RANDOM=$(date "+%N")
+  local TMP_SSF=$TMP_DIR/$RANDOM
+  while ! mkdir "$TMP_SSF" &> /dev/null; do
+    RANDOM=$(date "+%N")
+    TMP_SSF=$TMP_DIR/$RANDOM
+    sleep .1
+    debug "libtrack" "safe dir collision on $TMP_SSF"
+  done
+  echo $TMP_SSF
+  return 0
+) }
 
 #---------------------------------------------------------------------
 ## @License
