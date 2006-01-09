@@ -100,7 +100,7 @@ function reap_depends()  {
     done
     for triple in $(search_sub_depends "$SUB_DEPENDS_STATUS" '.*' "$SPELL"); do
       requester=${triple%%:*}
-      if ! spell_ok $requester; then
+      if [[ -z "$requester" ]] || ! spell_ok $requester; then
         remove_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$SPELL"
       fi
     done

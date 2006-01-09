@@ -1198,7 +1198,6 @@ function real_sub_depends() {
           "${SPELL_COLOR}$sub_dependee${DEFAULT_COLOR}${CHECK_COLOR}" \
           "with ${SPELL_COLOR}$sub_depends${DEFAULT_COLOR}"
   if spell_ok $sub_dependee &&
-     # FIXME, could check tablet and do more clever things here
      [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$sub_dependee" "$sub_depends") != "" ]]; then
     debug "libdepends" "$FUNCNAME -- $requester -> $sub_dependee -> $sub_depends provided by installed spell"
   else
@@ -1211,12 +1210,21 @@ function real_sub_depends() {
       return 1
     fi
     if spell_installed "$sub_dependee"; then
+      # FIXME, could check tablet and do more clever things here
+      if [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "" "$sub_dependee" "$sub_depends") != "" ]]; then
+        debug "libdepends" "$sub_dependee has a $sub_depends from another spell"
+        add_sub_depends "$SUB_DEPENDS_STATUS" "$requester" \
+                        "$sub_dependee" "$sub_depends"
+        return 0
+      fi
       # the spell is installed, as a last ditch effort, run the
       # "PRE_SUB_DEPENDS" file, to see if it provides the sub-depends but
       # just doesn't have it listed
       (
         THIS_SUB_DEPENDS=$sub_depends
-        codex_set_current_spell_by_name $sub_dependee || return 1
+        if ! tablet_set_spell $sub_dependee ; then
+          codex_set_current_spell_by_name $sub_dependee || return 1
+        fi
         test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
         persistent_load &&
         source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
@@ -1224,7 +1232,7 @@ function real_sub_depends() {
         return $rc
       ) && {
         debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
-        add_sub_depends "$SUB_DEPENDS_FILE" "$requester" "$sub_dependee" "$sub_depends"
+        add_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$sub_dependee" "$sub_depends"
         return 0
       }
     fi
@@ -1234,6 +1242,18 @@ function real_sub_depends() {
     hash_put sub_depends_process $sub_dependee "yes"
   fi
   return 0
+}
+
+#---------------------------------------------------------------------
+## Allow a spell to altruisticly specify that it provides a certain
+## sub-depends.
+## @param sub-depends being provided altruistically
+#---------------------------------------------------------------------
+function real_altruistic_sub_depends() {
+  local sub_depends=$1
+  local sub_depends_file rsub_depends_file
+  get_uncommitted_sub_depends_file "$SPELL" sub_depends_file || return 1
+  add_sub_depends "$sub_depends_file" "" "$SPELL" "$sub_depends"
 }
 
 #---------------------------------------------------------------------
