@@ -123,6 +123,38 @@ function run_conflicts() {
 
 }
 
+function query_custom_cflags() {
+  if [[ $PER_SPELL_CFLAGS ]]; then
+    query "Would you like to set custom optimizations for this spell?" n ||
+      return 0
+
+    persistent_add USER_SPELL_CFLAGS
+    persistent_add USER_SPELL_CXXFLAGS
+    persistent_add USER_SPELL_LDFLAGS
+    local RESULTS KEY rc
+    while true ; do
+      # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
+      # the ( ) interprits as an array, then using the magic power of set we
+      # get to use shift and $@ to get things done
+      RESULTS=(`eval dialog --stdout ' --extra-label Adjust --inputmenu \
+                              "Custom Optimizations Menu" \
+                               17 50 9 \
+                               CFLAGS "$USER_SPELL_CFLAGS" \
+                               CXXFLAGS "$USER_SPELL_CXXFLAGS" \
+                               LDFLAGS "$USER_CUSTOM_LDFLAGS"'`)
+      rc=$?
+      [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
+      set ${RESULTS[*]}
+      KEY=$2
+      shift 2
+      case "$KEY" in
+        CFLAGS) USER_SPELL_CFLAGS="$@"  ;;
+        CXXFLAGS) USER_SPELL_CXXFLAGS="$@" ;;
+        LDFLAGS) USER_SPELL_LDFLAGS="$@" ;;
+      esac
+    done
+  fi
+}
 
 #---------------------------------------------------------------------
 ## Asks the user about init and xinetd services
