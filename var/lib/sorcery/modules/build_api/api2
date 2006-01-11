@@ -97,10 +97,10 @@ function run_pre_build() {
   verify_sources &&
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    debug "build_api/api2" "run_pre_build() - Prebuild script exists, now sourcing "
     . $SCRIPT_DIRECTORY/PRE_BUILD
+  elif [[ "$PRE_BUILD_CMD" ]] ; then
+    $PRE_BUILD_CMD
   else
-    debug "build_api/api2" "run_pre_build() - Prebuild script not found, using default"
     default_pre_build
   fi &&
   persistent_save
@@ -133,6 +133,8 @@ function run_build()  {
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
     .  $SCRIPT_DIRECTORY/BUILD
+  elif [[ "$BUILD_CMD" ]] ; then
+    $BUILD_CMD
   else
     default_build
   fi &&
@@ -157,6 +159,8 @@ function run_pre_install() {
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
     .  $SCRIPT_DIRECTORY/PRE_INSTALL 
+  elif [[ "$PRE_INSTALL_CMD" ]] ; then
+    $PRE_INSTALL_CMD
   else
     default_pre_install
   fi &&
@@ -178,6 +182,8 @@ function run_install() {
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
     .  $SCRIPT_DIRECTORY/INSTALL 
+  elif [[ "$INSTALL_CMD" ]] ; then
+    $INSTALL_CMD
   else
     default_install
   fi &&
@@ -201,6 +207,8 @@ function run_post_install() {
   persistent_load &&
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
     . $SCRIPT_DIRECTORY/POST_INSTALL
+  elif [[ "$POST_INSTALL_CMD" ]] ; then
+    $POST_INSTALL_CMD
   else
     default_post_install
   fi &&
@@ -220,6 +228,8 @@ function run_final() {
   if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
   then
     . $SCRIPT_DIRECTORY/FINAL
+  elif [[ "$FINAL_CMD" ]] ; then
+    $FINAL_CMD
   fi &&
   persistent_save
 }
