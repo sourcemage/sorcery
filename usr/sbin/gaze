@@ -27,7 +27,6 @@ search -name  	"phrase" 	Searches for "phrase" in the spell name.
 search -short 	"phrase" 	Searches for "phrase" in the short spell 
 				descriptions
 
-service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
 what		spell		Prints the spell's description.
@@ -769,22 +768,6 @@ function real_long_search()  {
 
 
 }
-
-#-----
-## Search for providers of a service in all spells
-## @param service name
-#-----
-function service()  {
-	
-  for  SPELL  in  $(codex_get_all_spells);  do
-    if    [  -f  $SPELL/services  ]  &&
-	  grep  -q  -i  "$1"  $SPELL/services
-    then  echo  "$( basename  $SPELL )"
-    fi
-  done
-  
-}
-
 
 #---------------------------------------------------------------------
 ##
@@ -1697,7 +1680,6 @@ parse()  {
         grimoire)  shift; gaze_catalog $@                ;;
        grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
-         service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
          depends)  shift; gaze_show_depends  "$@"        ;;
     dependencies)  shift; gaze_show_dependencies  "$@"   ;;
