@@ -115,12 +115,18 @@ function url_download_expand_sort() {
   # you can't expect me to download something without urls...
   [ -z "$url_list" ] && return 255
 
+  # ensure list is newline seperated
+  url_list="$(echo $url_list|tr ' ' '\n')"
+
   # expand urls
   url_expand_urls expanded_urls "$url_list"
   if ! [[ "$expanded_urls" ]] ; then
     message "No expanded urls! If you get this it is a sorcery bug"
     return 1
   fi
+  # limit the number of expanded urls, only the linux kernel reaches this
+  # limit and doing netselect on that many urls is absurd
+  expanded_urls=$(echo "$expanded_urls"|head -n 50)
   debug "liburl" "expanded urls $expanded_urls"
   # sort urls 
   url_sort_urls sorted_urls "$expanded_urls"
@@ -233,15 +239,12 @@ function url_expand_urls() {
   local upvar="$1"
   local url_list="$2"
   local tmp_list
-  tmp_list="$(for url in $url_list; do
+  # put the original urls in the front of the list
+  # awkuniq will remove duplicates thereafter
+  tmp_list="$({ echo "$url_list" ; for url in $url_list; do
     # this should expand to something or return itself
     url_expand "$url"
-  done|sort|uniq)"
-  # this ensures that the urls originally specified are given preference
-  for url in $url_list; do
-    tmp_list=$(echo "$tmp_list"|grep -v $url)
-  done
-  tmp_list="$(echo $url_list|tr ' ' '\n')"$'\n'"$tmp_list"
+  done ; } |awkuniq)"
   eval "$upvar=\"\$tmp_list\""
 }
 
@@ -282,7 +285,7 @@ function url_rank() {
 
   debug "liburl" "unsorted list: $*"
 
-  urlList="$*"
+  urlList="$@"
 
   # Even if theres one url it might have multiple A records and we'll
   # want netselect to find the fastest one
@@ -310,18 +313,22 @@ function url_rank() {
     # url_speed[69]="${url_speed[69]} url1"
     # url_speed[234]="${url_speed[234]} url2"
     eval $(url_netselect $tmp_list|
-      awk '{printf "url_speed[%s]=\"${url_speed[%s]} %s\";",$1,$1,$2}')
+      awk '{ if ($2 > 0 && $2 < 65536 ) {
+               printf "url_speed[%s]=\"${url_speed[%s]} %s\";",$1,$1,$2
+             }
+           }')
   done
   
   # since we put things in url_speed indexed by speed, the * should
   # expand back in sorted order
 
-  sortedList=$(echo ${url_speed[*]})
+  sortedList=$(echo ${url_speed[@]})
   debug "liburl" "Ordered list pre-sanity check is $sortedList"
 
   # if all sites are ICMP Unreachable, return the unsorted list instead of null.
   if [[ -z "$sortedList" ]] ; then
-    echo $urlList
+    debug "liburl" "Failed to expand list"
+    echo "$urlList"
     return
   fi
 
@@ -335,10 +342,10 @@ function url_rank() {
   # just in case something failed along the way just return what we had
   if [[ -z "$sortedList" ]] ; then
     debug "liburl" "Ordering failed somewhere, giving back original input"
-    echo $urlList
+    echo "$urlList"
   else
     debug "liburl" "Ordered URLs: $sortedList"
-    echo $sortedList
+    echo "$sortedList"
   fi
 }
 

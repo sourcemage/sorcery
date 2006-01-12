@@ -27,12 +27,11 @@ search -name  	"phrase" 	Searches for "phrase" in the spell name.
 search -short 	"phrase" 	Searches for "phrase" in the short spell 
 				descriptions
 
-service		port|acronym	Displays spells that provide that service.
 provides	feature 	Displays spells that provide the feature.
 
 what		spell		Prints the spell's description.
 short           spell           Prints the spell's short description.
-where		spell		Prints the spell's section.
+where	-path	spell		Prints the spell's section or full path.
 website | url	spell		Prints the spell's website.
 install		spell		Views an install log, and sorcery log files for to the spell.
 install-full		spell		Views an install log including all sorcery state files.
@@ -60,7 +59,8 @@ size		spell		Prints total size of all files installed
 export				Makes snapshot of box's configuration.
 import		snapshot	Restores snapshot.
 
-section		[section]	Lists grimoire sections.
+section		[section]	Lists all sections. Or all spells in
+				 the specified section.
 maintainer	[section]	Lists who is the maintainer for a section
 grimoire	[grimoire]	Views a text listing of all grimoires.
                 	         Or of the specified grimoire.
@@ -265,7 +265,9 @@ function alien()  {
 function gaze_catalog()  {
 
   local grimoire
-
+  local pager=$PAGER
+  [[ $GAZE_VERBOSE == 0 ]] && pager=cat
+  {
   if [[ $# -gt 0 ]]; then
         grimoire=$(codex_find_grimoire $1)
         if [[ $? != 0 ]]; then
@@ -274,7 +276,7 @@ function gaze_catalog()  {
         fi  
   fi
 
-  echo  "Sorcery Grimoire for `date  -u`"
+  [[ $GAZE_VERBOSE != 0 ]] && echo  "Sorcery Grimoire for `date  -u`"
 
   if [ $grimoire ]; then
         echo "Grimoire: " $(basename $grimoire)
@@ -282,22 +284,27 @@ function gaze_catalog()  {
         echo "Grimoires: " $(codex_get_all_grimoires | get_basenames)
   fi
 
-  ((  COUNT=0  ))
+  COUNT=0
 
   for  SECTION  in  `codex_get_all_sections $grimoire`;  do
-    echo 
-    echo  "-------------------------------------------------"
-    echo  "SECTION:  $(  basename  $SECTION  )"  
-    echo  "-------------------------------------------------"
+    if [[ $GAZE_VERBOSE != 0 ]]; then
+      echo 
+      echo  "-------------------------------------------------"
+      echo  "SECTION: $(  basename  $SECTION  )"  
+      echo  "-------------------------------------------------"
+    else
+      echo
+      echo  "SECTION: $(  basename  $SECTION  )"
+    fi
     for  spell  in  `codex_get_spells_in_section $SECTION`;  do
-       echo `basename $spell`
+      echo `basename $spell` #keeps head from breaking pipes
       ((  COUNT++  ))
     done
   done
 
   echo
   echo  "Total spells:  $COUNT"
-
+  } | $pager
 }
 
 #-----
@@ -511,7 +518,7 @@ function newer()  {
   local COMPUTE
 
   if [ x"$DATE" == x"last_sorcery_update" ]; then
-    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $5 ; exit } }'
+    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $1 ; exit } }'
   elif [ x"$DATE" == x"last_cast" ]; then
     COMPUTE='($3 == "cast" && $6 == "success") { print $1 ; exit }'
   fi
@@ -591,8 +598,18 @@ function show_spell_component()  {
   local        COMPONENT=$1
   local       SPELL_NAME=$2
   local  SPELL_DIRECTORY=`codex_find_spell_by_name  $SPELL_NAME`
+
+  if  [  -z  "$SPELL_DIRECTORY"  ]; then
+    message "No such spell '$SPELL_NAME'"
+    exit 1
+  fi
+
   if  [  -e  $SPELL_DIRECTORY/$COMPONENT  ];  then
-    cat      $SPELL_DIRECTORY/$COMPONENT
+    if [[ $GAZE_VERBOSE == 0 ]]; then
+      cat $SPELL_DIRECTORY/$COMPONENT
+    else
+      $PAGER $SPELL_DIRECTORY/$COMPONENT
+    fi
   fi
 
 }
@@ -706,42 +723,42 @@ function real_short_search() {
 #-----------------------------------------------------------------------
 function real_long_search()  {
   local atSpell=0
-  local file
-  local SEARCH
+  local file pattern
+  local SEARCH SEARCH_RESULTS
 
   if ! [[ $GAZE_VERBOSE == 0 ]] ; then
 	echo  "Searching...   "
   fi
 
-  let j=0	
+  let i=0
 
-  SEARCH=''
   for pattern in "$@"; do
-    SEARCH="$SEARCH -e $pattern"
+    SEARCH[$i]=-e
+    let i++
+    SEARCH[$i]=$pattern
+    let i++
   done
 
-  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il $SEARCH`; do
-     for pattern in "$@"; do
-       SEARCH_RESULTS[$j]=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
-         /'"${pattern}"'/{
-           if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
-           if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
-           if(inLongDesc) {print "(Description)";       exit 0;}
-         }
-         /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
-         /^EOF$/{inLongDesc=0;} ' $file)
+  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il "${SEARCH[@]}"`; do
+    for ((i=1;i<${#SEARCH[@]};i+=2)) ; do
+      pattern=${SEARCH[$i]}
+      SEARCH_RESULTS=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
+        /'"${pattern}"'/{
+          if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
+          if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
+          if(inLongDesc) {print "(Description)";       exit 0;}
+        }
+        /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
+        /^EOF$/{inLongDesc=0;} ' $file)
 
-      if [[ ${SEARCH_RESULTS[$j]} ]]; then
-        SEARCH_RESULTS[$j]="$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS[$j]}"
+      if [[ ${SEARCH_RESULTS} ]]; then
         if [[ $GAZE_VERBOSE == 0 ]]; then
-          basename $SPELL_DIRECTORY
+          basename $(dirname $file)
         else
           clear_line
-          echo ${SEARCH_RESULTS[$j]}
+          echo "$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS}"
         fi
-        let j++
       fi
-
     done
   done
 
@@ -749,25 +766,8 @@ function real_long_search()  {
     clear_line
   fi
 
-unset SEARCH_RESULTS
 
 }
-
-#-----
-## Search for providers of a service in all spells
-## @param service name
-#-----
-function service()  {
-	
-  for  SPELL  in  $(codex_get_all_spells);  do
-    if    [  -f  $SPELL/services  ]  &&
-	  grep  -q  -i  "$1"  $SPELL/services
-    then  echo  "$( basename  $SPELL )"
-    fi
-  done
-  
-}
-
 
 #---------------------------------------------------------------------
 ##
@@ -945,32 +945,6 @@ function show_maintainer()  {
     fi
   done
 
-}
-
-
-#---------------------------------------------------------------------
-##
-## Shows the HISTORY for the given spell.
-## @param Spell
-##
-#---------------------------------------------------------------------
-function show_history()  {
-
-  local SPELL=`codex_find_spell_by_name  $1`
-
-  if  [  -n  "$SPELL"  ];  then
-
-    if  [  -f  "$SPELL/HISTORY"  ]; then
-      cat  $SPELL/HISTORY
-    else
-      echo "No history available for spell '$( basename  $SPELL )'"
-    fi
-
-  else
-
-    echo "No such spell '$1'"
-
-  fi
 }
 
 
@@ -1241,13 +1215,10 @@ function gaze_show_license_table()  {
 #---------------------------------------------------------------------
 function gaze_show_grimoires()  {
 
-	echo  ""
-	echo  ""
-	echo  "Installed Grimoires: " $(codex_get_all_grimoires | get_basenames)
-	echo  ""
-	echo  ""
-	exit
-	
+  ! [[ $GAZE_VERBOSE == 0 ]] &&  echo -n "Installed Grimoires: "
+  echo $(codex_get_all_grimoires | get_basenames)
+  exit
+
 }
 
 
@@ -1311,20 +1282,25 @@ function gaze_show_license()  {
 function gaze_show_installed() {
 
   local total_rc=0
-  if    [  -z  "$1"    ]
-        then  grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
+  if [ -z  "$1" ]
+  then
+    if [[ $GAZE_VERBOSE == 0 ]]; then
+      grep -v ':exiled:[^:]*$' $SPELL_STATUS
+    else
+      grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
+    fi
   else
-        for spell in $@; do
-                ! [[ $GAZE_VERBOSE == 0 ]] &&
-                message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
-                VERSION=$(installed_version  $spell)
-                if  [  -n  "$VERSION"  ]; then
-                        echo   "$VERSION"
-                else
-                        total_rc=1
-                        message  "not installed"
-                fi
-        done
+    for spell in "$@"; do
+      ! [[ $GAZE_VERBOSE == 0 ]] &&
+      message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+      VERSION=$(installed_version  $spell)
+      if  [  -n  "$VERSION"  ]; then
+        echo "$VERSION"
+      else
+        total_rc=1
+        message  "not installed"
+      fi
+    done
   fi
   return $total_rc
 }
@@ -1377,18 +1353,30 @@ function gaze_show_long_description() {
 ##
 #-----
 function gaze_show_where() {
-	for spell in $@; do
-		SECTION=$(codex_get_spell_section_name  $spell)
-                if ! [[ $GAZE_VERBOSE == 0 ]]; then
-		        if [[ $SECTION ]]; then
-			        message "$spell -> $SECTION"
-                        else
-                                message "$spell -> no such spell"
-                        fi
-		else
-                        [[ $SECTION ]] && message "$SECTION"
-		fi
-	done
+
+  local SHOW_PATH
+  if [[ $1 == "-path" ]]; then
+    SHOW_PATH=true
+    shift
+  fi
+
+  for spell in $@; do
+    if [[ $SHOW_PATH == true ]]; then
+      SECTION="$(codex_find_spell_by_name $spell)"
+    else
+      SECTION="$(codex_get_spell_section_name $spell)"
+    fi
+
+    if ! [[ $GAZE_VERBOSE == 0 ]]; then
+      if [[ $SECTION ]]; then
+        message "$spell -> $SECTION"
+      else
+        message "$spell -> no such spell"
+      fi
+    else
+      [[ $SECTION ]] && message "$SECTION"
+    fi
+  done
 }
 
 #-----
@@ -1470,7 +1458,9 @@ function gaze_show_dependencies() {
         fi
         break
     done
+
     SPELL=$1
+    codex_does_spell_exist "$SPELL"  || exit 1
 	
     [[ $# == 2 ]] && MAX_DEPTH=$2
 
@@ -1571,8 +1561,8 @@ function gaze_show_size () {
         for each in $(<$file); do
           test -f $each && echo $each
         done | xargs du -b |
-            awk '{ x += $1 } 
-                END { print "'$spell' -> " x " bytes in " NR " files." }'
+            awk '{ x += $1 }
+                END { print "'$spell' -> " x " bytes ("int(x/1024+0.5)" K, "int(x/1024/1024+0.5)" M) in " NR " files." }'
     done
 }
 
@@ -1670,6 +1660,7 @@ parse()  {
          PREPARE)  show_spell_component $1 $2            ;;
         PROVIDES)  show_spell_component $1 $2            ;;
         TRIGGERS)  show_spell_component $1 $2            ;;
+     UP_TRIGGERS)  show_spell_component $1 $2            ;;
 
         # Other options
             html)  shift; gaze_catalog_html $@           ;;
@@ -1686,15 +1677,14 @@ parse()  {
            older)  older             $2                  ;;
          sources)  sources           $SPELL              ;;
      source_urls)  source_urls       $SPELL              ;;
-        grimoire)  shift; gaze_catalog $@  |   $PAGER    ;;
+        grimoire)  shift; gaze_catalog $@                ;;
        grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
-         service)  service       "$2"                    ;;
         provides)  shift; gaze_provides $@               ;;
          depends)  shift; gaze_show_depends  "$@"        ;;
     dependencies)  shift; gaze_show_dependencies  "$@"   ;;
          orphans)  show_orphans                          ;;
-         history)  show_history  "$2"                    ;;
+         history)  show_spell_component HISTORY  "$2"    ;;
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
        installed)  shift; gaze_show_installed         $@ ;;
