@@ -314,17 +314,22 @@ function codex_remove_duplicates() {
 ##
 #---------------------------------------------------------------------
 function codex_set_grimoires() {
-  unset GRIMOIRE_DIR
 
   local NEW_GRIMOIRE
   local GRIMOIRE_COUNT=0
-  for    NEW_GRIMOIRE  in  $@;  do
-    NEW_GRIMOIRE=$(codex_canonicalize_grimoire_name $NEW_GRIMOIRE) ||
+  for NEW_GRIMOIRE in "$@";  do
+    NEW_GRIMOIRE=$(codex_canonicalize_grimoire_name $NEW_GRIMOIRE lookup) &&
+    test -d $NEW_GRIMOIRE ||
     { message "WARNING $NEW_GRIMOIRE does not exist!! skipping..."
       continue
     }
-    GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE
+    NEW_GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE
     let GRIMOIRE_COUNT++
+  done
+  unset GRIMOIRE_DIR
+  let GRIMOIRE_COUNT--
+  for ((; $GRIMOIRE_COUNT>=0;GRIMOIRE_COUNT--)) ; do
+    GRIMOIRE_DIR[$GRIMOIRE_COUNT]=${NEW_GRIMOIRE_DIR[$GRIMOIRE_COUNT]}
   done
 }
 
