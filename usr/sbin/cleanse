@@ -274,12 +274,11 @@ function delint()
   message "Pass five (stale sub_depends entries)"
   awk -F: '
     BEGIN { 
-      Installed[''] = 1;
       while (getline < "'$SPELL_STATUS'") 
         Installed[$1] = 1; 
     } 
     { 
-      if ( ! Installed[$1] && ! Installed[$2] ) 
+      if ( ( $1 != ""  && ! Installed[$1] ) && ! Installed[$2] ) 
         print $0;  
     }' "$SUB_DEPENDS_STATUS" |tee $TMP_DIR/sub_depends.delint.2
   t=$(wc -l $TMP_DIR/sub_depends.delint.2 | awk '{print $1;}')
