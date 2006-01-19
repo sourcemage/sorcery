@@ -308,16 +308,36 @@ function pass_one()  {
   fi
 
   # if only doing the deps, find the dependencies and make them the
-  # SPELLS list
+  # SPELLS list, then recompute the full list of spells that needs to be cast
   if  [[ "$DEPS_ONLY" ]] ;  then
     local dep_spell
-    local SPELLS=$(
+    SPELLS=$(
       for spell in $SPELLS; do
         for dep_spell in $(hash_get to_cast $spell); do
-          echo $dep_spell
+          spell_ok $dep_spell || echo $dep_spell
         done
       done|sort|uniq)
-    if [ -z "$SPELLS" ] ; then 
+    spells=( $SPELLS )
+    hash_reset deps_only
+    hash_reset looked_at
+    for ((i=0;$i<${#spells[@]}; i++)); do
+      if [[ "${spells[$i]}" ]] &&
+         ! [[ $(hash_get looked_at "${spells[$i]}") ]] ; then
+        hash_put looked_at "${spells[$i]}" done
+        if ! spell_ok ${spells[$i]}; then
+          hash_put deps_only ${spells[$i]} done
+          new_spells=$(for each in $(hash_get to_cast "${spells[$i]}"); do
+            echo $each
+          done)
+        fi
+        spells=( ${spells[@]} $new_spells )
+        unset new_spells
+      fi
+    done
+    SPELLS_TO_CAST=$(hash_get_table_fields "deps_only"|tr '\n' ' ')
+    hash_reset deps_only
+    hash_reset looked_at
+    if [ -z "$SPELLS_TO_CAST" ] ; then 
       local parents=$(hash_get_table_fields "to_cast")
       message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
       message "${MESSAGE_COLOR}None of the spells have dependencies" \
