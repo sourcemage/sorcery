@@ -1315,13 +1315,20 @@ function gaze_show_installed() {
 function gaze_show_short_description() {
 
   for spell in $@; do
+    if codex_find_spell_by_name $spell > /dev/null; then
         ! [[ $GAZE_VERBOSE == 0 ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
           codex_set_current_spell_by_name  $spell           &&
           echo $SHORT
         )                                                 ||
-        message  "No details found"
+        { message  "No details found"
+          return 1
+        }
+    else 
+      message "$spell -> no such spell"
+      return 1
+    fi
   done
 }
 
@@ -1335,13 +1342,21 @@ function gaze_show_short_description() {
 function gaze_show_long_description() {
 
   for spell in $@; do
+    if codex_find_spell_by_name $spell > /dev/null; then
         ! [[ $GAZE_VERBOSE == 0 ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
           codex_set_current_spell_by_name  $spell           &&
           codex_get_spell_description  $SPELL_DIRECTORY
         )                                       ||
-        message  "No details found"
+        {
+          message  "No details found" &&
+          return 1
+        }
+    else 
+      message "$spell -> no such spell"
+      return 1
+    fi
   done
 }
 
