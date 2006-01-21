@@ -265,8 +265,6 @@ function alien()  {
 function gaze_catalog()  {
 
   local grimoire
-  local pager=$PAGER
-  [[ $GAZE_VERBOSE == 0 ]] && pager=cat
   {
   if [[ $# -gt 0 ]]; then
         grimoire=$(codex_find_grimoire $1)
@@ -304,7 +302,7 @@ function gaze_catalog()  {
 
   echo
   echo  "Total spells:  $COUNT"
-  } | $pager
+  } | $PAGER
 }
 
 #-----
@@ -605,11 +603,7 @@ function show_spell_component()  {
   fi
 
   if  [  -e  $SPELL_DIRECTORY/$COMPONENT  ];  then
-    if [[ $GAZE_VERBOSE == 0 ]]; then
-      cat $SPELL_DIRECTORY/$COMPONENT
-    else
-      $PAGER $SPELL_DIRECTORY/$COMPONENT
-    fi
+    $PAGER $SPELL_DIRECTORY/$COMPONENT
   fi
 
 }
@@ -1284,11 +1278,7 @@ function gaze_show_installed() {
   local total_rc=0
   if [ -z  "$1" ]
   then
-    if [[ $GAZE_VERBOSE == 0 ]]; then
-      grep -v ':exiled:[^:]*$' $SPELL_STATUS
-    else
-      grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
-    fi
+    grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
   else
     for spell in "$@"; do
       ! [[ $GAZE_VERBOSE == 0 ]] &&
@@ -1644,6 +1634,7 @@ parse()  {
   if [ $1 == "-q" ]; then
         shift;
         GAZE_VERBOSE=0
+        PAGER=cat
   fi
 
 
