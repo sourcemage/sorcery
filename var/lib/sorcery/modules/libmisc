@@ -142,13 +142,19 @@ function real_query_string () {
     
     local RESPONSE=""
     local RETURN=0
+    local ANSWER_first ANSWER_rest
     
     local DEFAULT=""
     [ -n "$3" ] && DEFAULT=" [$3] "
     
     if [ -z "$SILENT" ]; then
         echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
-        read -t $PROMPT_DELAY RESPONSE
+        read -t $PROMPT_DELAY -n 1 ANSWER_first
+        if [[ $ANSWER_first ]] ; then 
+          read ANSWER_rest
+        fi
+        RESPONSE="${ANSWER_first}${ANSWER_rest}"
+        echo
     fi
   
     [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
