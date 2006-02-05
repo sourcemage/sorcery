@@ -477,6 +477,7 @@ function private_run_depends()
 
     # this processes any sub-depends we requested and the sub-dependee
     # has already been processed, so we must process them on their behalf
+    # this must be done after everything else!
     run_other_sub_depends "$SPELL" || return 1
   else 
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
@@ -1190,71 +1191,63 @@ function real_sub_depends() {
   local sub_dependee=$1
   local sub_depends=$2
 
-  # add to hashes for lookup later in depends resolution
-  hash_append sub_dep_f_hash $requester $sub_dependee:$sub_depends $'\n' &&
-  hash_append sub_dep_r_hash $sub_dependee $requester:$sub_depends $'\n'
-
   message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
           "${CHECK_COLOR}requests" \
           "${SPELL_COLOR}$sub_dependee${DEFAULT_COLOR}${CHECK_COLOR}" \
           "with ${SPELL_COLOR}$sub_depends${DEFAULT_COLOR}"
-  if spell_ok $sub_dependee &&
-     [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$sub_dependee" "$sub_depends") != "" ]]; then
-    debug "libdepends" "$FUNCNAME -- $requester -> $sub_dependee -> $sub_depends provided by installed spell"
-  else
-    if ! echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 "  &&
-       spell_held $sub_dependee; then
-      # sub-depends isnt in already installed spell, and spell is held
-      # (and not specified on cli) so we cant recast it.
-      # Fail here as early in the process as possible
-      message "${PROBLEM_COLOR}Sub-depends requested on a held spell${DEFAULT_COLOR}"
-      return 1
-    fi
-    if spell_installed "$sub_dependee"; then
-      # FIXME, could check tablet and do more clever things here
-      if [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "" "$sub_dependee" "$sub_depends") != "" ]]; then
-        debug "libdepends" "$sub_dependee has a $sub_depends from another spell"
-        add_sub_depends "$SUB_DEPENDS_STATUS" "$requester" \
-                        "$sub_dependee" "$sub_depends"
-        return 0
-      fi
-      # the spell is installed, as a last ditch effort, run the
-      # "PRE_SUB_DEPENDS" file, to see if it provides the sub-depends but
-      # just doesn't have it listed
-      (
-        THIS_SUB_DEPENDS=$sub_depends
-        if ! tablet_set_spell $sub_dependee ; then
-          codex_set_current_spell_by_name $sub_dependee || return 1
-        fi
-        test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
-        persistent_load &&
-        source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
-        persistent_save
-        return $rc
-      ) && {
-        debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
-        add_sub_depends "$SUB_DEPENDS_STATUS" "$requester" "$sub_dependee" "$sub_depends"
-        return 0
-      }
-    fi
-    # spell is either not installed, or is installed but without the
-    # sub-depends, we must (re)cast it
-    NEW_SUB_DEPENDEES=( ${NEW_SUB_DEPENDEES[*]} $sub_dependee )
-    hash_put sub_depends_process $sub_dependee "yes"
-  fi
-  return 0
-}
 
-#---------------------------------------------------------------------
-## Allow a spell to altruisticly specify that it provides a certain
-## sub-depends.
-## @param sub-depends being provided altruistically
-#---------------------------------------------------------------------
-function real_altruistic_sub_depends() {
-  local sub_depends=$1
-  local sub_depends_file rsub_depends_file
-  get_uncommitted_sub_depends_file "$SPELL" sub_depends_file || return 1
-  add_sub_depends "$sub_depends_file" "" "$SPELL" "$sub_depends"
+  # Check if the sub-depends is already known
+  if spell_ok $sub_dependee; then
+    if [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "$requester" \
+                              "$sub_dependee" "$sub_depends") != "" ]]; then
+      debug "libdepends" "$FUNCNAME -- $requester -> $sub_dependee" \
+                         "-> $sub_depends provided by installed spell"
+      return 0
+    fi
+
+    # the spell is installed, but the sub-depends isn't recorded, ask the
+    # spell if the sub-depends is enabled through the PRE_SUB_DEPENDS file.
+    (
+      THIS_SUB_DEPENDS=$sub_depends
+      if ! tablet_set_spell $sub_dependee ; then
+        codex_set_current_spell_by_name $sub_dependee || return 1
+      fi
+      test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
+      persistent_load &&
+      source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
+echo $rc
+      persistent_save
+      return $rc
+    ) && {
+      debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
+      add_sub_depends "$SUB_DEPENDS_STATUS" "$requester" \
+                      "$sub_dependee" "$sub_depends"
+      hash_append sub_dep_f_hash $requester $sub_dependee:$sub_depends $'\n'
+      hash_append sub_dep_r_hash $sub_dependee $requester:$sub_depends $'\n'
+      return 0
+    }
+  fi
+
+  # if didnt return above, then we know the sub-depends is not on the system
+  # so the spell must be (re)cast, check to see if we're allowed to do that
+  if ! echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 "  &&
+     spell_held $sub_dependee; then
+    # spell is held and not explicitly requested, so we cant recast the
+    # spell with the sub-depends requested
+    message "${PROBLEM_COLOR}Sub-depends requested on" \
+            "a held spell${DEFAULT_COLOR}"
+    return 1
+  fi
+
+  # add to hashes for lookup later in depends resolution
+  hash_append sub_dep_f_hash $requester $sub_dependee:$sub_depends $'\n'
+  hash_append sub_dep_r_hash $sub_dependee $requester:$sub_depends $'\n'
+
+  # spell is either not installed, or is installed but without the
+  # sub-depends, we must (re)cast it
+  NEW_SUB_DEPENDEES=( ${NEW_SUB_DEPENDEES[*]} $sub_dependee )
+  hash_put sub_depends_process $sub_dependee "yes"
+  return 0
 }
 
 #---------------------------------------------------------------------
