@@ -53,6 +53,18 @@ function load_functions_file() {
   return 0
 }
 
+#---------------------------------------------------------------------
+## Load the grimoire and section level 'libcompat' file
+## Spells use this for compatibility checking. It is supposed to be
+## lighter-weight than FUNCTIONS.
+#---------------------------------------------------------------------
+function load_libcompat() {
+  # the following allows spell writers to override certain functions
+  # in the build pipeline
+  [ -x $GRIMOIRE/libcompat ] && . $GRIMOIRE/libcompat
+  [ -x $SECTION_DIRECTORY/libcompat ] && . $SECTION_DIRECTORY/libcompat
+  return 0
+}
 
 #---------------------------------------------------------------------
 ## Loads up this environment with the special configuration values
