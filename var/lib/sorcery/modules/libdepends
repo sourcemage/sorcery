@@ -1318,6 +1318,7 @@ function private_add_triggerees() {
 
   for ACTION in cast_self check_self dispel_self run_script; do
     for TARGET in $(get_triggerees $SPELL on_cast $ACTION); do
+      spell_ok $TARGET || continue 
       if [[ $ACTION == run_script ]] ; then
         iterate private_add_triggerees_sub2 $'\n' \
                           "$(get_run_script_triggers $SPELL on_cast $TARGET)"
