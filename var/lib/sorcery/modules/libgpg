@@ -31,7 +31,8 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
   local signature=$1
   local file=$2
   local keyring=$3
-  local algo=""
+  local rc
+  local algo
 
   test -f $signature || return 3
   test -f $file || return 4
@@ -50,6 +51,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
             "should be done for you on a system update.${DEFAULT_COLOR}"
     return 200
   else
+    local output=$TMP_DIR/$(basename $file).gpgout
     gpg --no-default-keyring  \
                --always-trust        \
                --keyring $keyring    \
@@ -57,16 +59,14 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
                --verbose             \
                --verify              \
                $signature            \
-               $file 2>/dev/null || return 1
-    algo=$( gpg --no-default-keyring  \
-               --always-trust        \
-               --keyring $keyring    \
-               --batch               \
-               --verbose             \
-               --verify              \
-               $signature            \
-               $file 2>&1 | grep 'digest algorithm' | awk '{ print $NF }' |
-               tr A-Z a-z)
+               $file 2> $output
+    rc=$?
+    if [[ $rc != 0 ]] ; then
+      cat $output
+      return $rc
+    fi
+    algo=$(grep 'digest algorithm' $output | awk '{ print $NF }' | tr A-Z a-z)
+    rm $output &>/dev/null
   fi
   [ ! -z "$4" ] && eval "$4=\"$algo\""
   return 0
@@ -120,7 +120,7 @@ function gpg_get_grimoire_key() {
 #---------------------------------------------------------------------
 function gpg_verify_grimoire() {
   if [[ "$GPG_VERIFY_GRIMOIRE" != on ]] ; then
-    return 2
+    return 201
   fi
 
   local FILENAME=$1
@@ -202,7 +202,7 @@ function verify_grimoire_tree() {
 #---------------------------------------------------------------------
 function gpg_verify_sorcery() {
   if [[ "$GPG_VERIFY_SORCERY" != on ]] ; then
-    return 2
+    return 201
   fi
 
   local FILENAME=$1
@@ -286,7 +286,7 @@ function gpg_user_query() {
   local rc=$1
   if [[ $rc == 0 ]] ; then
     message "${MESSAGE_COLOR}gpg signature verified!${DEFAULT_COLOR}"
-  elif [[ $rc == 2 ]] ; then
+  elif [[ $rc == 201 ]] ; then
     message "${MESSAGE_COLOR}gpg verification is disabled${DEFAULT_COLOR}"
   else
     message "${PROBLEM_COLOR}Failure to verify gpg signature${DEFAULT_COLOR}"
