@@ -111,6 +111,8 @@ function dl_command_check() {
 #-------------------------------------------------------------------------
 function dl_connect()  {
 
+  [[ $INTERNET_AUTOCONNECT == on ]] || return 0
+
   debug "libdownload" "connect()"
 
   # We agree that while this lock is held, no other script will be
@@ -157,6 +159,9 @@ function dl_connect()  {
 ## the heuristic is rather poor.
 #-------------------------------------------------------------------------
 function dl_disconnect()  {
+
+  [[ $INTERNET_AUTOCONNECT == on ]] || return 0
+
   local i_counter=/tmp/sorcery/i_counter
 
   # dont bother disconnecting if we didnt have to connect
