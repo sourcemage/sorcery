@@ -398,10 +398,10 @@ function private_should_cast()
   elif [[ "$RECAST_DOWN" ]] ; then
     # user gave -R so recast...
     return 0
-  elif echo "${UP_DEPENDS[*]}" | grep -q "\<$1\>" ; then
+  elif echo "${UP_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$1" ; then
     # if someone has determined this is an upward depend (-B)
     return 0
-  elif echo "${TRIGGEREES[*]}" | grep -q "\<$1\>" ; then
+  elif echo "${TRIGGEREES[*]}"| tr " " "\n" | grep -x -q "$1" ; then
     # if its being triggered we need to look at it, despite its
     # installed status
     return 0
