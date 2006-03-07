@@ -519,6 +519,8 @@ function private_should_cast()
     # if its being triggered we need to look at it, despite its
     # installed status
     return 0
+  elif echo "${FORCE_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$1" ; then
+    return 0
   elif [[ "$(hash_get sub_depends_process $1)" != "" ]] ; then
     return 0
   elif spell_installed $1 ; then
@@ -1248,6 +1250,22 @@ echo $rc
   NEW_SUB_DEPENDEES=( ${NEW_SUB_DEPENDEES[*]} $sub_dependee )
   hash_put sub_depends_process $sub_dependee "yes"
   return 0
+}
+
+#---------------------------------------------------------------------
+# Force a spell to be recast, if it comes up for processing
+# if the spell was already looked at and processed nothing happens
+# if the spell was already looked at and didnt need processing, then
+# it'll get re-processed (assuming the caller also did a depends on it)
+#---------------------------------------------------------------------
+function real_force_depends() {
+  debug "libdepends" "$FUNCNAME - $SPELL - $@"
+  local check=$(hash_get "depends_looked_at" "$1")
+
+  if [[ "$check" == "ignore" ]] ; then
+    hash_put "depends_looked_at" "$1" ""
+  fi
+  FORCE_DEPENDS=( ${FORCE_DEPENDS[*]} $1 )
 }
 
 #---------------------------------------------------------------------
