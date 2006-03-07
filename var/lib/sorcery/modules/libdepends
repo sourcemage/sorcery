@@ -1262,6 +1262,10 @@ function real_force_depends() {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
   local check=$(hash_get "depends_looked_at" "$1")
 
+  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+          "${CHECK_COLOR}is forcing a recast of" \
+          "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+
   if [[ "$check" == "ignore" ]] ; then
     hash_put "depends_looked_at" "$1" ""
   fi
@@ -1453,8 +1457,12 @@ function show_depends()
       SPELL=`echo  $1 |  cut  -d :  -f1`
       STATUS=`echo  $1  |  cut  -d :  -f3`
 
-      if    [  "$STATUS"  ==  "on"  ]; then
-        echo          $1 
+      if [ "$STATUS" == "on" ]; then
+        if [[ $GAZE_VERBOSE == 0 ]]; then
+          echo $1
+        else
+          echo $1 | sed -e 's,:, depends on ,'  -e 's,:[^:]*:, (,'  -e 's,:.*$,),'
+        fi
         show_depends  $SPELL $(( DEPTH + 1 ))
       fi
       
