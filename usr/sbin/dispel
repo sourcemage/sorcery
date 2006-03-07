@@ -262,8 +262,8 @@ function strip_parameters()  {
 ## has already been dispelled.
 #---------------------------------------------------------------------
 function dispel_spell_wrapper() {
+  dispel_spell $1 &&
   hash_put ALL_DISPELS $1 yes
-  dispel_spell $1
 }
 
 #---------------------------------------------------------------------
@@ -450,10 +450,13 @@ function get_borked_parents() {
 #---------------------------------------------------------------------
 function dispel_depends_engine() {
 
-  local CURR_SPELLS=$1
-  for  SPELL  in  $SPELLS;  do
-    dispel_spell_wrapper $SPELL ||
-    DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
+  local CURR_SPELLS SPELL
+  for  SPELL  in  $1;  do
+    if dispel_spell_wrapper $SPELL ; then
+      list_add CURR_SPELLS $SPELL
+    else
+      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
+    fi
   done
 
 
@@ -611,9 +614,11 @@ function main() {
     done
   else
     for SPELL in $SPELLS; do 
-      dispel_spell_wrapper $SPELL
+      dispel_spell_wrapper $SPELL ||
+      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
     done
   fi
+  return $DISPEL_EXIT_STATUS
 }
 
 . /etc/sorcery/config
