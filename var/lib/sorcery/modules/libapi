@@ -416,7 +416,20 @@ function download_src() {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell to force depends on
-## Causes a dependent spell to be recast when it might not otherwise be
+## Causes a dependent spell to be recast when it might not otherwise be.
+## This is intended to be called on an already enabled dependency. It can
+## be thought of as an inverse of up_trigger (although it is *not* a
+## trigger).
+## <pre>
+## Example 1:
+##    depends foo &&
+##    force_depends foo
+## Example 2:
+##    optional_depends foo --enable-foo --disable-foo "for foo support" &&
+##    if is_depends_enabled $SPELL foo; then
+##      force_depends foo
+##    fi
+## </pre>
 #---------------------------------------------------------------------
 function force_depends() {
     debug "libapi" "$FUNCNAME - $*"
