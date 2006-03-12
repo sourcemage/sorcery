@@ -35,6 +35,10 @@ update		[grimoire]	Updates a grimoire or all grimoires
 
 fix		grimoire	Attempts to fix metadata for grimoire
 reindex		[grimoire]	Recreates the list of spells
+reindex-keyword [grimoire]      Recreates keyword listing
+                                 (official grimoires should come with
+                                 a keyword listing already)
+
 index				Prints list of grimoires
 
 set		grim1 grim2	puts grim1 before grim2
@@ -452,6 +456,35 @@ function scribe_reindex() {
 }
 
 #---------------------------------------------------------------------
+## scribe_reindex_keyword
+##
+## Recreate the keyword index, this is slow in comparison to
+## normal reindexing.
+##
+## @param grimoire names, if none all grimoires
+##
+#---------------------------------------------------------------------
+function scribe_reindex_keyword() {
+  local paths=""
+  local grimoire grimoires grim
+  if [[ "$@" ]] ; then
+    grimoires="$@"
+  else
+    grimoires=`codex_get_all_grimoires`
+  fi
+
+  for grim in $grimoires; do
+    if ! grimoire=$(codex_find_grimoire $grim) ; then
+      message "Grimoire $grim not found"
+      return 1
+    fi
+    message -n "Reindexing keywords for $grim ..."
+    codex_create_keyword_cache "$grimoire"
+  done
+  message "done."
+}
+
+#---------------------------------------------------------------------
 ## scribe_remove
 ##
 ## remove a grimoire from the codex
@@ -654,6 +687,7 @@ function find_function()  {
                       f|fi|fix) FUNCTION="fix" ;;
            i|in|ind|inde|index) FUNCTION="index";;
           l|loc|local|localize) FUNCTION="localize";;
+               reindex-keyword) FUNCTION="reindex-keyword";;
       rei|reind|reinde|reindex) FUNCTION="reindex";;
       rm|rem|remo|remov|remove) FUNCTION="remove" ;;
                         se|set) FUNCTION="set";;
@@ -685,6 +719,7 @@ function main() {
          index) scribe_index $@ ;;
       localize) scribe_localize $@ ;;
        reindex) scribe_reindex $@ ;;
+reindex-keyword) scribe_reindex_keyword $@ ;;
         remove) scribe_remove $@ ;;
            set) scribe_set $@ ;;
           swap) scribe_swap $@ ;;

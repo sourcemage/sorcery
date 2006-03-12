@@ -793,6 +793,21 @@ function codex_list_provides () {
 }
 
 #---------------------------------------------------------------------
+## @param grimoire-path
+## Creates keyword index
+## 
+#---------------------------------------------------------------------
+function codex_create_keyword_cache () { (
+    grimoire=$1
+
+    for file in $(codex_find_in_grimoire "$grimoire" "DETAILS"); do
+        unset SPELL KEYWORDS
+        codex_set_current_spell "${file%DETAILS}"
+        echo "$SPELL $KEYWORDS"
+    done | sort > $grimoire/$KEYWORD_INDEX_FILE
+) }
+
+#---------------------------------------------------------------------
 ## @param servicename
 ## @return 0 if service exists
 ## @return 1 otherwise
@@ -840,21 +855,6 @@ function codex_find_spell_or_section_by_name()  {
 #---------------------------------------------------------------------
 function codex_get_spell_description()  {
   codex_is_directory_a_spell  "$1"  &&  .  "$1/DETAILS"
-}
-
-#---------------------------------------------------------------------
-## @param spell directory
-## @Stdout keywords
-## Echos the keywords of the given spell.  Returns an
-## empty string if the directory is not a valid spell.
-##
-#---------------------------------------------------------------------
-function codex_get_spell_keywords()  {
-  if codex_is_directory_a_spell  "$1"; then
-    if [ -e "$1/KEYWORDS" ]; then 
-      cat  "$1/KEYWORDS"
-    fi
-  fi
 }
 
 #---------------------------------------------------------------------
