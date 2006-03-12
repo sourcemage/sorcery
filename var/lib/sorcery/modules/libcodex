@@ -314,17 +314,22 @@ function codex_remove_duplicates() {
 ##
 #---------------------------------------------------------------------
 function codex_set_grimoires() {
-  unset GRIMOIRE_DIR
 
   local NEW_GRIMOIRE
   local GRIMOIRE_COUNT=0
-  for    NEW_GRIMOIRE  in  $@;  do
-    NEW_GRIMOIRE=$(codex_canonicalize_grimoire_name $NEW_GRIMOIRE) ||
+  for NEW_GRIMOIRE in "$@";  do
+    NEW_GRIMOIRE=$(codex_canonicalize_grimoire_name $NEW_GRIMOIRE lookup) &&
+    test -d $NEW_GRIMOIRE ||
     { message "WARNING $NEW_GRIMOIRE does not exist!! skipping..."
       continue
     }
-    GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE
+    NEW_GRIMOIRE_DIR[$GRIMOIRE_COUNT]=$NEW_GRIMOIRE
     let GRIMOIRE_COUNT++
+  done
+  unset GRIMOIRE_DIR
+  let GRIMOIRE_COUNT--
+  for ((; $GRIMOIRE_COUNT>=0;GRIMOIRE_COUNT--)) ; do
+    GRIMOIRE_DIR[$GRIMOIRE_COUNT]=${NEW_GRIMOIRE_DIR[$GRIMOIRE_COUNT]}
   done
 }
 
@@ -629,6 +634,9 @@ function codex_set_current_spell()  {
   persistent_load
   .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
   persistent_clear
+
+  # load compatibility functions needed for any stage of cast
+  load_libcompat
 
   # set a default build api if there isn't one already
   # this isn't strictly necessary as other code should be able to handle the

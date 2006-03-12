@@ -187,7 +187,7 @@ function delint()
   
   lock_file $DEPENDS_STATUS
   
-  message "Pass one (malformed lines)"
+  message "Pass one (malformed depends lines)"
   # This grep will pull out malformed lines from the depends file
   regex='^[^:]*:[^:]*:(on|off):(optional|required):'
   lines=$(grep -v -E "$regex" $DEPENDS_STATUS)
@@ -209,33 +209,9 @@ function delint()
     fi
   fi
   
-  message "Pass two (stale entries)"
+  generic_remove_stale "$DEPENDS_STATUS" depends two
 
-  # This baby will spit out lines that have a package that isn't installed
-  # If the first is not installed, it bitches.
-  awk -F: '
-    BEGIN { 
-      while (getline < "'$SPELL_STATUS'") 
-        Installed[$1] = 1; 
-    } 
-    '$cond'{ 
-      if ( ! Installed[$1] ) 
-        print $0;  
-    }' $DEPENDS_STATUS > $TMP_DIR/depends.delint.2
-  t=$(wc -l $TMP_DIR/depends.delint.2 | awk '{print $1;}')
-  message "\t$t bad lines, $(( $(wc -l $DEPENDS_STATUS | cut -f1 -d' ') - t))" \
-          "good lines in your depends file."
-  if [[ $t -gt 0 ]] ; then
-    t=$(date +%Y%m%d%s)
-    message "\tSaving bad lines to $BACKUPDIR/depends.stale.$t"
-    cp $TMP_DIR/depends.delint.2 $BACKUPDIR/depends.stale.$t
-    message "\tRemoving bad entries"
-    cat $DEPENDS_STATUS >> $TMP_DIR/depends.delint.2
-    sort $TMP_DIR/depends.delint.2 | uniq -u > $TMP_DIR/depends.delint.2.2
-    cp $TMP_DIR/depends.delint.2.2 $DEPENDS_STATUS
-  fi
-
-  message "Pass three (duplicate entries)"
+  message "Pass three (duplicate depends entries)"
   for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/p' $DEPENDS_STATUS | sed 's/+/\\+/' | sort | uniq -d ) ; do
     message
     options=()
@@ -256,7 +232,55 @@ function delint()
   done
 
   unlock_file $DEPENDS_STATUS
+
+  touch $TRIGGER_LIST
+  lock_file $TRIGGER_LIST
+  generic_remove_duplicate "$TRIGGER_LIST" trigger four
+  generic_remove_stale "$TRIGGER_LIST" trigger five
+  unlock_file $TRIGGER_LIST
+
   message "Delint done."
+}
+
+function generic_remove_duplicate() {
+  local LINE
+  local tmp=$TMP_DIR/delint.$2.dup
+  message "Pass $3 (duplicate $2 entries)"
+  for LINE in $(sort $1 | uniq -d ) ; do
+    if test $(grep -E "^$LINE$" "$1"|wc -l) -gt 1; then
+      message "Duplicated line removed: $LINE"
+      grep -Ev "^$LINE$" $1 > $tmp
+      echo "$LINE" >> $tmp
+      mv $tmp $1
+    fi
+  done
+}
+
+function generic_remove_stale() {
+  message "Pass $3 (stale $2 entries)"
+  local tmp=$TMP_DIR/delint.$2.stale
+  local t
+  awk -F: '
+    BEGIN { 
+      while (getline < "'$SPELL_STATUS'") 
+        Installed[$1] = 1; 
+    } 
+    { 
+      if ( ! Installed[$1]) 
+        print $0;  
+    }' "$1" |tee $tmp
+  t=$(wc -l $tmp | awk '{print $1;}')
+  message "\t$t bad lines, $(( $(wc -l $1| cut -f1 -d' ') - t))" \
+          "good lines in your $2 file."
+  if [[ $t -gt 0 ]] ; then
+    t=$(date +%Y%m%d%s)
+    message "\tSaving bad lines to $BACKUPDIR/$2.stale.$t"
+    cp $tmp $BACKUPDIR/$2.stale.$t
+    message "\tRemoving bad entries"
+    cat $1 >> $tmp
+    sort $tmp | uniq -u > $tmp.2
+    cp $tmp.2 $1
+  fi
 }
 
 #---------------------

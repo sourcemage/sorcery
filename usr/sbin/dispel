@@ -21,7 +21,7 @@ Usage:		dispel  [parameters]  [spells]
 
 Optional Parameters:
 
--e | --exile  		Removes spells and blocks them
+-e | --exile spell      Removes spells and blocks them
                         from being automatically reinstalled.
 			
 -d | --downgrade spell version
@@ -154,11 +154,22 @@ function process_parameters()  {
   while  [  -n  "$1"  ];  do
     if  echo  ""  $1  |  grep  -q  "^ -";  then
       case  $1  in
-         -e|--exile)  EXILE="yes";        shift  1  ;;
-     -d|--downgrade)  downgrade  $2  $3
-                      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
-                      shift  3  
-                      ;;
+         -e|--exile)
+            if [[ -z $2 ]]; then
+              message  "${PROBLEM_COLOR}Missing parameters!${DEFAULT_COLOR}"
+              help
+            fi
+            EXILE="yes"; shift 1
+            ;;
+     -d|--downgrade)
+            if [[ -z $3 ]]; then
+              message  "${PROBLEM_COLOR}Missing parameters!${DEFAULT_COLOR}"
+              help
+            fi
+            downgrade  $2  $3
+            DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
+            shift  3
+            ;;
            --noreap)  REAP="off";         shift  1  ;;
   --no-reap-depends)  NO_REAP_DEPENDS="on";  shift  1  ;;
         --nosustain)  SUSTAIN="off";      shift  1  ;;

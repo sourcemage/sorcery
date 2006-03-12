@@ -326,7 +326,9 @@ function dpgn_cast_spell_front() {
     exit 1
   fi
 
-  [[ $COMPILE ]] && args="-c "
+  if [[ $COMPILE ]] || dpgn_is_pending_trigger_registered $1; then
+    args="-c "
+  fi
 
   if [[ $CAST_PASS == three ]] ; then
     # pass four can finish first if there are triggers that aren't run

@@ -398,12 +398,14 @@ function private_should_cast()
   elif [[ "$RECAST_DOWN" ]] ; then
     # user gave -R so recast...
     return 0
-  elif echo "${UP_DEPENDS[*]}" | grep -q "\<$1\>" ; then
+  elif echo "${UP_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$1" ; then
     # if someone has determined this is an upward depend (-B)
     return 0
-  elif echo "${TRIGGEREES[*]}" | grep -q "\<$1\>" ; then
+  elif echo "${TRIGGEREES[*]}"| tr " " "\n" | grep -x -q "$1" ; then
     # if its being triggered we need to look at it, despite its
     # installed status
+    return 0
+  elif echo "${FORCE_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$1" ; then
     return 0
   elif spell_installed $1 ; then
     # spell is installed and no -R or -B, so dont cast
@@ -1015,6 +1017,26 @@ function private_up_trigger() {
 }
 
 #---------------------------------------------------------------------
+# Force a spell to be recast, if it comes up for processing
+# if the spell was already looked at and processed nothing happens
+# if the spell was already looked at and didnt need processing, then
+# it'll get re-processed (assuming the caller also did a depends on it)
+#---------------------------------------------------------------------
+function real_force_depends() {
+  debug "libdepends" "$FUNCNAME - $SPELL - $@"
+  local check=$(hash_get "depends_looked_at" "$1")
+
+  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+          "${CHECK_COLOR}is forcing a recast of" \
+          "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+
+  if [[ "$check" == "ignore" ]] ; then
+    hash_put "depends_looked_at" "$1" ""
+  fi
+  FORCE_DEPENDS=( ${FORCE_DEPENDS[*]} $1 )
+}
+
+#---------------------------------------------------------------------
 ## all the depends callbacks eventually bottom out here
 ## if a spell depends or doesnt depend on some other spell
 ## @param Spell
@@ -1082,6 +1104,7 @@ function private_add_triggerees() {
 
   for ACTION in cast_self check_self dispel_self run_script; do
     for TARGET in $(get_triggerees $SPELL on_cast $ACTION); do
+      spell_ok $TARGET || continue 
       if [[ $ACTION == run_script ]] ; then
         iterate private_add_triggerees_sub2 $'\n' \
                           "$(get_run_script_triggers $SPELL on_cast $TARGET)"
