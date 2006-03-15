@@ -40,9 +40,9 @@ function gaze_checkmd5 () {
   SECTION=`echo $i | sed -e 's/\/[^\/]*\/DETAILS//' -e 's/\/.*\///'`
   if test "$SECTION" == "$SPELL" || test "$SECTION" == "DETAILS"
   then
-    echo -en "${SPELL_COLOR}$SPELL${DEFAULT} "
+    echo -en "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} "
   else
-    echo -en "$GRIMOIRE: $SECTION: ${SPELL_COLOR}$SPELL${DEFAULT} "
+    echo -en "$GRIMOIRE: $SECTION: ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} "
   fi
 
   REALSOURCE=
@@ -96,14 +96,14 @@ function gaze_checkmd5 () {
     fi
     if [ -z "$(find $SOURCE_CACHE/$SOURCE -maxdepth 1 -mtime +3 2> /dev/null)" ]
     then
-      AGE="${GREEN}NEW${DEFAULT}"
+      AGE="${GREEN}NEW${DEFAULT_COLOR}"
     else
-      AGE="${YELLOW}${BOLD}OLD${DEFAULT}"
+      AGE="${YELLOW}${BOLD}OLD${DEFAULT_COLOR}"
     fi
-    SRCDATA="SOURCE$SOURCEnum L:'${LICENSE[$MD5num]}' $SOURCE${DEFAULT} $AGE"
+    SRCDATA="SOURCE$SOURCEnum L:'${LICENSE[$MD5num]}' $SOURCE${DEFAULT_COLOR} $AGE"
     if test "$fMD5" == "$tMD5"
     then
-      echo -en "${GREEN}VERIFIED $SRCDATA${DEFAULT}"
+      echo -en "${GREEN}VERIFIED $SRCDATA${DEFAULT_COLOR}"
     else
       if test "$fMD5" == "$EMPTYMD5" || test "$fMD5" == ""
       then
@@ -145,12 +145,12 @@ function gaze_checkmd5 () {
               MATCHED="`grep "$tMD5" "$PRECACHEDF" | cut -c60- | head -n 1`"
               if test -n "`echo "$MATCHED" | fgrep "$SOURCE"`"
               then
-                echo -en "${RED}${BOLD}MODIFIED $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT} MATCHES $MATCHED"
+                echo -en "${RED}${BOLD}MODIFIED $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT_COLOR} MATCHES $MATCHED"
               else
-                echo -en "${RED}DIFFERENT $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT} MATCHES $MATCHED"
+                echo -en "${RED}DIFFERENT $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT_COLOR} MATCHES $MATCHED"
               fi
             else
-              echo -en "${RED}${BOLD}INCORRECT $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT}"
+              echo -en "${RED}${BOLD}INCORRECT $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT_COLOR}"
             fi
           fi
         fi
@@ -216,7 +216,7 @@ function gaze_checkmd5syntax () {
       fi
     fi
   fi
-  echo -en "${DEFAULT}"
+  echo -en "${DEFAULT_COLOR}"
 	
 }
 
