@@ -174,17 +174,26 @@ function install_desktop_files() {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell
+## 
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
 function real_installed_version()  {
-
-  local spell="$1"
-
-  grep "^$spell:"  $SPELL_STATUS  |  cut  -d : -f4  |  head  -n 1
-
+  spell_ok $1 || return
+  private_installed_version "$@"
 }
 
+#---------------------------------------------------------------------
+## @Type API
+## @param spell
+## Returns the current version of the given spell
+## Doesnt do sanity check for spell_ok, used internally for speed.
+## Behavior is undefined is spell is not installed.
+##
+#---------------------------------------------------------------------
+function private_installed_version()  {
+  grep "^$1:"  $SPELL_STATUS  |  cut  -d : -f4  |  head  -n 1
+}
 
 #---------------------------------------------------------------------
 ## @param spell
