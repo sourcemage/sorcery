@@ -216,7 +216,7 @@ function run_spell_success() {
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $t_DEPENDS_STATUS $SPELL
     local spell_depends=$(hash_get uncommitted_hash $SPELL)
-    if [ -e $spell_depends ] ; then
+    if [ -e "$spell_depends" ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
     lock_commit_transaction $DEPENDS_STATUS
@@ -298,7 +298,7 @@ function run_spell_failure() {
     # put the answers somewhere where they can still be used later
     mkdir -p $ABANDONED_DEPENDS
     local spell_depends=$(hash_get uncommitted_hash $SPELL)
-    [ -e $spell_depends ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL
+    [ -e "$spell_depends" ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL
 
     # This may have been locked if there was a failure during the install
     unlock_resources "libgrimoire" "install"

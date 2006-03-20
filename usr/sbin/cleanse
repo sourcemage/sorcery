@@ -642,7 +642,7 @@ function cleanse_fix_run_checks()  {
   else
     message  "Checking ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} ($2 of $3)"
   fi
-  local VERSION=$(installed_version $SPELL)
+  local VERSION=$(private_installed_version $SPELL)
 
   cleanse_fix_find_check    $SPELL  $VERSION    &&
   cleanse_fix_ldd_check     $SPELL  $VERSION    &&
@@ -733,7 +733,7 @@ function cleanse_fix_init_ldd_check()  {
     let size++
   done
   for SPELL in $* ; do
-    I_LOG=$INSTALL_LOGS/$SPELL-$(installed_version  $SPELL)
+    I_LOG=$INSTALL_LOGS/$SPELL-$(private_installed_version  $SPELL)
     hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort|uniq|tr '\n' :)"
     progress_bar $count $size 50
     let count++
@@ -946,7 +946,7 @@ function cleanse_fix_md5sum_check() {
                 # this actually isnt a very good assumption but works enough
                 # of the time
                 each_spell=$(basename $each|awk -F- '{for (i=1;i<NF-1;i++) {printf "%s-",$i}printf "%s\n",$i}')
-                each_version=$(installed_version $each_spell)
+                each_version=$(private_installed_version $each_spell)
                 [[ $each_version ]] &&
                 [[ $MD5SUM_LOGS/${each_spell}-${each_version} == $each ]] &&
                 echo $each
