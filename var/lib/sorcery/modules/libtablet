@@ -485,6 +485,7 @@ function tablet_set_spell() {
     SPELL_DIRECTORY=$2
   else
     tablet_find_spell_dir $SPELL SPELL_DIRECTORY || return 1
+    TABLET_PAGE=$SPELL_DIRECTORY
   fi
 
   VERSION=$(<$SPELL_DIRECTORY/version)
@@ -847,12 +848,12 @@ function tablet_0_repair_spell() {
       return 0
     else
       message "Corrupt spell dir in tablet, this shouldnt happen."
-      message "It'd be good to recast the spell now."
+      message "Please run cleanse --tablet"
       return 1
     fi
   else
     message "Missing spell dir in tablet, this shouldnt happen."
-    message "It'd be good to recast the spell now."
+    message "Please run cleanse --tablet"
     return 1
   fi
 }
