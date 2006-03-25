@@ -122,34 +122,17 @@
 function real_unpack_file() {
   debug "libgrimoire" "real_unpack_file - $*"
 
-  local GPGNUM="$1"
-  local SVAR="SOURCE${GPGNUM}"
+  local FILENUM="$1"
+  local SVAR="SOURCE${FILENUM}"
 
-  local crypto_func
-  for crypto_func in GPG HASH IGNORE; do
-    debug "libgrimoire" "checking $crypto_func verification"
-    local AVAR="SOURCE${GPGNUM}_${crypto_func}"
-    local AVARN="$AVAR"
-    local iter=0
-    local rc=""
-    # NOTE ## date: 2005-08-25
-    # This while loop runs through the SOURCEn_{GPG|HASH|IGNORE}m not the
-    # SOURCEn_*[m] set of vars this is kinda confusing we might rip it out
-    while [ -n "${!AVARN}" ]; do
-      local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
-      unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"
-      rc="$?"
-      case "$rc" in
-        200) debug "libgrimoire" "falling back from $AVARN"; rc="" ;;
-          1)                               return "$rc"            ;;
-          0) uncompress_unpack "${!SVAR}"; return "$?"             ;;
-      esac
-      (( iter++ ))
-      AVARN="$AVAR[$iter]"
-    done
-    [ -n "$rc" ] && return "$rc"
-  done
-
+  real_verify_file "$@"
+  rc=$?
+  case "$rc" in
+    200) debug "libunpack" "unable to verify $SVAR ${!SVAR}" ;;
+      1) return 1 ;; # verification failed
+      0) uncompress_unpack ${!SVAR}; return $? ;;
+  esac
+  
   if false; then # <------ here's the switch to disable oldworld -------
     debug "libgrimoire" "falling back to missing verification"
     unpack_missing "${!SVAR}"
@@ -160,9 +143,44 @@ function real_unpack_file() {
     esac
   else
     debug "libgrimoire" "falling back to regular MD5[]"
-    local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo "$(($GPGNUM - 1))")"
+    local MD5NUM="$([ -z "$FILENUM" ] && echo 0 || echo "$(($FILENUM - 1))")"
     real_unpack "${!SVAR}" "${MD5[$MD5NUM]}"
   fi
+}
+
+
+#---------------------------------------------------------------------
+## @Type API
+## @param SOURCE suffix
+##
+## Does the work of verifying a file with the new-world verification
+## system.
+#---------------------------------------------------------------------
+function real_verify_file() {
+  debug "libunpack" "real_verify_file - $*"
+
+  local FILENUM="$1"
+  local SVAR="SOURCE${FILENUM}"
+
+  local crypto_func
+  for crypto_func in GPG HASH IGNORE; do
+    debug "libgrimoire" "checking $crypto_func verification"
+
+    local AVAR="SOURCE${FILENUM}_${crypto_func}"
+    [[ -n ${!AVAR} ]] || continue
+
+    local rc=""
+    local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
+    unpack_$lcase_crypto_func "${!SVAR}" "${!AVAR}"
+    rc="$?"
+
+    case "$rc" in
+      200) debug "libgrimoire" "unable to verify $AVAR with $crypto_func" ;;
+        *) return $rc ;;
+    esac
+
+  done
+  return 200
 }
 
 
