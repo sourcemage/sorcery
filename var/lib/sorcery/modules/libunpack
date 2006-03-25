@@ -278,9 +278,10 @@ function real_uncompress() { uncompress_core "$@"; }
 function unpack_spell_required() {
   debug "libgrimoire" "Running unpack_spell_required -- $1"
 
-  if ! spell_ok "$1" ; then
+  local x
+  if ! spell_ok "$1" && ! smgl_which $2 x &> /dev/null; then
     query "This spell has an option to check its integrity via spell "\
-"${SPELL_COLOR}${1}${QUERY_COLOR} for $2, you might consider casting it. "\
+"${SPELL_COLOR}${1}${QUERY_COLOR} with the $2 command for $3, you might consider installing it. "\
 "Abort?" n && 
       return 1 ||
         return 200
@@ -390,7 +391,7 @@ function unpack_gpg() {
 
   message "${MESSAGE_COLOR}GPG checking source file $1...${DEFAULT_COLOR}"
 
-  unpack_spell_required gnupg || return "$?"
+  unpack_spell_required gnupg gpg || return "$?"
 
   gpg_verify_signature "$( locate_spell_file "$SFNAME" )" \
                        "$FILENAME" \
@@ -446,10 +447,11 @@ function unpack_hash() {
   if [ "$MD5SUM_DL" != "off" ]; then
 
     if [[ "$ALGORITHM" == md5 ]] || [[ "$ALGORITHM" == sha1 ]] ; then
-      unpack_spell_required coreutils "$ALGORITHM" || return "$?" 
+      unpack_spell_required coreutils "${ALGORITHM}sum" "$ALGORITHM" ||
+        return "$?" 
       HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
     else
-      unpack_spell_required gnupg "$ALGORITHM" || return "$?"
+      unpack_spell_required gnupg gpg "$ALGORITHM" || return "$?"
       if list_find "$(gpg_get_hashes)" $ALGORITHM; then
         HASH="$(gpg_hashsum "${ALGORITHM}" "$FILENAME" | cut -d' ' -f1)"
       else 
