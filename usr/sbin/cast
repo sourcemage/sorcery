@@ -289,9 +289,20 @@ function cast_spell()  { (
   test -e $spell_sub_depends && 
   local PROCESSED_SUB_DEPENDS=$(cut -f3 -d: $spell_sub_depends|tr '\n' ' ')
   
+  # HACK for bug 2910 and 10546
+  local saved_lc_all=$LC_ALL
+  export LC_ALL=C
+
   # this will run through the whole build process
   run_build_spell
   rc=$?
+
+  # HACK for bug 2910 and 10546
+  if [[ -n ${saved_lc_all} ]] ; then
+    export LC_ALL=$saved_lc_all
+  else
+    unset LC_ALL
+  fi
 
   # This is the home for anything and everything we do
   # when a phase4 succeeds or fails, no more spreading things out
