@@ -30,10 +30,6 @@ Optional Parameters:
 
 -V [on|off]                     Override \$VOYEUR setting
 
--f  |  --fix                    Discover and fix broken spells
--n  |  --nofix                  Discover, but do not fix broken spells
-                                (Both deprecated, use cleanse instead)
-
 -d  |  --download               Force download of sources (overwrite existing
                                 files)
 
@@ -80,7 +76,7 @@ EOF
 #---------------------------------------------------------------------
 ## @Aguments Arguments of cast
 ## @Globals DEPS_ONLY RECONFIGURE COMPILE 
-## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX NOFIX SEPARATE
+## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT SEPARATE
 ## @Globals BASE_URL INSTALL_QUEUE 
 ##
 ## Sets these globals except INSTALL_QUEUE according to cast's 
@@ -117,9 +113,6 @@ function process_parameters()  {
        -d|--download)  export  FORCE_DOWNLOAD="$1"; COMPILE="-c";    shift 1  ;;
               --from)  export  SOURCE_CACHE=$2;                      shift 2  ;;
             --silent)  SILENT="$1";                                  shift 1  ;;
-            -f|--fix)  export  FIX="$1";                             shift 1  ;;
-          -n|--nofix)  export  FIX="--fix"                         
-                       export  NOFIX="$1";                           shift 1  ;;
                   -s)  export  SEPARATE="$1";                        shift 1  ;;
                --url)  export  BASE_URL="$2";                        shift 2  ;;
                --pam)  cast  -c  `find_pam_aware` ;                  shift 1  ;;
@@ -194,8 +187,6 @@ function strip_parameters()  {
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
-                -f|--fix)  shift 1  ;;
-              -n|--nofix)  shift 1  ;;
             -c|--compile)  shift 1  ;;
            -d|--download)  shift 1  ;;
                       -s)  shift 1  ;;
@@ -779,7 +770,7 @@ function cast_cleanup() {
 
 #---------------------------------------------------------------------
 ## @Arguments arguments of cast
-## @Globals FIX CAST_PASS 
+## @Globals CAST_PASS 
 ## @return 0 always
 ## Starts prameter processing and casts the given spells.
 ## The list of given spells is being searched for invalid spells
