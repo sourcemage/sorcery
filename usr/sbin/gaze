@@ -1737,7 +1737,12 @@ parse()  {
 
       pam)  find_pam_aware  ;;
 
- install-queue)  display  $INSTALL_QUEUE  "Install queue does not exist"  ;;
+ install-queue)  if [[ -s $INSTALL_QUEUE ]]; then
+                   $PAGER $INSTALL_QUEUE
+                 else
+                   message "Install queue does not exist or is empty"
+                 fi
+                 ;;
 
   remove-queue)  display  $REMOVE_QUEUE   "Remove queue does not exist"   ;;
 
