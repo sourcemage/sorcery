@@ -256,6 +256,37 @@ function strip_parameters()  {
 }
 
 #---------------------------------------------------------------------
+## Display what dependencies were removed
+#---------------------------------------------------------------------
+function dispel_parents_list_borkers() {
+  local parent=$1
+  local optional_borkers=$2
+  local runtime_borkers=$3
+  local suggested_borkers=$4
+  if [[ "$optional_borkers" ]] ; then
+    message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
+            "had the following optional dependencies removed:${DEFAULT_COLOR}"
+    message "${SPELL_COLOR}"
+    echo $optional_borkers | col
+    message "${DEFAULT_COLOR}"
+  fi
+  if [[ "$runtime_borkers" ]] ; then
+    message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
+            "had the following runtime dependencies removed:${DEFAULT_COLOR}"
+    message "${SPELL_COLOR}"
+    echo $runtime_borkers | col
+    message "${DEFAULT_COLOR}"
+  fi
+  if [[ "$suggested_borkers" ]] ; then
+    message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
+            "had the following suggested dependencies removed:${DEFAULT_COLOR}"
+    message "${SPELL_COLOR}"
+    echo $suggested_borkers | col
+    message "${DEFAULT_COLOR}"
+  fi
+}
+
+#---------------------------------------------------------------------
 ## @param spell to dispel
 ##
 ## Frontend to do common things for dispelling (keep a note of what
@@ -494,27 +525,33 @@ function dispel_depends_engine() {
     # for all borked spells either recast, dispel, or ignore
     for parent in $(hash_get_table_fields BORKED_PARENTS) ; do
       message "$parent is borked because of $(hash_get BORKED_PARENTS $parent)"
-      recastable=yes
+      local recastable=yes
       borkers=$(hash_get BORKED_PARENTS $parent)
-      local non_optional_borkers
+      local non_optional_borkers suggested_borkers runtime_borkers type
       # if any of the removed children are required depends of the current
       # spell, the spell is not recastable
       # note: this doesnt take into account the spell changing out from
       # under us. Oh well.
       for child in $borkers; do
-        if [[ $(grep "$parent:$child\(([^:]*)\)\?:on:required" $DEPENDS_STATUS) ]] ; then
+        type=$(grep -m 1 "$parent:$child\(([^:]*)\)\?:on" $DEPENDS_STATUS|cut -f4 -d:)
+        if [[ "$type" == required ]]; then
           recastable=no
           list_add non_optional_borkers $child
+        elif [[ "$type" == "runtime" ]] ; then
+          [[ "$recastable" != no ]] && recastable=NA
+          list_add runtime_borkers $child
+        elif [[ "$type" == "suggest" ]] ; then
+          [[ "$recastable" != no ]] && recastable=NA
+          list_add suggested_borkers $child
+        else
+          list_add optional_borkers $child
         fi
       done
       if [[ $recastable == yes ]] ; then
-        message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
-                "had the following optional depends removed:${DEFAULT_COLOR}"
-        message "${SPELL_COLOR}"
-        echo $borkers | col
-        message "${DEFAULT_COLOR}"
-        if dispel_parent_query \
-                       "Re-cast $parent without these optional depends?" \
+        dispel_parents_list_borkers $parent "$optional_borkers" \
+                                    "$runtime_borkers" "$suggested_borkers"
+        if [[ $optional_borkers ]] && dispel_parent_query \
+                       "Re-cast $parent without these non-optional depends?" \
                        "$RECAST_PARENT_DEFAULT" ; then
           # fix up the abandoned depends data for impending recompile
           # this is a bit of a hack but should work:
@@ -541,7 +578,7 @@ function dispel_depends_engine() {
           done
 
           list_add NEW_CASTS $parent
-        elif dispel_parent_query "Dispel $parent instead?" \
+        elif dispel_parent_query "Dispel $parent?" \
                                  "$DISPEL_PARENT_DEFAULT" ; then
 
           foo=$(hash_get down_deps $parent)
@@ -553,12 +590,8 @@ function dispel_depends_engine() {
           message "Please fix broken dependencies with cleanse --prune"
         fi
       else
-        message "${SPELL_COLOR}${parent}${DEFAULT_COLOR}${MESSAGE_COLOR}" \
-                "had the following non-optional depends removed:" \
-                "${DEFAULT_COLOR}"
-        message "${SPELL_COLOR}"
-        echo $non_optional_borkers | col
-        message "${DEFAULT_COLOR}"
+        dispel_parents_list_borkers $parent "$optional_borkers" \
+                                    "$runtime_borkers" "$suggested_borkers"
         if dispel_parent_query "Dispel $parent?" \
                                "$DISPEL_PARENT_DEFAULT"; then
 
@@ -607,8 +640,8 @@ function main() {
   if [[ $DO_DEPENDS ]] ; then
     while [[ $SPELLS ]] ; do
       debug dispel "recomputing depends tree"
-      compute_installed_depends down_deps
-      compute_reverse_installed_depends up_deps
+      compute_installed_depends down_deps all
+      compute_reverse_installed_depends up_deps all
       dispel_depends_engine "$SPELLS" SPELLS
       debug dispel "SPELLS $SPELLS"
     done
