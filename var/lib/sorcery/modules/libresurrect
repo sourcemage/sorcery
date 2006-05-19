@@ -515,8 +515,8 @@ function real_handle_changed_config() {
   while [[ "$continue" == "yes" ]] ; do
     message "${QUERY_COLOR}"
     message "(0) trash $to and install over it"
-    message "(1) backup $to to $to.$savetime, install the new file in its place"
-    message "(2) leave $to in its place, copy the new file to $to.$savetime"
+    message "(1) backup $to to $to.$savetime.old, install the new file in its place"
+    message "(2) leave $to in its place, copy the new file to $to.$savetime.new"
     message "(3) do nothing"
     message "(4) see a diff between $to and the new file"
     # TODO: someday add an option to use an external merge tool
@@ -534,10 +534,10 @@ function real_handle_changed_config() {
     case $number in
       0)  cp -pv "$from" "$to"
           break ;;
-      1)  cp -pv "$to" "$to.$savetime"
+      1)  cp -pv "$to" "$to.$savetime.old"
           cp -pv "$from" "$to"
           break ;;
-      2)  cp -pv "$from" "$to.$savetime"
+      2)  cp -pv "$from" "$to.$savetime.new"
           mark_file_modified "$to"
           # this is deliberatly not track_manual, if this is run from
           # FINAL the user might not have wanted the files tracked
