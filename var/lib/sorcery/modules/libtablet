@@ -305,7 +305,7 @@ function tablet_get_tb_version() {
     return 1
   fi
   if ! test -f $tb_dir/tb_version ||
-     [[ "$(cat $tb_dir/tb_version)" == 0 ]] ; then
+     [[ "$(< $tb_dir/tb_version)" == 0 ]] ; then
     tablet_0_repair $tb_dir || return 1
   fi
   local ____tb_version=$(<$tb_dir/tb_version)
@@ -329,7 +329,10 @@ function tablet_get_tb_version() {
 ## basename of that is <spell>
 #---------------------------------------------------------------------
 function tablet_get_spell_name_from_path() {
-  [[ $1 ]] && basename $(dirname $1)
+  [[ $1 ]] || return
+  local tmp
+  smgl_dirname "$1" tmp
+  smgl_basename "$tmp" $2 # quotes deliberatly left off, (hack for speed)
 }
 
 ######################################################################
@@ -576,56 +579,83 @@ function tablet_set_spell() {
 
 
 ############################ REPAIR files #############################
-function tablet_import_repair_files() {
+#---------------------------------------------------------------------
+## Import repair files for all tablet pages
+#---------------------------------------------------------------------
+function tablet_import_repair_files() { (
   local tablet_path=$1
   local dir rc chapter page
+
+  codex_create_in_memory_cache_all -i spell_lookup_hash
+
+  shopt -s nullglob # so REPAIR^* evaluates to nothing if no REPAIR files
 
   for chapter in $tablet_path/* ; do
     test -d $chapter || continue
     for page in $chapter/*; do
       test -d $page || continue
-      tablet_import_repair_files_page $page
+      tablet_import_repair_files_page "$page" spell_lookup_hash
     done
   done
-}
+) }
 
-function tablet_import_repair_files_page() { (
+#---------------------------------------------------------------------
+## Import repair files for a specific tablet page, expects caller
+## to have spell_lookup_hash setup for a spell lookup, and nullglob set.
+#---------------------------------------------------------------------
+function tablet_import_repair_files_page() {
   local page=$1
-  local spell=$(tablet_get_spell_name_from_path $page)
-  codex_set_current_spell_by_name $spell || return 1
-  local spell_version spell_updated codex_md5 repair_file tablet_file tablet_md5
+
+  local spell spell_dir
+  tablet_get_spell_name_from_path "$page" spell
+  hash_get_ref $2 $spell spell_dir
+  codex_get_spell_paths "$spell_dir"
+
   local name key
-  tablet_get_version $page spell_version
-  tablet_get_updated $page spell_updated
-  tablet_get_patchlevel $page spell_patchlevel
-  for repair_file in $(find $SPELL_DIRECTORY -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
-    name=$(basename $repair_file|cut -f3- -d^)
-    key=$(basename $repair_file|cut -f2 -d^)
+  local loaded
+  local spell_version spell_updated codex_md5 repair_file tablet_file tablet_md5
+  for repair_file in $SPELL_DIRECTORY/REPAIR^*; do
+    [[ -f "$repair_file" ]] || continue
+    name=$(smgl_basename "$repair_file"|cut -f3- -d^)
+    key=$(smgl_basename "$repair_file"|cut -f2 -d^)
     [[ $name ]] || continue 
     [[ $key ]] || continue 
     tablet_check_repair_file spell
   done
 
-  for repair_file in $(find $SECTION_DIRECTORY -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
-    name=$(basename $repair_file|cut -f3- -d^)
-    key=$(basename $repair_file|cut -f2 -d^)
+  for repair_file in $SECTION_DIRECTORY/REPAIR^*; do
+    [[ -f "$repair_file" ]] || continue
+    name=$(smgl_basename "$repair_file"|cut -f3- -d^)
+    key=$(smgl_basename "$repair_file"|cut -f2 -d^)
     [[ $name ]] || continue 
     [[ $key ]] || continue 
     tablet_check_repair_file section
   done
 
-  for repair_file in $(find $GRIMOIRE -maxdepth 1 -mindepth 1 -type f -name 'REPAIR\^*'); do
-    name=$(basename $repair_file|cut -f3- -d^)
-    key=$(basename $repair_file|cut -f2 -d^)
+  for repair_file in $GRIMOIRE/REPAIR^*; do
+    [[ -f "$repair_file" ]] || continue
+    name=$(smgl_basename "$repair_file"|cut -f3- -d^)
+    key=$(smgl_basename "$repair_file"|cut -f2 -d^)
     [[ $name ]] || continue 
     [[ $key ]] || continue 
     tablet_check_repair_file grimoire
   done
-) }
+}
 
+#---------------------------------------------------------------------
+## Private subroutine for tablet_import_repair_files_page, do not call
+## from anywhere else.
+#---------------------------------------------------------------------
 function tablet_check_repair_file() {
   local type=$1
   local replace=0
+
+  if ! [[ "$loaded" ]] ; then
+    tablet_get_version "$page" spell_version
+    tablet_get_updated "$page" spell_updated
+    tablet_get_patchlevel "$page" spell_patchlevel
+    loaded=done
+  fi
 
   case $type in
     spell)  tablet_get_spell_file $page $name tablet_file;;
@@ -672,15 +702,16 @@ function tablet_cleanse_tablet() {
   local file_backup_dir=$backup_dir/tablet_files
   local dir rc
 
-  mkdir -p $file_backup_dir
+  mkdir -p "$file_backup_dir"
   for dir in $tablet_path/* ; do
-    if test -d $dir ; then
-      tablet_cleanse_chapter $dir $backup_dir
+    if test -d "$dir" ; then
+      tablet_cleanse_chapter "$dir" "$backup_dir" no
     else
       message "$dir is not a directory! backing it up in $backup_dir"
-      mv $dir $file_backup_dir
+      mv "$dir" "$file_backup_dir"
     fi
   done
+  tablet_import_repair_files "$tablet_path"
 }
 
 #---------------------------------------------------------------------
@@ -689,20 +720,26 @@ function tablet_cleanse_tablet() {
 function tablet_cleanse_chapter() {
   local sdir=$1
   local backup_dir=$2
+  local do_repair=$3
   local spell=$(basename $sdir)
   local page rc
 
-  mkdir -p $backup_dir/duplicates
-  mkdir -p $backup_dir/chapter_files
-  tablet_fix_duplicates $spell $sdir $backup_dir/duplicates
-  test -d $sdir || return 0
+  mkdir -p "$backup_dir/duplicates"
+  mkdir -p "$backup_dir/chapter_files"
+  tablet_fix_duplicates "$spell" "$sdir" "$backup_dir/duplicates"
+  test -d "$sdir" || return 0
+
 
   for page in $sdir/*; do
-    if ! test -d $page; then
+    if ! test -d "$page"; then
       message "$dir is not a directory! backing it up in $backup_dir"
-      mv $page $backup_dir/chapter_files/$page.$spell
-    else
-      tablet_import_repair_files_page $page
+      mv "$page" "$backup_dir/chapter_files/$page.$spell"
+    elif [[ $do_repair == yes ]] ; then
+      ( # pretend we're tablet_import_repair_files
+        shopt -s nullglob
+        hash_put spell_lookup_hash "$spell" "$(codex_find_spell_by_name $spell)"
+        tablet_import_repair_files_page "$page" spell_lookup_hash
+      )
     fi
   done
 }
