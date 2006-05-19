@@ -493,6 +493,7 @@ function select_list()
     local returnvar=$1
     local default=$2
     local stuff=()
+    local default_num=0
 
     shift 2
     hash_unset select_list_hash
@@ -503,11 +504,12 @@ function select_list()
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR(${stuff[$i]})  $SPELL_COLOR$foo$DEFAULT_COLOR"
         hash_put select_list_hash "${stuff[$i]}" "$foo"
+        [[ "$foo" ]] && [[ "$foo" == "$default" ]] && default_num=${stuff[$i]}
         let i++
     done
 
-    local msg="\n${QUERY_COLOR}Which one do you want? [$default]$DEFAULT_COLOR "
-    select_list_sub "$returnvar" select_list_hash "$msg" "$default"
+    local msg="\n${QUERY_COLOR}Which one do you want? [$default_num]$DEFAULT_COLOR "
+    select_list_sub "$returnvar" select_list_hash "$msg" "$default_num"
     hash_unset select_list_hash
 }
 
@@ -997,19 +999,10 @@ function real_config_query_list () {
     # if there was an answer before, find it
     local default default_num=0 foo
     config_get_last_option "$VARIABLE" default
-    [[ $default ]] || default="$1"
-    let i=0
-    for foo in "$@"; do
-      if [[ "$foo" == "$default" ]] ; then
-        default_num=$i
-        break
-      fi
-      let i++
-    done
 
-    # we have to ask user
+    # we have to ask the user
     message "$QUESTION"
-    select_list ANSWER ${default_num} "$@"
+    select_list ANSWER "$default" "$@"
     config_set_option "$VARIABLE" "$ANSWER"
   fi
 

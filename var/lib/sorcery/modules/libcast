@@ -404,13 +404,13 @@ function dual_service_query() {
   fi
   
   if [[ $init_default == y ]] && [[ $xinetd_default == y ]] ; then
-    default=3
+    default=both
   elif [[ $xinetd_default == y ]] ; then
-    default=2
+    default=xinetd
   elif [[ $init_default == y ]] ; then
-    default=1
+    default=init
   else
-    default=0
+    default=neither
   fi
   select_list $returnvar $default neither init xinetd both
 }
@@ -526,7 +526,7 @@ function install_xinetd_sub() {
      ! grep -v disable $inst_file|diff - $file &>/dev/null ; then
     message "${QUERY_COLOR}$inst_file differs from the default $file," \
             "what would you like to do?${DEFAULT_COLOR}"
-    select_list choice 0 "ignore" "overwrite" "overwrite/backup"
+    select_list choice "ignore" "ignore" "overwrite" "overwrite/backup"
     case $choice in
       "overwrite/backup")
         local backup=$inst_file.$(date +'%Y%m%d%H%M')
