@@ -860,7 +860,7 @@ function work_depends_provider()
 
   # check if theres a default provider
   if [[ ! $default ]]; then
-    explode "$(search_default_provider $DEFAULT_PROVIDERS "" "$1")" ":" "status"
+    explode "$(search_default_provider $DEFAULT_PROVIDERS ".*" "$1")" ":" "status"
     tmp=${status[0]}
     [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
   fi
@@ -953,7 +953,7 @@ function work_optional_depends_provider()
 
   # check if theres a default provider
   if [[ ! $default ]]; then
-    tmp=$(search_default_provider $DEFAULT_PROVIDERS "" "$1")
+    tmp=$(search_default_provider $DEFAULT_PROVIDERS ".*" "$1")
 
     # make sure we found /something/ before trying to analyze it
     # otherwise we'll fall into the else case and use 'none' as the
