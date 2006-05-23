@@ -350,6 +350,14 @@ function dispel_spell() {
       activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
     ) &&
     reap_depends
+    local rc=$?
+    if [[ "$rc" != 0 ]] ; then
+        message "${PROBLEM_COLOR}Dispel of${DEFAULT_COLOR}" \
+                "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
+                "${PROBLEM_COLOR}failed!${DEFAULT_COLOR}"
+        return $rc
+    fi
+    return 0
 }
 
 #---------------------------------------------------------------------
