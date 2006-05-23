@@ -74,6 +74,7 @@
 #    unpack                 (libunpack) (deprecated)
 #    unpack_file            (libunpack)
 #    unpack_file_simple     (libunpack)
+#    verify_file            (libunpack)
 #
 # Read-only variable that might be of use to a spell:
 # SOURCE_CACHE, OPTS, BUILD HOST, INSTALL_ROOT
@@ -1012,6 +1013,21 @@ function unpack_file () {
 function unpack_file_simple() {
     debug "libapi" "$FUNCNAME - $*"
     real_unpack_file_simple "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param SOURCE suffix
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_verify_file> for more details.
+##
+## verify_file takes the SOURCE suffix and verifies the file without
+## unpacking it. It does not work with the old 'MD5[0]=...' style.
+## Only with the "new" SOURCEn_(GPG|HASH|IGNORE) style.
+##
+#---------------------------------------------------------------------
+function verify_file () {
+    debug "libapi" "verify_file - $*"
+    real_verify_file "$@"
 }
 
 #---------------------------------------------------------------------
