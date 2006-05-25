@@ -913,31 +913,33 @@ function gaze_show_website()  {
 
 #---------------------------------------------------------------------
 ##
-## Shows the maintainer for the given spell.
-## @param Spell
+## Shows the maintainer for the given section.
+## @param section
 ##
 #---------------------------------------------------------------------
 function show_maintainer()  {
 
-  for section in $@; do
-    ! [[ $GAZE_VERBOSE == 0 ]] &&
-    message "${SPELL_COLOR}${section}:${DEFAULT_COLOR}"
-    SECTION=`codex_find_section_by_name $section`
+  local section="$1"
 
-    if  [  -d  "$SECTION"  ];  then
+  {
+    echo  "Grimoire|Section|Maintainer"
+    echo  "--------|-------|----------"
 
-      if  [  -f  "$SECTION/MAINTAINER"  ];  then
-        cat $SECTION/MAINTAINER
+    for GRIMOIRE in $(codex_get_all_grimoires); do
+      codex_set_grimoires $GRIMOIRE
+      SECTION=`codex_find_section_by_name $section`
+      if [[ -d "$SECTION" ]]; then
+        if [[ -f "$SECTION/MAINTAINER" ]]; then
+          echo "$(smgl_basename ${GRIMOIRE})|$section|$(<$SECTION/MAINTAINER)"
+        else
+          echo "$(smgl_basename ${GRIMOIRE})|$section|-"
+        fi
       else
-        echo "No maintainer available for section '$( basename  $SECTION )'"
+          echo "$(smgl_basename  ${GRIMOIRE})|-|-"
       fi
-
-    else
-
-      echo  "No such section"
-
-    fi
-  done
+      codex_set_grimoires $GRIMOIRES
+    done
+  } | maybe_column -t -s "|"
 
 }
 
