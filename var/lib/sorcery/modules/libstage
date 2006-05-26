@@ -12,8 +12,9 @@
 #---------------------------------------------------------------------
 function install_staged_spell()
 {
-	stage_install_configs
-	stage_install_rest
+  mkdir -p "$CONFIG_STAGE_DIRECTORY/$SPELL/current"
+  stage_install_configs
+  stage_install_rest
 }
 
 function filter_spell_configs()
@@ -90,14 +91,12 @@ function stage_install_file()
   local FILE=$1
   local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
   local SAVE="$CONFIG_STAGE_DIRECTORY/$SPELL/current/$FILE"
-  mkdir -p "$CONFIG_STAGE_DIRECTORY/$SPELL/current"
   message "${FILE_COLOR}$PERMISSION $FILE${DEFAULT_COLOR}"
   case $2 in
     config)
       if [[ -e ${INSTALL_ROOT}/$FILE ]]
       then
         message "${MESSAGE_COLOR}Staging config to $CONFIG_STAGE_DIRECTORY${DEFAULT_COLOR}"
-        touch ${INSTALL_ROOT}/$FILE &&
         mkdir -p $(dirname $SAVE) &&
         cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$SAVE &&
 	rm $STAGE_DIRECTORY/TRANSL/$FILE
