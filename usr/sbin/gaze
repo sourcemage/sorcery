@@ -1635,11 +1635,24 @@ parse()  {
   [[ $UID != 0 ]] && test "$NICE" -lt 0 && NICE=0
   renice $NICE -p $$ >/dev/null
 
-  if [ $1 == "-q" ]; then
-        shift;
-        GAZE_VERBOSE=0
-        PAGER=cat
-  fi
+  while [[ -n "$1" ]] && [[ ${1:0:1} == "-" ]] ; do 
+    case $1 in
+      -q) GAZE_VERBOSE=0
+          PAGER=cat
+          shift
+          ;;
+      -g) for grimoire in $2; do
+            if ! codex_find_grimoire $grimoire >/dev/null; then
+              message "${PROBLEM_COLOR}No such grimoire: " \
+                      "${DEFAULT_COLOR}$grimoire"
+              return 1
+            fi
+            codex_set_grimoires $2
+          done
+          shift 2
+          ;;
+    esac
+  done
 
 
   SPELL=$2
