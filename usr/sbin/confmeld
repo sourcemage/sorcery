@@ -107,6 +107,12 @@ function main()
       # so if the spell or the date changes then we remove the directory so 
       # CONFIG_STAGE_DIRECTORY should always be empty after you complete the
       # call to confmeld
+      # 
+      # find does a preorder traversal of the directory tree keeping the path
+      # (esentially a stack) of where its been in the tree. If a particular date
+      # or spell name changes at the same level in the tree we can safely assume
+      # the previous date or spell has been walked and all files have been delt
+      # with accordingly so we can safely remove them.
       #
       if [[ $last_sdate && $last_sdate != $sdate ]]
       then
