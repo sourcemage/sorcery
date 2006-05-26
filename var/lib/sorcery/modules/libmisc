@@ -1387,6 +1387,69 @@ function awkuniq() {
   awk '{ if ( seen[$0] != 1) { seen[$0]=1;print $0;}}'
 }
 
+#---------------------------------------------------------------------
+# Dirname written in bash, optionally uses an upvar (making it forkless).
+#---------------------------------------------------------------------
+function smgl_dirname() {
+  local __dir=$1
+  local __last_dir __next_dir
+
+  # Pull of any trailing /'s, there could be more than/one///
+  while [[ "$__dir" != "$__last_dir" ]] ; do
+    __last_dir=$__dir
+    __dir=${__dir%/}
+  done
+
+  # remove the basename
+  __next_dir=${__dir%/*}
+
+  # if the string had no more directory seperators in it (was aaa/, now aaa),
+  # then this is a special case, the answer is '.'
+  if [[ "$__next_dir" == "$__dir" ]] ; then
+    __dir="."
+  else
+    __dir=$__next_dir
+    # Trim off anymore leading /'s (was /aa//bb, now /aa//)
+    while [[ "$__dir" != "$__last_dir" ]] ; do
+      __last_dir=$__dir
+      __dir=${__dir%/}
+      [[ "$__dir" == "/" ]] && break
+    done
+  fi
+
+  if [[ "$2" ]] ; then
+    upvar "$2" "$__dir"
+  else
+    echo "$__dir"
+  fi
+}
+
+#---------------------------------------------------------------------
+# basename written in bash, optionally uses upvar (making it forkless).
+# Does not have ability to remove file extension like the real basename.
+#---------------------------------------------------------------------
+function smgl_basename() {
+  local __base=$1
+  local __last_base
+
+  # trim off leading /'s (foo/bar//// -> foo/bar)
+  while [[ "$__base" != "$__last_base" ]] ; do
+    __last_base=$__base
+    __base=${__base%/}
+  done
+
+  # if there are no more /'s then this does nothing which is what we want
+  __base=${__base##*/}
+
+  if [[ "$2" ]] ; then
+    upvar "$2" "$__base"
+  else
+    echo "$__base"
+  fi
+}
+
+
+
 # Standard debug line:
 # file "function@line" "all" "args"
 STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ; 

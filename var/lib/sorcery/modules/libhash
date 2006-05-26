@@ -148,6 +148,23 @@ function hash_get() {
 #---------------------------------------------------------------------
 ## @param table name
 ## @param field name
+## @param upvar name
+## 
+## @Stdout none
+## Returns the value stored in the table/field through the upvar variable
+## name. If no value was previously stored in the table/field, then an
+## empty string is returned.
+##
+#---------------------------------------------------------------------
+function hash_get_ref() {
+  local VARIABLE_NAME
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
+  eval "$3=\${!VARIABLE_NAME}"
+}
+
+#---------------------------------------------------------------------
+## @param table name
+## @param field name
 ## @param value
 ## 
 ## Appends the value to the specified table/field.

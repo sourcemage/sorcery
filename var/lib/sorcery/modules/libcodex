@@ -596,32 +596,11 @@ function codex_clear_current_spell()  {
 function codex_set_current_spell()  {
 
   debug "libcodex" "runing codex_set_current_spell"
+
   codex_clear_current_spell
-  SPELL_DIRECTORY=$1
 
-  # Directories
-  SCRIPT_DIRECTORY=$SPELL_DIRECTORY
-  # scribbled spells are self contained, SECTION_DIRECTORY and GRIMOIRE
-  # point to slightly different places
-  if test -e $SPELL_DIRECTORY/SCRIBBLED ; then
-    # I dont know how to nest these
-    local tmp=${SPELL_DIRECTORY%/*}
-    SECTION=${tmp##*/}
-    GRIMOIRE_NAME=$(basename ${tmp%/*})
-
-    SECTION_DIRECTORY=${SPELL_DIRECTORY}/section
-    GRIMOIRE=${SPELL_DIRECTORY}/grimoire
-  else
-    SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
-    SECTION=${SECTION_DIRECTORY##*/}
-    GRIMOIRE=${SECTION_DIRECTORY%/*}
-    GRIMOIRE_NAME=$(basename $GRIMOIRE)
-  fi
-
-  # Names
-  SPELL=${SPELL_DIRECTORY##*/}
+  codex_get_spell_paths $1
   
-  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
   if  [ -f  $SPELL_CONFIG  ]; then
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
@@ -647,33 +626,46 @@ function codex_set_current_spell()  {
   true
 }
 
+#---------------------------------------------------------------------
+# Load just the very basics for a spell, skip build api, libcompat
+# and other debug stuff. Intended for use in tight loops.
+#---------------------------------------------------------------------
 function codex_set_current_spell_quick()  {
-  SPELL_DIRECTORY=$1
-  SCRIPT_DIRECTORY=$1
-  if test -e $SPELL_DIRECTORY/SCRIBBLED ; then
-    # I dont know how to nest these
-    local tmp=${SPELL_DIRECTORY%/*}
-    SECTION=${tmp##*/}
-    GRIMOIRE_NAME=$(basename ${tmp%/*})
+  codex_get_spell_paths $1
 
-    SECTION_DIRECTORY=${SPELL_DIRECTORY}/section
-    GRIMOIRE=${SPELL_DIRECTORY}/grimoire
-  else
-    SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
-    SECTION=${SECTION_DIRECTORY##*/}
-    GRIMOIRE=${SECTION_DIRECTORY%/*}
-    GRIMOIRE_NAME=$(basename $GRIMOIRE)
-  fi
-
-  # Names
-  SPELL=${SPELL_DIRECTORY##*/}
-  SPELL=${1##*/}
-  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
   test -f  "$SPELL_CONFIG" && .  "$SPELL_CONFIG" &> /dev/null
   persistent_load
   .  $1/DETAILS &> /dev/null
   persistent_clear
   true
+}
+
+
+#---------------------------------------------------------------------
+# Setup the various spell paths associated with a spell without
+# loading it.
+#---------------------------------------------------------------------
+function codex_get_spell_paths() {
+  SPELL_DIRECTORY=$1
+  SCRIPT_DIRECTORY=$1
+  if test -e $SPELL_DIRECTORY/SCRIBBLED ; then
+    local tmp
+    smgl_dirname "$SPELL_DIRECTORY" tmp
+    smgl_basename "$tmp" SECTION
+    smgl_dirname "$tmp" tmp
+    smgl_basename "$tmp" GRIMOIRE_NAME
+
+    SECTION_DIRECTORY=${SPELL_DIRECTORY}/section
+    GRIMOIRE=${SPELL_DIRECTORY}/grimoire
+  else
+    smgl_dirname "$SPELL_DIRECTORY" SECTION_DIRECTORY
+    smgl_basename "$SECTION_DIRECTORY" SECTION
+    smgl_dirname "$SECTION_DIRECTORY" GRIMOIRE
+    smgl_basename "$GRIMOIRE" GRIMOIRE_NAME
+  fi
+  smgl_basename "$SPELL_DIRECTORY" SPELL
+  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
+  return 0
 }
 
 #---------------------------------------------------------------------
@@ -758,6 +750,50 @@ function codex_create_cache()  {
         codex_list_provides $i > "$i/$PROVIDE_INDEX_FILE"
 	done
 
+}
+
+
+#---------------------------------------------------------------------
+## Create in-memory spell lookup table for named grimoires.
+#---------------------------------------------------------------------
+function codex_create_in_memory_cache() {
+  local list
+  if [[ $1 == -i ]] ; then
+    list=$SPELL_STATUS
+    shift
+  fi
+  local hash=$1
+  shift
+  eval $(
+    for each in "$@"; do
+      cat $each/$SPELL_INDEX_FILE
+    done | awk -v i=$list -v hash=$hash '{
+      if ( ! ($1 in map)) {
+        map[$1]=$2;
+      }
+    } END {
+      if (i) {
+        FS=":";
+        while (getline < i) {
+          if( $3=="installed" || $3=="held") {
+            printf("hash_put %s %s \"%s/%s\";\n",hash,$1,map[$1],$1);
+          }
+        }
+      } else {
+        for (spell in map) {
+          printf("hash_put %s %s \"%s/%s\";\n",hash,spell,map[spell],spell);
+        }
+      }
+    }'
+  )
+
+}
+
+#---------------------------------------------------------------------
+## Creae in-memory spell lookup table for all known grimoires.
+#---------------------------------------------------------------------
+function codex_create_in_memory_cache_all() {
+  codex_create_in_memory_cache "$@" $(codex_get_all_grimoires)
 }
 
 ###########################MISC FUNCTIONS#############################
