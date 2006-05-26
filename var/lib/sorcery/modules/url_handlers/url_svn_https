@@ -1,0 +1,131 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+## 
+## Url handler functions for parsing subversion over https urls.
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for parsing svn_https urls.
+##
+##=head1 SVN HTTP URL Format
+##
+## The sourcemage specific svn+ssh url is as follows:
+## specific format was invented:
+##
+##      svn_https://SVNURL:DIR_NAME
+##
+## The above url will download the latest version of the specified
+## module (i.e., the HEAD revision). To specify a specific revision,
+## the following format can be used:
+##
+##      svn://SVNURL:DIR_NAME:REVISION_TAG
+##
+## The SVNURL portion of the url will appear as a normal https url
+## sans https:// prefix.
+##
+## The DIR_NAME will be the tail element of the SOURCE_DIRECTORY.
+##
+## For more details, see the SVN manual at
+## https://svnbook.red-bean.com/svnbook/ch03s04.html
+## and url_svn.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2004 by the Source Mage Team
+## Copyright 2005 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item url_svn_https_bucketize
+## @param url
+## 
+## Outputs svn as that is the dl handler for svn_https:// urls
+#---------------------------------------------------------------------
+function url_svn_https_bucketize() {
+  echo svn
+}
+
+#---------------------------------------------------------------------
+##=item url_file_download <url>
+## 
+## Parse the specified svn_https url.
+##
+## @Global URL
+## @Global SVN_ROOT
+## @Global SVN_MODULE
+## @Global SVN_TAG
+##
+#---------------------------------------------------------------------
+function url_svn_https_crack() { 
+
+  URL=`url_strip_prefix "$1" svn_https`
+  SVN_ROOT=https://`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
+  local SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
+  SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2` 
+  local SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
+  SVN_TAG=${SVN_TAGNAME:=HEAD}
+
+}
+
+#---------------------------------------------------------------------
+##=item url_svn_https_is_valid <url>
+##
+## Ensure that all the fields that should be parsed out from a url
+## do indeed exist
+#---------------------------------------------------------------------
+function url_svn_https_is_valid() {
+  url_svn_is_valid "$@"
+}
+
+#---------------------------------------------------------------------
+##=item url_svn_https_hostname <url>
+##
+## Get the hostname of the url
+##
+#---------------------------------------------------------------------
+function url_svn_https_hostname() {
+  echo $1|sed 's#^svn_https://\([^/:]*\)[/:].*$#\1#'
+}
+
+#---------------------------------------------------------------------
+##=item url_svn_https_netselect <url>
+##
+## Gets a netselect type output for the url
+##
+#---------------------------------------------------------------------
+function url_svn_https_netselect() {
+  local tmp_hostname url_speed each
+
+  for each in "$@" ; do
+    tmp_hostname=$(url_svn_https_hostname $each)
+    # since we had to pull the url apart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

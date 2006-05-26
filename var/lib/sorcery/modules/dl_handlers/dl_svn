@@ -37,16 +37,25 @@ function dl_svn_get () {
     local URL SVN_ROOT SVN_MODULE SVN_TAG
     url_crack "$url" "$hints"
 
+    local svn_args=""
+    if list_find "$hints" "parse_username" ; then
+      local USER_PASS=$(echo $SVN_ROOT|sed 's#.*//\(.*\)@.*#\1#')
+      local SVN_ROOT=$(echo $SVN_ROOT|sed 's#//\(.*\)@#//#')
+      local USER=${USER_PASS%:*};
+      local PASS=${USER_PASS#*:};
+      svn_args="--username $USER --password $PASS"
+    fi
+
     if test -d $target; then
       message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
-      echo svn update -q --non-interactive -r $SVN_TAG $target
-      svn update -q --non-interactive -r $SVN_TAG $target
+      echo svn update $svn_args -q --non-interactive -r $SVN_TAG $target
+      svn update $svn_args -q --non-interactive -r $SVN_TAG $target
       rc=$?
       eval "$dl_target=\"$target\""
     else
       message "${MESSAGE_COLOR}Running svn checkout...${DEFAULT_COLOR}"
-      echo svn checkout -r $SVN_TAG $SVN_ROOT $SVN_MODULE
-      svn checkout -r $SVN_TAG $SVN_ROOT $SVN_MODULE
+      echo svn checkout $svn_args -r $SVN_TAG $SVN_ROOT $SVN_MODULE
+      svn checkout $svn_args -r $SVN_TAG $SVN_ROOT $SVN_MODULE
       rc=$?
       eval "$dl_target=\"$SVN_MODULE\""
     fi

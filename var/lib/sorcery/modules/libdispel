@@ -271,28 +271,45 @@ function load_spell()  {
 ## Run the PRE_REMOVE script if it exists
 #-----
 function pre_remove() {
-  if [[ $SCRIPT_DIRECTORY ]] && [ -x $SCRIPT_DIRECTORY/PRE_REMOVE ]; then
-    unset  LD_PRELOAD
-    . $SCRIPT_DIRECTORY/PRE_REMOVE
+  local rc=0
+  if  [[ $SCRIPT_DIRECTORY ]] ; then
+    persistent_load &&
+    if test  -x  $SCRIPT_DIRECTORY/PRE_REMOVE ; then
+      . $SCRIPT_DIRECTORY/PRE_REMOVE
+    else
+      default_pre_remove
+    fi
+    rc=$?
+    persistent_save
   fi
+  return $rc
+}
+
+function real_default_pre_remove() {
+  :
 }
 
 #-----
 ## Run the POST_REMOVE script if it exists.
 #-----
 function post_remove() {
-  # what is the point of this?
-  LD_PRELOAD_OLD="$LD_PRELOAD"
-  unset LD_PRELOAD
-
-  export  LD_PRELOAD="$LD_PRELOAD_OLD"
-
-  if  [[ $SCRIPT_DIRECTORY ]] && [  -x  $SCRIPT_DIRECTORY/POST_REMOVE  ]
-  then     . $SCRIPT_DIRECTORY/POST_REMOVE
+  local rc=0
+  if  [[ $SCRIPT_DIRECTORY ]] ; then
+    persistent_load &&
+    if test  -x  $SCRIPT_DIRECTORY/POST_REMOVE ; then
+      . $SCRIPT_DIRECTORY/POST_REMOVE
+    else
+      default_post_remove
+    fi
+    rc=$?
+    persistent_save
   fi
-
+  return $rc
 }
 
+function real_default_post_remove() {
+  :
+}
 
 
 
