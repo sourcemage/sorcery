@@ -83,11 +83,12 @@ function delve_log_helper() {
   OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
 
   # these have to go somewhere where future delves can find them
-  C_LOG=/tmp/sorcery/delve/$SPELL.compile.log
-  C_FIFO=/dev/stdout
-  IW_LOG="/tmp/sorcery/delve/$SPELL.iw"
-  VOYEUR_STDOUT=/dev/stdout
-  VOYEUR_STDERR=/dev/stderr
+  C_LOG=${C_LOG:="/tmp/sorcery/delve/$SPELL.compile.log"}
+  C_FIFO=${C_FIFO:="/dev/stdout"}
+  IW_LOG=${IW_LOG:="/tmp/sorcery/delve/$SPELL.iw"}
+  VOYEUR_STDOUT=${VOYEUR_STDOUT:="/dev/stdout"}
+  VOYEUR_STDERR=${VOYEUR_STDERR:="/dev/stderr"}
+  S_PWD=${S_PWD:="/tmp/sorcery/delve/$SPELL.pwd"}
   touch $C_LOG
 
 }
@@ -163,9 +164,19 @@ function delve_install() {
     message "Ack! there is no $SOURCE_DIRECTORY"
     return 1
   }
-  cd $SOURCE_DIRECTORY
+  if [[ -f $S_PWD ]]
+  then
+    cd "`cat $S_PWD`"
+  else
+    cd $SOURCE_DIRECTORY
+  fi &&
+  invoke_installwatch &&
+  if [[ "$STAGED_INSTALL" != "off" ]]
+  then
+    invoke_stage_root
+  fi &&
   (
-    run_install
+    run_install || return 2
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
@@ -194,12 +205,10 @@ function delve_post_install() {
     message "Ack! there is no $SOURCE_DIRECTORY"
     return 1
   }
-  [ "$BUILD_API" == "2" ] && cd $SOURCE_DIRECTORY # dirty hack
   (
     run_post_install
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
-
 }
 
 function delve_final() {

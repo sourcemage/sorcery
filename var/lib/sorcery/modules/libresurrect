@@ -451,8 +451,8 @@ function internal_install_config_file() {
     return $?
   fi
 
-  # if the file does not exist, 
-  if ! test -e "$to"; then
+  # if the file does not exist, or stage root is invoked 
+  if ! test -e "$to" || [[ "$STAGED_INSTALL" != "off" ]] ; then
     # copy the new one in (plus leading directories)
     mkdir -p "$(dirname "$to")" &&
     cp -pv "$from" "$to"

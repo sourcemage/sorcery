@@ -1,0 +1,161 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Functions for desling with the stage root and installing files from the stage root
+## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+## Functions for desling with the stage root and installing files from the stage root
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## @param stage root
+## Main for installing staged spell called imediatly after devoking
+## installwatch and stage root
+#---------------------------------------------------------------------
+function install_staged_spell()
+{
+	stage_install_configs
+	stage_install_rest
+}
+
+function filter_spell_configs()
+{
+  filter_generic "$*" configs $CONFIGS codex
+}
+
+#---------------------------------------------------------------------
+## Install config files to a staged location on the system
+#---------------------------------------------------------------------
+function stage_install_configs()
+{
+  message "${MESSAGE_COLOR}Staging config files into the system${DEFAULT_COLOR}"
+  get_all_package_files        |
+  filter_spell_configs -v      |
+  stage_install_files config
+}
+
+#---------------------------------------------------------------------
+## Install the rest of the files in the stage root
+#---------------------------------------------------------------------
+function stage_install_rest()
+{
+  message "${MESSAGE_COLOR}Installing the rest of the files${DEFAULT_COLOR}"
+  get_all_package_files        |
+  filter_spell_configs         |
+  stage_install_files
+}
+
+#---------------------------------------------------------------------
+## @Stdout list of files installed by package
+## lists all files the package installs relative to /
+#---------------------------------------------------------------------
+function get_all_package_files()
+{
+  find $STAGE_DIRECTORY/TRANSL | sed "s:$STAGE_DIRECTORY/TRANSL::"
+}
+
+#---------------------------------------------------------------------
+## @Stdin list of files to install
+## install the files from the stage directory to the system
+#---------------------------------------------------------------------
+function stage_install_files()
+{
+  local file
+  while read file ; do
+    [ "$file" ] || continue
+    stage_install_list $file $1
+  done
+}
+
+function stage_install_directory()
+{
+  local DIR=$1
+  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/${DIR}")
+  if [[ ! -d $(dirname ${INSTALL_ROOT}/$DIR) ]]
+  then
+    # this shouldn't happen but just in case
+    message "${PROBLEM_COLOR}Ah, not preserving permissions making $(dirname $DIR)${DEFAULT_COLOR}" &&
+    mkdir -p $(dirname ${INSTALL_ROOT}/$DIR)
+  fi &&
+  message "${FILE_COLOR}$PERMISSION $DIR${DEFAULT_COLOR}"
+  if [[ -d $DIR ]]
+  then
+    chmod $PERMISSION ${INSTALL_ROOT}/$DIR
+  else
+    mkdir $DIR   &&
+    chmod $PERMISSION ${INSTALL_ROOT}/$DIR
+  fi
+}
+
+function stage_install_file()
+{
+  local FILE=$1
+  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/${FILE}")
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+  message "${FILE_COLOR}$PERMISSION $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e ${INSTALL_ROOT}/$FILE ]]
+      then
+        touch ${INSTALL_ROOT}/$FILE &&
+        mkdir -p $(dirname $SAVE) &&
+        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$SAVE &&
+	rm $STAGE_DIRECTORY/TRANSL/$FILE
+      else
+        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
+	rm $STAGE_DIRECTORY/TRANSL/$FILE
+      fi
+      ;;
+    *)
+      cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
+      rm $STAGE_DIRECTORY/TRANSL/$FILE
+      ;;
+  esac
+}
+
+function stage_install_symlink()
+{
+  local FILE=$1
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+  message "${FILE_COLOR}Symlink $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e ${INSTALL_ROOT}/$FILE ]]
+      then
+        touch ${INSTALL_ROOT}/$FILE &&
+        mkdir -p $(dirname $SAVE) &&
+        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$SAVE &&
+	rm $STAGE_DIRECTORY/TRANSL/$FILE
+      else
+        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
+	rm $STAGE_DIRECTORY/TRANSL/$FILE
+      fi
+      ;;
+    *)
+      rm -f ${INSTALL_ROOT}/$FILE &&
+      cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
+      rm $STAGE_DIRECTORY/TRANSL/$FILE
+      ;;
+  esac
+}
+
+#---------------------------------------------------------------------
+## @param file
+## install the file from the stage root to the system does check for
+## dir so that the file can be moved
+#---------------------------------------------------------------------
+function stage_install_list()
+{
+  if [[ -h $STAGE_DIRECTORY/TRANSL/$1 ]]
+  then
+    stage_install_symlink "$@"
+  elif [[ ! -d $STAGE_DIRECTORY/TRANSL/$1 ]]
+  then
+    stage_install_file "$@"
+  elif [[ -d $STAGE_DIRECTORY/TRANSL/$1 ]]
+  then
+    stage_install_directory "$@"
+  else
+    message "${PROBLEM_COLOR}Oh, God I don't know what to do..."
+    message "${FILE_COLOR}$(dirname ${1})${PROBLEM_COLOR}"
+    message "is some other kind of a file and not a directory${DEFAULT_COLOR}"
+  fi
+}

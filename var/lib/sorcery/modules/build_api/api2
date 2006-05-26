@@ -50,14 +50,34 @@ function run_build_spell() {
   local PROTECT_SORCERY=yes
   local rs
   (
-    run_pre_build                         || return 1
-    run_config_loc                        || return 2
+    run_pre_build                           || return 1
+    run_config_loc                          || return 2
     (
-      run_build                           &&
-      run_pre_install                     &&
-      run_install                         || return 2
-      run_post_install                    &&
-      run_final                           || return 3
+      run_build                             &&
+      pwd > $TMP_DIR/build.saved.pwd        &&
+      run_pre_install                       &&
+      prepare_stage_root                    &&
+      invoke_installwatch                   &&
+      if [[ "$STAGED_INSTALL" != "off" ]]
+      then
+        invoke_stage_root
+      fi                                    &&
+      export C_LOG=$C_LOG                   &&
+      export C_FIFO=$C_FIFO                 &&
+      export IW_LOG=$IW_LOG                 &&
+      export VOYEUR_STDOUT=$VOYEUR_STDOUT   &&
+      export VOYEUR_STDERR=$VOYEUR_STDERR   &&
+      export S_PWD=$TMP_DIR/build.saved.pwd &&
+      delve $SPELL INSTALL                  &&
+      delve $SPELL POST_INSTALL             || return 2
+      if [[ "$STAGED_INSTALL" != "off" ]]
+      then
+        devoke_stage_root &&
+	install_staged_spell
+      fi                                    &&
+      devoke_installwatch                   &&
+      destroy_stage_root                    &&
+      run_final                             || return 3
     ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
        > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
   )
@@ -170,15 +190,15 @@ function run_pre_install() {
 
 
 #---------------------------------------------------------------------
-## Turns all the various logs back on that were turned off from after
-## run_pre_install finished, then runs INSTALL or default_install
+## load persistent vars, then runs INSTALL or default_install
 ## Along with other stuff that needs to be transplanted elsewhere.
+## NOTE: this function is run from delve so installwatch can be invoked
+## around an execed bash shell, this is needed for installwatch to
+## stage root properly
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
-
-  invoke_installwatch
-
+  
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
     .  $SCRIPT_DIRECTORY/INSTALL 
@@ -187,7 +207,8 @@ function run_install() {
   else
     default_install
   fi &&
-  persistent_save &&
+  persistent_save
+
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -200,14 +221,20 @@ function run_install() {
 #---------------------------------------------------------------------
 ## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is run after INSTALL and before
-## FINAL. Its purpose is to bookend INSTALL and shutoff installwatch.
+## FINAL. Its purpose is to manipulate the installed files in the stage
+## root and install other tracked files.
+## NOTE: this function is run from delve so installwatch can be invoked
+## around an execed bash shell, this is needed for installwatch to
+## stage root properly
 #---------------------------------------------------------------------
 function run_post_install() {
   debug "build_api/api2" "Starting run_post_install()"
   persistent_load &&
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
+    cd $STAGE_DIRECTORY/TRANSL &&
     . $SCRIPT_DIRECTORY/POST_INSTALL
   elif [[ "$POST_INSTALL_CMD" ]] ; then
+    cd $STAGE_DIRECTORY/TRANSL &&
     $POST_INSTALL_CMD
   else
     default_post_install
@@ -293,9 +320,7 @@ function real_default_build() {
 #---------------------------------------------------------------------
 function real_default_pre_install() {
   debug "build_api/api2" "Starting real_default_pre_install"
-  devoke_installwatch
   prepare_install
-  invoke_installwatch
 }
 
 #---------------------------------------------------------------------
@@ -328,7 +353,6 @@ function real_default_post_install() {
   install_pam_confs
   install_desktop_files
   gather_docs
-  devoke_installwatch
   init_post_install
   ldconfig
   # release_saved_libraries
