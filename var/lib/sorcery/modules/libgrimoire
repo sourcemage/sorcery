@@ -80,9 +80,14 @@ function real_rm_source_dir() {
     # a) $DEAD_DIR being an empty string
     # b) $DEAD_DIR being set to "/" (or anything above /usr/src)
     # c) $DEAD_DIR containing metacharacters (like newline)
-    local ddate=$(date +%Y%m%d%H%M%S%N)
-    mv  "$DEAD_DIR"  "$INSTALL_ROOT/usr/src/deaddir-$ddate"  &&
-    (rm  -rf          "$INSTALL_ROOT/usr/src/deaddir-$ddate"  2>  /dev/null) &
+
+    # prevent race condition by serializing on deaddir
+    while ! mkdir "$BUILD_DIRECTORY/deaddir" 2> /dev/null
+    do 
+      sleep 1
+    done &&
+    mv  "$DEAD_DIR"  "$INSTALL_ROOT/usr/src/deaddir"  &&
+    (rm  -rf          "$INSTALL_ROOT/usr/src/deaddir"  2>  /dev/null) &
 
     popd  2>&1  >  /dev/null
     true
