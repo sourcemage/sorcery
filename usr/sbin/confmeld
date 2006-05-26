@@ -61,6 +61,27 @@ function all_spells_with_staged_configs()
 }
 
 #--------------------------------------------------------------------
+## parses the path to get specific information about the config file
+##
+## @param config file path
+## @param upvar for spell name
+## @param upvar for spell success time
+## @param upvar for actual path to file
+#--------------------------------------------------------------------
+function parse_stage_config_path()
+{
+  local file=$1
+  local __tmp __spell __sdate __path
+  __tmp=${file/$CONFIG_STAGE_DIRECTORY\//}
+  __spell=$(echo $__tmp | cut -d/ -f1)
+  __sdate=$(echo $__tmp | cut -d/ -f2)
+  __path=$(echo $__tmp | cut -d/ -f3-)
+  eval "$2=\"$__spell\""
+  eval "$3=\"$__sdate\""
+  eval "$4=\"$__path\""
+}
+
+#--------------------------------------------------------------------
 ## Main
 ## 
 ## No real arguments get all the config files and start installing
@@ -68,20 +89,45 @@ function all_spells_with_staged_configs()
 #--------------------------------------------------------------------
 function main()
 {
-  local target
+  local target spell sdate 
+  local last_spell=""
+  local last_sdate=""
+  
   all_config_files |
   while read file
   do
-    target=$(echo $file | sed "s#^$CONFIG_STAGE_DIRECTORY/[[:alpha:]]*/[[:alnum:]]*##g")
+    echo $last_spell
+    parse_stage_config_path $file spell sdate target &&
     if [[ -f $file && $target ]]
     then
-      install_config_file $file $target
+      message "${MESSAGE_COLOR}$spell cast on $sdate has config${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}$file to be merged with /$target${DEFAULT_COLOR}"
+      tablet_set_spell $spell &&
+      # and we can't do this because it's reading stdin from the pipe so I have
+      # to think of something else
+      install_config_file $file /$target
+      if [[ $last_sdate && $last_sdate != $sdate ]]
+      then
+        rm -vrf $CONFIG_STAGE_DIRECTORY/$last_spell/$last_sdate
+      fi
+      if [[ $last_spell && $last_spell != $spell ]]
+      then
+        rm -vrf $CONFIG_STAGE_DIRECTORY/$last_spell
+      fi
+      last_sdate="$sdate"
+      last_spell="$spell"
     fi
   done
+  # this isn't being set for some reason
+  if [[ $last_spell ]]
+  then
+    rm -vrf $CONFIG_STAGE_DIRECTORY/$last_spell
+  fi
 }
 
 
 . /etc/sorcery/config
+STAGED_INSTALL="off"
 main "$@"
 
 #---------------------------------------------------------------------
