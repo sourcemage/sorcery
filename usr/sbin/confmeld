@@ -93,34 +93,32 @@ function main()
   local last_spell=""
   local last_sdate=""
   
-  all_config_files |
-  while read file
+  for file in `all_config_files`
   do
-    echo $last_spell
     parse_stage_config_path $file spell sdate target &&
     if [[ -f $file && $target ]]
     then
       message "${MESSAGE_COLOR}$spell cast on $sdate has config${DEFAULT_COLOR}"
       message "${MESSAGE_COLOR}$file to be merged with /$target${DEFAULT_COLOR}"
       tablet_set_spell $spell &&
-      # and we can't do this because it's reading stdin from the pipe so I have
-      # to think of something else
       install_config_file $file /$target
       if [[ $last_sdate && $last_sdate != $sdate ]]
       then
+        message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
         rm -vrf $CONFIG_STAGE_DIRECTORY/$last_spell/$last_sdate
       fi
       if [[ $last_spell && $last_spell != $spell ]]
       then
+        message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
         rm -vrf $CONFIG_STAGE_DIRECTORY/$last_spell
       fi
       last_sdate="$sdate"
       last_spell="$spell"
     fi
   done
-  # this isn't being set for some reason
   if [[ $last_spell ]]
   then
+    message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"    
     rm -vrf $CONFIG_STAGE_DIRECTORY/$last_spell
   fi
 }
