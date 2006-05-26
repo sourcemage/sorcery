@@ -1,10 +1,8 @@
 #!/bin/bash
 #---------------------------------------------------------------------
-## @Synopsis cast is the spell installation utility. It can be called by the user or by sorcery
-## @Copyright Original version Copyright 2001 by Kyle Sallee
-## @Copyright Some parts copyright 2002 Anders Bruun Olsen et al
+## @Synopsis merge the config files located in the config stage directory to the system.
 ## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
-## Script to cast spells.
+## Script to install staged config files.
 #---------------------------------------------------------------------
 
 #-----
@@ -26,5 +24,51 @@ EOF
   exit 1
 }
 
+#--------------------------------------------------------------------
+## List all the configs in the config stage root
+## 
+## @stdout a list of all configs in the config stage root
+#--------------------------------------------------------------------
+function all_config_files()
+{
+  find $CONFIG_STAGE_DIRECTORY
+}
+
+#--------------------------------------------------------------------
+## List all uniq config files in the config stage directory
+##
+## @stdout a list of all uniq configs in the stage directory
+#--------------------------------------------------------------------
+function all_uniq_config_files()
+{
+  all_config_files |
+  while read file
+  do
+    echo ${file%.*}
+  done | uniq
+}
+
+#--------------------------------------------------------------------
+## Main
+## 
+## No real arguments get all the config files and start installing
+## them to the system using install_config_file
+#--------------------------------------------------------------------
+function main()
+{
+  local target
+  all_config_files | 
+  while read file
+  do
+    target=${file/$CONFIG_STAGE_DIRECTORY/}
+    target=${target%.*}
+    if [[ -f $file ]]
+    then
+      install_config_file $file $target
+    fi
+  done
+}
+
+
 . /etc/sorcery/config
-help
+main "$@"
