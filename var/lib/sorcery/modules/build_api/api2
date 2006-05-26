@@ -26,8 +26,10 @@
 function run_build_spell() {
   debug "build_api/api2" "run_build_spell"
 
-  C_LOG=$TMP_DIR/$SPELL.compile.log
-  C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
+  export C_LOG=$TMP_DIR/$SPELL.compile.log
+  export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
+  export S_PWD=$TMP_DIR/build.saved.pwd 
+  export VOYEUR_STDOUT VOYEUR_STDERR
 
   rm  -f $C_LOG
   touch $C_LOG
@@ -54,7 +56,7 @@ function run_build_spell() {
     run_config_loc                          || return 2
     (
       run_build                             &&
-      pwd > $TMP_DIR/build.saved.pwd        &&
+      pwd > $S_PWD                          &&
       run_pre_install                       &&
       prepare_stage_root                    &&
       invoke_installwatch                   &&
@@ -62,12 +64,6 @@ function run_build_spell() {
       then
         invoke_stage_root
       fi                                    &&
-      export C_LOG                          &&
-      export C_FIFO                         &&
-      export IW_LOG                         &&
-      export VOYEUR_STDOUT                  &&
-      export VOYEUR_STDERR                  &&
-      export S_PWD=$TMP_DIR/build.saved.pwd &&
       delve $SPELL INSTALL                  &&
       delve $SPELL POST_INSTALL             || return 2
       if [[ "$STAGED_INSTALL" != "off" ]]
