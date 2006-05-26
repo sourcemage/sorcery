@@ -49,6 +49,18 @@ function all_uniq_config_files()
 }
 
 #--------------------------------------------------------------------
+## list all spells that have staged configs
+##
+## @stdout list of spells that have staged configs
+#--------------------------------------------------------------------
+function all_spells_with_staged_configs()
+{
+  all_config_files |
+  sed "s#$CONFIG_STAGE_DIRECTORY/##g" |
+  cut -d/ -f1 | uniq
+}
+
+#--------------------------------------------------------------------
 ## Main
 ## 
 ## No real arguments get all the config files and start installing
@@ -57,12 +69,11 @@ function all_uniq_config_files()
 function main()
 {
   local target
-  all_config_files | 
+  all_config_files |
   while read file
   do
-    target=${file/$CONFIG_STAGE_DIRECTORY/}
-    target=${target%.*}
-    if [[ -f $file ]]
+    target=$(echo $file | sed "s#^$CONFIG_STAGE_DIRECTORY/[[:alpha:]]*/[[:alnum:]]*##g")
+    if [[ -f $file && $target ]]
     then
       install_config_file $file $target
     fi
