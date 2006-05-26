@@ -960,7 +960,6 @@ function sorcery_history() {
 ##
 #---------------------------------------------------------------------
 function get_new_changes() {
-    local PAGER2="$(override_pager)"
     local msg="$1"
     local date="$2"
     # This needs some explaination:
@@ -990,7 +989,9 @@ function get_new_changes() {
         echo "$msg"
         echo
         echo "$changelog"
-      } | $PAGER2
+      }  > $TMP_DIR/pagerdata
+      timeout_pager "$TMP_DIR/pagerdata"
+      rm $TMP_DIR/pagerdata
     else
       echo "$msg"
       echo
@@ -998,9 +999,26 @@ function get_new_changes() {
     fi
 }
 
-function override_pager() {
-  #placeholder for a proper fix for http://bugs.sourcemage.org/show_bug.cgi?id=8070
-  if [ "$PAGER" == "less" ]; then echo "more"; else echo "$PAGER"; fi
+
+#---------------------------------------------------------------------
+## Pager with timeouts, cannot be used from a pipe.
+## Invokes a subshell in case there are other background jobs running
+#---------------------------------------------------------------------
+function timeout_pager() { (
+  $PAGER "$@" &
+  sleep 1
+  for ((i=0;i<PAGER_TIMEOUT*10;i++)) ; do
+    jobs &>/dev/null # this makes bash clean up so the next line works
+    [[ "$(jobs)" ]] || return 0
+    sleep .1
+  done
+  jobs -p|xargs kill
+  jobs &>/dev/null # hide the [Done [2] blah blah] message
+  stty sane
+  if query "\nPager timeout, continue viewing $@" n; then
+    $PAGER "$@"
+  fi
+) 2>/dev/null # hides less complaining that it was killed
 }
 
 #---------------------------------------------------------------------

@@ -49,7 +49,6 @@ function summon_spell() {
       persistent_save
       # save the rc, then unlock
       rc=$?
-      unlock_resources "summon" "${SPELL}"
 
       if [[ $rc == 0 ]]; then
         activity_log "summon" "$SPELL"  "$VERSION" "success"
@@ -59,10 +58,10 @@ function summon_spell() {
 
       # this actually only returns from the subshell, not the function
       return $rc
-    ) &&
-    popd &>/dev/null
-    rm -rf $dl_dir
+    ) && popd &>/dev/null
     rc=$?
+    rm -rf $dl_dir
+    unlock_resources "summon" "${SPELL}"
   fi
   return $rc
 }
@@ -240,9 +239,16 @@ function download_src_args() {
     rm -rf $new_target
   elif [[ "$summon_type" == file ]] ; then
     # there is no penalty for guessing tree when the result is a file
-
     if [[ $summon_target != $target ]] ; then
-      mv -f $summon_target $target
+      mv -f "$summon_target" "$target"
+    fi
+    local type
+    if ! source_sanity "$target" "type"; then
+      message "${PROBLEM_COLOR}Sanity check of${DEFAULT_COLOR}" \
+              "${FILE_COLOR}${target}${DEFAULT_COLOR}" \
+              "${PROBLEM_COLOR}failed:${DEFAULT_COLOR}"
+      message "$type"
+      return 1
     fi
   else
     message "${PROBLEM_COLOR}Unknown download type: \"$summon_type\""\
@@ -406,6 +412,32 @@ function unpack_for_update() {
     eval "$guess_type_ref=\"file\""
   fi
   return 0
+}
+
+#---------------------------------------------------------------------
+## Perform rudimentary source sanity checks on summoned files.
+## Currently only checks that tarballs are not html 404 notices.
+## Some sites, notably sourceforge, break http by having missing files
+## do a 30X redirect to a 404 html file which when downloaded has a
+## 200 (OK) status. Other sites do 30X redirect to the new location of
+## the requested file, which then successfully downloads (which is
+## the correct thing to do). We catch that here rather than wait for
+## file verification to catch it.
+#---------------------------------------------------------------------
+function source_sanity() {
+  [[ "$1" ]] && return 0
+  [[ "$SUMMON_SANITY" == off ]] && return 0
+  if [[ "$1" != "${1%.tar.bz2}" ]] ||
+     [[ "$1" != "${1%.tar.gz}" ]] ||
+     [[ "$1" != "${1%.tgz}" ]]; then
+    local _type=$(file "$1")
+    if echo $_type | grep -iq HTML ||
+       echo $_type | grep -iq ascii ; then
+      upvar "$2" "$_type"
+      return 1
+    fi
+  fi
+
 }
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify

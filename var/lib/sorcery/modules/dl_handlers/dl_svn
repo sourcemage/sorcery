@@ -37,13 +37,13 @@ function dl_svn_get () {
     local URL SVN_ROOT SVN_MODULE SVN_TAG
     url_crack "$url" "$hints"
 
-    local svn_args=""
+    local svn_args="--non-interactive "
     if list_find "$hints" "parse_username" ; then
       local USER_PASS=$(echo $SVN_ROOT|sed 's#.*//\(.*\)@.*#\1#')
       local SVN_ROOT=$(echo $SVN_ROOT|sed 's#//\(.*\)@#//#')
       local USER=${USER_PASS%:*};
       local PASS=${USER_PASS#*:};
-      svn_args="--username $USER --password $PASS"
+      svn_args="--username $USER --password $PASS "
     fi
 
     if test -d $target; then
