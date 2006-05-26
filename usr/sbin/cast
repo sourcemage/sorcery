@@ -30,10 +30,6 @@ Optional Parameters:
 
 -V [on|off]                     Override \$VOYEUR setting
 
--f  |  --fix                    Discover and fix broken spells
--n  |  --nofix                  Discover, but do not fix broken spells
-                                (Both deprecated, use cleanse instead)
-
 -d  |  --download               Force download of sources (overwrite existing
                                 files)
 
@@ -43,6 +39,14 @@ Optional Parameters:
 
 -c  |  --compile                Recompile the spells (dont install from cache).
 -r  |  --reconfigure            Select new dependencies for spells (implies -c)
+
+-g  |  --grimoire  [...]        Use only the specified grimoires for this cast
+                                NOTE: If there are any cross-grimoire
+                                dependencies on unspecified grimoires they
+                                will not work. The target spell will
+                                not be found. To avoid this, specify all
+                                relevant grimoires to the -g parameter
+                                in the order you wish them to be searched.
 
 -R  |  --recast-down            Recast depended-upon spells, even if they are
                                 already installed...
@@ -80,7 +84,7 @@ EOF
 #---------------------------------------------------------------------
 ## @Aguments Arguments of cast
 ## @Globals DEPS_ONLY RECONFIGURE COMPILE 
-## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX NOFIX SEPARATE
+## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT SEPARATE
 ## @Globals BASE_URL INSTALL_QUEUE 
 ##
 ## Sets these globals except INSTALL_QUEUE according to cast's 
@@ -103,6 +107,7 @@ function process_parameters()  {
            --no-opts)  export NO_OPTIMIZATION_FLAGS=1; COMPILE="-c"; shift 1  ;;
                   -V)  export VOYEUR_OVERRIDE="$2";                  shift 2  ;;
               --deps)  export  DEPS_ONLY="$1";                       shift 1  ;;
+      -g|--grimoire*)  export OVERRIDE_GRIMOIRES="$2";               shift 2  ;;
     -r|--reconfigure)  RECONFIGURE="$1"; COMPILE="-c";               shift 1  ;;
     -R|--recast-down)  RECAST_DOWN="$1";                             shift 1  ;;
       -B|--recast-up)  RECAST_UP="$1";                               shift 1  ;;
@@ -117,9 +122,6 @@ function process_parameters()  {
        -d|--download)  export  FORCE_DOWNLOAD="$1"; COMPILE="-c";    shift 1  ;;
               --from)  export  SOURCE_CACHE=$2;                      shift 2  ;;
             --silent)  SILENT="$1";                                  shift 1  ;;
-            -f|--fix)  export  FIX="$1";                             shift 1  ;;
-          -n|--nofix)  export  FIX="--fix"                         
-                       export  NOFIX="$1";                           shift 1  ;;
                   -s)  export  SEPARATE="$1";                        shift 1  ;;
                --url)  export  BASE_URL="$2";                        shift 2  ;;
                --pam)  cast  -c  `find_pam_aware` ;                  shift 1  ;;
@@ -186,6 +188,7 @@ function strip_parameters()  {
                --ldflags)  shift 2  ;;
                --no-opts)  shift 1  ;;
                       -V)  shift 2  ;;
+          -g|--grimoire*)  shift 2  ;;
         -R|--recast-down)  shift 1  ;;
           -B|--recast-up)  shift 1  ;;
     -O|--recast-optional)  get_option "$2" "" x n ; shift $n  ;;
@@ -194,8 +197,6 @@ function strip_parameters()  {
         -r|--reconfigure)  shift 1  ;;
                   --from)  shift 2  ;;
                 --silent)  shift 1  ;;
-                -f|--fix)  shift 1  ;;
-              -n|--nofix)  shift 1  ;;
             -c|--compile)  shift 1  ;;
            -d|--download)  shift 1  ;;
                       -s)  shift 1  ;;
@@ -347,7 +348,7 @@ function pass_one()  {
 
   SPELLS_TO_CAST=$(hash_get_table_fields "to_cast"|tr '\n' ' ')
 
-  SPELLS="$SPELLS ${UP_DEPENDS[*]}"
+  SPELLS="$SPELLS ${BONUS_SPELLS[*]}"
 
   # special case of no spell making it through dependency resolution
   # or if DEPS_ONLY is set, there arent any dependent spells to cast
@@ -779,7 +780,7 @@ function cast_cleanup() {
 
 #---------------------------------------------------------------------
 ## @Arguments arguments of cast
-## @Globals FIX CAST_PASS 
+## @Globals CAST_PASS 
 ## @return 0 always
 ## Starts prameter processing and casts the given spells.
 ## The list of given spells is being searched for invalid spells
@@ -791,6 +792,10 @@ function main()  {
   local T_SPELLS
   process_parameters        "$@"
   SPELLS=`strip_parameters  "$@"`
+
+  if [[ $OVERRIDE_GRIMOIRES ]] ; then
+    codex_set_grimoires $OVERRIDE_GRIMOIRES
+  fi
 
   for spell in $SPELLS ; do
     codex_does_spell_exist $spell

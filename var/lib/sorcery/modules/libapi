@@ -19,7 +19,6 @@
 #---------------------------------------------------------------------
 # functions defined in here: (in alphabetical order)
 #    acquire_src            (libsummon)
-#    altruistic_sub_depends (libdepends)
 #    config_query           (libmisc)
 #    config_query_list      (libmisc)
 #    config_query_option    (libmisc)
@@ -70,6 +69,7 @@
 #    query                  (libmisc)       
 #    query_string           (libmisc)
 #    requires               (libdepends)
+#    runtime_depends        (libdepends)
 #    rm_source_dir          (libgrimoire)
 #    sedit                  (libmisc)       
 #    sub_depends            (libdepends)
@@ -77,6 +77,7 @@
 #    spell_held             (libstate)
 #    spell_installed        (libstate)
 #    spell_ok               (libstate)
+#    suggest_depends        (libdepends)
 #    track_manual           (libtrack)
 #    uncompress             (libunpack)
 #    unpack                 (libunpack) (deprecated)
@@ -126,19 +127,6 @@
 function acquire_src() {
     debug "libapi" "$FUNCNAME - $*"
     real_acquire_src "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @params Name of a sub-depends that the current spell is providing.
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_altruistic_sub_depends> for more details.
-##
-## Altruistically provide a sub-depends.
-##
-#---------------------------------------------------------------------
-function altruistic_sub_depends() {
-    debug "libapi" "$FUNCNAME - $*"
-    real_altruistic_sub_depends "$@"
 }
 
 #---------------------------------------------------------------------
@@ -1004,6 +992,20 @@ function query_string ()  {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
+## Denotes that a spell requires another spell to work.
+#---------------------------------------------------------------------
+function runtime_depends () {
+    debug "libapi" "runtime_depends - $*"
+    real_runtime_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @param sed command
 ## @param file
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_sedit> for more details.
@@ -1079,6 +1081,21 @@ function spell_exiled() {
 function sub_depends() {
     debug "libapi" "sub_depends - $*"
     real_sub_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param disabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_suggest_depends> for more details.
+## Denotes that a spell can use another spell for additional functionality.
+#---------------------------------------------------------------------
+function suggest_depends () {
+    debug "libapi" "suggest_depends - $*"
+    real_suggest_depends "$@"
 }
 
 #---------------------------------------------------------------------

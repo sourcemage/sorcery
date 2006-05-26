@@ -18,24 +18,24 @@
 #     -> run PREPARE
 #     -> run CONFIGURE
 #     -> run DEPENDS
-#       -> depends <spell> (external)
+#       -> depends|runtime_depends <spell> (external)
 #         -> work_depends_spell
 #           -> private_common_depends -> libstate.add_depends
 #             -> add to NEW_DEPENDS
 #             -> libstate.add_depends
-#       -> optional_depends <spell> (external)
+#       -> optional_depends|suggest_depends <spell> (external)
 #         -> work_optional_depends_spell
 #           -> query
 #           -> private_common_depends -> libstate.add_depends
 #             -> add to NEW_DEPENDS
 #             -> libstate.add_depends
-#       -> depends <provider> (external)
+#       -> depends|runtime_depends <provider> (external)
 #         -> work_depends_provider
 #           -> select provider
 #           -> private_common_depends -> libstate.add_depends
 #             -> add to NEW_DEPENDS
 #             -> libstate.add_depends
-#       -> optional_depends <provider> (external)
+#       -> optional_depends|suggest_depends <provider> (external)
 #         -> work_optional_depends_provider
 #           -> select provider
 #           -> private_common_depends
@@ -82,8 +82,7 @@ function run_prepare()
 
   debug "cast" "run_prepare() - SPELL = $SPELL  SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
-  message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-           "${CHECK_COLOR}preparing environment...${DEFAULT_COLOR}"
+  depends_message  "${SPELL}" "preparing environment..."
 
   # these are here so you can source section/grimoire level scripts in
   # PREPARE, which by definition runs before the spell is loaded
@@ -139,8 +138,7 @@ function run_configure()
   local PROTECT_SORCERY=yes
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
-    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-             "${CHECK_COLOR}running configuration...${DEFAULT_COLOR}"
+    depends_message  "${SPELL}" "running configuration..."
     . $SCRIPT_DIRECTORY/CONFIGURE
   else
     default_configure
@@ -166,8 +164,7 @@ function run_depends()
   local PROTECT_SORCERY=yes
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
-    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-             "${CHECK_COLOR}checking dependencies...${DEFAULT_COLOR}"
+    depends_message  "${SPELL}" "checking dependencies..."
     .  $SCRIPT_DIRECTORY/DEPENDS
   else
     default_depends
@@ -191,8 +188,7 @@ function run_up_triggers() {
  
   local PROTECT_SORCERY=yes
   if  [  -x  $SCRIPT_DIRECTORY/UP_TRIGGERS ];  then
-    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-             "${CHECK_COLOR}checking for reverse triggers...${DEFAULT_COLOR}"
+    depends_message  "${SPELL}" "checking for reverse triggers..."
     # we need &&'s to preserve the proper return code (persistant_save
     # will probably succeed even if PREPARE fails)
     persistent_load &&
@@ -251,6 +247,7 @@ function run_other_sub_depends() {
       run_details
       local NEW_SUB_DEPENDEES=""
       local NEW_DEPENDS=()
+      local NEW_RUNTIME_DEPENDS=()
       process_sub_depends "$this_spell" "$sub_dependee" "$sub_depends" ||
       return 1
 
@@ -314,12 +311,19 @@ function compute_installed_depends() {
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
 
+  local pattern
+  if [[ $2 ]] ; then
+    pattern="required|optional|runtime|suggest"
+  else
+    pattern="required|optional"
+  fi
+
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on") {
+      if( $3=="on" && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$1]=depmap[$1]" "$2" "
       }
@@ -343,13 +347,19 @@ function compute_reverse_installed_depends() {
   #$1==hash table to fill
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
+  local pattern
+  if [[ $2 ]] ; then
+    pattern="required|optional|runtime|suggest"
+  else
+    pattern="required|optional"
+  fi
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on") {
+      if( $3=="on" && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$2]=depmap[$2]" "$1" "
       }
@@ -393,6 +403,7 @@ function compute_uninstalled_depends()
   local CAST_HASH="$1"
   local BACK_CAST_HASH="$2"
   local CANNOT_CAST_HASH="$3"
+  BONUS_SPELLS=()
   shift 3
   local spell spells
   spells=( $@ )
@@ -423,6 +434,8 @@ function compute_uninstalled_depends()
 
   # we need this so processes on the other side of make know whats going on
   hash_export uncommitted_hash
+
+  BONUS_SPELLS=( ${BONUS_SPELLS[*]} ${UP_DEPENDS[*]} )
 }
 
 #---------------------------------------------------------------------
@@ -438,6 +451,8 @@ function private_run_depends()
   # special accumulators for the current spell
   local NEW_DEPENDS=""
   local NEW_SUB_DEPENDEES=""
+  local NEW_RUNTIME_DEPENDS=""
+  local NEW_UP_DEPENDS=""
   local triggerees=""
   local spell_depends
   local spell_sub_depends
@@ -460,8 +475,7 @@ function private_run_depends()
     # have a chance at being fixed, ideally we should check in 
     # depends/optional_depends and fail there
     if spell_exiled $1; then
-      message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-               "${CHECK_COLOR}is exiled and will not be cast.${DEFAULT_COLOR}"
+      depends_message  "${SPELL}" "is exiled and will not be cast."
       return 1
     fi
     get_uncommitted_depends_file $SPELL spell_depends
@@ -491,13 +505,17 @@ function private_run_depends()
     # no point in keeping the file around if its empty...
     test -s $spell_depends || rm -f $spell_depends $spell_sub_depends
 
+    if echo "${RUNTIME_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$SPELL" ; then
+      local k=${#BONUS_SPELLS[@]}
+      BONUS_SPELLS[$k]=$SPELL
+    fi
+
     # this processes any sub-depends we requested and the sub-dependee
     # has already been processed, so we must process them on their behalf
     # this must be done after everything else!
     run_other_sub_depends "$SPELL" || return 1
   else 
-    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-             "${CHECK_COLOR}No work to do.${DEFAULT_COLOR}"
+    depends_message "${SPELL}" "No work to do."
     hash_put "depends_looked_at" "$SPELL" "ignore"
   fi
 
@@ -506,10 +524,9 @@ function private_run_depends()
 }
 
 #---------------------------------------------------------------------
-## Decides if a spell should be case. Check if the spell is installed
-## if it matters, etc...
-## Perhaps this function is overly splayed out in elif's but its
-## easier to add to later than what we had before...
+## Decides if a spell should be cast, or if we can leave it alone.
+## Check if the spell is installed, or if theres some other reason to
+## rebuild it.
 ## @param Spell
 #---------------------------------------------------------------------
 function private_should_cast()
@@ -558,10 +575,10 @@ function private_upward_depends() {
     # and/or move the weird pattern into library functions...
     # (afrayedknot 2005-10-02)
     tmp=$(grep "^.*:$1\(([^:]*)\)\?" $DEPENDS_STATUS|cut -f1 -d:|tr "\n" " ")
-    local j each
-    let j=${#UP_DEPENDS[*]}
+    local j k each
+    let j=${#NEW_UP_DEPENDS[*]}
     for each in $tmp; do
-      UP_DEPENDS[$j]=$each
+      NEW_UP_DEPENDS[$j]=$each
       let j++
     done
     spells=( ${spells[*]} ${tmp} )
@@ -575,14 +592,12 @@ function private_upward_depends() {
 function private_recast_optionals() {
   if [[ $RECAST_OPTIONALS ]] && [[ $RECAST_OPTIONALS != ignore ]] ; then
     local spell j enabled
-    let j=${#UP_DEPENDS[*]}
+    let j=${#NEW_UP_DEPENDS[*]}
     for spell in $(search_depends_status_exact $DEPENDS_STATUS \
                  '.*' "$1\(([^:]*)\)\?" off optional '.*' '.*'|cut -f1 -d:); do
 
       enabled=""
-      message "${SPELL_COLOR}$spell${DEFAULT_COLOR}${CHECK_COLOR}" \
-              "has a disabled optional depends on${DEFAULT_COLOR}" \
-              "${SPELL_COLOR}$1${DEFAULT_COLOR}"
+      message "$spell" "has a disabled optional dependency on" "$1"
       if [[ $RECAST_OPTIONALS == always ]] ; then
         enabled=yes
       else
@@ -593,7 +608,7 @@ function private_recast_optionals() {
         fi
       fi
       if [[ $enabled ]] ; then
-        UP_DEPENDS[$j]=$each
+        NEW_UP_DEPENDS[$j]=$each
         let j++
         remove_depends_status $DEPENDS_STATUS $each "${1}\(([^:]*)\)\?"
       fi
@@ -611,16 +626,24 @@ function private_recast_optionals() {
 ## @param  grimoires to look in
 ## Delegates provider and spell cases to different worker functions.
 ## and gets grimoires if necessary for cross grimoire depends
+##
+## Called by real_depends and real_runtime_depends
 #---------------------------------------------------------------------
-function real_depends()
+function real_generic_required_depends()
 {
+  local failure_ok=$1
+  local article=$2
+  local query_term=$3
+  local database_term=$4
+  shift 4
+
   if [[ "$1" == "-sub" ]] ; then
     local requested_sub_depends=$2
     shift 2
   fi
 
   # see if theres another grimoire
-  if [[ "$4" ]] ; then
+  if [[ "$4" ]] && ! [[ "$OVERRIDE_GRIMOIRES" ]] ; then
     local grimoire here nothere current
 
     for grimoire in $4; do
@@ -684,24 +707,46 @@ function real_depends()
     fi
     if [[ ! $here ]] && [[ ! $current ]] ; then
       message "${PROBLEM_COLOR}no grimoire for $1 was retrieved${DEFAULT_COLOR}"
-      return 1
+      if [[ $failure_ok == "no" ]] || ! query "Build $1 anyway?" y; then
+        return 1
+      fi
     fi
   fi
 
   local target_spell
   if ! codex_does_spell_exist $1 &> /dev/null; then
-    work_depends_provider "$@" &&
+    work_depends_provider "$failure_ok" "$article" \
+                                   "$query_term" "$database_term" "$@" &&
     if [[ "$requested_sub_depends" ]]; then
       target_spell=$(get_spell_provider "$SPELL" "$1")
     fi
   else
-    work_depends_spell "$@" &&
+    work_depends_spell "$failure_ok" "$article" \
+                                   "$query_term" "$database_term" "$@" &&
     target_spell=$1
   fi &&
   for sub_depend in $requested_sub_depends; do
     sub_depends "$target_spell" "$sub_depend" || return 1
   done
 }
+
+
+#---------------------------------------------------------------------
+## Passthrough to real_generic_required_depends, specifies the
+## parts that differ from runtime depends
+#---------------------------------------------------------------------
+function real_depends() {
+  real_generic_required_depends "no" "a" "dependency" "required" "$@"
+}
+
+#---------------------------------------------------------------------
+## Passthrough to real_generic_required_depends, specifies the
+## parts that differ from required depends
+#---------------------------------------------------------------------
+function real_runtime_depends() {
+  real_generic_required_depends "yes" "a" "runtime dependency" "runtime" "$@"
+}
+
 
 #---------------------------------------------------------------------
 ## @param  spell or provider name
@@ -710,16 +755,24 @@ function real_depends()
 ## @param  description
 ## @param  grimoires to look in
 ## Delegates provider and spell cases to different worker functions.
+##
+## Called by real_depends and real_runtime_depends
 #---------------------------------------------------------------------
-function real_optional_depends()
+function real_generic_optional_depends()
 {
+  local failure_ok=$1
+  local article=$2
+  local query_term=$3
+  local database_term=$4
+  shift 4
+
   if [[ "$1" == "-sub" ]] ; then
     local requested_sub_depends=$2
     shift 2
   fi
 
   # see if theres another grimoire
-  if [[ "$5" ]] ; then
+  if [[ "$5" ]] && ! [[ "$OVERRIDE_GRIMOIRES" ]] ; then
     local grimoire here nothere current
     for grimoire in $5; do
       if [[ "$grimoire" == "current" ]] ; then
@@ -781,18 +834,20 @@ function real_optional_depends()
     if [[ ! $here ]] && [[ ! $current ]] ; then
       message "${PROBLEM_COLOR}no grimoire for $1 was retrieved${DEFAULT_COLOR}"
       message "Assuming dependency is off because it could not be met"
-      private_common_depends "$1" "off" "optional" "$2" "$3"
+      private_common_depends "$1" "off" "$database_term" "$2" "$3"
     fi
   fi
 
   local target_spell
   if ! codex_does_spell_exist $1 &> /dev/null; then
-    work_optional_depends_provider "$@" &&
+    work_optional_depends_provider "$failure_ok" "$article" \
+                                   "$query_term" "$database_term" "$@" &&
     if [[ "$requested_sub_depends" ]]; then
       target_spell=$(get_spell_provider "$SPELL" "$1")
     fi
   else
-    work_optional_depends_spell "$@"  &&
+    work_optional_depends_spell "$failure_ok" "$article" \
+                                   "$query_term" "$database_term" "$@" &&
     target_spell=$1
   fi &&
   if [[ "$requested_sub_depends" ]] &&
@@ -804,6 +859,23 @@ function real_optional_depends()
   fi
 
 }
+
+#---------------------------------------------------------------------
+## Passthrough to real_generic_optional_depends, specifies the
+## parts that differ from suggest depends
+#---------------------------------------------------------------------
+function real_optional_depends() {
+  real_generic_optional_depends "no" "an" "optional dependency" "optional" "$@"
+}
+
+#---------------------------------------------------------------------
+## Passthrough to real_generic_required_depends, specifies the
+## parts that differ from optional depends
+#---------------------------------------------------------------------
+function real_suggest_depends() {
+  real_generic_optional_depends "yes" "a" "suggested dependency" "suggest" "$@"
+}
+
 
 #---------------------------------------------------------------------
 ## Asks the user what provider for a depends is desired if a choice
@@ -819,14 +891,16 @@ function work_depends_provider()
   local default tmp installed=no
   local status=()
 
+  local failure_ok=$1
+  local article=$2
+  local query_term=$3
+  local database_term=$4
+  shift 4
+
   if [[ $3 ]] ; then
-    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}requires some${DEFAULT_COLOR}" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR} ($3)."
+    depends_message "${SPELL}" "has $article $query_term on some" "${1}" "($3)."
   else
-    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}requires some${DEFAULT_COLOR}" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR}."
+    depends_message "$SPELL" "has $article $query_term on some" "${1}."
   fi
   
   local CANDIDATES=$( find_providers $1)
@@ -834,7 +908,9 @@ function work_depends_provider()
     message "${PROBLEM_COLOR}No providers of${DEFAULT_COLOR}" \
             "${SPELL_COLOR}$1${DEFAULT_COLOR}" \
             "${PROBLEM_COLOR} can be found!${DEFAULT_COLOR}"
-    return 1
+    if [[ $failure_ok == "no" ]] || ! query "Build $1 anyway?" y; then
+      return 1
+    fi
   fi
 
   # if not reconfiguring check if theres already an answer in DEPENDS_STATUS
@@ -847,7 +923,7 @@ function work_depends_provider()
     tmp=${status[1]%(*}    # Name of spell which provides $1
     if spell_ok $tmp &&
        query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
-      private_common_depends "$tmp($1)" "on" "required" "$2" "$3"
+      private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
       return 0
     fi
   fi
@@ -881,7 +957,7 @@ function work_depends_provider()
 
   select_provider "provider" "$default" 0 $CANDIDATES
 
-  private_common_depends "$provider($1)" "on" "required" "$2" ""
+  private_common_depends "$provider($1)" "on" "$database_term" "$2" ""
 }
 
 #---------------------------------------------------------------------
@@ -889,23 +965,27 @@ function work_depends_provider()
 ## on to the common dependency function, <@function private_common_depends>
 ## @param Spell
 ## @param enabled options
-## @param disabled options (useless, but included for some reason)
-## @param grimoire the spell is in, if its different than the current one
 #---------------------------------------------------------------------
 function work_depends_spell()
 {
   debug "libdepends" "$FUNCNAME - $@"
 
-  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-          "${CHECK_COLOR}depends on" \
-          "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+  local failure_ok=$1
+  local article=$2
+  local query_term=$3
+  local database_term=$4
+  shift 4
+
+  depends_message "${SPELL}" "has $article $query_term on" "$1"
 
   if spell_exiled $1 ; then
-    hash_put $CANNOT_CAST_HASH "$1" "Exiled"
-    message "${SPELL_COLOR}${1}${DEFAULT_COLOR} has been exiled!"
-    return 1
+    depends_message "${1}" "has been exiled!"
+    if [[ $failure_ok == "no" ]] || ! query "Build $1 anyway?" y; then
+      hash_put $CANNOT_CAST_HASH "$1" "Exiled"
+      return 1
+    fi
   fi
-  private_common_depends "$1" "on" "required" "$2" ""
+  private_common_depends "$1" "on" "$database_term" "$2" ""
 
 }
 
@@ -923,14 +1003,16 @@ function work_optional_depends_provider()
   local default tmp installed=no
   local status=()
 
+  local failure_ok=$1
+  local article=$2
+  local query_term=$3
+  local database_term=$4
+  shift 4
+
   if [[ $4 ]] ; then
-    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}optionally requires some${DEFAULT_COLOR}" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR} ($4)."
+    depends_message "${SPELL}" "has $article $query_term on some" "${1}" "($4)."
   else
-    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-            "${CHECK_COLOR}optionally requires some${DEFAULT_COLOR}" \
-            "${SPELL_COLOR}${1}${DEFAULT_COLOR}."
+    depends_message "${SPELL}" "has $article $query_term on some" "${1}."
   fi
   
   local CANDIDATES=$( find_providers $1)
@@ -940,7 +1022,7 @@ function work_optional_depends_provider()
     local tmp=${status[1]%(*}    # Name of spell which provides $1
     if spell_ok $tmp &&
           query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
-      private_common_depends "$tmp($1)" "on" "required" "$2" "$3"
+      private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
       return 0
     fi
   fi
@@ -990,9 +1072,9 @@ function work_optional_depends_provider()
   select_provider "provider" "$default" 1 $CANDIDATES
 
   if [ $provider == "none" ] ; then
-    private_common_depends "($1)" "off" "optional" "$2" "$3"
+    private_common_depends "($1)" "off" "$database_term" "$2" "$3"
   else
-    private_common_depends "$provider($1)" "on" "optional" "$2" "$3"
+    private_common_depends "$provider($1)" "on" "$database_term" "$2" "$3"
   fi
 
 }
@@ -1009,12 +1091,18 @@ function work_optional_depends_spell()
 
   debug "libdepends" "$FUNCNAME - $@"
   local default
+
+  local failure_ok=$1
+  local article=$2
+  local query_term=$3
+  local database_term=$4
+  shift 4
   
   # if $1 optionally depends on something exiled we always say no
   if spell_exiled $1 ; then 
-    message "${SPELL_COLOR}${1}${DEFAULT_COLOR} has been exiled! not using as a depends"
+    depends_message "${1}" "has been exiled! not using as $article $query_term"
     hash_put $CANNOT_CAST_HASH "$1" "Exiled"
-    private_common_depends "$1" "off" "optional" "$2" "$3"
+    private_common_depends "$1" "off" "$database_term" "$2" "$3"
     return 0
   fi
   
@@ -1028,18 +1116,25 @@ function work_optional_depends_spell()
     if [[ ${status[2]} ]] ; then
       # ah there are! use them
       if [[ ${status[2]} == "on" ]] ; then
-        message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-                "${CHECK_COLOR}optionally depends on" \
-                "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+        depends_message "${SPELL}" "has an enabled $query_term on" "${1}"
       else
-        message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-                "${CHECK_COLOR}has a disabled optional depends on" \
-                "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+        depends_message "${SPELL}" "has a disabled $query_term on" "${1}"
       fi
-      private_common_depends "$1" "${status[2]}" "optional" "$2" "$3"
+      private_common_depends "$1" "${status[2]}" "$database_term" "$2" "$3"
       return 0
     fi
   fi
+  # colors differ from depends_message
+  if [[ $4 ]]; then
+    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+            "has $article $query_term on" \
+            "${SPELL_COLOR}$1${DEFAULT_COLOR} ($4)"
+  else
+    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+            "has $article $query_term on" \
+            "${SPELL_COLOR}$1${DEFAULT_COLOR}"
+  fi
+
 
   # check for abandoned answers
   if [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
@@ -1087,10 +1182,6 @@ function work_optional_depends_spell()
   local stuff
   [[ $default == off ]] && stuff=n || stuff=y
 
-  message "${SPELL_COLOR}${1}${DEFAULT_COLOR}" \
-          "is an optional dependency for" \
-          "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} ($4)"
-
   if spell_ok $1 ; then
      query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "$stuff" && 
           install="on"
@@ -1099,7 +1190,7 @@ function work_optional_depends_spell()
         install="on"
   fi
 
-  private_common_depends "$1" "$install" "optional" "$2" "$3"
+  private_common_depends "$1" "$install" "$database_term" "$2" "$3"
 }
 
 #---------------------------------------------------------------------
@@ -1209,10 +1300,8 @@ function real_sub_depends() {
   local sub_dependee=$1
   local sub_depends=$2
 
-  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-          "${CHECK_COLOR}requests" \
-          "${SPELL_COLOR}$sub_dependee${DEFAULT_COLOR}${CHECK_COLOR}" \
-          "with ${SPELL_COLOR}$sub_depends${DEFAULT_COLOR}"
+  message "${SPELL}${DEFAULT_COLOR}" "requests" "$sub_dependee" \
+          "${CHECK_COLOR} with ${SPELL_COLOR}$sub_depends${DEFAULT_COLOR}"
 
   # Check if the sub-depends is already known
   if spell_ok $sub_dependee; then
@@ -1233,7 +1322,6 @@ function real_sub_depends() {
       test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
       persistent_load &&
       source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
-echo $rc
       persistent_save
       return $rc
     ) && {
@@ -1278,9 +1366,7 @@ function real_force_depends() {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
   local check=$(hash_get "depends_looked_at" "$1")
 
-  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-          "${CHECK_COLOR}is forcing a recast of" \
-          "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
+  message "${SPELL}" "is forcing a recast of" "${1}"
 
   if [[ "$check" == "ignore" ]] ; then
     hash_put "depends_looked_at" "$1" ""
@@ -1298,12 +1384,18 @@ function private_common_depends()
 {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
   add_depends $spell_depends "$SPELL" "$@"
-  
+
+  # runtime and suggested depends have no formal dependency info
   if [[ $2 == on ]] ; then
     # ${1%(*} = spell name (strips potential provider name)
     local spell_name=${1%(*}
-    NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell_name )
+    case $3 in
+      runtime|suggest) 
+           NEW_RUNTIME_DEPENDS=( ${NEW_RUNTIME_DEPENDS[*]} $spell_name ) ;;
+      *)   NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell_name ) ;;
+    esac
   fi
+  
   
   return 0
 }
@@ -1389,10 +1481,16 @@ function private_add_depends()
     hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
   fi
 
-  spells=( ${spells[*]} ${NEW_DEPENDS[*]} ${NEW_SUB_DEPENDEES[*]} )
+  spells=( ${spells[*]} ${NEW_DEPENDS[*]}
+                        ${NEW_SUB_DEPENDEES[*]} 
+                        ${NEW_RUNTIME_DEPENDS[*]} )
+
+  RUNTIME_DEPENDS=( ${RUNTIME_DEPENDS[*]} ${NEW_RUNTIME_DEPENDS[*]} )
 
   TRIGGEREES=( ${TRIGGEREES[*]} ${triggerees[*]} )
   spells=( ${spells[*]} ${triggerees[*]} )
+
+  UP_DEPENDS=( ${UP_DEPENDS[*]} ${NEW_UP_DEPENDS[*]} )
 
   hash_put "depends_looked_at" "$SPELL" "done"
 
@@ -1405,8 +1503,7 @@ function private_add_depends()
 function want_lazy_update() {
   if [[ $LAZY_DEPENDS_UPDATES ]] && [[ $LAZY_DEPENDS_UPDATES != ignore ]] ; then
     if does_spell_need_update "$1" ; then
-      message "${SPELL_COLOR}$1${DEFAULT_COLOR}${CHECK_COLOR}" \
-              "needs updating${DEFAULT_COLOR}"
+      depends_message "$1" "needs updating"
       if [[ "$LAZY_DEPENDS_UPDATES" == always ]] ; then
         return 0
       else
@@ -1417,6 +1514,20 @@ function want_lazy_update() {
     fi
   fi
   return 1
+}
+
+function depends_message() {
+  if [[ $# -ge 2 ]] ; then
+    message -n "${SPELL_COLOR}${1}${DEFAULT_COLOR}" \
+               "${CHECK_COLOR}${2}${DEFAULT_COLOR}"
+  fi
+  if [[ $# -ge 3 ]] ; then
+    message -n " ${SPELL_COLOR}${3}${DEFAULT_COLOR}"
+  fi
+  if [[ $# -ge 4 ]] ; then
+    message -n " ($4)"
+  fi
+  message ""
 }
 
 
