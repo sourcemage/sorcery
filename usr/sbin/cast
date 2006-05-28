@@ -87,10 +87,6 @@ EOF
 ## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT SEPARATE
 ## @Globals BASE_URL INSTALL_QUEUE 
 ##
-## Sets these globals except INSTALL_QUEUE according to cast's 
-## arguments.
-## Requires some user interaction if --queue is given and starts
-## another cast with INSTALL_QUEUE's content as parameter.
 #---------------------------------------------------------------------
 function process_parameters()  {
 
@@ -125,36 +121,7 @@ function process_parameters()  {
                   -s)  export  SEPARATE="$1";                        shift 1  ;;
                --url)  export  BASE_URL="$2";                        shift 2  ;;
                --pam)  cast  -c  `find_pam_aware` ;                  shift 1  ;;
-             --queue)  
-                       if query "Would you like review the queue history for each spell?" n ; then
-                         sorcery review-queue
-                       fi
-
-                       if  [  -s $INSTALL_QUEUE  ]; then
-                         message -n "${MESSAGE_COLOR}Casting install queue..."
-                         message    "${DEFAULT_COLOR}"
-
-                         # remove possible empty lines from queue.
-                         grep -Ev '^$' $INSTALL_QUEUE >"$INSTALL_QUEUE.new"
-                         rm -f "$INSTALL_QUEUE"
-                         mv "$INSTALL_QUEUE.new" "$INSTALL_QUEUE"
-
-                         # cast the queue.
-                         # SILENT and RECONFIGURE may be empty, they
-                         # must be at the end or it will confuse parameter
-                         # parsing
-                         cast -c `cat $INSTALL_QUEUE 2>/dev/null` "$SILENT" "$RECONFIGURE"
-            
-                         # report spells still in queue.
-                         if  [  -s  $INSTALL_QUEUE  ] ; then
-                           message "${MESSAGE_COLOR}The install queue is not empty, "
-                           message "it still contains the following spells: "
-                           message "---------------------------------${PROBLEM_COLOR}"
-                           message "`cat $INSTALL_QUEUE 2>/dev/null`"
-                           message "${DEFAULT_COLOR}"
-                         fi
-                       fi;                               
-                       shift 1                                ;;
+             --queue)  CAST_QUEUE=yes ; COMPILE=$1;                  shift 1  ;;
                    *)  help                                   ;;
       esac
 
@@ -728,6 +695,18 @@ function pass_five()  {
 
   fi 
   
+  if [[ "$CAST_QUEUE" == "yes" ]] ; then
+    if  [  -s  $INSTALL_QUEUE  ] ; then
+      message "${MESSAGE_COLOR}The install queue is not empty, "
+      message "it still contains the following spells: "
+      message "---------------------------------${PROBLEM_COLOR}"
+      for item in `cat $INSTALL_QUEUE 2>/dev/null`; do
+        message "$item"
+      done | column
+      message "${DEFAULT_COLOR}"
+      return 1
+    fi
+  fi
   debug "cast" "End of pass_five"
 
 }
@@ -792,6 +771,30 @@ function main()  {
   local T_SPELLS
   process_parameters        "$@"
   SPELLS=`strip_parameters  "$@"`
+
+  if [[ "$CAST_QUEUE" == yes ]] ; then
+
+    touch "$INSTALL_QUEUE"
+    local tfile=$(lock_start_transaction "$INSTALL_QUEUE")
+    grep -Ev '^$' $INSTALL_QUEUE > $tfile
+    lock_commit_transaction "$INSTALL_QUEUE"
+    if  [  -s $INSTALL_QUEUE  ]; then
+      message -n "${MESSAGE_COLOR}Casting install queue..."
+      message    "${DEFAULT_COLOR}"
+
+      # remove possible empty lines from queue.
+      if query "Would you like review the queue history for each spell?" n ; then
+        sorcery review-queue
+      fi
+
+      SPELLS=$(<$INSTALL_QUEUE)
+    else 
+      message "${MESSAGE_COLOR}Install queue is empty${DEFAULT_COLOR}"
+      exit
+    fi
+  else
+    SPELLS=`strip_parameters  "$@"`
+  fi
 
   if [[ $OVERRIDE_GRIMOIRES ]] ; then
     codex_set_grimoires $OVERRIDE_GRIMOIRES
