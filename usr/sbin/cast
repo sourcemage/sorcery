@@ -23,10 +23,11 @@ Optional Parameters:
 
        --cflags                 Custom CFLAGS
        --cxxflags               Custom CXXFLAGS
+       --cppflags               Custom CPPFLAGS
        --ldflags                Custom LDFLAGS
        --no-opts                Turn off setting optimization flags, except
-                                for those found in --cflags, --cxxflags and
-                                --ldflags
+                                for those found in --cflags, --cxxflags,
+                                --cppflags and --ldflags.
 
 -V [on|off]                     Override \$VOYEUR setting
 
@@ -103,6 +104,7 @@ function process_parameters()  {
 
             --cflags)  export OVERRIDE_CFLAGS="$2";    COMPILE="-c"; shift 2  ;;
           --cxxflags)  export OVERRIDE_CXXFLAGS="$2";  COMPILE="-c"; shift 2  ;;
+          --cppflags)  export OVERRIDE_CPPFLAGS="$2";  COMPILE="-c"; shift 2  ;;
            --ldflags)  export OVERRIDE_LDFLAGS="$2";   COMPILE="-c"; shift 2  ;;
            --no-opts)  export NO_OPTIMIZATION_FLAGS=1; COMPILE="-c"; shift 1  ;;
                   -V)  export VOYEUR_OVERRIDE="$2";                  shift 2  ;;
@@ -185,6 +187,7 @@ function strip_parameters()  {
                   --deps)  shift 1  ;;
                 --cflags)  shift 2  ;;
               --cxxflags)  shift 2  ;;
+              --cppflags)  shift 2  ;;
                --ldflags)  shift 2  ;;
                --no-opts)  shift 1  ;;
                       -V)  shift 2  ;;

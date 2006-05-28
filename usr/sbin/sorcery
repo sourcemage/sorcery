@@ -832,7 +832,8 @@ custom_optimization_menu() {
                              17 50 9 \
                              CFLAGS "$CUSTOM_CFLAGS" \
                              CXXFLAGS "$CUSTOM_CXXFLAGS" \
-                             LDFLAGS "$CUSTOM_LDFLAGS"'`)
+                             LDFLAGS "$CUSTOM_LDFLAGS" \
+                             CPPFLAGS "$CUSTOM_CPPFLAGS"'`)
     rc=$?
     [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
     set ${RESULTS[*]}
@@ -841,6 +842,7 @@ custom_optimization_menu() {
     case "$KEY" in
       CFLAGS) CUSTOM_CFLAGS="$@"  ;;
       CXXFLAGS) CUSTOM_CXXFLAGS="$@" ;;
+      CPPFLAGS) CUSTOM_CPPFLAGS="$@" ;;
       LDFLAGS) CUSTOM_LDFLAGS="$@" ;;
     esac
   done
@@ -850,6 +852,7 @@ custom_optimization_menu() {
     modify_local_config CUSTOM_CFLAGS "$CUSTOM_CFLAGS"
     modify_local_config CUSTOM_CXXFLAGS "$CUSTOM_CXXFLAGS"
     modify_local_config CUSTOM_LDFLAGS "$CUSTOM_LDFLAGS"
+    modify_local_config CUSTOM_CPPFLAGS "$CUSTOM_CPPFLAGS"
   fi
 }
 

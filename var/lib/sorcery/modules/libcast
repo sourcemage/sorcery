@@ -141,6 +141,7 @@ function query_custom_cflags() {
     persistent_add USER_SPELL_CFLAGS
     persistent_add USER_SPELL_CXXFLAGS
     persistent_add USER_SPELL_LDFLAGS
+    persistent_add USER_SPELL_CPPFLAGS
     local RESULTS KEY rc
     while true ; do
       # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
@@ -151,7 +152,8 @@ function query_custom_cflags() {
                                17 50 9 \
                                CFLAGS "$USER_SPELL_CFLAGS" \
                                CXXFLAGS "$USER_SPELL_CXXFLAGS" \
-                               LDFLAGS "$USER_CUSTOM_LDFLAGS"'`)
+                               LDFLAGS "$USER_SPELL_LDFLAGS"' \
+                               CPPFLAGS "$USER_SPELL_CPPFLAGS"`)
       rc=$?
       [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
       set ${RESULTS[*]}
@@ -161,6 +163,7 @@ function query_custom_cflags() {
         CFLAGS) USER_SPELL_CFLAGS="$@"  ;;
         CXXFLAGS) USER_SPELL_CXXFLAGS="$@" ;;
         LDFLAGS) USER_SPELL_LDFLAGS="$@" ;;
+	CPPFLAGS) USER_SPELL_CPPFLAGS="$@" ;;
       esac
     done
   fi
