@@ -39,7 +39,9 @@ install-spell		spell		Views an install log without any sorcery files included.
 installed	[spell]		Views installed spells.
 version		spell		Views version of spell installed,
 				 and version in the grimoire.
-versions	spell		Views version of spell in the in all grimoires
+versions	spell		Views version of spell in all grimoires
+patchlevels	spell		Views PATCHLEVEL and SECURITY_PATCH value
+				 of spell in all grimoires
 license		spell		Views the license of the given spell(s)
 license		section		Views the licenses of spells in the given
 				 section(s)
@@ -1128,6 +1130,60 @@ function gaze_show_versions()  {
   echo
 }
 
+#---------------------------------------------------------------------
+##
+## Shows the all versions of spell, all versions in all grimoires and 
+## the version installed on the system.
+## @param Spell
+##
+#---------------------------------------------------------------------
+function gaze_show_patchlevels()  {
+
+  local SPELL=$1
+
+  if ! codex_does_spell_exist $SPELL
+  then return 1
+  fi
+
+  local TB_DIR
+  tablet_find_spell_dir "$SPELL" TB_DIR
+
+  local I_PATCH
+  local I_SPATCH
+  tablet_get_patchlevel "$TB_DIR" I_PATCH
+  tablet_get_security_patch "$TB_DIR" I_SPATCH
+
+
+  local ECHO_INSTALLED=1
+  (
+
+  echo "Grimoire|Spell|Grimoire  |Grimoire  |Installed |Installed"
+  echo "        |     |Regula    |Security  |Regular   |Security"
+  echo "        |     |Patchlevel|Patchlevel|Patchlevel|Patchlevel"
+  echo "--------|-----|----------|----------|----------|----------"
+
+  for GRIMOIRE in $(codex_get_all_grimoires)
+  do
+    if SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $GRIMOIRE)
+    then
+      codex_set_current_spell $SPELL_DIRECTORY
+
+      if [ $ECHO_INSTALLED -eq 1 ]; then
+        echo "$GRIMOIRE_NAME|$SPELL|${PATCHLEVEL:-"0"}|${SECURITY_PATCH:-"0"}|${I_PATCH:-0}|${I_SPATCH:-0}"
+        ECHO_INSTALLED=0
+      else
+        echo  "$GRIMOIRE_NAME|$SPELL|${PATCHLEVEL:-0}|${SECURITY_PATCH:-0}|-|-"
+      fi
+
+    else
+      echo "$(basename $GRIMOIRE)|-|-|-|-|-"
+    fi
+  done
+
+  ) | maybe_column -t -s "|"
+
+  echo
+}
 
 
 #---------------------------------------------------------------------
@@ -1959,7 +2015,8 @@ parse()  {
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
-        versions)  shift; gaze_show_versions $@         ;;
+        versions)  shift; gaze_show_versions $@          ;;
+     patchlevels)  shift; gaze_show_patchlevels $@       ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
      system-info)  gaze_system_info                      ;;
