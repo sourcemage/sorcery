@@ -110,6 +110,8 @@ remove-queue	<empty>		View the remove queue
 
 checkmd5s       [spell|section]	Print a md5 check of spells
 
+system-info					Show information about a Source Mage system
+
 show-held          		Shows all held spells.
 
 show-exiled        		Shows all exiled spells.
@@ -1617,6 +1619,260 @@ function gaze_install() {
 
 #---------------------------------------------------------------------
 ##
+## used by system_info()
+##
+#---------------------------------------------------------------------
+
+function figure_installed()
+{
+	local version
+	version=$(installed_version  $1)
+	if  [  -n  "$version"  ]; then
+		message  "[${version}]"
+	else
+		message  "[not installed]"
+	fi
+}
+
+#---------------------------------------------------------------------
+##
+## displays various information about a Source Mage system
+##
+#---------------------------------------------------------------------
+
+function gaze_system_info()
+{
+  local base_system
+  local cur_spell
+  local section
+  local version
+  local variable
+  local mirror
+  local idx
+  local grimoire
+
+  #---
+  ## Section: ISO VERSION
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:         ISO VERSION"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  if [[ -e /etc/sourcemage-release ]]
+  then
+    cat /etc/sourcemage-release | sed '/^$/d'
+  elif [[ -e /etc/smgl.iso ]]
+  then
+    cat /etc/smgl.iso | sed '/^$/d'
+  else
+    message -n "${MESSAGE_COLOR}Couldn't determine what was used to install "
+    message -n "this system. Consider adding some information to "
+    message    "/etc/sourcemage-release${DEFAULT_COLOR}"
+  fi
+
+  #---
+  ## Section: UNAME
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:               UNAME"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  uname -a
+
+  #---
+  ## Section: BASESYSTEM
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:          BASESYSTEM"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  #---
+  ## Need a list of the base spell and ALL of it's DIRECT
+  ## depends(what's in DEPENDS)
+  ## base_system="$(gaze dependencies basesystem 2 | sed
+  ## -e "s/()//" -e 's/ (depends)//' -e 's/ (optional)//' | tr "\n" " " )"
+  #---
+  
+  compute_installed_depends down_deps
+  for curr_spell in $(hash_get down_deps basesystem)
+  do
+    version="$(figure_installed $curr_spell)"
+    section="$(codex_get_spell_section_name $curr_spell)"
+    message -n "${MESSAGE_COLOR}${section}/${curr_spell}:\t"
+    message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: CODEX
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:               CODEX"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  let idx=0
+  for grimoire in $(codex_get_all_grimoires)
+  do
+    message -n "${MESSAGE_COLOR} ${QUERY_COLOR}[$idx] :"
+    message -n "$(basename "$grimoire")${MESSAGE_COLOR} :"
+    message    "$grimoire ${DEFAULT_COLOR}"
+    let idx+=1
+  done
+
+  #---
+  ## Section: SORCERY CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:      SORCERY CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for variable in PROMPT_DELAY DOWNLOAD_RATE PATCH SOUND SORCERER CABAL \
+                  NICE SORCERY_BRANCH DEF_INSTALL_INIT DEF_ENABLE_INIT \
+                  DEF_INSTALL_XINETD DEF_ENABLE_XINETD DEF_INIT_VS_XINETD \
+                  COMPRESSBIN EXTENSION URL_HTTP_FTP_TIMEOUT MD5SUM_DL \
+                  GPG_VERIFY_SPELL_LEVEL ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE \
+                  GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN \
+                  TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC \
+                  CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN \
+                  DEBUG SUPER_DEBUG BUILD_DIRECTORY
+  do
+    message -n "${MESSAGE_COLOR}$variable="
+    message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: STATE CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:        STATE CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for variable in INSTALL_ROOT STATE_ROOT INSTALL_CACHE TRACK_ROOT
+  do
+    message -n "${MESSAGE_COLOR}$variable="
+    message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: COMPILER CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:     COMPILER CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  message -n "${MESSAGE_COLOR}SMGL_COMPAT_ARCHS=${DEFAULT_COLOR}"
+  for each in ${SMGL_COMPAT_ARCHS[@]}
+  do
+    message -n "${QUERY_COLOR}${each}${DEFAULT_COLOR}/"
+  done
+  message -n "\n"
+
+  for variable in ARCHITECTURE OPTIMIZATIONS CUSTOM_CFLAGS CUSTOM_CXXFLAGS \
+                  CUSTOM_LDFLAGS CFLAGS CXXFLAGS LDFLAGS HOST CCACHE \
+                  DISTCC_HOSTS JOBS_PER_HOST MAKE_NJOBS CCACHE_DIR
+  do
+    message -n "${MESSAGE_COLOR}$variable="
+    message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: VERIFICATION CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section: VERIFICATION CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for variable in VRF_ALLOWED_LEVELS VRF_ALLOW_NEW_LEVELS VRF_ALLOWED_HASHES \
+                  VRF_ALLOW_NEW_HASHES GPG_VERIFY_SORCERY GPG_VERIFY_GRIMOIRE
+  do
+    message -n "${MESSAGE_COLOR}$variable="
+    message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: CLEANSE CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:      CLEANSE CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for variable in FIND_CHECK MD5SUM_CHECK LDD_CHECK SYM_CHECK
+  do
+    message -n "${MESSAGE_COLOR}$variable="
+    message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: DISPEL CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:       DISPEL CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for variable in ORPHAN_MENU_DEFAULT NONORPHAN_MENU_DEFAULT \
+                  RECAST_PARENT_MENU_DEFAULT DISPEL_PARENT_MENU_DEFAULT
+  do
+    message -n "${MESSAGE_COLOR}$variable="
+    message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+  done
+
+  #---
+  ## Section: LOCALE CONFIG
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:       LOCALE CONFIG"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for variable in LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY \
+                  LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE \
+                  LC_MEASUREMENT LC_IDENTIFICATION LC_ALL
+  do
+    if [[ ! -z ${!variable} ]]
+    then
+      message -n "${MESSAGE_COLOR}$variable="
+      message    "${QUERY_COLOR}\"${!variable}\"${DEFAULT_COLOR}"
+    fi
+  done
+
+  #---
+  ## Section: FACILITIES
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:          FACILITIES"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  cat /etc/sysconfig/facilities | sed -e '/^$/d' -e '/^#.*$/d'
+
+  #---
+  ## Section: MIRRORS
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:             MIRRORS"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  for mirror in APACHE_URL CTAN_URL GNOME_URL GNU_URL KDE_URL KERNEL_URL \
+                SORCERY_URL SOURCEFORGE_URL XFREE86_URL CODEX_URL
+  do
+    message -n "${MESSAGE_COLOR}$mirror="
+    message    "${QUERY_COLOR}\"${!mirror}\"${DEFAULT_COLOR}"
+  done
+
+}
+
+#---------------------------------------------------------------------
+##
 ## prints all spells of a given status.
 ## @param status - what are we looking for
 ## @param describe - how is that staus described in english
@@ -1703,9 +1959,10 @@ parse()  {
           import)  import_snapshot   $2                  ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
-	versions)  shift; gaze_show_versions $@         ;;
+        versions)  shift; gaze_show_versions $@         ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
+     system-info)  gaze_system_info                      ;;
         activity)  display $ACTIVITY_LOG                 ;;
             from)  show_from         $2                  ;;
            newer)  newer             $2                  ;;
