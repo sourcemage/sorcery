@@ -653,7 +653,7 @@ function push_remove_queue() {
 function optimize()  {
   debug "libsorcery" "In optimize()"
 
-  unset  CFLAGS CXXFLAGS LDFLAGS
+  unset  CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
   unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STRIP TINY
 
   # if user specified --no-opts then use only the args from the command line
@@ -662,6 +662,7 @@ function optimize()  {
     export CFLAGS="$OVERRIDE_CFLAGS"
     export CXXFLAGS="$OVERRIDE_CXXFLAGS"
     export LDFLAGS="$OVERRIDE_LDLAGS"
+    export CPPFLAGS="$OVERRIDE_CPPFLAGS"
   else
     set_architecture
     debug "ARCHITECTURE='${ARCHITECTURE}'"
@@ -710,6 +711,7 @@ function optimize()  {
     export CFLAGS=$(echo $CFLAGS $CUSTOM_CFLAGS $OVERRIDE_CFLAGS $USER_SPELL_CFLAGS)
     export CXXFLAGS=$(echo $CFLAGS $CUSTOM_CXXFLAGS $OVERRIDE_CXXFLAGS $USER_SPELL_CXXFLAGS)
     export LDFLAGS=$(echo $LDFLAGS $CUSTOM_LDFLAGS $OVERRIDE_LDLAGS $USER_SPELL_LDFLAGS)
+    export CPPFLAGS=$(echo $CPPFLAGS $CUSTOM_CPPFLAGS $OVERRIDE_CPPFLAGS $USER_SPELL_CPPFLAGS)
   fi
 
 }
