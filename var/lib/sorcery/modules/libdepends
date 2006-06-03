@@ -1019,19 +1019,30 @@ function work_optional_depends_provider()
   local CANDIDATES=$( find_providers $1)
   # if not reconfiguring check if theres already an answer in DEPENDS_STATUS
   if [[ ! $RECONFIGURE ]]; then
-    explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
+    explode "$(search_depends_status_simple $DEPENDS_STATUS "$SPELL" ".*($1)" "on")" ":" "status"
     local tmp=${status[1]%(*}    # Name of spell which provides $1
-    if spell_ok $tmp &&
+    if [[ "$tmp" ]] && spell_ok "$tmp" &&
           query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
       private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
+      return 0
+    fi
+    if [[ "$(search_depends_status_simple $DEPENDS_STATUS \
+                                          "$SPELL" ".*($1)" "off")" ]] &&
+        query "Continue to use ${SPELL_COLOR}[none]${DEFAULT_COLOR}?" y; then
+      private_common_depends "$tmp($1)" "off" "$database_term" "$2" "$3"
       return 0
     fi
   fi
 
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
-    tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
-    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+    tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "on"|awk -F: '{print $2;exit}')
+    if [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" ; then
+      default=$tmp
+    else
+      tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "off")
+      [[ $tmp ]] && default=none
+    fi
   fi
 
   # check if theres a default provider
@@ -1526,7 +1537,7 @@ function depends_message() {
     message -n " ${SPELL_COLOR}${3}${DEFAULT_COLOR}"
   fi
   if [[ $# -ge 4 ]] ; then
-    message -n " ($4)"
+    message -n " $4"
   fi
   message ""
 }
