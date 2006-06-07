@@ -134,10 +134,6 @@ function delve_config_loc() {
 function delve_build() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 1 2 || return 1
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
   delve_log_helper
   (
     run_build
@@ -160,16 +156,6 @@ function delve_install() {
 
   delve_is_valid_step BUILD 2 || return 1
   delve_log_helper
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
-  if [[ -f $S_PWD ]]
-  then
-    cd "`cat $S_PWD`"
-  else
-    cd $SOURCE_DIRECTORY
-  fi &&
   invoke_installwatch &&
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
@@ -201,12 +187,18 @@ function delve_post_install() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 1 2 || return 1
   delve_log_helper
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
   (
     run_post_install
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+}
+
+function delve_stage_install() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step BUILD 1 2 || return 1
+  delve_log_helper
+  (
+    run_stage_install
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
@@ -215,10 +207,6 @@ function delve_final() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 2 || return 1
   delve_log_helper
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
   (
     run_final
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
@@ -257,7 +245,7 @@ function delve_make_continuation() {
   local begin=$1
   local end=$2
   local API1="start PRE_BUILD config_loc BUILD POST_BUILD POST_INSTALL TRIGGERS end"
-  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL POST_INSTALL FINAL TRIGGERS end"
+  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL POST_INSTALL stage_install FINAL TRIGGERS end"
   local THIS_API
   case $BUILD_API in 
     1) THIS_API=$API1 ;;
@@ -310,6 +298,7 @@ function process_parameters() {
            INSTALL) STATES="$STATES $param" ;;
         POST_BUILD) STATES="$STATES $param" ;;
       POST_INSTALL) STATES="$STATES $param" ;;
+     stage_install) STAGES="$STAGES $param" ;;
              FINAL) STATES="$STATES $param" ;;
           TRIGGERS) STATES="$STATES $param" ;;
            success) STATES="$STATES $param" ;;
@@ -355,6 +344,7 @@ function main() {
            INSTALL) delve_install ;;
         POST_BUILD) delve_post_build ;;
       POST_INSTALL) delve_post_install ;;
+     stage_install) delve_stage_install ;;
              FINAL) delve_final ;;
           TRIGGERS) delve_triggers ;;
            success) delve_spell_success ;;

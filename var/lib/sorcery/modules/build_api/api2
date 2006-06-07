@@ -56,7 +56,6 @@ function run_build_spell() {
     run_config_loc                          || return 2
     (
       run_build                             &&
-      pwd > $S_PWD                          &&
       run_pre_install                       &&
 # you have to make this directory every time even if you don't use it because
 # it's a bug with installwatch that it needs to exist at all times
@@ -68,11 +67,7 @@ function run_build_spell() {
       fi                                    &&
       delve $SPELL INSTALL                  &&
       delve $SPELL POST_INSTALL             || return 2
-      if [[ "$STAGED_INSTALL" != "off" ]]
-      then
-        devoke_stage_root &&
-        install_staged_spell
-      fi                                    &&
+      run_stage_install                     &&
       devoke_installwatch                   &&
       destroy_stage_root                    &&
       STAGED_INSTALL=off                    &&
@@ -138,8 +133,11 @@ function run_build()  {
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
 
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
+  if [  -d  "$SOURCE_DIRECTORY"  ] ; then
+    cd $SOURCE_DIRECTORY
+  else
+    cd $BUILD_DIRECTORY
+  fi &&
 
   invoke_build_dir
   invoke_gcc2
@@ -165,6 +163,7 @@ function run_build()  {
              "${DEFAULT_COLOR}"
     return 1
   fi
+  pwd > $S_PWD
 }
 
 
@@ -175,6 +174,14 @@ function run_build()  {
 function run_pre_install() {
   debug "build_api/api2" "Starting run_pre_install()"
 
+  if [ -f $S_PWD ] ; then
+    cd "`cat $S_PWD`"
+  elif [ -d $SOURCE_DIRECTORY ] ; then
+    cd $SOURCE_DIRECTORY
+  else
+    cd $BUILD_DIRECTORY
+  fi
+  
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
     .  $SCRIPT_DIRECTORY/PRE_INSTALL 
@@ -185,6 +192,7 @@ function run_pre_install() {
   fi &&
   persistent_save &&
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
+  pwd > $S_PWD
 }
 
 
@@ -197,7 +205,15 @@ function run_pre_install() {
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
-  
+ 
+  if [ -f $S_PWD ] ; then
+    cd "`cat $S_PWD`"
+  elif [ -d $SOURCE_DIRECTORY ] ; then
+    cd $SOURCE_DIRECTORY
+  else
+    cd $BUILD_DIRECTORY
+  fi
+
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
     .  $SCRIPT_DIRECTORY/INSTALL 
@@ -229,11 +245,15 @@ function run_install() {
 function run_post_install() {
   debug "build_api/api2" "Starting run_post_install()"
   persistent_load &&
+  if [[ $STAGED_INSTALL != off ]]
+  then
+    cd $STAGE_DIRECTORY/TRANSL
+  else
+    cd $INSTALL_ROOT
+  fi &&
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
-    cd $STAGE_DIRECTORY/TRANSL &&
     . $SCRIPT_DIRECTORY/POST_INSTALL
   elif [[ "$POST_INSTALL_CMD" ]] ; then
-    cd $STAGE_DIRECTORY/TRANSL &&
     $POST_INSTALL_CMD
   else
     default_post_install
@@ -241,7 +261,18 @@ function run_post_install() {
   persistent_save &&
   unlock_resources "libgrimoire" "install"
 }
-
+#--------------------------------------------------------------------
+### Checks against STAGED_INSTALL and installs the staged spell 
+### accordingly
+##--------------------------------------------------------------------
+function run_stage_install() {        
+  if [[ "$STAGED_INSTALL" != "off" ]]
+  then
+    devoke_stage_root &&
+    install_staged_spell
+  fi
+}
+              
 #---------------------------------------------------------------------
 ## Checks for a FINAL file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is used for extra files that need
@@ -251,6 +282,7 @@ function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
   persistent_load &&
+  cd $INSTALL_ROOT
   if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
   then
     . $SCRIPT_DIRECTORY/FINAL
