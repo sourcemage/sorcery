@@ -1578,35 +1578,42 @@ function run_spell_config()
 }
 
 #---------------------------------------------------------------------
-# i dont know if this should be here
+## Output the upward dependencies of the specified spell
+## @Param spell
+## @Param depth (optional)
+## @Param fast -- if set only show spells, not full depends db entries
 #---------------------------------------------------------------------
-function show_depends()  
+function real_show_up_depends()  
 {
-  debug "libdepends" "show_depends() - $@"
-  local DEP_SPELL=`esc_str $1`
-  local DEPTH=$2
-
-  if  !  echo  "$DONE"  |  grep  -q  "$DEP_SPELL";  then
-    DONE="$DONE  $1"
-
-    function ld99()  {
-
-     [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
- 
-      SPELL=`echo  $1 |  cut  -d :  -f1`
-      STATUS=`echo  $1  |  cut  -d :  -f3`
-
-      if    [  "$STATUS"  ==  "on"  ]; then
-        echo          $1 
-        show_depends  $SPELL $(( DEPTH + 1 ))
-      fi
-      
+    local i=0
+    local MAX_DEPTH=$2
+    local fast=$3
+    function show_up_depends_sub() {
+        local each
+        let i++
+        [[ $MAX_DEPTH ]] && [[ $i -gt $MAX_DEPTH ]] && return
+        for each in $(hash_get foo $1); do
+            if ! [[ $(hash_get done $each) ]] ; then
+                hash_put done $each done
+                echo $each:$1
+                show_up_depends_sub $each
+            fi
+        done
     }
-    
-    iterate "ld99" $'\n' "$(grep  ":$DEP_SPELL\(([^:]*)\)\?:" $DEPENDS_STATUS)"
-
-  fi
+    hash_reset foo
+    hash_reset done
+    compute_reverse_installed_depends foo
+    if [[ $fast ]] ; then
+      show_up_depends_sub "$1"|cut -f1 -d:
+    else 
+      show_up_depends_sub "$1"|while read line; do
+        grep "$line" "$DEPENDS_STATUS"
+      done
+    fi|sort|uniq
+    hash_reset foo
+    hash_reset done
 }
+
 
 #---------------------------------------------------------------------
 ##=back
