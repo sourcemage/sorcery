@@ -249,6 +249,7 @@ function run_install() {
 #---------------------------------------------------------------------
 function run_post_install() {
   debug "build_api/api2" "Starting run_post_install()"
+  set_stage_root_paths
   persistent_load &&
   if [[ $STAGED_INSTALL != off ]]
   then
@@ -270,9 +271,10 @@ function run_post_install() {
 ### Checks against STAGED_INSTALL and installs the staged spell 
 ### accordingly
 ##--------------------------------------------------------------------
-function run_stage_install() {        
+function run_stage_install() {
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
+    set_stage_root_paths
     devoke_stage_root &&
     install_staged_spell
   fi
