@@ -138,6 +138,19 @@ function stage_install_symlink()
   esac
 }
 
+function set_stage_root_paths()
+{
+  local bindir libdir
+  for bindir in /bin /sbin /usr/bin /usr/sbin
+  do
+    export PATH=$( envar_prepend_path $STAGE_DIRECTORY/$bindir $PATH )
+  done
+  for libdir in /lib /usr/lib
+  do
+    export LD_LIBRARY_PATH=$( envar_prepend_path $STAGE_DIRECTORY/$libdir $LD_LIBRARY_PATH )
+  done
+}
+
 #---------------------------------------------------------------------
 ## @param file
 ## install the file from the stage root to the system does check for
