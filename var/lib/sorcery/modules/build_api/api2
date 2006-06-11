@@ -48,7 +48,12 @@ function run_build_spell() {
     VOYEUR_STDOUT=/dev/null
     VOYEUR_STDERR=/dev/null
   fi
-                      
+  
+  if installwatch_is_stageable
+  then
+    INSTALL_WATCH=off
+  fi
+
   local PROTECT_SORCERY=yes
   local rs
   (
@@ -61,7 +66,7 @@ function run_build_spell() {
 # it's a bug with installwatch that it needs to exist at all times
       prepare_stage_root                    &&
       invoke_installwatch                   &&
-      if [[ "$STAGED_INSTALL" != "off" ]] && installwatch_is_stageable
+      if [[ "$STAGED_INSTALL" != "off" ]]
       then
         invoke_stage_root
       fi                                    &&
@@ -266,7 +271,7 @@ function run_post_install() {
 ### accordingly
 ##--------------------------------------------------------------------
 function run_stage_install() {        
-  if [[ "$STAGED_INSTALL" != "off" ]] && installwatch_is_stageable
+  if [[ "$STAGED_INSTALL" != "off" ]]
   then
     devoke_stage_root &&
     install_staged_spell
