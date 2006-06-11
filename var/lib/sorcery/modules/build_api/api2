@@ -61,7 +61,7 @@ function run_build_spell() {
 # it's a bug with installwatch that it needs to exist at all times
       prepare_stage_root                    &&
       invoke_installwatch                   &&
-      if [[ "$STAGED_INSTALL" != "off" ]]
+      if [[ "$STAGED_INSTALL" != "off" ]] && installwatch_is_stageable
       then
         invoke_stage_root
       fi                                    &&
@@ -266,7 +266,7 @@ function run_post_install() {
 ### accordingly
 ##--------------------------------------------------------------------
 function run_stage_install() {        
-  if [[ "$STAGED_INSTALL" != "off" ]]
+  if [[ "$STAGED_INSTALL" != "off" ]] && installwatch_is_stageable
   then
     devoke_stage_root &&
     install_staged_spell
