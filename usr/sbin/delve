@@ -157,6 +157,10 @@ function delve_install() {
   delve_is_valid_step BUILD 2 || return 1
   delve_log_helper
   invoke_installwatch &&
+  if [[ ! -d $STAGE_DIRECTORY ]]
+  then
+    prepare_stage_root
+  fi
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
     invoke_stage_root
