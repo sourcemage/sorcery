@@ -283,6 +283,10 @@ function run_spell_success() {
 
     # do this before cache archive creation (bug 8249)
     rm_source_dir
+    if [[ $STAGED_INSTALL != off ]]
+    then
+      destroy_stage_root
+    fi
 
     # cache archive
 
@@ -334,6 +338,6 @@ function run_spell_failure() {
     get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
     rm -f "$spell_sub_depends" "$spell_rsub_depends"
 
-    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
+    [[  $CLEAN_SOURCE == on ]] && rm_source_dir && destroy_stage_root
     CAST_EXIT_STATUS=1
 }
