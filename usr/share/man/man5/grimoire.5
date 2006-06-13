@@ -112,24 +112,27 @@ or real_default_... in build_api/api2.
 .PP
 .I PRE_BUILD
 .IP
-This describes the unpacking process as performed in step 2. The default 
-PRE_BUILD will work for the following compressions:
+This describes the unpacking process as performed in step 2 and current 
+working directory for this step is the $BUILD_DIRECTORY, usually /usr/src.
+The default PRE_BUILD will work for the following compressions:
 .IP
 bzip2, gzip, zip, RPM, tar
 .PP
 .I BUILD
 .IP
 This describes the compilation process as performed in steps 
-6 and 7. Here the package is built, not installed yet. If the
-software package compiles using these 2 steps then the default
+6 and 7. Here the package is built, not installed yet. The current 
+working directory for this step is $SOURCE_DIRECTORY set in the DETAILS
+file. If the software package compiles using these 2 steps then the default
 BUILD can be used. Sorcery automatically changes the install path and sets
 optimization options.
 .PP
 .I PRE_INSTALL
 .IP
-This will start installwatch, sorcery's install logging system.
+This will start installwatch, sorcery's install logging system. 
 It will log every file touched during install so we can get the install log
-of files installed by the spell.
+of files installed by the spell. The current working directory for this step
+is the old working directory of the BUILD step.
 
 It is recommended that if you add this file it contains 
 .I default_pre_install.
@@ -138,12 +141,19 @@ It is recommended that if you add this file it contains
 .IP
 This is step 8. "make install" by default.
 If your spell needs another way to install its files, here is the place to
-do so.
+do so. The current working directory of this step is the old working directory
+of PRE_INSTALL
 .PP
 .I POST_INSTALL
 .IP
 This step finishes off the install process. It installs configuration files
-and documentation, and finally turns off installwatch.
+and documentation, and finally turns off installwatch. If the spell is being
+staged this step will also copy the files back to the system and stage config
+files in a different location to be merged back to the system by the user.
+Also, if the spell is being staged the working directory for this step is the
+root of the staged area after the INSTALL step else the working directory is
+the system root. This allows packages to move/remove files before they are
+installed to the system.
 It is highly recommended to run
 .I default_post_install
 at the end of this file.
@@ -152,7 +162,8 @@ at the end of this file.
 .IP
 This file contains instructions on files to be installed and instructions
 to be performed that should for some reason not appear in the install logs
-(e.g. modifying another package's /etc files)
+(e.g. modifying another package's /etc files). The working directory of this
+step is the root of the system.
 
 This is the only file in the build process that does not have a default,
 so if it does not exist, nothing will be done.
