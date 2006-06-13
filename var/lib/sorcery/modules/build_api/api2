@@ -111,7 +111,7 @@ function run_pre_build() {
 
   rm_source_dir
   mkdir -p $BUILD_DIRECTORY
-  cd  $BUILD_DIRECTORY
+  cd  "$BUILD_DIRECTORY"
 
   verify_sources &&
   persistent_load &&
@@ -139,9 +139,9 @@ function run_build()  {
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
 
   if [  -d  "$SOURCE_DIRECTORY"  ] ; then
-    cd $SOURCE_DIRECTORY
+    cd "$SOURCE_DIRECTORY"
   else
-    cd $BUILD_DIRECTORY
+    cd "$BUILD_DIRECTORY"
   fi &&
 
   invoke_build_dir
@@ -182,9 +182,9 @@ function run_pre_install() {
   if [ -f $S_PWD ] ; then
     cd "`cat $S_PWD`"
   elif [ -d $SOURCE_DIRECTORY ] ; then
-    cd $SOURCE_DIRECTORY
+    cd "$SOURCE_DIRECTORY"
   else
-    cd $BUILD_DIRECTORY
+    cd "$BUILD_DIRECTORY"
   fi
   
   persistent_load &&
@@ -214,9 +214,9 @@ function run_install() {
   if [ -f $S_PWD ] ; then
     cd "`cat $S_PWD`"
   elif [ -d $SOURCE_DIRECTORY ] ; then
-    cd $SOURCE_DIRECTORY
+    cd "$SOURCE_DIRECTORY"
   else
-    cd $BUILD_DIRECTORY
+    cd "$BUILD_DIRECTORY"
   fi
 
   persistent_load &&
@@ -253,9 +253,9 @@ function run_post_install() {
   persistent_load &&
   if [[ $STAGED_INSTALL != off ]]
   then
-    cd $STAGE_DIRECTORY/TRANSL
+    cd "$STAGE_DIRECTORY/TRANSL"
   else
-    cd $INSTALL_ROOT
+    cd "${INSTALL_ROOT-/}"
   fi &&
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
     . $SCRIPT_DIRECTORY/POST_INSTALL
@@ -289,7 +289,7 @@ function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
   persistent_load &&
-  cd $INSTALL_ROOT
+  cd "${INSTALL_ROOT-/}"
   if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
   then
     . $SCRIPT_DIRECTORY/FINAL

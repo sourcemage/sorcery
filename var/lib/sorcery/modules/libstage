@@ -62,7 +62,7 @@ function stage_install_files()
   local file
   while read file ; do
     [ "$file" ] || continue
-    stage_install_list $file $1
+    stage_install_list "$file" "$1"
   done
 }
 
@@ -70,19 +70,19 @@ function stage_install_directory()
 {
   local DIR=$1
   local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/${DIR}")
-  if [[ ! -d $(dirname ${INSTALL_ROOT}/$DIR) ]]
+  if [[ ! -d $(dirname "${INSTALL_ROOT}/$DIR") ]]
   then
     # this shouldn't happen but just in case
     message "${PROBLEM_COLOR}Ah, not preserving permissions making $(dirname $DIR)${DEFAULT_COLOR}" &&
     mkdir -p $(dirname ${INSTALL_ROOT}/$DIR)
   fi &&
   message "${FILE_COLOR}$PERMISSION $DIR${DEFAULT_COLOR}"
-  if [[ -d $DIR ]]
+  if [[ -d "$DIR" ]]
   then
-    chmod $PERMISSION ${INSTALL_ROOT}/$DIR
+    chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR"
   else
-    mkdir $DIR   &&
-    chmod $PERMISSION ${INSTALL_ROOT}/$DIR
+    mkdir "$DIR"   &&
+    chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR"
   fi
 }
 
@@ -94,20 +94,17 @@ function stage_install_file()
   message "${FILE_COLOR}$PERMISSION $FILE${DEFAULT_COLOR}"
   case $2 in
     config)
-      if [[ -e ${INSTALL_ROOT}/$FILE ]]
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
         message "${MESSAGE_COLOR}Staging config to $CONFIG_STAGE_DIRECTORY${DEFAULT_COLOR}"
-        mkdir -p $(dirname $SAVE) &&
-        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$SAVE &&
-        rm $STAGE_DIRECTORY/TRANSL/$FILE
+        mkdir -p "$(dirname $SAVE)" &&
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" &&
       else
-        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
-        rm $STAGE_DIRECTORY/TRANSL/$FILE
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
       fi
       ;;
     *)
-      cp -fdp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
-      rm $STAGE_DIRECTORY/TRANSL/$FILE
+      cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
       ;;
   esac
 }
@@ -119,21 +116,17 @@ function stage_install_symlink()
   message "${FILE_COLOR}Symlink $FILE${DEFAULT_COLOR}"
   case $2 in
     config)
-      if [[ -e ${INSTALL_ROOT}/$FILE ]]
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
-        touch ${INSTALL_ROOT}/$FILE &&
+        touch "${INSTALL_ROOT}/$FILE" &&
         mkdir -p $(dirname $SAVE) &&
-        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$SAVE &&
-        rm $STAGE_DIRECTORY/TRANSL/$FILE
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" &&
       else
-        cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
-        rm $STAGE_DIRECTORY/TRANSL/$FILE
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
       fi
       ;;
     *)
-      rm -f ${INSTALL_ROOT}/$FILE &&
-      cp -dp $STAGE_DIRECTORY/TRANSL/$FILE ${INSTALL_ROOT}/$FILE &&
-      rm $STAGE_DIRECTORY/TRANSL/$FILE
+      cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
       ;;
   esac
 }
