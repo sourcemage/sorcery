@@ -338,6 +338,13 @@ function run_spell_failure() {
     get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
     rm -f "$spell_sub_depends" "$spell_rsub_depends"
 
-    [[  $CLEAN_SOURCE == on ]] && rm_source_dir && destroy_stage_root
+    if [[  $CLEAN_SOURCE == on ]] 
+    then
+      rm_source_dir && 
+      if [[ $STAGED_INSTALL != off ]]
+      then
+        destroy_stage_root
+      fi
+    fi
     CAST_EXIT_STATUS=1
 }
