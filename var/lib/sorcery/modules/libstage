@@ -74,9 +74,9 @@ function stage_install_directory()
   then
     # this shouldn't happen but just in case
     message "${PROBLEM_COLOR}Ah, not preserving permissions making $(dirname $DIR)${DEFAULT_COLOR}" &&
-    mkdir -p $(dirname ${INSTALL_ROOT}/$DIR)
+    mkdir -p $(dirname "${INSTALL_ROOT}/$DIR")
   fi &&
-  message "${FILE_COLOR}$PERMISSION $DIR${DEFAULT_COLOR}"
+  message "${FILE_COLOR}$PERMISSION $DIR${DEFAULT_COLOR}" &&
   if [[ -d "$DIR" ]]
   then
     chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR"
@@ -98,14 +98,14 @@ function stage_install_file()
       then
         message "${MESSAGE_COLOR}Staging config to $CONFIG_STAGE_DIRECTORY${DEFAULT_COLOR}"
         mkdir -p "$(dirname $SAVE)" &&
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" &&
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" 
       else
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
       fi
       ;;
     *)
-      cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
-      ;;
+      cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+			;;
   esac
 }
 
@@ -120,13 +120,13 @@ function stage_install_symlink()
       then
         touch "${INSTALL_ROOT}/$FILE" &&
         mkdir -p $(dirname $SAVE) &&
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" &&
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" 
       else
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
       fi
       ;;
     *)
-      cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" &&
+      cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
       ;;
   esac
 }
