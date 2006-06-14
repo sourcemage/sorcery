@@ -150,10 +150,15 @@ This step finishes off the install process. It installs configuration files
 and documentation, and finally turns off installwatch. If the spell is being
 staged this step will also copy the files back to the system and stage config
 files in a different location to be merged back to the system by the user.
-Also, if the spell is being staged the working directory for this step is the
-root of the staged area after the INSTALL step else the working directory is
-the system root. This allows packages to move/remove files before they are
-installed to the system.
+Also, if the spell is being staged the working directory for this step is one 
+directory above the root of the staged area after the INSTALL step else the 
+working directory is the system root. To access files in the stage directory 
+prefix the with the directory name 'TRANSL'. This provides a simple safety 
+check so system files won't get wiped out. A second check against the 
+enviromental variable STAGED_INSTALL is also highly recommended, STAGED_INSTALL 
+will be set to 'off' if the spell isn't going to be staged before installing. 
+This allows packages to move/remove files before they are installed to the 
+system safely. 
 It is highly recommended to run
 .I default_post_install
 at the end of this file.
