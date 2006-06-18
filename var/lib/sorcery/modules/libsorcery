@@ -292,6 +292,58 @@ function save_libraries()  {
 
 }
 
+#---------------------------------------------------------------------
+##
+## Saves the current libraries associated with the spell, from /lib
+## and /usr/lib into $SOURCE_DIRECTORY/old.libraries/
+## Also runs ldconfig with the saved libraries.
+##
+#---------------------------------------------------------------------
+function save_binaries()  {
+
+  if    [  -z  "$SOURCE_DIRECTORY"  ]
+  then  return
+  fi
+
+  debug  "libsorcery" "Running save_binaries()"
+
+  OLD_BINS=$SOURCE_DIRECTORY/old.binaries
+  mkdir  -p  $OLD_BINS
+
+  SAVED=$OLD_BINS/$SPELL.saved.binaries
+  lock_file $SAVED
+  rm  -rf  $SAVED
+
+  OLD_VERSION=`installed_version  $SPELL`
+      OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
+
+  grep   "^/bin/\|^/sbin/\|^/usr/bin/\|^/usr/sbin/"  $OLD_LOG  |
+  while  read        LINE;  do
+
+    if   [  -f      $LINE   ]  &&
+         file  -bL  $LINE   |
+         grep  -q   "executable"
+    then
+      if  [  -h  $LINE  ];  then
+        DEST=$( basename $( readlink "$LINE" ) )
+        if [ ! -f $OLD_BINS/`basename $LINE` ] ; then
+          ln  -sf  $DEST  $OLD_BINS/`basename  $LINE`
+        fi
+      else
+        cp  $LINE  $OLD_BINS
+      fi
+      echo       $OLD_BINS/`basename  $LINE`  >>  $SAVED
+    fi
+
+
+  done
+
+  unlock_file $SAVED
+
+  export PATH=$( envar_prepend_path "$OLD_BINS" "$PATH" )
+
+}
+
 
 #---------------------------------------------------------------------
 ##
