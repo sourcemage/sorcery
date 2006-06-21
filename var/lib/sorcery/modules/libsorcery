@@ -300,7 +300,7 @@ function save_libraries()  {
 ##
 #---------------------------------------------------------------------
 function save_binaries()  {
-
+  local dir
   if    [  -z  "$SOURCE_DIRECTORY"  ]
   then  return
   fi
@@ -325,14 +325,14 @@ function save_binaries()  {
          grep  -q   "executable"
     then
       if  [  -h  $LINE  ];  then
-        DEST=$( basename $( readlink "$LINE" ) )
-        if [ ! -f $OLD_BINS/`basename $LINE` ] ; then
-          ln  -sf  $DEST  $OLD_BINS/`basename  $LINE`
-        fi
+        DEST=$( readlink "$LINE" )
+				mkdir -p $( dirname $OLD_BINS/$LINE )
+        ln  -sf  $DEST  $OLD_BINS/$LINE
       else
-        cp  $LINE  $OLD_BINS
+			  mkdir -p $( dirname $OLD_BINS/$LINE )
+        cp  $LINE  $OLD_BINS/$LINE
       fi
-      echo       $OLD_BINS/`basename  $LINE`  >>  $SAVED
+      echo       $OLD_BINS/$LINE >> $SAVED
     fi
 
 
@@ -340,8 +340,13 @@ function save_binaries()  {
 
   unlock_file $SAVED
 
-  export PATH=$( envar_prepend_path "$OLD_BINS" "$PATH" )
-
+  for dir in $( find $OLD_BINS )
+	do
+	  if [[ -d $dir ]]
+		then
+      export PATH=$( envar_prepend_path "$dir" "$PATH" )
+    fi
+  done
 }
 
 
