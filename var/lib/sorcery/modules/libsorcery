@@ -292,6 +292,63 @@ function save_libraries()  {
 
 }
 
+#---------------------------------------------------------------------
+##
+## Saves the current libraries associated with the spell, from /lib
+## and /usr/lib into $SOURCE_DIRECTORY/old.libraries/
+## Also runs ldconfig with the saved libraries.
+##
+#---------------------------------------------------------------------
+function save_binaries()  {
+  local dir
+  if    [  -z  "$SOURCE_DIRECTORY"  ]
+  then  return
+  fi
+
+  debug  "libsorcery" "Running save_binaries()"
+
+  OLD_BINS=$SOURCE_DIRECTORY/old.binaries
+  mkdir  -p  $OLD_BINS
+
+  SAVED=$OLD_BINS/$SPELL.saved.binaries
+  lock_file $SAVED
+  rm  -rf  $SAVED
+
+  OLD_VERSION=`installed_version  $SPELL`
+      OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
+
+  grep   "^/bin/\|^/sbin/\|^/usr/bin/\|^/usr/sbin/"  $OLD_LOG  |
+  while  read        LINE;  do
+
+    if   [  -f      $LINE   ]  &&
+         file  -bL  $LINE   |
+         grep  -q   "executable"
+    then
+      if  [  -h  $LINE  ];  then
+        DEST=$( readlink "$LINE" )
+				mkdir -p $( dirname $OLD_BINS/$LINE )
+        ln  -sf  $DEST  $OLD_BINS/$LINE
+      else
+			  mkdir -p $( dirname $OLD_BINS/$LINE )
+        cp  $LINE  $OLD_BINS/$LINE
+      fi
+      echo       $OLD_BINS/$LINE >> $SAVED
+    fi
+
+
+  done
+
+  unlock_file $SAVED
+
+  for dir in $( find $OLD_BINS )
+	do
+	  if [[ -d $dir ]]
+		then
+      export PATH=$( envar_prepend_path "$dir" "$PATH" )
+    fi
+  done
+}
+
 
 #---------------------------------------------------------------------
 ##
@@ -484,12 +541,21 @@ function filter_generic() {
   local args=$1
   local filter_name=$2
   local system_filter=$3
+  local spell_from=$4
   local grimoire_filter section_filter spell_filter spell_dir
-  if tablet_find_spell_dir $SPELL spell_dir &>/dev/null; then
-    debug libsorcery "filter_generic tablet at : $spell_dir "
-    tablet_get_spell_filter "$spell_dir" "$filter_name" spell_filter &>/dev/null
-    tablet_get_section_filter "$spell_dir" "$filter_name" section_filter &>/dev/null
-    tablet_get_grimoire_filter "$spell_dir" "$filter_name" grimoire_filter &>/dev/null
+  if [[ $spell_from == "codex" ]]
+  then
+    debug libsorcery "filter_generic codex at : $SCRIPT_DIRECTORY "
+    grimoire_filter=$GRIMOIRE/$filter_name
+    section_filter=$SECTION_DIRECTORY/$filter_name
+    spell_filter=$SCRIPT_DIRECTORY/$filter_name
+  else
+    if tablet_find_spell_dir $SPELL spell_dir &>/dev/null; then
+      debug libsorcery "filter_generic tablet at : $spell_dir "
+      tablet_get_spell_filter "$spell_dir" "$filter_name" spell_filter &>/dev/null
+      tablet_get_section_filter "$spell_dir" "$filter_name" section_filter &>/dev/null
+      tablet_get_grimoire_filter "$spell_dir" "$filter_name" grimoire_filter &>/dev/null
+    fi
   fi
   set -- $args
   if [ "$1" == -v ] ; then
