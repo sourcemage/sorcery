@@ -111,14 +111,13 @@ function run_config_loc () {
 ## If the spell is not installed (or held) the spell is not dispelled.
 ##
 #---------------------------------------------------------------------
-function real_prepare_install() { (
+function real_prepare_install() { ( 
 
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
   message  "${MESSAGE_COLOR}Preparing to install"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
-  devoke_installwatch
   lock_resources "libgrimoire" "install"
 
     if  spell_installed  $SPELL   ||
@@ -127,10 +126,20 @@ function real_prepare_install() { (
 
       trap  "spell_recover"  SIGINT
       save_libraries
+      save_binaries
       dispel  --notriggers --nosustain  $SPELL
 
     fi
-) }
+)
+  # TODO this is a dirty hack we need to remove it
+  for dir in $( find $SOURCE_DIRECTORY/old.binaries )
+	do
+	  if [[ -d $dir ]]
+		then
+      export PATH="$dir:$PATH"
+    fi
+  done
+}
 
 #---------------------------------------------------------------------
 ##
@@ -255,7 +264,11 @@ function run_spell_success() {
                "${FILE_COLOR}${tablet_dir}${DEFAULT_COLOR}"
       tablet_install_spell_files $tablet_dir
       local TABLET_SPELL_DIR=$tablet_dir
-
+      if [[ $STAGED_INSTALL != "off" && -d $CONFIG_STAGE_DIRECTORY/$SPELL/current ]]
+      then
+        mv $CONFIG_STAGE_DIRECTORY/$SPELL/current \
+           $CONFIG_STAGE_DIRECTORY/$SPELL/$(basename $tablet_dir)
+      fi
       # this data is now doubly stale, remove it
       rm  -f $ABANDONED_PERSIST/$SPELL.p
     fi
@@ -280,6 +293,10 @@ function run_spell_success() {
 
     # do this before cache archive creation (bug 8249)
     rm_source_dir
+    if [[ $STAGED_INSTALL != off ]]
+    then
+      destroy_stage_root
+    fi
 
     # cache archive
 
@@ -331,6 +348,13 @@ function run_spell_failure() {
     get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
     rm -f "$spell_sub_depends" "$spell_rsub_depends"
 
-    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
+    if [[  $CLEAN_SOURCE == on ]] 
+    then
+      rm_source_dir  
+      if [[ $STAGED_INSTALL != off ]]
+      then
+        destroy_stage_root
+      fi
+    fi
     CAST_EXIT_STATUS=1
 }

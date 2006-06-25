@@ -26,7 +26,7 @@ function run_build_spell() {
   debug "build_api/api1" "run_build_spell"
   C_LOG=$TMP_DIR/$SPELL.compile.log
   C_FIFO=/dev/stdout
-  
+  STAGED_INSTALL=off
   rm -f $C_LOG
   touch $C_LOG
   if [[ $SCREEN_NAME ]] ; then  
@@ -124,6 +124,7 @@ function run_build()  {
   invoke_build_dir
   invoke_gcc2
   optimize
+  prepare_stage_root
   invoke_installwatch
 
   message -n "Installing in dir: "
@@ -269,6 +270,7 @@ function real_default_post_build() {
   install_desktop_files
   gather_docs
   devoke_installwatch
+  destroy_stage_root
   init_post_install
   ldconfig
   # release_saved_libraries

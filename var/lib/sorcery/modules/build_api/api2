@@ -26,9 +26,14 @@
 function run_build_spell() {
   debug "build_api/api2" "run_build_spell"
 
-  C_LOG=$TMP_DIR/$SPELL.compile.log
-  C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
+  export C_LOG=$TMP_DIR/$SPELL.compile.log
+  export IW_DBGLOG=$C_LOG.iwdbglog
+  export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
+  export S_PWD=$TMP_DIR/build.saved.pwd 
+  export VOYEUR_STDOUT VOYEUR_STDERR
 
+  rm  -f $IW_DBGLOG
+  touch $IW_DBGLOG
   rm  -f $C_LOG
   touch $C_LOG
   
@@ -46,18 +51,35 @@ function run_build_spell() {
     VOYEUR_STDOUT=/dev/null
     VOYEUR_STDERR=/dev/null
   fi
-                      
+  
+  if ! installwatch_is_stageable
+  then
+    STAGED_INSTALL=off
+  fi
+
   local PROTECT_SORCERY=yes
   local rs
   (
-    run_pre_build                         || return 1
-    run_config_loc                        || return 2
+    run_pre_build                           || return 1
+    run_config_loc                          || return 2
     (
-      run_build                           &&
-      run_pre_install                     &&
-      run_install                         || return 2
-      run_post_install                    &&
-      run_final                           || return 3
+      run_build                             &&
+      run_pre_install                       &&
+# you have to make this directory every time even if you don't use it because
+# it's a bug with installwatch that it needs to exist at all times
+      prepare_stage_root                    &&
+      invoke_installwatch                   &&
+      if [[ "$STAGED_INSTALL" != "off" ]]
+      then
+        invoke_stage_root
+      fi                                    &&
+      set_stage_root_paths                  &&
+      delve $SPELL INSTALL                  &&
+      delve $SPELL POST_INSTALL             || return 2
+      run_stage_install                     &&
+      devoke_installwatch                   &&
+      STAGED_INSTALL=off                    &&
+      run_final                             || return 3
     ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
        > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
   )
@@ -92,7 +114,7 @@ function run_pre_build() {
 
   rm_source_dir
   mkdir -p $BUILD_DIRECTORY
-  cd  $BUILD_DIRECTORY
+  cd  "$BUILD_DIRECTORY"
 
   verify_sources &&
   persistent_load &&
@@ -119,8 +141,11 @@ function run_build()  {
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
 
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
+  if [  -d  "$SOURCE_DIRECTORY"  ] ; then
+    cd "$SOURCE_DIRECTORY"
+  else
+    cd "$BUILD_DIRECTORY"
+  fi &&
 
   invoke_build_dir
   invoke_gcc2
@@ -146,6 +171,7 @@ function run_build()  {
              "${DEFAULT_COLOR}"
     return 1
   fi
+  pwd > $S_PWD
 }
 
 
@@ -156,6 +182,14 @@ function run_build()  {
 function run_pre_install() {
   debug "build_api/api2" "Starting run_pre_install()"
 
+  if [ -f $S_PWD ] ; then
+    cd "`cat $S_PWD`"
+  elif [ -d $SOURCE_DIRECTORY ] ; then
+    cd "$SOURCE_DIRECTORY"
+  else
+    cd "$BUILD_DIRECTORY"
+  fi
+  
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
     .  $SCRIPT_DIRECTORY/PRE_INSTALL 
@@ -166,18 +200,27 @@ function run_pre_install() {
   fi &&
   persistent_save &&
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
+  pwd > $S_PWD
 }
 
 
 #---------------------------------------------------------------------
-## Turns all the various logs back on that were turned off from after
-## run_pre_install finished, then runs INSTALL or default_install
+## load persistent vars, then runs INSTALL or default_install
 ## Along with other stuff that needs to be transplanted elsewhere.
+## NOTE: this function is run from delve so installwatch can be invoked
+## around an execed bash shell, this is needed for installwatch to
+## stage root properly
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
-
-  invoke_installwatch
+  set_stage_root_paths 
+  if [ -f $S_PWD ] ; then
+    cd "`cat $S_PWD`"
+  elif [ -d $SOURCE_DIRECTORY ] ; then
+    cd "$SOURCE_DIRECTORY"
+  else
+    cd "$BUILD_DIRECTORY"
+  fi
 
   persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
@@ -187,7 +230,8 @@ function run_install() {
   else
     default_install
   fi &&
-  persistent_save &&
+  persistent_save
+
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -200,11 +244,22 @@ function run_install() {
 #---------------------------------------------------------------------
 ## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is run after INSTALL and before
-## FINAL. Its purpose is to bookend INSTALL and shutoff installwatch.
+## FINAL. Its purpose is to manipulate the installed files in the stage
+## root and install other tracked files.
+## NOTE: this function is run from delve so installwatch can be invoked
+## around an execed bash shell, this is needed for installwatch to
+## stage root properly
 #---------------------------------------------------------------------
 function run_post_install() {
   debug "build_api/api2" "Starting run_post_install()"
+  set_stage_root_paths
   persistent_load &&
+  if [[ $STAGED_INSTALL != off ]]
+  then
+    cd "$STAGE_DIRECTORY/"
+  else
+    cd "${INSTALL_ROOT:-/}"
+  fi &&
   if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
     . $SCRIPT_DIRECTORY/POST_INSTALL
   elif [[ "$POST_INSTALL_CMD" ]] ; then
@@ -215,7 +270,19 @@ function run_post_install() {
   persistent_save &&
   unlock_resources "libgrimoire" "install"
 }
-
+#--------------------------------------------------------------------
+### Checks against STAGED_INSTALL and installs the staged spell 
+### accordingly
+##--------------------------------------------------------------------
+function run_stage_install() {
+  if [[ "$STAGED_INSTALL" != "off" ]]
+  then
+    set_stage_root_paths
+    devoke_stage_root &&
+    install_staged_spell
+  fi
+}
+              
 #---------------------------------------------------------------------
 ## Checks for a FINAL file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is used for extra files that need
@@ -225,6 +292,7 @@ function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
   persistent_load &&
+  cd "${INSTALL_ROOT:-/}"
   if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
   then
     . $SCRIPT_DIRECTORY/FINAL
@@ -293,9 +361,7 @@ function real_default_build() {
 #---------------------------------------------------------------------
 function real_default_pre_install() {
   debug "build_api/api2" "Starting real_default_pre_install"
-  devoke_installwatch
   prepare_install
-  invoke_installwatch
 }
 
 #---------------------------------------------------------------------
@@ -328,7 +394,6 @@ function real_default_post_install() {
   install_pam_confs
   install_desktop_files
   gather_docs
-  devoke_installwatch
   init_post_install
   ldconfig
   # release_saved_libraries

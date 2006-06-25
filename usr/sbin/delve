@@ -83,11 +83,13 @@ function delve_log_helper() {
   OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
 
   # these have to go somewhere where future delves can find them
-  C_LOG=/tmp/sorcery/delve/$SPELL.compile.log
-  C_FIFO=/dev/stdout
-  IW_LOG="/tmp/sorcery/delve/$SPELL.iw"
-  VOYEUR_STDOUT=/dev/stdout
-  VOYEUR_STDERR=/dev/stderr
+  C_LOG=${C_LOG:="/tmp/sorcery/delve/$SPELL.compile.log"}
+  IW_DBGLOG=${IW_DBGLOG:="/tmp/sorcery/delve/$SPELL.iwdbglog"}
+  C_FIFO=${C_FIFO:="/dev/stdout"}
+  IW_LOG=${IW_LOG:="/tmp/sorcery/delve/$SPELL.iw"}
+  VOYEUR_STDOUT=${VOYEUR_STDOUT:="/dev/stdout"}
+  VOYEUR_STDERR=${VOYEUR_STDERR:="/dev/stderr"}
+  S_PWD=${S_PWD:="/tmp/sorcery/delve/$SPELL.pwd"}
   touch $C_LOG
 
 }
@@ -133,10 +135,6 @@ function delve_config_loc() {
 function delve_build() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 1 2 || return 1
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
   delve_log_helper
   (
     run_build
@@ -159,13 +157,17 @@ function delve_install() {
 
   delve_is_valid_step BUILD 2 || return 1
   delve_log_helper
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
-  cd $SOURCE_DIRECTORY
+  if [[ ! -d $STAGE_DIRECTORY ]]
+  then
+    prepare_stage_root
+  fi &&
+  invoke_installwatch &&
+  if [[ "$STAGED_INSTALL" != "off" ]]
+  then
+    invoke_stage_root
+  fi &&
   (
-    run_install
+    run_install || return 2
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
@@ -190,26 +192,28 @@ function delve_post_install() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 1 2 || return 1
   delve_log_helper
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
-  [ "$BUILD_API" == "2" ] && cd $SOURCE_DIRECTORY # dirty hack
   (
     run_post_install
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+}
 
+function delve_stage_install() {
+  debug "delve" "Running $FUNCNAME"
+  delve_is_valid_step BUILD 1 2 || return 1
+  delve_log_helper
+  (
+    run_stage_install
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 function delve_final() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 2 || return 1
   delve_log_helper
-  [ -d $SOURCE_DIRECTORY ] || {
-    message "Ack! there is no $SOURCE_DIRECTORY"
-    return 1
-  }
+  devoke_installwatch &&
+  STAGED_INSTALL=off
   (
     run_final
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
@@ -248,7 +252,7 @@ function delve_make_continuation() {
   local begin=$1
   local end=$2
   local API1="start PRE_BUILD config_loc BUILD POST_BUILD POST_INSTALL TRIGGERS end"
-  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL POST_INSTALL FINAL TRIGGERS end"
+  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL POST_INSTALL stage_install FINAL TRIGGERS end"
   local THIS_API
   case $BUILD_API in 
     1) THIS_API=$API1 ;;
@@ -301,6 +305,7 @@ function process_parameters() {
            INSTALL) STATES="$STATES $param" ;;
         POST_BUILD) STATES="$STATES $param" ;;
       POST_INSTALL) STATES="$STATES $param" ;;
+     stage_install) STAGES="$STAGES $param" ;;
              FINAL) STATES="$STATES $param" ;;
           TRIGGERS) STATES="$STATES $param" ;;
            success) STATES="$STATES $param" ;;
@@ -334,6 +339,11 @@ function main() {
 
   echo "DEBUG: $STATES"
 
+  if ! installwatch_is_stageable
+  then
+    STAGED_INSTALL=off
+  fi
+
   local last_rc=0
   for STATE in $STATES; do
     message "Running state $STATE"
@@ -346,6 +356,7 @@ function main() {
            INSTALL) delve_install ;;
         POST_BUILD) delve_post_build ;;
       POST_INSTALL) delve_post_install ;;
+     stage_install) delve_stage_install ;;
              FINAL) delve_final ;;
           TRIGGERS) delve_triggers ;;
            success) delve_spell_success ;;

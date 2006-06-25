@@ -49,23 +49,6 @@ function use_gcc2()  {
 
 }
 
-
-#---------------------------------------------------------------------
-## @param new path to add
-## @param old path
-## @Stdout new path
-## Echos the old path with new path prepended, separated with a ':'
-#---------------------------------------------------------------------
-function gcc2_prepend_path()  {
-
-  if    test  -z  $2
-  then  echo $1
-  else  echo $1:$2
-  fi
-
-}
-
-
 #---------------------------------------------------------------------
 ## @param path
 ##
@@ -75,10 +58,10 @@ function gcc2_prepend_path()  {
 #---------------------------------------------------------------------
 function gcc2_add_paths()  {
 
-  export  PATH=$(  gcc2_prepend_path  $1/bin  $PATH  )
-  export  LD_LIBRARY_PATH=$(  gcc2_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
-  export  LD_RUN_PATH=$(  gcc2_prepend_path  $1/lib  $LD_RUN_PATH  )
-  export  INFOPATH=$(  gcc2_prepend_path  $1/info  $INFOPATH  )
+  export  PATH=$(  envar_prepend_path  $1/bin  $PATH  )
+  export  LD_LIBRARY_PATH=$(  envar_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
+  export  LD_RUN_PATH=$(  envar_prepend_path  $1/lib  $LD_RUN_PATH  )
+  export  INFOPATH=$(  envar_prepend_path  $1/info  $INFOPATH  )
   export  CPPFLAGS="-I $1/include  $CPPFLAGS"
 
 }
