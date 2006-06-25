@@ -1,0 +1,171 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis merge the config files located in the config stage directory to the system.
+## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
+## Script to install staged config files.
+#---------------------------------------------------------------------
+
+#-----
+## Help... hmm... I wonder what it does...
+#-----
+function help()
+{
+  cat << EOF
+
+Melds the staged config files from $CONFIG_STAGE_DIRECTORY
+
+Example:                confmeld
+
+Optional Parameters:
+
+            None at the moment
+
+EOF
+  exit 1
+}
+
+#--------------------------------------------------------------------
+## List all the configs in the config stage root
+## 
+## @stdout a list of all configs in the config stage root
+#--------------------------------------------------------------------
+function all_config_files()
+{
+  find $CONFIG_STAGE_DIRECTORY
+}
+
+#--------------------------------------------------------------------
+## List all uniq config files in the config stage directory
+##
+## @stdout a list of all uniq configs in the stage directory
+#--------------------------------------------------------------------
+function all_uniq_config_files()
+{
+  all_config_files |
+  while read file
+  do
+    echo ${file%.*}
+  done | uniq
+}
+
+#--------------------------------------------------------------------
+## list all spells that have staged configs
+##
+## @stdout list of spells that have staged configs
+#--------------------------------------------------------------------
+function all_spells_with_staged_configs()
+{
+  all_config_files |
+  sed "s#$CONFIG_STAGE_DIRECTORY/##g" |
+  cut -d/ -f1 | uniq
+}
+
+#--------------------------------------------------------------------
+## parses the path to get specific information about the config file
+##
+## @param config file path
+## @param upvar for spell name
+## @param upvar for spell success time
+## @param upvar for actual path to file
+#--------------------------------------------------------------------
+function parse_stage_config_path()
+{
+  local file=$1
+  local __tmp __spell __sdate __path
+  __tmp=${file/$CONFIG_STAGE_DIRECTORY\//}
+  __spell=$(echo $__tmp | cut -d/ -f1)
+  __sdate=$(echo $__tmp | cut -d/ -f2)
+  __path=$(echo $__tmp | cut -d/ -f3-)
+  eval "$2=\"$__spell\""
+  eval "$3=\"$__sdate\""
+  eval "$4=\"$__path\""
+}
+
+#--------------------------------------------------------------------
+## Main
+## 
+## No real arguments get all the config files and start installing
+## them to the system using install_config_file
+#--------------------------------------------------------------------
+function main()
+{
+  local target spell sdate 
+  local last_spell=""
+  local last_sdate=""
+  
+  for file in $(all_config_files)
+  do
+    parse_stage_config_path $file spell sdate target &&
+    if [[ -f $file && $target ]]
+    then
+      message "${MESSAGE_COLOR}$spell cast on $sdate has config${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}$file to be merged with /$target${DEFAULT_COLOR}"
+      tablet_set_spell $spell &&
+      install_config_file $file $INSTALL_ROOT/$target
+      #
+      # since we use find we need to remove empty directories 
+      # so if the spell or the date changes then we remove the directory so 
+      # CONFIG_STAGE_DIRECTORY should always be empty after you complete the
+      # call to confmeld
+      # 
+      # find does a preorder traversal of the directory tree keeping the path
+      # (esentially a stack) of where its been in the tree. If a particular date
+      # or spell name changes at the same level in the tree we can safely assume
+      # the previous date or spell has been walked and all files have been delt
+      # with accordingly so we can safely remove them.
+      #
+      if [[ $last_sdate && $last_sdate != $sdate ]]
+      then
+        message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
+        rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell/$last_sdate
+      fi
+      if [[ $last_spell && $last_spell != $spell ]]
+      then
+        message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
+        rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
+      fi
+      last_sdate="$sdate"
+      last_spell="$spell"
+    fi
+  done
+  #
+  # final check for removing spell directories this is mainly a check so that
+  # empty directories will get removed
+  #
+  if [[ $last_spell ]]
+  then
+    message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"    
+    rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
+  fi
+}
+
+
+. /etc/sorcery/config
+if  [  "$UID"  -gt  0  ];  then
+  echo  "Enter the root password, please."
+  su -c "$0 $@" root
+else
+  STAGED_INSTALL="off"
+  main "$@"
+fi
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
