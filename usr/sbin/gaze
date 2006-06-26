@@ -1505,23 +1505,23 @@ function gaze_show_dependencies() {
             return 0
         }
         depends() {
+                [[ $1 == -sub ]] && shift 2
                 recurse "$1" $DEPTH "depends"
                 return 0
         }
         optional_depends() {
+                [[ $1 == -sub ]] && shift 2
                 [[ $NO_OPTIONALS ]] ||
                 recurse "$1" $DEPTH "optional"
                 return 0
         }
-        requires() {
-                recurse "$1" $DEPTH "requires"
-                return 0
-        }
         runtime_depends() {
+                [[ $1 == -sub ]] && shift 2
                 recurse "$1" $DEPTH "runtime"
                 return 0
         }
         suggest_depends() {
+                [[ $1 == -sub ]] && shift 2
                 recurse "$1" $DEPTH "suggest"
                 return 0
         }
