@@ -21,10 +21,10 @@ Usage:            cast  [parameters]  [spell]
 
 Optional Parameters:
 
-       --cflags                 Custom CFLAGS
-       --cxxflags               Custom CXXFLAGS
-       --cppflags               Custom CPPFLAGS
-       --ldflags                Custom LDFLAGS
+       --cflags   "flags"       Custom CFLAGS
+       --cxxflags "flags"       Custom CXXFLAGS
+       --cppflags "flags"       Custom CPPFLAGS
+       --ldflags  "flags"       Custom LDFLAGS
        --no-opts                Turn off setting optimization flags, except
                                 for those found in --cflags, --cxxflags,
                                 --cppflags and --ldflags.
@@ -38,7 +38,7 @@ Optional Parameters:
        --deps                   Configure spells and determine dependencies,
                                 only cast dependencies, not spells themselves
 
--c  |  --compile                Recompile the spells (dont install from cache).
+-c  |  --compile                Recompile the spells (don't install from cache).
 -r  |  --reconfigure            Select new dependencies for spells (implies -c)
 
 -g  |  --grimoire  [...]        Use only the specified grimoires for this cast
@@ -59,7 +59,7 @@ Optional Parameters:
                                    dependencies are disabled, ask to recast
                                    the dependee. Optional parameter can be
 				   option can be one of: "always", "ask-yes",
-				   "ask-no", or "ignore", it defaults to what
+				   "ask-no", or "ignore"; it defaults to what
 				   is set via the sorcery menu.
 
 -Z  |  --lazy-updates [option]  Perform updates on installed spells that
@@ -71,10 +71,7 @@ Optional Parameters:
        --from   directory       Specify an alternate for $SOURCE_CACHE
        --url    URL             Specify an alternate download URL
 
-       --pam                    Re-casts all installed spells that
-                                can use Linux-PAM
-
-       --queue                  Casts all spells listed in $INSTALL_QUEUE
+       --queue                  Cast all spells listed in $INSTALL_QUEUE
 
 EOF
 
@@ -122,7 +119,6 @@ function process_parameters()  {
             --silent)  SILENT="$1";                                  shift 1  ;;
                   -s)  export  SEPARATE="$1";                        shift 1  ;;
                --url)  export  BASE_URL="$2";                        shift 2  ;;
-               --pam)  cast  -c  `find_pam_aware` ;                  shift 1  ;;
              --queue)  CAST_QUEUE=yes ; COMPILE=$1;                  shift 1  ;;
                    *)  help                                   ;;
       esac
@@ -171,7 +167,6 @@ function strip_parameters()  {
            -d|--download)  shift 1  ;;
                       -s)  shift 1  ;;
                    --url)  shift 2  ;;
-                   --pam)  shift 1  ;;
                  --queue)  shift 1  ;;
                        *)  shift 1  ;;
 
@@ -414,7 +409,7 @@ function pass_two()  {
   return 1
   fi
 
-  rm -f $TMP_DIR/pass_three.done # dont return until this file exists
+  rm -f $TMP_DIR/pass_three.done # don't return until this file exists
   MINUS_K=yes
   if  [[  $SEPARATE   ]] ; then
     ( CAST_PASS="three" 
@@ -516,7 +511,7 @@ function pass_three()  {
     touch $download_log
   fi
   
-  # check if this is being resurrected and if so, dont summon
+  # check if this is being resurrected and if so, don't summon
   # this will go away when resurrect support and dependency resolution merge
   if ! [[ $COMPILE ]] ; then
     VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
@@ -569,7 +564,7 @@ function pass_four()  {
     # hacky way to get the latest version
     VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
     if [[ ! $VERSION ]] ; then
-      message "Cant find spell version for some reason, is $SPELL a spell?"
+      message "Can't find spell version for some reason, is $SPELL a spell?"
     else
       can_resurrect $SPELL $VERSION &> /dev/null && do_resurrect=yes
     fi
@@ -629,7 +624,7 @@ function pass_five()  {
       message "$item"
     done | column
    
-    set_term_title "Casting successfull."
+    set_term_title "Casting successful."
     message "${DEFAULT_COLOR}"
 
   fi 
