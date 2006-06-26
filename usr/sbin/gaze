@@ -1142,12 +1142,13 @@ function gaze_show_patchlevels()  {
   fi
 
   local TB_DIR
-  tablet_find_spell_dir "$SPELL" TB_DIR
 
-  local I_PATCH
-  local I_SPATCH
-  tablet_get_patchlevel "$TB_DIR" I_PATCH
-  tablet_get_security_patch "$TB_DIR" I_SPATCH
+  local I_PATCH="-"
+  local I_SPATCH="-"
+  if tablet_find_spell_dir "$SPELL" TB_DIR; then
+    tablet_get_patchlevel "$TB_DIR" I_PATCH
+    tablet_get_security_patch "$TB_DIR" I_SPATCH
+  fi
 
 
   local ECHO_INSTALLED=1
