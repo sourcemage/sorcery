@@ -131,6 +131,28 @@ function stage_install_symlink()
   esac
 }
 
+function stage_install_pipe()
+{
+  local FILE=$1
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+  message "${FILE_COLOR}Symlink $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
+      then
+        touch "${INSTALL_ROOT}/$FILE" &&
+        mkdir -p $(dirname $SAVE) &&
+        mv "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" 
+      else
+        mv "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+      fi
+      ;;
+    *)
+      mv "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+      ;;
+  esac
+}
+
 function set_stage_root_paths()
 {
   local bindir libdir
@@ -154,6 +176,9 @@ function stage_install_list()
   if [[ -h $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_symlink "$@"
+	elif [[ -p $STAGE_DIRECTORY/TRANSL/$1 ]]
+	then
+	  stage_install_pipe "$@"
   elif [[ ! -d $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_file "$@"
