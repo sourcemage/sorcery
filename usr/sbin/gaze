@@ -80,10 +80,6 @@ newer last_cast            Shows spells newer than your last casting
 voyeur		[delay or spell]  
 				Peeks into spell compilation.
 
-pam		<empty>		Displays installed or held spells that are
-				  linux-pam aware.
-
-
 orphans		<empty>		Displays installed spells that no installed
 				  spells explicitly depend on.
 
@@ -242,7 +238,7 @@ function alien()  {
 
   [[ $GAZE_VERBOSE != 0 ]] && 
   message  "Discovering installed files..."
-  { cat $SORCERY_INSTALL_LOG ; cat  $INSTALL_LOGS/* ; }  | 
+  { cat $SORCERY_INSTALL_LOG ; find $INSTALL_LOGS/ -type f|xargs cat ; }  | 
     files  |  sort  >  $TMP_DIR/gaze.known
 
   [[ $GAZE_VERBOSE != 0 ]] && 
@@ -1146,19 +1142,20 @@ function gaze_show_patchlevels()  {
   fi
 
   local TB_DIR
-  tablet_find_spell_dir "$SPELL" TB_DIR
 
-  local I_PATCH
-  local I_SPATCH
-  tablet_get_patchlevel "$TB_DIR" I_PATCH
-  tablet_get_security_patch "$TB_DIR" I_SPATCH
+  local I_PATCH="-"
+  local I_SPATCH="-"
+  if tablet_find_spell_dir "$SPELL" TB_DIR; then
+    tablet_get_patchlevel "$TB_DIR" I_PATCH
+    tablet_get_security_patch "$TB_DIR" I_SPATCH
+  fi
 
 
   local ECHO_INSTALLED=1
   (
 
   echo "Grimoire|Spell|Grimoire  |Grimoire  |Installed |Installed"
-  echo "        |     |Regula    |Security  |Regular   |Security"
+  echo "        |     |Regular   |Security  |Regular   |Security"
   echo "        |     |Patchlevel|Patchlevel|Patchlevel|Patchlevel"
   echo "--------|-----|----------|----------|----------|----------"
 
@@ -1509,23 +1506,23 @@ function gaze_show_dependencies() {
             return 0
         }
         depends() {
+                [[ $1 == -sub ]] && shift 2
                 recurse "$1" $DEPTH "depends"
                 return 0
         }
         optional_depends() {
+                [[ $1 == -sub ]] && shift 2
                 [[ $NO_OPTIONALS ]] ||
                 recurse "$1" $DEPTH "optional"
                 return 0
         }
-        requires() {
-                recurse "$1" $DEPTH "requires"
-                return 0
-        }
         runtime_depends() {
+                [[ $1 == -sub ]] && shift 2
                 recurse "$1" $DEPTH "runtime"
                 return 0
         }
         suggest_depends() {
+                [[ $1 == -sub ]] && shift 2
                 recurse "$1" $DEPTH "suggest"
                 return 0
         }
@@ -2046,8 +2043,6 @@ parse()  {
              ;;
 
    voyeur)  shift  1;  gaze_activate_voyeur  $@  ;;
-
-      pam)  find_pam_aware  ;;
 
  install-queue)  if [[ -s $INSTALL_QUEUE ]]; then
                    $PAGER $INSTALL_QUEUE

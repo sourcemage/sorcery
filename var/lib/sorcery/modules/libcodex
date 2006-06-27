@@ -462,10 +462,14 @@ function codex_is_directory_a_spell() {
 function codex_does_spell_exist() {
   local i
   local retValue=0
-  for i in $* ; do
-    if ! [[ `codex_find_spell_by_name $i` ]] ; then
+  [[ "$#" -lt 1 ]] && return 1
+  for i in "$@" ; do
+    if [[ "$i" == "" ]] ; then
+      message "${PROBLEM_COLOR}Empty string is not a spell!${DEFAULT_COLOR}"
+      retValue=1
+    elif ! [[ $(codex_find_spell_by_name "$i") ]] ; then
       message "${SPELL_COLOR}$i${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
-	  retValue=1
+      retValue=1
     fi
   done
   return $retValue
