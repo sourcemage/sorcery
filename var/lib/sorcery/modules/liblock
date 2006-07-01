@@ -111,12 +111,12 @@ excllock_resources()
 
   while find $LOCK_DIR -mindepth 1 -maxdepth 1 -name "$1.*" | grep -q '';
   do    
-		#^^^ look if a lock exists of the given type (ugly code)
+    #^^^ look if a lock exists of the given type (ugly code)
     global_clean_resources
     local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
     sleep "$SLEEP"
   done 
-	#theoretically, someone could create a lock now... tiny race
+  #theoretically, someone could create a lock now... tiny race
   trylock_resources "$@"
 }
 
@@ -186,8 +186,8 @@ global_clean_resources()
     # we remove locks that are owned by dead processes
     find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 | \
     
-		while read file; do
-		  # check if the process still exist (we use procfs mounted on /proc)
+    while read file; do
+      # check if the process still exist (we use procfs mounted on /proc)
       if [ ! -d "${file}" ]; then
           debug "global_clean_resources" "removing stale lock ${file}"
           rm -f "${file}" 2>/dev/null &&
@@ -198,8 +198,8 @@ global_clean_resources()
 }
 
 #---------------------------------------------------------------------
-##	@param Name of file to lock
-##	@param <file> ... (optional)
+## @param Name of file to lock
+## @param <file> ... (optional)
 ##
 ## Locks files for access to only this PID. Will cause attempts by 
 ## other processes that want to lock the file(s) to block until this
@@ -212,37 +212,37 @@ global_clean_resources()
 #---------------------------------------------------------------------
 function lock_file()
 {
-	debug "liblock" "$FUNCNAME - $*"
-	local FILE
-	lock_resources $( 
-		for FILE in "$@" ; do
-			echo file $FILE
-		done
-	)
+  debug "liblock" "$FUNCNAME - $*"
+  local FILE
+  lock_resources $( 
+    for FILE in "$@" ; do
+      echo file $FILE
+    done
+  )
 }
 
 
 #---------------------------------------------------------------------
-##	@param Name of file to unlock
-##	@param <file> ... (optional)
+## @param Name of file to unlock
+## @param <file> ... (optional)
 ##
 ## Unlocks a file so that another process can lock and modify it.
 ##
 #---------------------------------------------------------------------
 function unlock_file()
 {
-	debug "liblock" "$FUNCNAME - $*"
-	local FILE
-	unlock_resources $(
-		for FILE in "$@" ; do
-			echo file $FILE
-		done
-	)
+  debug "liblock" "$FUNCNAME - $*"
+  local FILE
+  unlock_resources $(
+  for FILE in "$@" ; do
+    echo file $FILE
+  done
+  )
 }
 
 #---------------------------------------------------------------------
-##	@param File to start transaction on
-##	@param <file> ... (optional)
+## @param File to start transaction on
+## @param <file> ... (optional)
 ##
 ## A transaction locks a file and ensures that changes made to the
 ## file are all made at once. No changes are made to the file until
@@ -252,7 +252,7 @@ function unlock_file()
 ## If not all can be locked, they will be unlocked, and another try 
 ## will be made.
 ##
-##	@return The name of a temporary file that should be written to
+## @return The name of a temporary file that should be written to
 ## instead of the real file.
 ##
 #---------------------------------------------------------------------
@@ -292,8 +292,8 @@ function lock_start_transaction()
 }
 
 #---------------------------------------------------------------------
-##	@param File to commit transaction of
-##	@param <file> ... (optional)
+## @param File to commit transaction of
+## @param <file> ... (optional)
 ##
 ## Commits the changes made to the files as atomicaly as possible
 ## Before this func is called, the files remain unchanged.
@@ -337,8 +337,8 @@ function lock_commit_transaction()
 }
 
 #---------------------------------------------------------------------
-##	@param File to stop the transaction of
-##	@param file ... (optional)
+## @param File to stop the transaction of
+## @param file ... (optional)
 ##
 ## Stops a transaction. Causes the changes to the file(s) to be
 ## ignored/undone.
