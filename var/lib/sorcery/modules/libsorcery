@@ -31,16 +31,15 @@ function update_sorcery_scripts() {
     if [[ `codex_find_spell_by_name basesystem` ]] ; then
       if ! spell_ok basesystem  ; then
         cast basesystem
-      fi 
-      if [[ $? != 0 ]]
-      then
+      fi &&
+      if [[ "$UPDATEFIX" == on ]] ; then
+        cleanse --fix basesystem
+      fi
+      if [[ $? != 0 ]] ; then
         if ! query "Would you like to continue anyway?" y
         then
           return 1
         fi
-      fi
-      if [ "$UPDATEFIX" == on ] ; then
-        cleanse --fix basesystem
       fi
     fi
   }
