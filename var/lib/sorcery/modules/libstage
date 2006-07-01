@@ -131,6 +131,54 @@ function stage_install_symlink()
   esac
 }
 
+function stage_install_fifo()
+{
+  local FILE=$1
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+  message "${FILE_COLOR}Fifo $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
+      then
+        touch "${INSTALL_ROOT}/$FILE" &&
+        mkdir -p $(dirname $SAVE) &&
+        mkfifo "${INSTALL_ROOT}/$SAVE" 
+      else
+        mkfifo "${INSTALL_ROOT}/$FILE" 
+      fi
+      ;;
+    *)
+      mkfifo "${INSTALL_ROOT}/$FILE" 
+      ;;
+  esac
+}
+
+function stage_install_char_block()
+{
+  local FILE=$1
+  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
+	local MAJOR=$(stat -c %t "${STAGE_DIRECTORY}/TRANSL/$FILE")
+	local MINOR=$(stat -c %T "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+	local TYPE=$3
+  message "${FILE_COLOR}${PERMISSION} $TYPE $MAJOR $MINOR $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
+      then
+        touch "${INSTALL_ROOT}/$FILE" &&
+        mkdir -p $(dirname $SAVE) &&
+        mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$SAVE" "${TYPE}" "${MAJOR}" "${MINOR}"
+      else
+        mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$FILE" "${TYPE}" "${MAJOR}" "${MINOR}"
+      fi
+      ;;
+    *)
+      mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$FILE" "${TYPE}" "${MAJOR}" "${MINOR}"
+      ;;
+  esac
+}
+
 function set_stage_root_paths()
 {
   local bindir libdir
@@ -154,6 +202,15 @@ function stage_install_list()
   if [[ -h $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_symlink "$@"
+	elif [[ -b $STAGE_DIRECTORY/TRANSL/$1 ]]
+	then
+	  stage_install_char_block "$@" b
+	elif [[ -c $STAGE_DIRECTORY/TRANSL/$1 ]]
+	then
+	  stage_install_char_block "$@" c
+	elif [[ -p $STAGE_DIRECTORY/TRANSL/$1 ]]
+	then
+	  stage_install_fifo "$@" 
   elif [[ ! -d $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_file "$@"

@@ -862,12 +862,15 @@ function does_spell_need_update_sub() {
 #---------------------------------------------------------------------
 function update_install_queue()  {
   local line spell curr_version curr_updated page_dir info curr_patchlevel
-  local curr_sec_patch
+  local curr_sec_patch count size
   local tmp_queue=$TMP_DIR/install_queue
   touch $tmp_queue
 
   message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
+  count=0
+	size=$(all_spell_status | wc -l)
   for  line  in  `all_spell_status`;  do
+	  progress_bar $count $size 50
     #0=spell, 1=date, 2=status, 3=version
     explode "$line" ":" "info"
     spell=${info[0]}
@@ -883,8 +886,9 @@ function update_install_queue()  {
                                    "$curr_updated" "$tmp_queue"
       fi
     )
+		let count++
   done
-
+  clear_line
   lock_file $INSTALL_QUEUE
   rm  -f  $INSTALL_QUEUE
   sort $tmp_queue | uniq > $INSTALL_QUEUE
