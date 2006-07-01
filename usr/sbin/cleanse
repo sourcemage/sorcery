@@ -35,44 +35,44 @@
 #--------------------
 function usage()
 {
-	local s=$(basename $0)
+  local s=$(basename $0)
 cat << EOF
 Invoke $s with one of the arguments below. 
 
-Command		Description
---delint	Finds stale dependency entries
---delint full	will delint dependencies that are off
---prune		Finds dispeled spells that should be cast
---prune doit	will cause it to actually cast and dispel
---packages	find bad entries in the installed spells file
+Command         Description
+--delint        Finds stale dependency entries
+--delint full   will delint dependencies that are off
+--prune         Finds dispeled spells that should be cast
+--prune doit    will cause it to actually cast and dispel
+--packages      find bad entries in the installed spells file
 
---fix		attempts to detect errors in cast spells and recasts broken ones
---nofix		attempts to detect errors in cast spells but does not recast
---nofix_quick	like --nofix, but does not check dependent spells.
+--fix           attempts to detect errors in cast spells and recasts broken ones
+--nofix         attempts to detect errors in cast spells but does not recast
+--nofix_quick   like --nofix, but does not check dependent spells.
 
---tablet	clean up the tablet
---tablet_spell	clean up the tablet for one spell
---logs		cleans old logs in the same way a system-update does
+--tablet        clean up the tablet
+--tablet_spell  clean up the tablet for one spell
+--logs          cleans old logs in the same way a system-update does
 
---sweep		Clean out old downloaded sources and cached binaries
-		old is defined as not capable of being used by any
-		spell/version in any grimoire on the system.
+--sweep         Clean out old downloaded sources and cached binaries
+                old is defined as not capable of being used by any
+                spell/version in any grimoire on the system.
 
---sweep_all	Clean out old downloaded sources and cached binaries
-		old is defined as not capable of being used by any spell
-		installed on the system. Only the first version of the
-		spell found is used.
+--sweep_all     Clean out old downloaded sources and cached binaries
+                old is defined as not capable of being used by any spell
+                installed on the system. Only the first version of the
+                spell found is used.
 
 It is suggested that you try the following order the first time:
-	1) $s --packages
-	2) $s --delint
-	3) $s --tablet
-	4) $s --logs
-	5) $s --prune
-	6) $s --sweep
-	7) $s --fix
+    1) $s --packages
+    2) $s --delint
+    3) $s --tablet
+    4) $s --logs
+    5) $s --prune
+    6) $s --sweep
+    7) $s --fix
 EOF
-	[[ $# -gt 0 ]] && echo "Unknown $*"
+    [[ $# -gt 0 ]] && echo "Unknown $*"
 }
 
 
@@ -318,8 +318,8 @@ function prune_depends()
         Installed[$1] = 1; 
     } 
     $3=="on"{ 
-	  if($2 ~ "[(].*[)]")
-	    prov=gensub("^.*\\((.*)\\).*$", "\\1", 1, $2);
+      if($2 ~ "[(].*[)]")
+        prov=gensub("^.*\\((.*)\\).*$", "\\1", 1, $2);
       else
         prov="__BLANK__";
       gsub("\\(.*\\)", "", $2)
@@ -332,31 +332,31 @@ function prune_depends()
   while [ $# -gt 0 ] ; do
     options=()
     message "$1 needs $2 ($3)."
-	
-	# Check if the dependency is a provider. IF so, the SA may have  switched
-	# to another provider and should be given the option to recast with the
-	# new provider
-	if [[ $4 != __BLANK__ ]] ; then
-	  message -n "$2 used to provide $4. Now "
-	  local CANDIDATES=$( find_providers $4 )
-	  provider=""
+
+# Check if the dependency is a provider. IF so, the SA may have  switched
+# to another provider and should be given the option to recast with the
+# new provider
+  if [[ $4 != __BLANK__ ]] ; then
+    message -n "$2 used to provide $4. Now "
+    local CANDIDATES=$( find_providers $4 )
+    provider=""
       for spell in $CANDIDATES; do
         if spell_installed $spell || spell_held $spell; then
-		  local provider=$spell
-		  break
-		fi
+          local provider=$spell
+          break
+        fi
       done
 
 
       if [[ ${provider} ]] ; then
         message -n "$provider "
-	    options=( "Switch from $2 to ${provider} and recompile" )
+        options=( "Switch from $2 to ${provider} and recompile" )
       else
         message -n "${PROBLEM_COLOR}no one${DEFAULT_COLOR} "
-	  fi
-	  message "provides it."
+      fi
+      message "provides it."
     fi
-	
+
     # If the spell is optional, then the dependency can be removed and the spell recast
     # If it's required, then it can't be removed
     if [[ $3 == required ]] ; then
@@ -376,10 +376,10 @@ function prune_depends()
         sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
         mv $TMP_DIR/prune.1 $DEPENDS_STATUS
         ;;
-	  S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
-	  	mv $TMP_DIR/prune.1 $DEPENDS_STATUS
-		echo $1 >>$TMP_DIR/prune.cast
-		;;
+      S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
+        mv $TMP_DIR/prune.1 $DEPENDS_STATUS
+        echo $1 >>$TMP_DIR/prune.cast
+        ;;
       *)  message "We should never get here." 
         exit 1
         ;;
