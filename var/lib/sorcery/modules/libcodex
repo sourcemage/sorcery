@@ -741,18 +741,18 @@ function codex_check_cache()  {
 ##
 #---------------------------------------------------------------------
 function codex_create_cache()  {
-	
-	debug "libcodex" "codex_create_cache - $*"
-	local list="$*"
-	[[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 
-	for i in $list ; do
-        codex_find_in_grimoire $i "DETAILS" | \
-			sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' |	\
-			sort > $i/$SPELL_INDEX_FILE
+  debug "libcodex" "codex_create_cache - $*"
+  local list="$*"
+  [[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 
-        codex_list_provides $i > "$i/$PROVIDE_INDEX_FILE"
-	done
+  for i in $list ; do
+    codex_find_in_grimoire $i "DETAILS" | \
+    sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' | \
+    sort > $i/$SPELL_INDEX_FILE
+
+    codex_list_provides $i > "$i/$PROVIDE_INDEX_FILE"
+  done
 
 }
 
