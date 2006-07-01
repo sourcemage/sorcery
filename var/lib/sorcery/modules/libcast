@@ -738,6 +738,7 @@ function get_spell_dl_log() {
 }
 
 function run_spell_file() {
+  local rc=0
   local spell_file=$1
   local default_function=$2
   local FOO_CMD=$3
@@ -752,8 +753,9 @@ function run_spell_file() {
     . $GRIMOIRE/$spell_file
   else
     $default_function
-  fi &&
+  fi;rc=$?
   persistent_save
+  return $rc
 }
 
 #---------------------------------------------------------------------
