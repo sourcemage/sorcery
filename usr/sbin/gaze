@@ -1724,14 +1724,29 @@ function gaze_system_info()
   ## -e "s/()//" -e 's/ (depends)//' -e 's/ (optional)//' | tr "\n" " " )"
   #---
   
-  compute_installed_depends down_deps
-  for curr_spell in $(hash_get down_deps basesystem)
+  version="$(figure_installed basesystem)"
+  section="$(codex_get_spell_section_name basesystem)"
+  message -n "${MESSAGE_COLOR}${section}/basesystem:\t"
+  message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}\n"
+
+  compute_installed_depends on_down_deps x on
+  compute_installed_depends off_down_deps x off
+  {
+  for curr_spell in $(hash_get on_down_deps basesystem)
   do
     version="$(figure_installed $curr_spell)"
     section="$(codex_get_spell_section_name $curr_spell)"
     message -n "${MESSAGE_COLOR}${section}/${curr_spell}:\t"
     message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}"
   done
+  for curr_spell in $(hash_get off_down_deps basesystem)
+  do
+    version="$(figure_installed $curr_spell)"
+    section="$(codex_get_spell_section_name $curr_spell)"
+    message -n "${MESSAGE_COLOR}${section}/${curr_spell}:\t"
+    message    "${QUERY_COLOR}${version} (disabled)${DEFAULT_COLOR}"
+  done
+  } | sort
 
   #---
   ## Section: CODEX
@@ -1744,9 +1759,8 @@ function gaze_system_info()
   let idx=0
   for grimoire in $(codex_get_all_grimoires)
   do
-    message -n "${MESSAGE_COLOR} ${QUERY_COLOR}[$idx] :"
-    message -n "$(basename "$grimoire")${MESSAGE_COLOR} :"
-    message    "$grimoire ${DEFAULT_COLOR}"
+    message "${QUERY_COLOR} [$idx]: $(basename "$grimoire"):${DEFAULT_COLOR}" \
+            "${MESSAGE_COLOR}$grimoire${DEFAULT_COLOR}"
     let idx+=1
   done
 

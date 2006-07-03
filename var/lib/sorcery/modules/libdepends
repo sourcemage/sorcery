@@ -312,19 +312,20 @@ function compute_installed_depends() {
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
 
-  local pattern
+  local pattern status
   if [[ $2 ]] ; then
     pattern="required|optional|runtime|suggest"
   else
     pattern="required|optional"
   fi
+  status=${3:-on}
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on" && ( $4 ~ pattern ) ) {
+      if( $3==status && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$1]=depmap[$1]" "$2" "
       }
@@ -348,19 +349,21 @@ function compute_reverse_installed_depends() {
   #$1==hash table to fill
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
-  local pattern
+
+  local pattern status
   if [[ $2 ]] ; then
     pattern="required|optional|runtime|suggest"
   else
     pattern="required|optional"
   fi
+  status=${3:-on}
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on" && ( $4 ~ pattern ) ) {
+      if( $3==status && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$2]=depmap[$2]" "$1" "
       }
