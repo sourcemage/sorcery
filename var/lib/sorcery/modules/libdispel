@@ -273,20 +273,9 @@ function load_spell()  {
 function pre_remove() {
   local rc=0
   if  [[ $SCRIPT_DIRECTORY ]] ; then
-    persistent_load &&
-    if test  -x  $SCRIPT_DIRECTORY/PRE_REMOVE ; then
-      . $SCRIPT_DIRECTORY/PRE_REMOVE
-    else
-      default_pre_remove
-    fi
-    rc=$?
-    persistent_save
+    run_spell_file PRE_REMOVE pre_remove
   fi
   return $rc
-}
-
-function real_default_pre_remove() {
-  :
 }
 
 #-----
@@ -295,23 +284,10 @@ function real_default_pre_remove() {
 function post_remove() {
   local rc=0
   if  [[ $SCRIPT_DIRECTORY ]] ; then
-    persistent_load &&
-    if test  -x  $SCRIPT_DIRECTORY/POST_REMOVE ; then
-      . $SCRIPT_DIRECTORY/POST_REMOVE
-    else
-      default_post_remove
-    fi
-    rc=$?
-    persistent_save
+    run_spell_file POST_REMOVE post_remove
   fi
   return $rc
 }
-
-function real_default_post_remove() {
-  :
-}
-
-
 
 #---------------------------------------------------------------------
 ## Dispel a spell

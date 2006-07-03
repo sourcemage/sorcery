@@ -1,0 +1,116 @@
+function load_stuff() {
+for each in $(
+cat << EOF
+PREPARE:prepare
+CONFIGURE:configure
+DEPENDS:depends
+
+PRE_SUB_DEPENDS:pre_sub_depends
+SUB_DEPENDS:sub_depends
+
+CONFLICTS:conflicts
+
+PRE_BUILD:pre_build
+BUILD:build
+PRE_INSTALL:pre_install
+INSTALL:install
+POST_BUILD:post_build
+POST_INSTALL:post_install
+FINAL:final
+
+UP_TRIGGERS:up_triggers
+TRIGGERS:triggers
+TRIGGER_CHECK:trigger_check
+
+DOWNLOAD:download
+
+PRE_REMOVE:pre_remove
+POST_REMOVE:post_remove
+
+PRE_RESURRECT:pre_resurrect
+POST_RESURRECT:post_resurrect
+EOF
+); do
+  local NAME=${each%:*}
+  local name=${each#*:}
+
+  eval "function default_${name}() {
+    real_default_${name}
+  }"
+
+  eval "function default_section_${name}() {
+    real_default_section_${name}
+  }"
+  eval "function default_grimoire_${name}() {
+    real_default_grimoire_${name}
+  }"
+  eval "function default_sorcery_${name}() {
+    real_default_sorcery_${name}
+  }"
+
+
+  eval "function real_default_${name}() {
+    false
+  }"
+
+  eval "function real_default_section_${name}() {
+    real_default_section_generic ${NAME} ${name}
+  }"
+  eval "function real_default_grimoire_${name}() {
+    real_default_grimoire_generic ${NAME} ${name}
+  }"
+
+  declare -F real_default_sorcery_${name} &>/dev/null ||
+  eval "function real_default_sorcery_${name}() {
+    true
+  }"
+done
+}
+
+
+real_default_section_generic() {
+  eval "function real_default_${2}() {
+    default_grimoire_${2}
+  }"
+  if test -x "$SECTION_DIRECTORY/${1}"; then
+    source "$SECTION_DIRECTORY/${1}"
+  else
+    default_grimoire_${2}
+  fi
+}
+
+real_default_grimoire_generic() {
+  eval "function real_default_${2}() {
+    default_sorcery_${2}
+  }"
+  if test -x "$GRIMOIRE/${1}"; then
+    source "$GRIMOIRE/${1}"
+  else
+    default_sorcery_${2}
+  fi
+}
+
+function run_spell_file() {
+  local rc=0
+  local spell_file=$1
+  local function_suffix=$2
+  local spell_cmd=$3
+
+  eval "function real_default_${function_suffix}() {
+    default_section_${function_suffix}
+  }"
+
+  persistent_load &&
+  if test -x "$SCRIPT_DIRECTORY/$spell_file"; then
+    . $SCRIPT_DIRECTORY/$spell_file
+  elif [[ "$spell_cmd" ]] ; then
+    $spell_cmd
+  else
+    default_${function_suffix}
+  fi;rc=$?
+  persistent_save
+
+  return $rc
+}
+
+load_stuff

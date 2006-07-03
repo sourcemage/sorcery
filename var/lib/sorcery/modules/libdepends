@@ -92,19 +92,9 @@ function run_prepare()
   local GRIMOIRE=${SECTION_DIRECTORY%/*}
 
   local PROTECT_SORCERY=yes
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
-    . $SCRIPT_DIRECTORY/PREPARE
-  else
-    default_prepare
-  fi
+  run_spell_file PREPARE prepare
   rc=$?
-  persistent_save
   return $rc
-}
-
-function real_default_prepare() {
-  :
 }
 
 #---------------------------------------------------------------------
@@ -136,20 +126,9 @@ function run_configure()
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
   local PROTECT_SORCERY=yes
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
-    depends_message  "${SPELL}" "running configuration..."
-    . $SCRIPT_DIRECTORY/CONFIGURE
-  else
-    default_configure
-  fi
+  run_spell_file CONFIGURE configure
   rc=$?
-  persistent_save
   return $rc
-}
-
-function real_default_configure() {
-  :
 }
 
 #---------------------------------------------------------------------
@@ -162,20 +141,9 @@ function run_depends()
   debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
   local PROTECT_SORCERY=yes
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
-    depends_message  "${SPELL}" "checking dependencies..."
-    .  $SCRIPT_DIRECTORY/DEPENDS
-  else
-    default_depends
-  fi
+  run_spell_file DEPENDS depends
   rc=$?
-  persistent_save
   return $rc
-}
-
-function real_default_depends() {
-  :
 }
 
 #---------------------------------------------------------------------
@@ -185,17 +153,14 @@ function real_default_depends() {
 function run_up_triggers() {
   local SPELL=$1
   debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
- 
-  local PROTECT_SORCERY=yes
-  if  [  -x  $SCRIPT_DIRECTORY/UP_TRIGGERS ];  then
+
+  function zztop() {
     depends_message  "${SPELL}" "checking for reverse triggers..."
-    # we need &&'s to preserve the proper return code (persistant_save
-    # will probably succeed even if PREPARE fails)
-    persistent_load &&
-    . $SCRIPT_DIRECTORY/UP_TRIGGERS &&
-    persistent_save
-  fi
-  
+  }
+  local PROTECT_SORCERY=yes
+  run_spell_file UP_TRIGGERS up_triggers "" zztop
+  rc=$?
+  return $rc
 }
 
 #---------------------------------------------------------------------
@@ -272,6 +237,7 @@ function process_sub_depends() {
   local requester=$1
   local sub_dependee=$2
   local sub_depends=$3
+  local PROTECT_SORCERY=yes
 
   if test -x $SCRIPT_DIRECTORY/SUB_DEPENDS; then
     if ! list_find "$(hash_get processed_sub_depends $sub_dependee)" "$sub_depends"; then
@@ -279,9 +245,7 @@ function process_sub_depends() {
 
       local THIS_SUB_DEPENDS=$sub_depends
       local PROCESSED_SUB_DEPENDS=$(hash_get processed_sub_depends $sub_dependee)
-      persistent_load &&
-      source $SCRIPT_DIRECTORY/SUB_DEPENDS &&
-      persistent_save || return 1
+      run_spell_file SUB_DEPENDS sub_depends || return 1
       hash_append processed_sub_depends $sub_dependee $sub_depends
     else
       debug libdepends "SUB_DEPENDS: $sub_dependee needs to provide $sub_depends but has already been processed"
@@ -1335,10 +1299,8 @@ function real_sub_depends() {
       if ! tablet_set_spell $sub_dependee ; then
         codex_set_current_spell_by_name $sub_dependee || return 1
       fi
-      test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
-      persistent_load &&
-      source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
-      persistent_save
+      run_spell_file PRE_SUB_DEPENDS pre_sub_depends
+      rc=$?
       return $rc
     ) && {
       debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
@@ -1442,15 +1404,8 @@ function private_add_triggerees() {
   # run the trigger check file
   # this is made into a sub-function just to reduce duplication...
   function private_add_triggerees_sub1() {
-    running_trigger=0
-    persistent_load
-    if test -x $SCRIPT_DIRECTORY/TRIGGER_CHECK; then
-      source $SCRIPT_DIRECTORY/TRIGGER_CHECK
-    else
-      default_trigger_check
-    fi
+    run_spell_file TRIGGER_CHECK trigger_check
     running_trigger=$?
-    persistent_save
     if [[ $running_trigger == 0 ]] ; then
       private_up_trigger "$SPELL" "$TARGET" "$ACTION"
     fi

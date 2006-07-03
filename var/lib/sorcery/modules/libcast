@@ -99,9 +99,7 @@ function run_conflicts() {
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
     local CONFLICTS=$(
-        persistent_load
-        . $SCRIPT_DIRECTORY/CONFLICTS
-        persistent_save
+        run_spell_file CONFLICTS conflicts
     )
 
     local tmp to_dispel=""
@@ -735,27 +733,6 @@ function show_downloading()  {
 #---------------------------------------------------------------------
 function get_spell_dl_log() {
   echo "$TMP_DIR/download.$1"
-}
-
-function run_spell_file() {
-  local rc=0
-  local spell_file=$1
-  local default_function=$2
-  local FOO_CMD=$3
-  persistent_load &&
-  if test -x "$SCRIPT_DIRECTORY/$spell_file"; then
-    . $SCRIPT_DIRECTORY/$spell_file
-  elif [[ "$FOO_CMD" ]] ; then
-    $FOO_CMD
-  elif test -x $SECTION_DIRECTORY/$spell_file; then
-    . $SECTION_DIRECTORY/$spell_file
-  elif test -x $GRIMOIRE/$spell_file; then
-    . $GRIMOIRE/$spell_file
-  else
-    $default_function
-  fi;rc=$?
-  persistent_save
-  return $rc
 }
 
 #---------------------------------------------------------------------

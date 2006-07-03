@@ -40,14 +40,7 @@ function summon_spell() {
     # and instead jump through hoops to get the return code correctly
     ( local rc=1
       run_details    &&
-      persistent_load &&
-      if test -x $SCRIPT_DIRECTORY/DOWNLOAD ; then
-        . $SCRIPT_DIRECTORY/DOWNLOAD
-      else
-        default_download
-      fi &&
-      persistent_save
-      # save the rc, then unlock
+      run_spell_file DOWNLOAD download
       rc=$?
 
       if [[ $rc == 0 ]]; then
@@ -89,7 +82,7 @@ function get_spell_files_and_urls() {
 ## Call acquire_src for each SOURCEx_URL
 ##
 #-------------------------------------------------------------------------
-function real_default_download() {
+function real_default_sorcery_download() {
   $STD_DEBUG
   local SOURCE_NUMBER
   for SOURCE_NUMBER in $(real_get_source_nums X); do

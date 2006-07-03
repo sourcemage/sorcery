@@ -115,15 +115,7 @@ function run_pre_build() {
   cd  "$BUILD_DIRECTORY"
 
   verify_sources &&
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    . $SCRIPT_DIRECTORY/PRE_BUILD
-  elif [[ "$PRE_BUILD_CMD" ]] ; then
-    $PRE_BUILD_CMD
-  else
-    default_pre_build
-  fi &&
-  persistent_save
+  run_spell_file PRE_BUILD pre_build "$PRE_BUILD_CMD"
 }
 
 
@@ -153,15 +145,7 @@ function run_build()  {
   pwd
   message "$SPELL    $VERSION"
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    .  $SCRIPT_DIRECTORY/BUILD
-  elif [[ "$BUILD_CMD" ]] ; then
-    $BUILD_CMD
-  else
-    default_build
-  fi &&
-  persistent_save
+  run_spell_file BUILD build "$BUILD_CMD"
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -188,15 +172,7 @@ function run_pre_install() {
     cd "$BUILD_DIRECTORY"
   fi
   
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
-    .  $SCRIPT_DIRECTORY/PRE_INSTALL 
-  elif [[ "$PRE_INSTALL_CMD" ]] ; then
-    $PRE_INSTALL_CMD
-  else
-    default_pre_install
-  fi &&
-  persistent_save &&
+  run_spell_file PRE_INSTALL pre_install "$PRE_INSTALL_CMD" &&
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
   pwd > $S_PWD
 }
@@ -220,17 +196,8 @@ function run_install() {
     cd "$BUILD_DIRECTORY"
   fi
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
-    .  $SCRIPT_DIRECTORY/INSTALL 
-  elif [[ "$INSTALL_CMD" ]] ; then
-    $INSTALL_CMD
-  else
-    default_install
-  fi &&
-  persistent_save
-
-
+  run_spell_file INSTALL install "$INSTALL_CMD"
+  
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
@@ -258,14 +225,7 @@ function run_post_install() {
   else
     cd "${INSTALL_ROOT:-/}"
   fi &&
-  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
-    . $SCRIPT_DIRECTORY/POST_INSTALL
-  elif [[ "$POST_INSTALL_CMD" ]] ; then
-    $POST_INSTALL_CMD
-  else
-    default_post_install
-  fi &&
-  persistent_save &&
+  run_spell_file POST_INSTALL post_install "$POST_INSTALL_CMD" &&
   unlock_resources "libgrimoire" "install"
 }
 #--------------------------------------------------------------------
@@ -289,15 +249,7 @@ function run_stage_install() {
 function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
-  persistent_load &&
-  cd "${INSTALL_ROOT:-/}"
-  if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
-  then
-    . $SCRIPT_DIRECTORY/FINAL
-  elif [[ "$FINAL_CMD" ]] ; then
-    $FINAL_CMD
-  fi &&
-  persistent_save
+  run_spell_file FINAL final "$FINAL_CMD"
 }
 
 #---------------------------------------------------------------------
@@ -306,7 +258,7 @@ function run_final() {
 ## Used if no PRE_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function real_default_pre_build() {
+function real_default_sorcery_pre_build() {
 
   debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -329,8 +281,8 @@ function real_default_pre_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_build() {
-  debug "build_api/api2" "real_default_build"
+function real_default_sorcery_build() {
+  debug "build_api/api2" "real_default_sorcery_build"
 
   OPTS="$OPTS --build=${BUILD}"
   #If these switches are used, they _may_ stop distcc and ccache from working
@@ -357,8 +309,8 @@ function real_default_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_pre_install() {
-  debug "build_api/api2" "Starting real_default_pre_install"
+function real_default_sorcery_pre_install() {
+  debug "build_api/api2" "Starting real_default_sorcery_pre_install"
   prepare_install
 }
 
@@ -371,8 +323,8 @@ function real_default_pre_install() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_install() {
-  debug "build_api/api2" "Starting real_default_install"
+function real_default_sorcery_install() {
+  debug "build_api/api2" "Starting real_default_sorcery_install"
   make    install
 }
 
@@ -384,9 +336,9 @@ function real_default_install() {
 ##
 ## This is identical to api1's post_build
 #---------------------------------------------------------------------
-function real_default_post_install() {
+function real_default_sorcery_post_install() {
 
-  debug "build_api/api2" "Starting real_default_post_install"
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
   install_xinetd
   install_initd
   install_pam_confs
