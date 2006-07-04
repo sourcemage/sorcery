@@ -132,13 +132,11 @@ function real_prepare_install() { (
     fi
 )
   # TODO this is a dirty hack we need to remove it
-  for dir in $( find $SOURCE_DIRECTORY/old.binaries )
-  do
-    if [[ -d $dir ]]
-    then
+  if test -d "$SOURCE_DIRECTORY/old.binaries" ; then
+    for dir in $( find "$SOURCE_DIRECTORY/old.binaries" -type d); do
       export PATH="$dir:$PATH"
-    fi
-  done
+    done
+  fi
 }
 
 #---------------------------------------------------------------------
