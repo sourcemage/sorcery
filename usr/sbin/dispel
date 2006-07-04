@@ -10,63 +10,63 @@
 #---------------------------------------------------------------------
 
 
-help()	{
+help()  {
 
   cat  <<  EOF
 
 Dispel uninstalls single or multiple spells.
 
-Example:	dispel  hdparm vim emacs
-Usage:		dispel  [parameters]  [spells]
+Example:        dispel  hdparm vim emacs
+Usage:          dispel  [parameters]  [spells]
 
 Optional Parameters:
 
 -e | --exile spell      Removes spells and blocks them
                         from being automatically reinstalled.
-			
--d | --downgrade spell version
-			Removes the spell and reinstalls
-			the selected version from cache
-			
---notriggers		Disables triggers for this dispel
---nosustain		Turns off dispel protection for vital spells
-			(you usually don't want to do this)
---noreap		Dispels spells but doesn't remove its files
---no-reap-depends	Dont remove dependency information, dont use this
-			unless you know exactly what you are doing, and
-			dont complain if it breaks your box.
 
---total-dispel		Remove everything including config files even
-			if they were modified.
+-d | --downgrade spell version
+                        Removes the spell and reinstalls
+                        the selected version from cache
+
+--notriggers            Disables triggers for this dispel
+--nosustain             Turns off dispel protection for vital spells
+                        (you usually don't want to do this)
+--noreap                Dispels spells but doesn't remove its files
+--no-reap-depends       Dont remove dependency information, dont use this
+                        unless you know exactly what you are doing, and
+                        dont complain if it breaks your box.
+
+--total-dispel          Remove everything including config files even
+                        if they were modified.
 
 The following parameters effect dependency following, if they are not
 specified the default action is to do no dependency following. For
 a more in-depth explaination refer to the manual
 
-			The following 5 parameters accept one of the following
-			4 parameters:
-			ignore, ask-yes, ask-no, always
+                        The following 5 parameters accept one of the following
+                        4 parameters:
+                        ignore, ask-yes, ask-no, always
 
---orphan		Default action for dispelling a newly orphaned child 
-			spell.
---non-orphan		Default action for dispelling a dependee of
-			another spell, that is not an orphan (doing this
-			will break the spells that still depend on it).
+--orphan                Default action for dispelling a newly orphaned child 
+                        spell.
+--non-orphan            Default action for dispelling a dependee of
+                        another spell, that is not an orphan (doing this
+                        will break the spells that still depend on it).
 
---child			Default action for dispelling a child spell that
-			is either an orphan or non-orphan.
+--child                 Default action for dispelling a child spell that
+                        is either an orphan or non-orphan.
 
---recast-parent		If a spell has a child removed from under it, the
-			spell is considered broken, if all of the removed
-			children are optional, the spell may be recast
-			without those depends. This option controls the
-			default for this action.
---dispel-parent		Default action for dispelling broken parents,
-			the user is asked for recasting if possible first.
+--recast-parent         If a spell has a child removed from under it, the
+                        spell is considered broken, if all of the removed
+                        children are optional, the spell may be recast
+                        without those depends. This option controls the
+                        default for this action.
+--dispel-parent         Default action for dispelling broken parents,
+                        the user is asked for recasting if possible first.
 
---user-deps		Use defaults for dependency following from the
---user-child-deps	sorcery menu for child and/or parent dependency
---user-parent-deps	following.
+--user-deps             Use defaults for dependency following from the
+--user-child-deps       sorcery menu for child and/or parent dependency
+--user-parent-deps      following.
 
 EOF
 
@@ -369,10 +369,10 @@ function dispel_children() {
 ## Prints a message and asks a query, if ask-yes or ask-no is the
 ## provided action.
 ##
-## @param	Spell in question
-## @param	Message a short message about the state of the spell
-## @param	Question to ask the user
-## @param	quad-option (always, ask-yes, ask-no, ignore)
+## @param       Spell in question
+## @param       Message a short message about the state of the spell
+## @param       Question to ask the user
+## @param       quad-option (always, ask-yes, ask-no, ignore)
 #---------------------------------------------------------------------
 function dispel_child_query() {
   local SPELL=$1
@@ -404,8 +404,8 @@ function dispel_child_query() {
 ## Common code for querying the user about parents spells.
 ## Asks a query, if ask-yes or ask-no is the provided action.
 ##
-## @param	Question to ask the user
-## @param	quad-option (always, ask-yes, ask-no, ignore)
+## @param       Question to ask the user
+## @param       quad-option (always, ask-yes, ask-no, ignore)
 #---------------------------------------------------------------------
 function dispel_parent_query() {
   local QUERY=$1
@@ -450,9 +450,9 @@ function remove_from_dep_trees() {
 }
 
 #---------------------------------------------------------------------
-## @param	Spell to find borked parents for
-## @param	Name of upward dependency hash
-## @param	Name of hash to accumulate borked parents in
+## @param    Spell to find borked parents for
+## @param    Name of upward dependency hash
+## @param    Name of hash to accumulate borked parents in
 ##
 ## Find the spells that the following spell borks.
 ##
@@ -477,7 +477,7 @@ function get_borked_parents() {
 ## borked parents. The caller is expected to call this repeatedly until
 ## there are no borked parents to remove.
 ##
-## @param	List of spells to remove on this iteration.
+## @param        List of spells to remove on this iteration.
 #---------------------------------------------------------------------
 function dispel_depends_engine() {
 

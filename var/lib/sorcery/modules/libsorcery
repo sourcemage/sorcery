@@ -31,9 +31,12 @@ function update_sorcery_scripts() {
     if [[ `codex_find_spell_by_name basesystem` ]] ; then
       if ! spell_ok basesystem  ; then
         cast basesystem
-      fi
-      if [ "$UPDATEFIX" == on ] ; then
+      fi &&
+      if [[ "$UPDATEFIX" == on ]] ; then
         cleanse --fix basesystem
+      fi
+      if [[ $? != 0 ]] ; then
+        query "Would you like to continue anyway?" y || return 1
       fi
     fi
   }
@@ -326,10 +329,10 @@ function save_binaries()  {
     then
       if  [  -h  $LINE  ];  then
         DEST=$( readlink "$LINE" )
-				mkdir -p $( dirname $OLD_BINS/$LINE )
+        mkdir -p $( dirname $OLD_BINS/$LINE )
         ln  -sf  $DEST  $OLD_BINS/$LINE
       else
-			  mkdir -p $( dirname $OLD_BINS/$LINE )
+        mkdir -p $( dirname $OLD_BINS/$LINE )
         cp  $LINE  $OLD_BINS/$LINE
       fi
       echo       $OLD_BINS/$LINE >> $SAVED
@@ -341,9 +344,9 @@ function save_binaries()  {
   unlock_file $SAVED
 
   for dir in $( find $OLD_BINS )
-	do
-	  if [[ -d $dir ]]
-		then
+  do
+    if [[ -d $dir ]]
+    then
       export PATH=$( envar_prepend_path "$dir" "$PATH" )
     fi
   done
@@ -450,7 +453,7 @@ function directories() {
 function files()  {
 
   while  read       ITEM;   do
- 	
+ 
     if  [     -f  "$ITEM"  ]   &&
         !  [  -h  "$ITEM"  ];  then
       echo "$ITEM"
@@ -868,9 +871,9 @@ function update_install_queue()  {
 
   message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
   count=0
-	size=$(all_spell_status | wc -l)
+  size=$(all_spell_status | wc -l)
   for  line  in  `all_spell_status`;  do
-	  progress_bar $count $size 50
+    progress_bar $count $size 50
     #0=spell, 1=date, 2=status, 3=version
     explode "$line" ":" "info"
     spell=${info[0]}
@@ -886,7 +889,7 @@ function update_install_queue()  {
                                    "$curr_updated" "$tmp_queue"
       fi
     )
-		let count++
+  let count++
   done
   clear_line
   lock_file $INSTALL_QUEUE
