@@ -71,16 +71,19 @@ EOF
 ## environment for spell files
 #---------------------------------------------------------------------------
 function delve_log_helper() {
-  # must declare OPS before sourcing config
-  local OPTS
-  run_spell_config
 
-  get_uncommitted_depends_file $SPELL spell_depends
-  if test -e $spell_depends && test -e $ABANDONED_DEPENDS/$SPELL ; then
-    cp $ABANDONED_DEPENDS/$SPELL $spell_depends
+  if ! [[ "$__DELVE_IN_CAST" ]] ; then
+    # must declare OPS before sourcing config
+    local OPTS
+    run_spell_config
+
+    get_uncommitted_depends_file $SPELL spell_depends
+    if test -e $spell_depends && test -e $ABANDONED_DEPENDS/$SPELL ; then
+      cp $ABANDONED_DEPENDS/$SPELL $spell_depends
+    fi
+    test -e $spell_depends &&
+    OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
   fi
-  test -e $spell_depends &&
-  OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
 
   # these have to go somewhere where future delves can find them
   C_LOG=${C_LOG:="/tmp/sorcery/delve/$SPELL.compile.log"}
