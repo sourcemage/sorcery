@@ -49,7 +49,6 @@ function summon_spell() {
       persistent_save
       # save the rc, then unlock
       rc=$?
-      unlock_resources "summon" "${SPELL}"
 
       if [[ $rc == 0 ]]; then
         activity_log "summon" "$SPELL"  "$VERSION" "success"
@@ -59,10 +58,10 @@ function summon_spell() {
 
       # this actually only returns from the subshell, not the function
       return $rc
-    ) &&
-    popd &>/dev/null
-    rm -rf $dl_dir
+    ) && popd &>/dev/null
     rc=$?
+    rm -rf $dl_dir
+    unlock_resources "summon" "${SPELL}"
   fi
   return $rc
 }
@@ -382,7 +381,7 @@ function unpack_for_update() {
   local _guess_type
 
   # hard-coded list of url prefixes that generally download trees
-  local tree_prefixes="cvs dir rsync smgl_tla svn"
+  local tree_prefixes="cvs dir rsync smgl_tla svn git"
   local prefix=$(url_get_prefix $url_list)
   if ! list_find "$hints" file &&
      list_find "$hints" tree || list_find "$tree_prefixes" "$prefix" ; then

@@ -244,17 +244,26 @@ function cast_spell()  { (
   test -e $spell_depends && 
   OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
   
+  # HACK for bug 2910 and 10546
+  local saved_lc_all=$LC_ALL
+  export LC_ALL=C
+
   # this will run through the whole build process
   run_build_spell
   rc=$?
+
+  # HACK for bug 2910 and 10546
+  if [[ -n ${saved_lc_all} ]] ; then
+    export LC_ALL=$saved_lc_all
+  else
+    unset LC_ALL
+  fi
 
   # This is the home for anything and everything we do
   # when a phase4 succeeds or fails, no more spreading things out
   # into multiple functions.
 
   cd /
-
-  pop_install_queue "$SPELL"    
 
   # hooks back out to the build_api to do whatever needs to be done
   if [ $rc == 0 ] ; then
@@ -553,8 +562,7 @@ function pass_four()  {
   # this is a hacky way to tell what version we're updating from
   # if any, we can use it to find md5 logs for installing config type
   # files, it mostly is here for libresurrect.real_install_config_file
-  local OLD_SPELL_VERSION
-  spell_ok $SPELL && OLD_SPELL_VERSION=$(installed_version $SPELL)
+  local OLD_SPELL_VERSION=$(installed_version $SPELL)
 
   local rc
   if [[ "$do_resurrect" == "yes" ]] ; then
@@ -811,7 +819,7 @@ else
     export SCREEN_OVERRIDE=no
     message "${MESSAGE_COLOR}Although screen mode is enabled, you already seem to be in a another"
     message "screen session. Screen-in-screen is disabled."
-    message "Continuing with screen mode off.${DEFAULT}"
+    message "Continuing with screen mode off.${DEFAULT_COLOR}"
   fi
   
   # Disable screen mode if the appropriate env var is set

@@ -25,12 +25,17 @@
 #    config_query_string    (libmisc)
 #    conflicts              (libgrimoire)  
 #    default_build          (build_api/...)   
+#    default_configure      (libdepends)
+#    default_depends        (libdepends)
 #    default_download       (libsummon)
 #    default_install        (build_api/api2)   (BUILD_API==2 only)
 #    default_post_build     (build_api/api1)   (BUILD_API==1 only)
 #    default_post_install   (build_api/api2)   (BUILD_API==2 only)
+#    default_post_remove    (libdispel)
 #    default_pre_build      (build_api/common)   
 #    default_pre_install    (build_api/api2)   (BUILD_API==2 only)
+#    default_pre_remove     (libdispel)
+#    default_prepare        (libdepends)
 #    depends                (libdepends)
 #    devoke_installwatch    (libtrack)
 #    download_src           (libsummon)
@@ -74,6 +79,7 @@
 #    unpack                 (libunpack) (deprecated)
 #    unpack_file            (libunpack)
 #    unpack_file_simple     (libunpack)
+#    verify_file            (libunpack)
 #
 # Read-only variable that might be of use to a spell:
 # SOURCE_CACHE, OPTS, BUILD HOST, INSTALL_ROOT
@@ -277,6 +283,30 @@ function default_build () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_default_configure> for more details.
+##
+## Default configure code, just no-op for now.
+##
+#---------------------------------------------------------------------
+function default_configure() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_default_configure "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_default_depends> for more details.
+##
+## Default depends code, just no-op for now.
+##
+#---------------------------------------------------------------------
+function default_depends() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_default_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @See <@function var.lib.sorcery.modules.libsummon.html,real_default_download> for more details.
 ##
 ## Default download code, downloads each SOURCE[[:digit:]]*
@@ -333,6 +363,18 @@ function default_post_install () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libdispel.html,real_default_post_remove> for more details.
+##
+## Default post_remove code, just no-op for now.
+##
+#---------------------------------------------------------------------
+function default_post_remove() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_default_post_remove "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_build> for more details.
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
@@ -356,6 +398,30 @@ function default_pre_build () {
 function default_pre_install () {
     debug "libapi" "default_pre_install - $*"
     real_default_pre_install "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libdispel.html,real_default_pre_remove> for more details.
+##
+## Default pre_remove code, just no-op for now.
+##
+#---------------------------------------------------------------------
+function default_pre_remove() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_default_pre_remove "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_default_prepare> for more details.
+##
+## Default prepare code, just no-op for now.
+##
+#---------------------------------------------------------------------
+function default_prepare() {
+    debug "libapi" "$FUNCNAME - $*"
+    real_default_prepare "$@"
 }
 
 #---------------------------------------------------------------------
@@ -1012,6 +1078,21 @@ function unpack_file () {
 function unpack_file_simple() {
     debug "libapi" "$FUNCNAME - $*"
     real_unpack_file_simple "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param SOURCE suffix
+## @See <@function var.lib.sorcery.modules.libunpack.html,real_verify_file> for more details.
+##
+## verify_file takes the SOURCE suffix and verifies the file without
+## unpacking it. It does not work with the old 'MD5[0]=...' style.
+## Only with the "new" SOURCEn_(GPG|HASH|IGNORE) style.
+##
+#---------------------------------------------------------------------
+function verify_file () {
+    debug "libapi" "verify_file - $*"
+    real_verify_file "$@"
 }
 
 #---------------------------------------------------------------------

@@ -836,7 +836,7 @@ function real_config_query () {
     local ANSWER
     if config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
-        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$ANSWER${DEFAULT} ]]"
+        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$ANSWER${DEFAULT_COLOR} ]]"
   
         # already have a reasonable value...
         [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
@@ -884,7 +884,7 @@ function real_config_query_option () {
         list_find "$ANSWER" $5 && key=n
 
         if [[ "$key" ]]; then
-            echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> ${QUERY_COLOR}$key${DEFAULT} ]]"
+            echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$key${DEFAULT_COLOR} ]]"
             return 0
         fi
     fi
@@ -922,7 +922,7 @@ function real_config_query_string () {
     
     if config_get_option "$1" ANSWER; then
         # option allready answered in config
-        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
+        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
     else
         local default
         config_get_last_option "$1" default
@@ -962,7 +962,7 @@ function real_config_query_list () {
         echo "!!!! stored option '$ANSWER' in config is not in list of provided options !!!!"
         echo "!!!! WARNING !!!!"
     )
-    echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
+    echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
   else
     # if there was an answer before, find it
     local default default_num=0 foo
@@ -1128,7 +1128,7 @@ function smgl_which() {
   local target=$1 location
   local BREAK
   function smgl_which_sub() {
-    if test -x "$1/$target" ; then
+    if test -f "$1/$target" -a -x "$1/$target" ; then
       echo "$1/$target"
       BREAK=yes
     fi

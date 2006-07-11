@@ -198,6 +198,11 @@ function reap_state_files()  {
   [ -f $REAPER_FILES ] && rmdir `dirnames < $REAPER_FILES |uniq|sort  -r` 2>/dev/null
 
   rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+
+  # bug 8826, if we dont explicitly remove the directory it can form
+  # a corrupt zombified tablet page
+  [[ "$TABLET_PAGE" ]] && test -d "$TABLET_PAGE" && rm -rf "$TABLET_PAGE"
+  return 0
 }
 
 #-----
@@ -243,7 +248,7 @@ function load_spell()  {
   else
     SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
 
-    VERSION=`installed_version  $SPELL`
+    VERSION=`private_installed_version  $SPELL`
     INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
     MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
     if [[ $SCRIPT_DIRECTORY ]] ; then
@@ -263,28 +268,45 @@ function load_spell()  {
 ## Run the PRE_REMOVE script if it exists
 #-----
 function pre_remove() {
-  if [[ $SCRIPT_DIRECTORY ]] && [ -x $SCRIPT_DIRECTORY/PRE_REMOVE ]; then
-    unset  LD_PRELOAD
-    . $SCRIPT_DIRECTORY/PRE_REMOVE
+  local rc=0
+  if  [[ $SCRIPT_DIRECTORY ]] ; then
+    persistent_load &&
+    if test  -x  $SCRIPT_DIRECTORY/PRE_REMOVE ; then
+      . $SCRIPT_DIRECTORY/PRE_REMOVE
+    else
+      default_pre_remove
+    fi
+    rc=$?
+    persistent_save
   fi
+  return $rc
+}
+
+function real_default_pre_remove() {
+  :
 }
 
 #-----
 ## Run the POST_REMOVE script if it exists.
 #-----
 function post_remove() {
-  # what is the point of this?
-  LD_PRELOAD_OLD="$LD_PRELOAD"
-  unset LD_PRELOAD
-
-  export  LD_PRELOAD="$LD_PRELOAD_OLD"
-
-  if  [[ $SCRIPT_DIRECTORY ]] && [  -x  $SCRIPT_DIRECTORY/POST_REMOVE  ]
-  then     . $SCRIPT_DIRECTORY/POST_REMOVE
+  local rc=0
+  if  [[ $SCRIPT_DIRECTORY ]] ; then
+    persistent_load &&
+    if test  -x  $SCRIPT_DIRECTORY/POST_REMOVE ; then
+      . $SCRIPT_DIRECTORY/POST_REMOVE
+    else
+      default_post_remove
+    fi
+    rc=$?
+    persistent_save
   fi
-
+  return $rc
 }
 
+function real_default_post_remove() {
+  :
+}
 
 
 
@@ -328,6 +350,14 @@ function dispel_spell() {
       activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
     ) &&
     reap_depends
+    local rc=$?
+    if [[ "$rc" != 0 ]] ; then
+        message "${PROBLEM_COLOR}Dispel of${DEFAULT_COLOR}" \
+                "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
+                "${PROBLEM_COLOR}failed!${DEFAULT_COLOR}"
+        return $rc
+    fi
+    return 0
 }
 
 #---------------------------------------------------------------------

@@ -122,34 +122,17 @@
 function real_unpack_file() {
   debug "libgrimoire" "real_unpack_file - $*"
 
-  local GPGNUM="$1"
-  local SVAR="SOURCE${GPGNUM}"
+  local FILENUM="$1"
+  local SVAR="SOURCE${FILENUM}"
 
-  local crypto_func
-  for crypto_func in GPG HASH IGNORE; do
-    debug "libgrimoire" "checking $crypto_func verification"
-    local AVAR="SOURCE${GPGNUM}_${crypto_func}"
-    local AVARN="$AVAR"
-    local iter=0
-    local rc=""
-    # NOTE ## date: 2005-08-25
-    # This while loop runs through the SOURCEn_{GPG|HASH|IGNORE}m not the
-    # SOURCEn_*[m] set of vars this is kinda confusing we might rip it out
-    while [ -n "${!AVARN}" ]; do
-      local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
-      unpack_$lcase_crypto_func "${!SVAR}" "${!AVARN}"
-      rc="$?"
-      case "$rc" in
-        200) debug "libgrimoire" "falling back from $AVARN"; rc="" ;;
-          1)                               return "$rc"            ;;
-          0) uncompress_unpack "${!SVAR}"; return "$?"             ;;
-      esac
-      (( iter++ ))
-      AVARN="$AVAR[$iter]"
-    done
-    [ -n "$rc" ] && return "$rc"
-  done
-
+  real_verify_file "$@"
+  rc=$?
+  case "$rc" in
+    200) debug "libunpack" "unable to verify $SVAR ${!SVAR}" ;;
+      1) return 1 ;; # verification failed
+      0) uncompress_unpack ${!SVAR}; return $? ;;
+  esac
+  
   if false; then # <------ here's the switch to disable oldworld -------
     debug "libgrimoire" "falling back to missing verification"
     unpack_missing "${!SVAR}"
@@ -160,9 +143,44 @@ function real_unpack_file() {
     esac
   else
     debug "libgrimoire" "falling back to regular MD5[]"
-    local MD5NUM="$([ -z "$GPGNUM" ] && echo 0 || echo "$(($GPGNUM - 1))")"
+    local MD5NUM="$([ -z "$FILENUM" ] && echo 0 || echo "$(($FILENUM - 1))")"
     real_unpack "${!SVAR}" "${MD5[$MD5NUM]}"
   fi
+}
+
+
+#---------------------------------------------------------------------
+## @Type API
+## @param SOURCE suffix
+##
+## Does the work of verifying a file with the new-world verification
+## system.
+#---------------------------------------------------------------------
+function real_verify_file() {
+  debug "libunpack" "real_verify_file - $*"
+
+  local FILENUM="$1"
+  local SVAR="SOURCE${FILENUM}"
+
+  local crypto_func
+  for crypto_func in GPG HASH IGNORE; do
+    debug "libgrimoire" "checking $crypto_func verification"
+
+    local AVAR="SOURCE${FILENUM}_${crypto_func}"
+    [[ -n ${!AVAR} ]] || continue
+
+    local rc=""
+    local lcase_crypto_func="$(echo $crypto_func | tr 'A-Z' 'a-z')"
+    unpack_$lcase_crypto_func "${!SVAR}" "${!AVAR}"
+    rc="$?"
+
+    case "$rc" in
+      200) debug "libgrimoire" "unable to verify $AVAR with $crypto_func" ;;
+        *) return $rc ;;
+    esac
+
+  done
+  return 200
 }
 
 
@@ -260,9 +278,10 @@ function real_uncompress() { uncompress_core "$@"; }
 function unpack_spell_required() {
   debug "libgrimoire" "Running unpack_spell_required -- $1"
 
-  if ! spell_ok "$1" ; then
+  local x
+  if ! spell_ok "$1" && ! smgl_which $2 x &> /dev/null; then
     query "This spell has an option to check its integrity via spell "\
-"${SPELL_COLOR}${1}${QUERY_COLOR} for $2, you might consider casting it. "\
+"${SPELL_COLOR}${1}${QUERY_COLOR} with the $2 command for $3, you might consider installing it. "\
 "Abort?" n && 
       return 1 ||
         return 200
@@ -372,7 +391,7 @@ function unpack_gpg() {
 
   message "${MESSAGE_COLOR}GPG checking source file $1...${DEFAULT_COLOR}"
 
-  unpack_spell_required gnupg || return "$?"
+  unpack_spell_required gnupg gpg || return "$?"
 
   gpg_verify_signature "$( locate_spell_file "$SFNAME" )" \
                        "$FILENAME" \
@@ -428,10 +447,11 @@ function unpack_hash() {
   if [ "$MD5SUM_DL" != "off" ]; then
 
     if [[ "$ALGORITHM" == md5 ]] || [[ "$ALGORITHM" == sha1 ]] ; then
-      unpack_spell_required coreutils "$ALGORITHM" || return "$?" 
+      unpack_spell_required coreutils "${ALGORITHM}sum" "$ALGORITHM" ||
+        return "$?" 
       HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
     else
-      unpack_spell_required gnupg "$ALGORITHM" || return "$?"
+      unpack_spell_required gnupg gpg "$ALGORITHM" || return "$?"
       if list_find "$(gpg_get_hashes)" $ALGORITHM; then
         HASH="$(gpg_hashsum "${ALGORITHM}" "$FILENAME" | cut -d' ' -f1)"
       else 

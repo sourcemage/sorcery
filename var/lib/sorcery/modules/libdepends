@@ -93,13 +93,19 @@ function run_prepare()
   local GRIMOIRE=${SECTION_DIRECTORY%/*}
 
   local PROTECT_SORCERY=yes
+  persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
-    # we need &&'s to preserve the proper return code (persistant_save
-    # will probably succeed even if PREPARE fails)
-    persistent_load &&
-    . $SCRIPT_DIRECTORY/PREPARE &&
-    persistent_save
+    . $SCRIPT_DIRECTORY/PREPARE
+  else
+    default_prepare
   fi
+  rc=$?
+  persistent_save
+  return $rc
+}
+
+function real_default_prepare() {
+  :
 }
 
 #---------------------------------------------------------------------
@@ -129,17 +135,22 @@ function run_configure()
   local SPELL=$1
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
- 
   local PROTECT_SORCERY=yes
+  persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
              "${CHECK_COLOR}running configuration...${DEFAULT_COLOR}"
-    # we need &&'s to preserve the proper return code (persistant_save
-    # will probably succeed even if PREPARE fails)
-    persistent_load &&
-    . $SCRIPT_DIRECTORY/CONFIGURE &&
-    persistent_save
+    . $SCRIPT_DIRECTORY/CONFIGURE
+  else
+    default_configure
   fi
+  rc=$?
+  persistent_save
+  return $rc
+}
+
+function real_default_configure() {
+  :
 }
 
 #---------------------------------------------------------------------
@@ -152,16 +163,21 @@ function run_depends()
   debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
   local PROTECT_SORCERY=yes
+  persistent_load &&
   if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
              "${CHECK_COLOR}checking dependencies...${DEFAULT_COLOR}"
-
-    # we need &&'s to preserve the proper return code (persistant_save
-    # will probably succeed even if PREPARE fails)
-    persistent_load &&
-    .  $SCRIPT_DIRECTORY/DEPENDS &&
-    persistent_save
+    .  $SCRIPT_DIRECTORY/DEPENDS
+  else
+    default_depends
   fi
+  rc=$?
+  persistent_save
+  return $rc
+}
+
+function real_default_depends() {
+  :
 }
 
 #---------------------------------------------------------------------
