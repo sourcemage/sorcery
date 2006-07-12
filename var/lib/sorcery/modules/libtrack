@@ -46,6 +46,13 @@ function real_track_manual()  {
 function real_invoke_installwatch()  {
   if  [  -e  /usr/lib/installwatch.so  ];  then
     export  INSTALLWATCHFILE=$IW_LOG
+    export  INSTW_LOGFILE=$IW_LOG
+    export  INSTW_DBGFILE="$TMP_DIR/dbgfile"
+    export  INSTW_ROOTPATH=$TMP_DIR
+    export  INSTW_TRANSL=0
+    export  INSTW_BACKUP=0
+    export  INSTW_DBGLVL=0
+    export  INSTW_EXCLUDE="/dev,/proc,/tmp,/var/tmp,/usr/src,/sys"
     export  LD_PRELOAD=/usr/lib/installwatch.so
   fi
 }
@@ -59,6 +66,13 @@ function real_invoke_installwatch()  {
 function real_devoke_installwatch()  {
   unset  LD_PRELOAD
   unset  INSTALLWATCHFILE
+  unset  INSTW_LOGFILE
+  unset  INSTW_DBGFILE
+  unset  INSTW_ROOTPATH
+  unset  INSTW_TRANSL
+  unset  INSTW_BACKUP
+  unset  INSTW_DBGLVL
+  unset  INSTW_EXCLUDE	      
 }
 
 
@@ -76,8 +90,8 @@ function parse_iw()  {
   local TAB="	"
   OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
 
-  grep -v "$OMIT_IN" $INPUT | cut -f3 | grep "^/"
-  cat                $INPUT | cut -f4 | grep "^/"
+  grep -v "$OMIT_IN" $INPUT | cut -f3 | grep "^/" | sed 's#^//#/#g'
+  cat                $INPUT | cut -f4 | grep "^/" | sed 's#^//#/#g'
 }
 
 
@@ -326,7 +340,7 @@ function log_adjuster() {
   fi
 
   local TMP_SSF=$TMP_DIR/$RANDOM
-  while ! mkdir $TMP_SSF; do
+  while ! mkdir $TMP_SSF &>/dev/null; do
     TMP_SSF=$TMP_DIR/$RANDOM
     sleep 1
   done
