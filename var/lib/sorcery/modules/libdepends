@@ -1594,7 +1594,7 @@ function real_show_up_depends()
 {
     local i=0
     local MAX_DEPTH=$2
-    local fast=$3
+    local type=$3
     function show_up_depends_sub() {
         local each
         let i++
@@ -1610,12 +1610,12 @@ function real_show_up_depends()
     hash_reset foo
     hash_reset done
     compute_reverse_installed_depends foo
-    if [[ $fast ]] ; then
-      show_up_depends_sub "$1"|cut -f1 -d:
-    else 
+    if [[ "$type" == "verbose" ]] ; then
       show_up_depends_sub "$1"|while read line; do
         grep "$line" "$DEPENDS_STATUS"
       done
+    else 
+      show_up_depends_sub "$1"|cut -f1 -d:
     fi|sort|uniq
     hash_reset foo
     hash_reset done
