@@ -299,7 +299,7 @@ function compute_uninstalled_depends()
   local spell spells
   spells=( $@ )
 
-  PRETEND_NOT_INSTALLED=" $@ "
+  PRETEND_NOT_INSTALLED=$(echo "$@"|tr " " "\n")
 
   local _idx
   
@@ -404,7 +404,7 @@ function private_should_cast()
   # order is important here...
   if ! codex_does_spell_exist $1; then
     return 1
-  elif echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " ; then
+  elif echo "$PRETEND_NOT_INSTALLED" | grep -x -q "$1" ; then
     # always look at stuff on the command line unless its exiled
     return 0
   # from here on the spell was not on the command line...
@@ -678,20 +678,20 @@ function work_depends_provider()
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
     tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
-    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if theres a default provider
   if [[ ! $default ]]; then
     explode "$(search_default_provider $DEFAULT_PROVIDERS ".*" "$1")" ":" "status"
     tmp=${status[0]}
-    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      echo ${spells[@]} | grep -q "\<$tmp\>" && default=$tmp && break
+      echo ${spells[@]} | tr " " "\n"| grep -x -q "$tmp" && default=$tmp && break
     done
   fi
 
@@ -771,7 +771,7 @@ function work_optional_depends_provider()
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
     tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
-    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if theres a default provider
@@ -788,7 +788,7 @@ function work_optional_depends_provider()
         # if the user said "on" use the default rather than none
         # unless theres something wrong with the provider they chose 
         # in which case fall back to none
-        [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" &&
+        [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" &&
         default=$tmp || default=none
       else
         default=none
@@ -799,7 +799,7 @@ function work_optional_depends_provider()
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      echo ${spells[@]} | grep -q "\<$tmp\>" && default=$tmp && break
+      echo ${spells[@]} | tr " " "\n" | grep -x -q "$tmp" && default=$tmp && break
     done
   fi
 
@@ -893,7 +893,7 @@ function work_optional_depends_spell()
   if [[ ! $default ]]; then
     debug "libdepends" "Checking in queue"
     #\< and \> match the empty string at the start and end of a word
-    echo ${spells[@]} | grep -q "\<$1\>" && default=on
+    echo ${spells[@]}|tr " " "\n" | grep -x -q "$1" && default=on
   fi
 
   # check if installed/held
@@ -1027,8 +1027,12 @@ function private_up_trigger() {
   # this maps trigerees to triggerers
   # cast_self:perl_module -> perl
   hash_append trg_r_hash  "$TARGET:$ACTION" " $SPELL "
-  echo $NEW_DEPENDS | grep -q "$TARGET" || 
+
+  # afk 6-7-06 Im not sure this line is correct, it seems to only
+  # make a circular depends, instead we want $TARGET to depend on $SPELL
+  echo ${NEW_DEPENDS[@]} |tr " " "\n"| grep -x -q "$TARGET" || 
   NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
+
   triggerees=( ${triggerees[*]} $TARGET )
 }
 
@@ -1148,7 +1152,7 @@ function private_add_depends()
   # force implied basesystem dependency in the depends tree
   if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
      [[ $SPELL != basesystem ]] &&
-     ! echo $base_deps| grep -q $SPELL; then
+     ! echo $base_deps|grep -x -q "$SPELL"; then
     hash_append "$CAST_HASH" "$SPELL" "basesystem"
     hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
   fi
