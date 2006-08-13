@@ -887,8 +887,9 @@ else
   if  [[ $SCREEN == on ]]         && 
       [[ $TERM != screen ]]
   then
-    export SCREEN_NAME="ScreenCast $*"
-    screen_start "ScreenCast $*" "$0" "$@"
+    SCREEN_NAME="ScreenCast $*"
+    export SCREEN_NAME="${SCREEN_NAME:0:64}$(echo $SCREEN_NAME | md5sum)"
+    screen_start "$SCREEN_NAME" "$0" "$@"
     echo "WTF?? We should not get here. screen_start execs!"
     exit 1
   fi
