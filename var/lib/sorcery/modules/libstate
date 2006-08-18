@@ -131,7 +131,38 @@ function search_depends_status()
 
 }
 
+#---------------------------------------------------------------------
+##
+## Search depends status, dont do anything escaping.
+##
+## Arguments can be regexp
+##
+## Prints out the matching line(s)
+## @Stdout the matching line(s)
+## @param depends file
+## @param spell
+## @param depends
+## @param on/off (optional)
+## @param optional/required (optional)
+## @param on arg (optional)
+## @param off arg (optional)
+##
+#---------------------------------------------------------------------
+function search_depends_status_simple()
+{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
 
+    local depends_status=$1
+    shift
+
+    local a1 a2 a3 a4 a5 a6
+    a1=`esc_str "$1"` ; a2=`esc_str "$2"`
+    a3=${3:-.*} ; a4=${4:-.*}
+    a5=`esc_str "$5"`; a6=`esc_str "$6"`
+    a5=${5:-.*} ; a6=${6:-.*}
+
+    grep "^$a1:$a2\(([^:]*)\)\?:$a3:$a4:$a5:$a6$" $depends_status
+
+}
 
 #---------------------------------------------------------------------
 ## 
@@ -662,6 +693,27 @@ function get_all_spells_with_status () {
     unlock_file $SPELL_STATUS
 }
 
+#---------------------------------------------------------------------
+## @Type API
+## @param Spell name
+## @param Target spell name
+## @param If empty get the uncommited spell info, if anything else get
+## info from the committed ($DEPENDS_STATUS) database. If the uncommited
+## db doesnt exist (maybe we're not casting) use DEPENDS_STATUS
+##
+## @return 0 if a dependency from $1 on $2 is enabled, 1 otherwise.
+## @stdout the provider name(s)
+#---------------------------------------------------------------------
+function real_is_depends_enabled() {
+  local dep_status
+  if [[ $3 ]] ; then
+    dep_status=$DEPENDS_STATUS
+  else
+    dep_status=$(hash_get uncommitted_hash $1)
+    [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
+  fi
+  [[ -n $(search_depends_status_simple $dep_status "$1" "$2" 'on' ) ]]
+}
 
 #---------------------------------------------------------------------
 ## @param variable
