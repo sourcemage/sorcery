@@ -646,6 +646,12 @@ function real_generic_required_depends()
     shift 2
   fi
 
+  if [[ $1 != ${1/ /} ]] ; then
+    message "${PROBLEM_COLOR}Spell names must not contain spaces:" \
+            "${DEFAULT_COLOR}${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
+  fi
+
   # see if theres another grimoire
   if [[ "$4" ]] && ! [[ "$OVERRIDE_GRIMOIRES" ]] ; then
     local grimoire here nothere current
@@ -773,6 +779,12 @@ function real_generic_optional_depends()
   if [[ "$1" == "-sub" ]] ; then
     local requested_sub_depends=$2
     shift 2
+  fi
+
+  if [[ $1 != ${1/ /} ]] ; then
+    message "${PROBLEM_COLOR}Spell names must not contain spaces:" \
+            "${DEFAULT_COLOR}${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
   fi
 
   # see if theres another grimoire
