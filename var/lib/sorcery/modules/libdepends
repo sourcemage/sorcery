@@ -276,19 +276,20 @@ function compute_installed_depends() {
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
 
-  local pattern
+  local pattern status
   if [[ $2 ]] ; then
     pattern="required|optional|runtime|suggest"
   else
     pattern="required|optional"
   fi
+  status=${3:-on}
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on" && ( $4 ~ pattern ) ) {
+      if( $3==status && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$1]=depmap[$1]" "$2" "
       }
@@ -312,19 +313,21 @@ function compute_reverse_installed_depends() {
   #$1==hash table to fill
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
-  local pattern
+
+  local pattern status
   if [[ $2 ]] ; then
     pattern="required|optional|runtime|suggest"
   else
     pattern="required|optional"
   fi
+  status=${3:-on}
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on" && ( $4 ~ pattern ) ) {
+      if( $3==status && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$2]=depmap[$2]" "$1" "
       }
@@ -607,6 +610,12 @@ function real_generic_required_depends()
     shift 2
   fi
 
+  if [[ $1 != ${1/ /} ]] ; then
+    message "${PROBLEM_COLOR}Spell names must not contain spaces:" \
+            "${DEFAULT_COLOR}${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
+  fi
+
   # see if theres another grimoire
   if [[ "$4" ]] && ! [[ "$OVERRIDE_GRIMOIRES" ]] ; then
     local grimoire here nothere current
@@ -734,6 +743,12 @@ function real_generic_optional_depends()
   if [[ "$1" == "-sub" ]] ; then
     local requested_sub_depends=$2
     shift 2
+  fi
+
+  if [[ $1 != ${1/ /} ]] ; then
+    message "${PROBLEM_COLOR}Spell names must not contain spaces:" \
+            "${DEFAULT_COLOR}${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
   fi
 
   # see if theres another grimoire
@@ -1509,15 +1524,15 @@ function depends_message() {
 #---------------------------------------------------------------------
 function private_remove_dependees()
 {
-	local SPELL=$1
-        local i
-	echo "Removing dependees of $1"
+  local SPELL=$1
+  local i
+  echo "Removing dependees of $1"
 
-	# spell is being removed from cast list, add to FAILED_LIST
-	echo "$SPELL" >> $FAILED_LIST
-        hash_put depends_looked_at $SPELL failed
-        hash_unset "$CAST_HASH" "$SPELL"
-        hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
+  # spell is being removed from cast list, add to FAILED_LIST
+  echo "$SPELL" >> $FAILED_LIST
+  hash_put depends_looked_at $SPELL failed
+  hash_unset "$CAST_HASH" "$SPELL"
+  hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
 }
 
 #---------------------------------------------------------------------
@@ -1532,7 +1547,7 @@ function run_spell_config()
     
   if  [  -x  $SPELL_CONFIG  ];  then
     debug "libdepends" "run_spell_config() - found $SPELL_CONFIG"
-	.  $SPELL_CONFIG
+    .  $SPELL_CONFIG
   fi
 }
 
@@ -1546,7 +1561,7 @@ function real_show_up_depends()
 {
     local i=0
     local MAX_DEPTH=$2
-    local fast=$3
+    local type=$3
     function show_up_depends_sub() {
         local each
         let i++
@@ -1562,12 +1577,12 @@ function real_show_up_depends()
     hash_reset foo
     hash_reset done
     compute_reverse_installed_depends foo
-    if [[ $fast ]] ; then
-      show_up_depends_sub "$1"|cut -f1 -d:
-    else 
+    if [[ "$type" == "verbose" ]] ; then
       show_up_depends_sub "$1"|while read line; do
         grep "$line" "$DEPENDS_STATUS"
       done
+    else 
+      show_up_depends_sub "$1"|cut -f1 -d:
     fi|sort|uniq
     hash_reset foo
     hash_reset done

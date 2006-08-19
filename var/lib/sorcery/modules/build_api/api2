@@ -31,6 +31,7 @@ function run_build_spell() {
   export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
   export S_PWD=$TMP_DIR/build.saved.pwd 
   export VOYEUR_STDOUT VOYEUR_STDERR
+  export __DELVE_IN_CAST=on
 
   rm  -f $IW_DBGLOG
   touch $IW_DBGLOG
@@ -82,6 +83,7 @@ function run_build_spell() {
        > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
   )
   rs=$?
+  unset __DELVE_IN_CAST
   if [[ $SCREEN_NAME ]] && [ $rs -gt 0 ] ; then
     screen_move_window "$SCREEN_NAME" $SCREEN_CAST_WIN $SCREEN_LAST_FAILED_CAST_WIN
     screen_name_window "$SCREEN_NAME" $SCREEN_LAST_FAILED_CAST_WIN "Failed $SPELL"

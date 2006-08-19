@@ -148,14 +148,12 @@ function search_depends_status()
 ## @Stdout list of options
 ##
 ## Returns a list of options for ./configure from $1
-## If the second argument is given, returns options for the
-## matching pair of spell:dependency
 ## Primarily aimed at generating $OPTS contents
 ##
 ## Prints out one line of output
 #---------------------------------------------------------------------
 function get_depends_options()
-{ # $1=depends_status $2=spell [$3]=dependency spell
+{ # $1=depends_status $2=spell
 
   local depends_status=$1
   shift
@@ -165,10 +163,9 @@ function get_depends_options()
     return
   }
 
-  local START="$(esc_str $1):"
-  [ -n "$2" ] && START="${START}$(esc_str $2):"
+  local START="$(esc_str $1)"
   debug "libstate" "get_depends_options() - START=$START"
-  awk -F ':' "/^$START/ { if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status
+  awk -F ':' -v start=$START "{ if (\$1 == start) if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status 2> /dev/null
 }
 
 

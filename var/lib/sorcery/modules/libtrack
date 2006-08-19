@@ -97,7 +97,7 @@ function real_invoke_installwatch()  {
     export  INSTW_ROOTPATH=$STAGE_DIRECTORY
     export  INSTW_TRANSL=0
     export  INSTW_BACKUP=0
-    export  INSTW_DBGLVL=4
+    export  INSTW_DBGLVL=${INSTALLWATCH_DEBUG_LEVEL}
     export  INSTW_EXCLUDE="$INSTALLWATCH_UNSTAGED_PATHS"
     export  LD_PRELOAD=/usr/lib/installwatch.so
   fi
@@ -142,7 +142,7 @@ function parse_iw()  {
   # it is EXTREMELY IMPORTANT that this variable contains an actual
   # tab character and not some number of spaces. Otherwise BAD THINGS
   # will happen.
-  local TAB="	"
+  local TAB=$'\t'
   OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
 
   grep -v "$OMIT_IN" $INPUT | cut -f3 | grep "^/" | sed 's#^//#/#g'
