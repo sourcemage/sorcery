@@ -87,9 +87,7 @@ function run_prepare()
   # these are here so you can source section/grimoire level scripts in
   # PREPARE, which by definition runs before the spell is loaded
   # and they are defined as usual (see bug 8329)
-  local SPELL_DIRECTORY=$SCRIPT_DIRECTORY
-  local SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
-  local GRIMOIRE=${SECTION_DIRECTORY%/*}
+  codex_get_spell_paths "$SCRIPT_DIRECTORY"
 
   local PROTECT_SORCERY=yes
   run_spell_file PREPARE prepare
@@ -119,14 +117,16 @@ function run_other() {
 ## Run the spell's CONFIGURE script if it exists
 ## @param Spell to configure
 #---------------------------------------------------------------------
-function run_configure() 
-{
-
+function run_configure() {
   local SPELL=$1
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
+  function run_configure_msg() {
+    depends_message  "${SPELL}" "running configuration..."
+  }
+
   local PROTECT_SORCERY=yes
-  run_spell_file CONFIGURE configure
+  run_spell_file CONFIGURE configure run_configure_msg
   rc=$?
   return $rc
 }
@@ -135,13 +135,16 @@ function run_configure()
 ## Run a spell's DEPENDS if it exists
 ## @param Spell
 #---------------------------------------------------------------------
-function run_depends() 
-{ 
+function run_depends() { 
   local SPELL=$1
   debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+
+  function run_depends_msg() {
+    depends_message  "${SPELL}" "checking dependencies..."
+  }
  
   local PROTECT_SORCERY=yes
-  run_spell_file DEPENDS depends
+  run_spell_file DEPENDS depends run_depends_msg
   rc=$?
   return $rc
 }
@@ -154,11 +157,11 @@ function run_up_triggers() {
   local SPELL=$1
   debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
-  function zztop() {
+  function run_up_triggers_msg() {
     depends_message  "${SPELL}" "checking for reverse triggers..."
   }
   local PROTECT_SORCERY=yes
-  run_spell_file UP_TRIGGERS up_triggers "" zztop
+  run_spell_file UP_TRIGGERS up_triggers run_up_triggers_msg
   rc=$?
   return $rc
 }

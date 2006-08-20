@@ -117,7 +117,7 @@ function run_pre_build() {
   cd  "$BUILD_DIRECTORY"
 
   verify_sources &&
-  run_spell_file PRE_BUILD pre_build "$PRE_BUILD_CMD"
+  run_spell_file PRE_BUILD pre_build
 }
 
 
@@ -147,7 +147,7 @@ function run_build()  {
   pwd
   message "$SPELL    $VERSION"
 
-  run_spell_file BUILD build "$BUILD_CMD"
+  run_spell_file BUILD build
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -174,7 +174,7 @@ function run_pre_install() {
     cd "$BUILD_DIRECTORY"
   fi
   
-  run_spell_file PRE_INSTALL pre_install "$PRE_INSTALL_CMD" &&
+  run_spell_file PRE_INSTALL pre_install
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
   pwd > $S_PWD
 }
@@ -198,7 +198,7 @@ function run_install() {
     cd "$BUILD_DIRECTORY"
   fi
 
-  run_spell_file INSTALL install "$INSTALL_CMD"
+  run_spell_file INSTALL install
   
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -227,7 +227,7 @@ function run_post_install() {
   else
     cd "${INSTALL_ROOT:-/}"
   fi &&
-  run_spell_file POST_INSTALL post_install "$POST_INSTALL_CMD" &&
+  run_spell_file POST_INSTALL post_install
   unlock_resources "libgrimoire" "install"
 }
 #--------------------------------------------------------------------
@@ -251,7 +251,7 @@ function run_stage_install() {
 function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
-  run_spell_file FINAL final "$FINAL_CMD"
+  run_spell_file FINAL final
 }
 
 #---------------------------------------------------------------------

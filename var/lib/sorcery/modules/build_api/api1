@@ -91,7 +91,7 @@ function run_pre_build() {
   mkdir -p  $BUILD_DIRECTORY
   cd  $BUILD_DIRECTORY
 
-  run_spell_file PRE_BUILD pre_build "$PRE_BUILD_CMD"
+  run_spell_file PRE_BUILD pre_build
 }
 
 
@@ -122,7 +122,7 @@ function run_build()  {
 
   run_config_loc
   (
-    run_spell_file BUILD build "$BUILD_CMD"
+    run_spell_file BUILD build
   ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
      > >(tee -a $C_LOG >> $VOYEUR_STDOUT) # see bug 7201
 
@@ -145,7 +145,7 @@ function run_build()  {
 function run_post_build() {
 
   debug "build_api/api1" "Starting run_post_build()"
-  run_spell_file POST_BUILD post_build "$POST_BUILD_CMD"
+  run_spell_file POST_BUILD post_build
 
   # Lock made in prepare_install
   unlock_resources "libgrimoire" "install"
@@ -161,7 +161,7 @@ function run_post_build() {
 function run_post_install() {
 
   debug "build_api/api1" "Starting run_post_install()"
-  run_spell_file INSTALL install "$INSTALL_CMD"
+  run_spell_file INSTALL install
 }
 
 

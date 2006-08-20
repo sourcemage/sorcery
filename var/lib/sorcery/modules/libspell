@@ -1,6 +1,27 @@
-function load_stuff() {
-for each in $(
-cat << EOF
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Functions for running spell files.
+## @Copyright (C) 2006 The Source Mage Team <http://www.sourcemage.org>
+## @Contributers Andrew Stitt <astitt@sourcemage.org>
+##
+## This file implements SourceMage's spell file inheritence scheme.
+## In a nutshell, sorcery implements a default for each and every spell
+## file, usually this is "true". There can be an override at the grimoire
+## or section level, in addition to the spell file itself. This means
+## you can write a spell level PRE_BUILD, do some stuff then call
+## default_pre_build, which will run a section level PRE_BUILD if it
+## exists, or run a grimoire level PRE_BUILD if that exists, or run the
+## sorcery supplied default. See bug 10914.
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## Setup default functions for spell files. Several of the core functions
+## are declared here as false so they exist, but are re-defined when in
+## the proper context. This is merely a safety valve.
+#---------------------------------------------------------------------
+function load_spell_file_functions() {
+  for each in $(
+    cat << EOF
 PREPARE:prepare
 CONFIGURE:configure
 DEPENDS:depends
@@ -31,44 +52,57 @@ PRE_RESURRECT:pre_resurrect
 POST_RESURRECT:post_resurrect
 EOF
 ); do
-  local NAME=${each%:*}
-  local name=${each#*:}
+    local NAME=${each%:*}
+    local name=${each#*:}
 
-  eval "function default_${name}() {
-    real_default_${name}
-  }"
+    # Create the four libapi entry points for each file
+    eval "function default_${name}() {
+      real_default_${name}
+    }"
+    eval "function default_section_${name}() {
+      real_default_section_${name}
+    }"
+    eval "function default_grimoire_${name}() {
+      real_default_grimoire_${name}
+    }"
+    eval "function default_sorcery_${name}() {
+      real_default_sorcery_${name}
+    }"
 
-  eval "function default_section_${name}() {
-    real_default_section_${name}
-  }"
-  eval "function default_grimoire_${name}() {
-    real_default_grimoire_${name}
-  }"
-  eval "function default_sorcery_${name}() {
-    real_default_sorcery_${name}
-  }"
 
+    # real_default_<file> always refers to the level above in the hierarchy.
+    # (section, grimoire or sorcery).
+    # its defined here as false, but is re-declared at various stages.
+    eval "function real_default_${name}() {
+      false
+    }"
 
-  eval "function real_default_${name}() {
-    false
-  }"
+    # These two functions run the section/grimoire function and update
+    # the real_default_<file> function. Ignore this generic declaration,
+    # it is changed at runtime to private_default_<section|grimoire>_generic.
+    eval "function real_default_section_${name}() {
+      false
+    }"
+    eval "function real_default_grimoire_${name}() {
+      false
+    }"
 
-  eval "function real_default_section_${name}() {
-    real_default_section_generic ${NAME} ${name}
-  }"
-  eval "function real_default_grimoire_${name}() {
-    real_default_grimoire_generic ${NAME} ${name}
-  }"
-
-  declare -F real_default_sorcery_${name} &>/dev/null ||
-  eval "function real_default_sorcery_${name}() {
-    true
-  }"
-done
+    # If there isnt a sorcery default function, declare one as "true".
+    # Note that, the right thing happens regardless of what order lib files
+    # are sourced in.
+    declare -F real_default_sorcery_${name} &>/dev/null ||
+    eval "function real_default_sorcery_${name}() {
+      true
+    }"
+  done
 }
+load_spell_file_functions
 
 
-real_default_section_generic() {
+#---------------------------------------------------------------------
+## Run a section level file, or the default grimoire level function.
+#---------------------------------------------------------------------
+private_default_section_generic() {
   eval "function real_default_${2}() {
     default_grimoire_${2}
   }"
@@ -77,9 +111,15 @@ real_default_section_generic() {
   else
     default_grimoire_${2}
   fi
+  eval "function real_default_${2}() {
+    default_section_${2}
+  }"
 }
 
-real_default_grimoire_generic() {
+#---------------------------------------------------------------------
+## Run a grimoire level file, or the default sorcery level function.
+#---------------------------------------------------------------------
+private_default_grimoire_generic() {
   eval "function real_default_${2}() {
     default_sorcery_${2}
   }"
@@ -88,29 +128,57 @@ real_default_grimoire_generic() {
   else
     default_sorcery_${2}
   fi
+  eval "function real_default_${2}() {
+    default_grimoire_${2}
+  }"
 }
 
+#---------------------------------------------------------------------
+## Core entry point for sorcery to run a spell file.
+## Arms real_default_*_file functions then runs the spell file/cmd/function
+#---------------------------------------------------------------------
 function run_spell_file() {
   local rc=0
   local spell_file=$1
   local function_suffix=$2
-  local spell_cmd=$3
+  local spell_cmd_var=${1}_CMD
+  local spell_cmd=${!spell_cmd_var}
+
+  # this is mostly used for messages like "<spell> checking dependencies"
+  local pre_function=$3
 
   eval "function real_default_${function_suffix}() {
     default_section_${function_suffix}
   }"
+  eval "function real_default_section_${function_suffix}() {
+    private_default_section_generic "${spell_file}" ${function_suffix}
+  }"
+  eval "function real_default_grimoire_${function_suffix}() {
+    private_default_grimoire_generic ${spell_file} ${function_suffix}
+  }"
 
   persistent_load &&
   if test -x "$SCRIPT_DIRECTORY/$spell_file"; then
+    [[ $pre_function ]] && $pre_function
     . $SCRIPT_DIRECTORY/$spell_file
   elif [[ "$spell_cmd" ]] ; then
+    [[ $pre_function ]] && $pre_function
     $spell_cmd
   else
     default_${function_suffix}
   fi;rc=$?
   persistent_save
 
+  # restore these, so they're always false except when needed
+  eval "function real_default_${function_suffix}() {
+    false
+  }"
+  eval "function real_default_section_${function_suffix}() {
+    false
+  }"
+  eval "function real_default_grimoire_${function_suffix}() {
+    false
+  }"
   return $rc
 }
 
-load_stuff
