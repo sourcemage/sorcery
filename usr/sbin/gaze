@@ -1571,12 +1571,13 @@ function gaze_show_dependencies() {
                 echo "$name" >> $FOUND
             fi
     
-            local SPELL=$(codex_find_spell_by_name $name)
-            [[ -e "$SPELL/DEPENDS" ]] &&
+            local SPELL_DIRECTORY=$(codex_find_spell_by_name $name)
+            [[ -e "$SPELL_DIRECTORY/DEPENDS" ]] &&
             (
                 let DEPTH++
                 define_functions ':;' grep
-                source "$SPELL/DEPENDS" 2>/dev/null
+                codex_get_spell_paths $SPELL_DIRECTORY
+                source "$SPELL_DIRECTORY/DEPENDS" 2>/dev/null
             ) 
         }
         recurse $SPELL
