@@ -31,6 +31,7 @@ function run_build_spell() {
   export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
   export S_PWD=$TMP_DIR/build.saved.pwd 
   export VOYEUR_STDOUT VOYEUR_STDERR
+  export __DELVE_IN_CAST=on
 
   rm  -f $IW_DBGLOG
   touch $IW_DBGLOG
@@ -65,12 +66,10 @@ function run_build_spell() {
     (
       run_build                             &&
       run_pre_install                       &&
-# you have to make this directory every time even if you don't use it because
-# it's a bug with installwatch that it needs to exist at all times
-      prepare_stage_root                    &&
       invoke_installwatch                   &&
       if [[ "$STAGED_INSTALL" != "off" ]]
       then
+        prepare_stage_root                  &&
         invoke_stage_root
       fi                                    &&
       set_stage_root_paths                  &&
@@ -84,6 +83,7 @@ function run_build_spell() {
        > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
   )
   rs=$?
+  unset __DELVE_IN_CAST
   if [[ $SCREEN_NAME ]] && [ $rs -gt 0 ] ; then
     screen_move_window "$SCREEN_NAME" $SCREEN_CAST_WIN $SCREEN_LAST_FAILED_CAST_WIN
     screen_name_window "$SCREEN_NAME" $SCREEN_LAST_FAILED_CAST_WIN "Failed $SPELL"
@@ -117,15 +117,7 @@ function run_pre_build() {
   cd  "$BUILD_DIRECTORY"
 
   verify_sources &&
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    . $SCRIPT_DIRECTORY/PRE_BUILD
-  elif [[ "$PRE_BUILD_CMD" ]] ; then
-    $PRE_BUILD_CMD
-  else
-    default_pre_build
-  fi &&
-  persistent_save
+  run_spell_file PRE_BUILD pre_build
 }
 
 
@@ -155,15 +147,7 @@ function run_build()  {
   pwd
   message "$SPELL    $VERSION"
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    .  $SCRIPT_DIRECTORY/BUILD
-  elif [[ "$BUILD_CMD" ]] ; then
-    $BUILD_CMD
-  else
-    default_build
-  fi &&
-  persistent_save
+  run_spell_file BUILD build
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -190,15 +174,7 @@ function run_pre_install() {
     cd "$BUILD_DIRECTORY"
   fi
   
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
-    .  $SCRIPT_DIRECTORY/PRE_INSTALL 
-  elif [[ "$PRE_INSTALL_CMD" ]] ; then
-    $PRE_INSTALL_CMD
-  else
-    default_pre_install
-  fi &&
-  persistent_save &&
+  run_spell_file PRE_INSTALL pre_install
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
   pwd > $S_PWD
 }
@@ -222,17 +198,8 @@ function run_install() {
     cd "$BUILD_DIRECTORY"
   fi
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
-    .  $SCRIPT_DIRECTORY/INSTALL 
-  elif [[ "$INSTALL_CMD" ]] ; then
-    $INSTALL_CMD
-  else
-    default_install
-  fi &&
-  persistent_save
-
-
+  run_spell_file INSTALL install
+  
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
@@ -260,14 +227,7 @@ function run_post_install() {
   else
     cd "${INSTALL_ROOT:-/}"
   fi &&
-  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
-    . $SCRIPT_DIRECTORY/POST_INSTALL
-  elif [[ "$POST_INSTALL_CMD" ]] ; then
-    $POST_INSTALL_CMD
-  else
-    default_post_install
-  fi &&
-  persistent_save &&
+  run_spell_file POST_INSTALL post_install
   unlock_resources "libgrimoire" "install"
 }
 #--------------------------------------------------------------------
@@ -291,15 +251,7 @@ function run_stage_install() {
 function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
-  persistent_load &&
-  cd "${INSTALL_ROOT:-/}"
-  if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
-  then
-    . $SCRIPT_DIRECTORY/FINAL
-  elif [[ "$FINAL_CMD" ]] ; then
-    $FINAL_CMD
-  fi &&
-  persistent_save
+  run_spell_file FINAL final
 }
 
 #---------------------------------------------------------------------
@@ -308,7 +260,7 @@ function run_final() {
 ## Used if no PRE_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function real_default_pre_build() {
+function real_default_sorcery_pre_build() {
 
   debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -331,8 +283,8 @@ function real_default_pre_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_build() {
-  debug "build_api/api2" "real_default_build"
+function real_default_sorcery_build() {
+  debug "build_api/api2" "real_default_sorcery_build"
 
   OPTS="$OPTS --build=${BUILD}"
   #If these switches are used, they _may_ stop distcc and ccache from working
@@ -359,8 +311,8 @@ function real_default_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_pre_install() {
-  debug "build_api/api2" "Starting real_default_pre_install"
+function real_default_sorcery_pre_install() {
+  debug "build_api/api2" "Starting real_default_sorcery_pre_install"
   prepare_install
 }
 
@@ -373,8 +325,8 @@ function real_default_pre_install() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_install() {
-  debug "build_api/api2" "Starting real_default_install"
+function real_default_sorcery_install() {
+  debug "build_api/api2" "Starting real_default_sorcery_install"
   make    install
 }
 
@@ -386,9 +338,9 @@ function real_default_install() {
 ##
 ## This is identical to api1's post_build
 #---------------------------------------------------------------------
-function real_default_post_install() {
+function real_default_sorcery_post_install() {
 
-  debug "build_api/api2" "Starting real_default_post_install"
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
   install_xinetd
   install_initd
   install_pam_confs

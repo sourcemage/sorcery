@@ -1,0 +1,207 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Functions for running spell files.
+## @Copyright (C) 2006 The Source Mage Team <http://www.sourcemage.org>
+## @Contributers Andrew Stitt <astitt@sourcemage.org>
+##
+## This file implements SourceMage's spell file inheritence scheme.
+## In a nutshell, sorcery implements a default for each and every spell
+## file, usually this is "true". There can be an override at the grimoire
+## or section level, in addition to the spell file itself. This means
+## you can write a spell level PRE_BUILD, do some stuff then call
+## default_pre_build, which will run a section level PRE_BUILD if it
+## exists, or run a grimoire level PRE_BUILD if that exists, or run the
+## sorcery supplied default. See bug 10914.
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## Setup default functions for spell files. Several of the core functions
+## are declared here as false so they exist, but are re-defined when in
+## the proper context. This is merely a safety valve.
+#---------------------------------------------------------------------
+function load_spell_file_functions() {
+  for each in $(
+    cat << EOF
+PREPARE:prepare
+CONFIGURE:configure
+DEPENDS:depends
+
+PRE_SUB_DEPENDS:pre_sub_depends
+SUB_DEPENDS:sub_depends
+
+CONFLICTS:conflicts
+
+PRE_BUILD:pre_build
+BUILD:build
+PRE_INSTALL:pre_install
+INSTALL:install
+POST_BUILD:post_build
+POST_INSTALL:post_install
+FINAL:final
+
+UP_TRIGGERS:up_triggers
+TRIGGERS:triggers
+TRIGGER_CHECK:trigger_check
+
+DOWNLOAD:download
+
+PRE_REMOVE:pre_remove
+POST_REMOVE:post_remove
+
+PRE_RESURRECT:pre_resurrect
+POST_RESURRECT:post_resurrect
+EOF
+); do
+    local NAME=${each%:*}
+    local name=${each#*:}
+
+    # Create the four libapi entry points for each file
+    eval "function default_${name}() {
+      real_default_${name}
+    }"
+    eval "function default_section_${name}() {
+      real_default_section_${name}
+    }"
+    eval "function default_grimoire_${name}() {
+      real_default_grimoire_${name}
+    }"
+    eval "function default_sorcery_${name}() {
+      real_default_sorcery_${name}
+    }"
+
+
+    # real_default_<file> always refers to the level above in the hierarchy.
+    # (section, grimoire or sorcery).
+    # its defined here as false, but is re-declared at various stages.
+    eval "function real_default_${name}() {
+      false
+    }"
+
+    # These two functions run the section/grimoire function and update
+    # the real_default_<file> function. Ignore this generic declaration,
+    # it is changed at runtime to private_default_<section|grimoire>_generic.
+    eval "function real_default_section_${name}() {
+      false
+    }"
+    eval "function real_default_grimoire_${name}() {
+      false
+    }"
+
+    # If there isnt a sorcery default function, declare one as "true".
+    # Note that, the right thing happens regardless of what order lib files
+    # are sourced in.
+    declare -F real_default_sorcery_${name} &>/dev/null ||
+    eval "function real_default_sorcery_${name}() {
+      true
+    }"
+  done
+}
+load_spell_file_functions
+
+
+#---------------------------------------------------------------------
+## Run a section level file, or the default grimoire level function.
+#---------------------------------------------------------------------
+private_default_section_generic() {
+  eval "function real_default_${2}() {
+    default_grimoire_${2}
+  }"
+  if test -x "$SECTION_DIRECTORY/${1}"; then
+    source "$SECTION_DIRECTORY/${1}"
+  else
+    default_grimoire_${2}
+  fi;rc=$?
+  eval "function real_default_${2}() {
+    default_section_${2}
+  }"
+  return $rc
+}
+
+#---------------------------------------------------------------------
+## Run a grimoire level file, or the default sorcery level function.
+#---------------------------------------------------------------------
+private_default_grimoire_generic() {
+  eval "function real_default_${2}() {
+    default_sorcery_${2}
+  }"
+  if test -x "$GRIMOIRE/${1}"; then
+    source "$GRIMOIRE/${1}"
+  else
+    default_sorcery_${2}
+  fi;rc=$?
+  eval "function real_default_${2}() {
+    default_grimoire_${2}
+  }"
+  return $rc
+}
+
+#---------------------------------------------------------------------
+## Core entry point for sorcery to run a spell file.
+## Arms real_default_*_file functions then runs the spell file/cmd/function
+#---------------------------------------------------------------------
+function run_spell_file() {
+  local rc=0
+  local spell_file=$1
+  local function_suffix=$2
+  local spell_cmd_var=${1}_CMD
+  local spell_cmd=${!spell_cmd_var}
+
+  # this is mostly used for messages like "<spell> checking dependencies"
+  local pre_function=$3
+
+  eval "function real_default_${function_suffix}() {
+    default_section_${function_suffix}
+  }"
+  eval "function real_default_section_${function_suffix}() {
+    private_default_section_generic "${spell_file}" ${function_suffix}
+  }"
+  eval "function real_default_grimoire_${function_suffix}() {
+    private_default_grimoire_generic ${spell_file} ${function_suffix}
+  }"
+
+  persistent_load &&
+  if test -x "$SCRIPT_DIRECTORY/$spell_file"; then
+    [[ $pre_function ]] && $pre_function
+    . $SCRIPT_DIRECTORY/$spell_file
+  elif [[ "$spell_cmd" ]] ; then
+    [[ $pre_function ]] && $pre_function
+    $spell_cmd
+  else
+    default_${function_suffix}
+  fi;rc=$?
+  persistent_save
+
+  # restore these, so they're always false except when needed
+  eval "function real_default_${function_suffix}() {
+    false
+  }"
+  eval "function real_default_section_${function_suffix}() {
+    false
+  }"
+  eval "function real_default_grimoire_${function_suffix}() {
+    false
+  }"
+  return $rc
+}
+
+#------------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#------------------------------------------------------------------------
+

@@ -87,24 +87,12 @@ function run_prepare()
   # these are here so you can source section/grimoire level scripts in
   # PREPARE, which by definition runs before the spell is loaded
   # and they are defined as usual (see bug 8329)
-  local SPELL_DIRECTORY=$SCRIPT_DIRECTORY
-  local SECTION_DIRECTORY=${SPELL_DIRECTORY%/*}
-  local GRIMOIRE=${SECTION_DIRECTORY%/*}
+  codex_get_spell_paths "$SCRIPT_DIRECTORY"
 
   local PROTECT_SORCERY=yes
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PREPARE  ];  then
-    . $SCRIPT_DIRECTORY/PREPARE
-  else
-    default_prepare
-  fi
+  run_spell_file PREPARE prepare
   rc=$?
-  persistent_save
   return $rc
-}
-
-function real_default_prepare() {
-  :
 }
 
 #---------------------------------------------------------------------
@@ -129,53 +117,36 @@ function run_other() {
 ## Run the spell's CONFIGURE script if it exists
 ## @param Spell to configure
 #---------------------------------------------------------------------
-function run_configure() 
-{
-
+function run_configure() {
   local SPELL=$1
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
-  local PROTECT_SORCERY=yes
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/CONFIGURE  ];  then
+  function run_configure_msg() {
     depends_message  "${SPELL}" "running configuration..."
-    . $SCRIPT_DIRECTORY/CONFIGURE
-  else
-    default_configure
-  fi
-  rc=$?
-  persistent_save
-  return $rc
-}
+  }
 
-function real_default_configure() {
-  :
+  local PROTECT_SORCERY=yes
+  run_spell_file CONFIGURE configure run_configure_msg
+  rc=$?
+  return $rc
 }
 
 #---------------------------------------------------------------------
 ## Run a spell's DEPENDS if it exists
 ## @param Spell
 #---------------------------------------------------------------------
-function run_depends() 
-{ 
+function run_depends() { 
   local SPELL=$1
   debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+
+  function run_depends_msg() {
+    depends_message  "${SPELL}" "checking dependencies..."
+  }
  
   local PROTECT_SORCERY=yes
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/DEPENDS  ];  then
-    depends_message  "${SPELL}" "checking dependencies..."
-    .  $SCRIPT_DIRECTORY/DEPENDS
-  else
-    default_depends
-  fi
+  run_spell_file DEPENDS depends run_depends_msg
   rc=$?
-  persistent_save
   return $rc
-}
-
-function real_default_depends() {
-  :
 }
 
 #---------------------------------------------------------------------
@@ -185,17 +156,14 @@ function real_default_depends() {
 function run_up_triggers() {
   local SPELL=$1
   debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
- 
-  local PROTECT_SORCERY=yes
-  if  [  -x  $SCRIPT_DIRECTORY/UP_TRIGGERS ];  then
+
+  function run_up_triggers_msg() {
     depends_message  "${SPELL}" "checking for reverse triggers..."
-    # we need &&'s to preserve the proper return code (persistant_save
-    # will probably succeed even if PREPARE fails)
-    persistent_load &&
-    . $SCRIPT_DIRECTORY/UP_TRIGGERS &&
-    persistent_save
-  fi
-  
+  }
+  local PROTECT_SORCERY=yes
+  run_spell_file UP_TRIGGERS up_triggers run_up_triggers_msg
+  rc=$?
+  return $rc
 }
 
 #---------------------------------------------------------------------
@@ -272,6 +240,7 @@ function process_sub_depends() {
   local requester=$1
   local sub_dependee=$2
   local sub_depends=$3
+  local PROTECT_SORCERY=yes
 
   if test -x $SCRIPT_DIRECTORY/SUB_DEPENDS; then
     if ! list_find "$(hash_get processed_sub_depends $sub_dependee)" "$sub_depends"; then
@@ -279,9 +248,7 @@ function process_sub_depends() {
 
       local THIS_SUB_DEPENDS=$sub_depends
       local PROCESSED_SUB_DEPENDS=$(hash_get processed_sub_depends $sub_dependee)
-      persistent_load &&
-      source $SCRIPT_DIRECTORY/SUB_DEPENDS &&
-      persistent_save || return 1
+      run_spell_file SUB_DEPENDS sub_depends || return 1
       hash_append processed_sub_depends $sub_dependee $sub_depends
     else
       debug libdepends "SUB_DEPENDS: $sub_dependee needs to provide $sub_depends but has already been processed"
@@ -312,19 +279,20 @@ function compute_installed_depends() {
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
 
-  local pattern
+  local pattern status
   if [[ $2 ]] ; then
     pattern="required|optional|runtime|suggest"
   else
     pattern="required|optional"
   fi
+  status=${3:-on}
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on" && ( $4 ~ pattern ) ) {
+      if( $3==status && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$1]=depmap[$1]" "$2" "
       }
@@ -348,19 +316,21 @@ function compute_reverse_installed_depends() {
   #$1==hash table to fill
   local hash=$1
   touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
-  local pattern
+
+  local pattern status
   if [[ $2 ]] ; then
     pattern="required|optional|runtime|suggest"
   else
     pattern="required|optional"
   fi
+  status=${3:-on}
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -F : 'BEGIN {
+  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
-      if( $3=="on" && ( $4 ~ pattern ) ) {
+      if( $3==status && ( $4 ~ pattern ) ) {
         sub(/\(.*\)/, "", $2);
         depmap[$2]=depmap[$2]" "$1" "
       }
@@ -409,7 +379,7 @@ function compute_uninstalled_depends()
   local spell spells
   spells=( $@ )
 
-  PRETEND_NOT_INSTALLED=" $@ "
+  PRETEND_NOT_INSTALLED=$(echo "$@"|tr " " "\n")
 
   local _idx
   
@@ -536,7 +506,7 @@ function private_should_cast()
   # order is important here...
   if ! codex_does_spell_exist $1; then
     return 1
-  elif echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " ; then
+  elif echo "$PRETEND_NOT_INSTALLED" | grep -x -q "$1" ; then
     # always look at stuff on the command line unless its exiled
     return 0
   # from here on the spell was not on the command line...
@@ -641,6 +611,12 @@ function real_generic_required_depends()
   if [[ "$1" == "-sub" ]] ; then
     local requested_sub_depends=$2
     shift 2
+  fi
+
+  if [[ $1 != ${1/ /} ]] ; then
+    message "${PROBLEM_COLOR}Spell names must not contain spaces:" \
+            "${DEFAULT_COLOR}${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
   fi
 
   # see if theres another grimoire
@@ -770,6 +746,12 @@ function real_generic_optional_depends()
   if [[ "$1" == "-sub" ]] ; then
     local requested_sub_depends=$2
     shift 2
+  fi
+
+  if [[ $1 != ${1/ /} ]] ; then
+    message "${PROBLEM_COLOR}Spell names must not contain spaces:" \
+            "${DEFAULT_COLOR}${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
   fi
 
   # see if theres another grimoire
@@ -932,20 +914,20 @@ function work_depends_provider()
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
     tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
-    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if theres a default provider
   if [[ ! $default ]]; then
     explode "$(search_default_provider $DEFAULT_PROVIDERS ".*" "$1")" ":" "status"
     tmp=${status[0]}
-    [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" && default=$tmp
+    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      echo ${spells[@]} | grep -q "\<$tmp\>" && default=$tmp && break
+      echo ${spells[@]} | tr " " "\n"| grep -x -q "$tmp" && default=$tmp && break
     done
   fi
 
@@ -1037,7 +1019,7 @@ function work_optional_depends_provider()
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
     tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "on"|awk -F: '{print $2;exit}')
-    if [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" ; then
+    if [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" ; then
       default=$tmp
     else
       tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "off")
@@ -1059,7 +1041,7 @@ function work_optional_depends_provider()
         # if the user said "on" use the default rather than none
         # unless theres something wrong with the provider they chose 
         # in which case fall back to none
-        [[ $tmp ]] && echo $CANDIDATES|grep -q "\<$tmp\>" &&
+        [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" &&
         default=$tmp || default=none
       else
         default=none
@@ -1070,7 +1052,7 @@ function work_optional_depends_provider()
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      echo ${spells[@]} | grep -q "\<$tmp\>" && default=$tmp && break
+      echo ${spells[@]} | tr " " "\n" | grep -x -q "$tmp" && default=$tmp && break
     done
   fi
 
@@ -1177,7 +1159,7 @@ function work_optional_depends_spell()
   if [[ ! $default ]]; then
     debug "libdepends" "Checking in queue"
     #\< and \> match the empty string at the start and end of a word
-    echo ${spells[@]} | grep -q "\<$1\>" && default=on
+    echo ${spells[@]}|tr " " "\n" | grep -x -q "$1" && default=on
   fi
 
   # check if installed/held
@@ -1293,8 +1275,12 @@ function private_up_trigger() {
   # this maps trigerees to triggerers
   # cast_self:perl_module -> perl
   hash_append trg_r_hash  "$TARGET:$ACTION" " $SPELL "
-  echo $NEW_DEPENDS | grep -q "$TARGET" || 
+
+  # afk 6-7-06 Im not sure this line is correct, it seems to only
+  # make a circular depends, instead we want $TARGET to depend on $SPELL
+  echo ${NEW_DEPENDS[@]} |tr " " "\n"| grep -x -q "$TARGET" || 
   NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
+
   triggerees=( ${triggerees[*]} $TARGET )
 }
 
@@ -1331,10 +1317,8 @@ function real_sub_depends() {
       if ! tablet_set_spell $sub_dependee ; then
         codex_set_current_spell_by_name $sub_dependee || return 1
       fi
-      test -x $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS || return 1
-      persistent_load &&
-      source $SCRIPT_DIRECTORY/PRE_SUB_DEPENDS; rc=$?
-      persistent_save
+      run_spell_file PRE_SUB_DEPENDS pre_sub_depends
+      rc=$?
       return $rc
     ) && {
       debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
@@ -1348,7 +1332,7 @@ function real_sub_depends() {
 
   # if didnt return above, then we know the sub-depends is not on the system
   # so the spell must be (re)cast, check to see if we're allowed to do that
-  if ! echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 "  &&
+  if ! echo "$PRETEND_NOT_INSTALLED" | grep -x -q "$1"  &&
      spell_held $sub_dependee; then
     # spell is held and not explicitly requested, so we cant recast the
     # spell with the sub-depends requested
@@ -1416,7 +1400,7 @@ function private_common_depends()
 ## Default trigger checking function. Asks user if they want to
 ## run the trigger.
 #---------------------------------------------------------------------
-function default_trigger_check() {
+function default_sorcery_trigger_check() {
   message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
            "${CHECK_COLOR}triggers a" \
            "${SPELL_COLOR}${ACTION}${DEFAULT_COLOR}" \
@@ -1438,15 +1422,8 @@ function private_add_triggerees() {
   # run the trigger check file
   # this is made into a sub-function just to reduce duplication...
   function private_add_triggerees_sub1() {
-    running_trigger=0
-    persistent_load
-    if test -x $SCRIPT_DIRECTORY/TRIGGER_CHECK; then
-      source $SCRIPT_DIRECTORY/TRIGGER_CHECK
-    else
-      default_trigger_check
-    fi
+    run_spell_file TRIGGER_CHECK trigger_check
     running_trigger=$?
-    persistent_save
     if [[ $running_trigger == 0 ]] ; then
       private_up_trigger "$SPELL" "$TARGET" "$ACTION"
     fi
@@ -1488,7 +1465,7 @@ function private_add_depends()
   # force implied basesystem dependency in the depends tree
   if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
      [[ $SPELL != basesystem ]] &&
-     ! echo $base_deps| grep -q $SPELL; then
+     ! echo $base_deps|grep -x -q "$SPELL"; then
     hash_append "$CAST_HASH" "$SPELL" "basesystem"
     hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
   fi
@@ -1550,15 +1527,15 @@ function depends_message() {
 #---------------------------------------------------------------------
 function private_remove_dependees()
 {
-	local SPELL=$1
-        local i
-	echo "Removing dependees of $1"
+  local SPELL=$1
+  local i
+  echo "Removing dependees of $1"
 
-	# spell is being removed from cast list, add to FAILED_LIST
-	echo "$SPELL" >> $FAILED_LIST
-        hash_put depends_looked_at $SPELL failed
-        hash_unset "$CAST_HASH" "$SPELL"
-        hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
+  # spell is being removed from cast list, add to FAILED_LIST
+  echo "$SPELL" >> $FAILED_LIST
+  hash_put depends_looked_at $SPELL failed
+  hash_unset "$CAST_HASH" "$SPELL"
+  hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
 }
 
 #---------------------------------------------------------------------
@@ -1573,7 +1550,7 @@ function run_spell_config()
     
   if  [  -x  $SPELL_CONFIG  ];  then
     debug "libdepends" "run_spell_config() - found $SPELL_CONFIG"
-	.  $SPELL_CONFIG
+    .  $SPELL_CONFIG
   fi
 }
 
@@ -1587,7 +1564,7 @@ function real_show_up_depends()
 {
     local i=0
     local MAX_DEPTH=$2
-    local fast=$3
+    local type=$3
     function show_up_depends_sub() {
         local each
         let i++
@@ -1597,18 +1574,20 @@ function real_show_up_depends()
                 hash_put done $each done
                 echo $each:$1
                 show_up_depends_sub $each
+            elif [[ "$type" == "verbose" ]] ; then
+                echo $each:$1
             fi
         done
     }
     hash_reset foo
     hash_reset done
     compute_reverse_installed_depends foo
-    if [[ $fast ]] ; then
-      show_up_depends_sub "$1"|cut -f1 -d:
-    else 
+    if [[ "$type" == "verbose" ]] ; then
       show_up_depends_sub "$1"|while read line; do
         grep "$line" "$DEPENDS_STATUS"
       done
+    else 
+      show_up_depends_sub "$1"|cut -f1 -d:
     fi|sort|uniq
     hash_reset foo
     hash_reset done

@@ -91,17 +91,7 @@ function run_pre_build() {
   mkdir -p  $BUILD_DIRECTORY
   cd  $BUILD_DIRECTORY
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    debug "build_api/api1" "run_pre_build() - Prebuild script exists, now sourcing "
-    . $SCRIPT_DIRECTORY/PRE_BUILD
-  elif [[ "$PRE_BUILD_CMD" ]] ; then
-    $PRE_BUILD_CMD
-  else
-    debug "build_api/api1" "run_pre_build() - Prebuild script not found, using default"
-    default_pre_build
-  fi &&
-  persistent_save
+  run_spell_file PRE_BUILD pre_build
 }
 
 
@@ -124,7 +114,6 @@ function run_build()  {
   invoke_build_dir
   invoke_gcc2
   optimize
-  prepare_stage_root
   invoke_installwatch
 
   message -n "Installing in dir: "
@@ -133,15 +122,7 @@ function run_build()  {
 
   run_config_loc
   (
-    persistent_load &&
-    if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-      .  $SCRIPT_DIRECTORY/BUILD
-    elif [[ "$BUILD_CMD" ]] ; then
-      $BUILD_CMD
-    else
-      default_build
-    fi &&
-    persistent_save
+    run_spell_file BUILD build
   ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
      > >(tee -a $C_LOG >> $VOYEUR_STDOUT) # see bug 7201
 
@@ -164,15 +145,7 @@ function run_build()  {
 function run_post_build() {
 
   debug "build_api/api1" "Starting run_post_build()"
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/POST_BUILD  ];  then
-           . $SCRIPT_DIRECTORY/POST_BUILD
-  elif [[ "$POST_BUILD_CMD" ]] ; then
-    $POST_BUILD_CMD
-  else
-    default_post_build
-  fi
-  persistent_save
+  run_spell_file POST_BUILD post_build
 
   # Lock made in prepare_install
   unlock_resources "libgrimoire" "install"
@@ -188,14 +161,7 @@ function run_post_build() {
 function run_post_install() {
 
   debug "build_api/api1" "Starting run_post_install()"
-  persistent_load &&
-  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]
-  then
-    . $SCRIPT_DIRECTORY/POST_INSTALL
-  elif [[ "$POST_INSTALL_CMD" ]] ; then
-    $POST_INSTALL_CMD
-  fi &&
-  persistent_save
+  run_spell_file INSTALL install
 }
 
 
@@ -204,9 +170,9 @@ function run_post_install() {
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
 #---------------------------------------------------------------------
-function real_default_pre_build() {
+function real_default_sorcery_pre_build() {
 
-  debug "build_api/api1" "Starting real_default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
+  debug "build_api/api1" "Starting real_default_sorcery_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
   unpack_file
 
@@ -231,9 +197,9 @@ function real_default_pre_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_build() {
+function real_default_sorcery_build() {
 
-  debug "build_api/api1" "Starting real_default_build()"
+  debug "build_api/api1" "Starting real_default_sorcery_build()"
   OPTS="$OPTS --build=${BUILD}"
   #If this switches are used, they _may_ stop distcc and ccache from working
   # for some spells (bug 3798)
@@ -260,9 +226,9 @@ function real_default_build() {
 ## Used if no POST_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function real_default_post_build() {
+function real_default_sorcery_post_build() {
 
-  debug "build_api/api1" "Starting real_default_post_build()"
+  debug "build_api/api1" "Starting real_default_sorcery_post_build()"
 
   install_xinetd
   install_initd
@@ -270,7 +236,6 @@ function real_default_post_build() {
   install_desktop_files
   gather_docs
   devoke_installwatch
-  destroy_stage_root
   init_post_install
   ldconfig
   # release_saved_libraries

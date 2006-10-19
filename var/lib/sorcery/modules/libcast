@@ -99,9 +99,7 @@ function run_conflicts() {
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
     local CONFLICTS=$(
-        persistent_load
-        . $SCRIPT_DIRECTORY/CONFLICTS
-        persistent_save
+        run_spell_file CONFLICTS conflicts
     )
 
     local tmp to_dispel=""
@@ -163,7 +161,7 @@ function query_custom_cflags() {
         CFLAGS) USER_SPELL_CFLAGS="$@"  ;;
         CXXFLAGS) USER_SPELL_CXXFLAGS="$@" ;;
         LDFLAGS) USER_SPELL_LDFLAGS="$@" ;;
-	CPPFLAGS) USER_SPELL_CPPFLAGS="$@" ;;
+        CPPFLAGS) USER_SPELL_CPPFLAGS="$@" ;;
       esac
     done
   fi
@@ -639,6 +637,9 @@ function create_compile_log()  {
   else
     $COMPRESSBIN  -f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
   fi
+  message  "${MESSAGE_COLOR}Creating installwatch debug log"                \
+           "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.iwdbglog$EXTENSION"  \
+           "${DEFAULT_COLOR}"
   if [ -z "$EXTENSION" ]
   then
     cp $IW_DBGLOG $COMPILE_LOGS/$SPELL-$VERSION.iwdbglog

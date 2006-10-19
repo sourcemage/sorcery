@@ -70,19 +70,23 @@ function stage_install_directory()
 {
   local DIR=$1
   local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/${DIR}")
+  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/${DIR}")
+  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/${DIR}")
   if [[ ! -d $(dirname "${INSTALL_ROOT}/$DIR") ]]
   then
     # this shouldn't happen but just in case
     message "${PROBLEM_COLOR}Ah, not preserving permissions making $(dirname $DIR)${DEFAULT_COLOR}" &&
     mkdir -p $(dirname "${INSTALL_ROOT}/$DIR")
   fi &&
-  message "${FILE_COLOR}$PERMISSION $DIR${DEFAULT_COLOR}" &&
+  message "${FILE_COLOR}$PERMISSION $OWNER:$GROUP $DIR${DEFAULT_COLOR}" &&
   if [[ -d "$DIR" ]]
   then
-    chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR"
+    chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR" &&
+    chown $OWNER:$GROUP "${INSTALL_ROOT}/$DIR"
   else
     mkdir "$DIR"   &&
-    chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR"
+    chmod "$PERMISSION" "${INSTALL_ROOT}/$DIR" &&
+    chown $OWNER:$GROUP "${INSTALL_ROOT}/$DIR"
   fi
 }
 
@@ -90,8 +94,10 @@ function stage_install_file()
 {
   local FILE=$1
   local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/$FILE")
   local SAVE="$CONFIG_STAGE_DIRECTORY/$SPELL/current/$FILE"
-  message "${FILE_COLOR}$PERMISSION $FILE${DEFAULT_COLOR}"
+  message "${FILE_COLOR}$PERMISSION $OWNER:$GROUP $FILE${DEFAULT_COLOR}"
   case $2 in
     config)
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
@@ -105,7 +111,7 @@ function stage_install_file()
       ;;
     *)
       cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
-			;;
+      ;;
   esac
 }
 
@@ -113,7 +119,7 @@ function stage_install_symlink()
 {
   local FILE=$1
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
-  message "${FILE_COLOR}Symlink $FILE${DEFAULT_COLOR}"
+  message "${FILE_COLOR}Symlink $FILE -> $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE")${DEFAULT_COLOR}"
   case $2 in
     config)
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
@@ -131,6 +137,68 @@ function stage_install_symlink()
   esac
 }
 
+function stage_install_fifo()
+{
+  local FILE=$1
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  message "${FILE_COLOR}Fifo $PERMISSION $OWNER:$GROUP $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
+      then
+        touch "${INSTALL_ROOT}/$FILE" &&
+        mkdir -p $(dirname $SAVE) &&
+        mkfifo "${INSTALL_ROOT}/$SAVE" &&
+        chmod $PERMISSION "${INSTALL_ROOT}/$SAVE" &&
+        chown $OWNER:$GROUP "${INSTALL_ROOT}/$SAVE"
+      else
+        mkfifo "${INSTALL_ROOT}/$FILE" &&
+        chmod $PERMISSION "${INSTALL_ROOT}/$FILE" &&
+        chown $OWNER:$GROUP "${INSTALL_ROOT}/$FILE"
+      fi
+      ;;
+    *)
+      mkfifo "${INSTALL_ROOT}/$FILE" &&
+      chmod $PERMISSION "${INSTALL_ROOT}/$FILE" &&
+      chown $OWNER:$GROUP "${INSTALL_ROOT}/$FILE"
+      ;;
+  esac
+}
+
+function stage_install_char_block()
+{
+  local FILE=$1
+  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local MAJOR=$(stat -c %t "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local MINOR=$(stat -c %T "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
+  local TYPE=$3
+  message "${FILE_COLOR}${PERMISSION} $OWNER:$GROUP $TYPE $MAJOR $MINOR $FILE${DEFAULT_COLOR}"
+  case $2 in
+    config)
+      if [[ -e "${INSTALL_ROOT}/$FILE" ]]
+      then
+        touch "${INSTALL_ROOT}/$FILE" &&
+        mkdir -p $(dirname $SAVE) &&
+        mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$SAVE" "${TYPE}" "${MAJOR}" "${MINOR}" &&
+        chown $OWNER:$GROUP "${INSTALL_ROOT}/$SAVE"
+      else
+        mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$FILE" "${TYPE}" "${MAJOR}" "${MINOR}" &&
+        chown $OWNER:$GROUP "${INSTALL_ROOT}/$FILE"
+      fi
+      ;;
+    *)
+      mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$FILE" "${TYPE}" "${MAJOR}" "${MINOR}" &&
+      chown $OWNER:$GROUP "${INSTALL_ROOT}/$FILE"
+      ;;
+  esac
+}
+
 function set_stage_root_paths()
 {
   local bindir libdir
@@ -140,7 +208,7 @@ function set_stage_root_paths()
   done
   for libdir in /lib /usr/lib
   do
-    export LD_LIBRARY_PATH=$( envar_prepend_path $STAGE_DIRECTORY/$libdir $LD_LIBRARY_PATH )
+    export LD_LIBRARY_PATH=$( envar_prepend_path $STAGE_DIRECTORY/TRANSL/$libdir $LD_LIBRARY_PATH )
   done
 }
 
@@ -154,6 +222,15 @@ function stage_install_list()
   if [[ -h $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_symlink "$@"
+  elif [[ -b $STAGE_DIRECTORY/TRANSL/$1 ]]
+  then
+    stage_install_char_block "$@" b
+  elif [[ -c $STAGE_DIRECTORY/TRANSL/$1 ]]
+  then
+    stage_install_char_block "$@" c
+  elif [[ -p $STAGE_DIRECTORY/TRANSL/$1 ]]
+  then
+    stage_install_fifo "$@" 
   elif [[ ! -d $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_file "$@"

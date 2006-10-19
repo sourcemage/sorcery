@@ -21,10 +21,10 @@ Usage:            cast  [parameters]  [spell]
 
 Optional Parameters:
 
-       --cflags                 Custom CFLAGS
-       --cxxflags               Custom CXXFLAGS
-       --cppflags               Custom CPPFLAGS
-       --ldflags                Custom LDFLAGS
+       --cflags   "flags"       Custom CFLAGS
+       --cxxflags "flags"       Custom CXXFLAGS
+       --cppflags "flags"       Custom CPPFLAGS
+       --ldflags  "flags"       Custom LDFLAGS
        --no-opts                Turn off setting optimization flags, except
                                 for those found in --cflags, --cxxflags,
                                 --cppflags and --ldflags.
@@ -38,7 +38,7 @@ Optional Parameters:
        --deps                   Configure spells and determine dependencies,
                                 only cast dependencies, not spells themselves
 
--c  |  --compile                Recompile the spells (dont install from cache).
+-c  |  --compile                Recompile the spells (don't install from cache).
 -r  |  --reconfigure            Select new dependencies for spells (implies -c)
 
 -g  |  --grimoire  [...]        Use only the specified grimoires for this cast
@@ -58,23 +58,20 @@ Optional Parameters:
                                    could optionally depend on it, but those
                                    dependencies are disabled, ask to recast
                                    the dependee. Optional parameter can be
-				   option can be one of: "always", "ask-yes",
-				   "ask-no", or "ignore", it defaults to what
-				   is set via the sorcery menu.
+                                   option can be one of: "always", "ask-yes",
+                                   "ask-no", or "ignore"; it defaults to what
+                                   is set via the sorcery menu.
 
 -Z  |  --lazy-updates [option]  Perform updates on installed spells that
-				need updates. Optional parameter same as
-				above.
+                                need updates. Optional parameter same as
+                                above.
 
 -b  |  --force-base-dep         Force all spells to depend on basesystem
 
        --from   directory       Specify an alternate for $SOURCE_CACHE
        --url    URL             Specify an alternate download URL
 
-       --pam                    Re-casts all installed spells that
-                                can use Linux-PAM
-
-       --queue                  Casts all spells listed in $INSTALL_QUEUE
+       --queue                  Cast all spells listed in $INSTALL_QUEUE
 
 EOF
 
@@ -122,7 +119,6 @@ function process_parameters()  {
             --silent)  SILENT="$1";                                  shift 1  ;;
                   -s)  export  SEPARATE="$1";                        shift 1  ;;
                --url)  export  BASE_URL="$2";                        shift 2  ;;
-               --pam)  cast  -c  `find_pam_aware` ;                  shift 1  ;;
              --queue)  CAST_QUEUE=yes ; COMPILE=$1;                  shift 1  ;;
                    *)  help                                   ;;
       esac
@@ -171,7 +167,6 @@ function strip_parameters()  {
            -d|--download)  shift 1  ;;
                       -s)  shift 1  ;;
                    --url)  shift 2  ;;
-                   --pam)  shift 1  ;;
                  --queue)  shift 1  ;;
                        *)  shift 1  ;;
 
@@ -249,6 +244,7 @@ function cast_spell()  { (
 
   # must declare OPS before sourcing config
   local OPTS
+  export OPTS
   run_spell_config                            
 
   local spell_depends spell_sub_depends
@@ -414,7 +410,7 @@ function pass_two()  {
   return 1
   fi
 
-  rm -f $TMP_DIR/pass_three.done # dont return until this file exists
+  rm -f $TMP_DIR/pass_three.done # don't return until this file exists
   MINUS_K=yes
   if  [[  $SEPARATE   ]] ; then
     ( CAST_PASS="three" 
@@ -516,7 +512,7 @@ function pass_three()  {
     touch $download_log
   fi
   
-  # check if this is being resurrected and if so, dont summon
+  # check if this is being resurrected and if so, don't summon
   # this will go away when resurrect support and dependency resolution merge
   if ! [[ $COMPILE ]] ; then
     VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
@@ -569,7 +565,7 @@ function pass_four()  {
     # hacky way to get the latest version
     VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
     if [[ ! $VERSION ]] ; then
-      message "Cant find spell version for some reason, is $SPELL a spell?"
+      message "Can't find spell version for some reason, is $SPELL a spell?"
     else
       can_resurrect $SPELL $VERSION &> /dev/null && do_resurrect=yes
     fi
@@ -629,7 +625,7 @@ function pass_five()  {
       message "$item"
     done | column
    
-    set_term_title "Casting successfull."
+    set_term_title "Casting successful."
     message "${DEFAULT_COLOR}"
 
   fi 
@@ -747,7 +743,7 @@ function int_trap()
   if [[ $SCREEN_NAME ]] ; then
     message -n "Press a key to exit screen."
     read -n 1
-	screen_quit "$SCREEN_NAME"
+    screen_quit "$SCREEN_NAME"
   fi
   exit 1
 }
@@ -891,8 +887,9 @@ else
   if  [[ $SCREEN == on ]]         && 
       [[ $TERM != screen ]]
   then
-    export SCREEN_NAME="ScreenCast $*"
-    screen_start "ScreenCast $*" "$0" "$@"
+    SCREEN_NAME="ScreenCast $*"
+    export SCREEN_NAME="${SCREEN_NAME:0:64}$(echo $SCREEN_NAME | md5sum)"
+    screen_start "$SCREEN_NAME" "$0" "$@"
     echo "WTF?? We should not get here. screen_start execs!"
     exit 1
   fi
@@ -913,7 +910,7 @@ else
     then 
       touch $DEBUG
       screen_new_window "$SCREEN_NAME" $SCREEN_DEBUG_WIN "Debug" \
-      	tail -f -n 0 -s 0.1 $DEBUG
+      tail -f -n 0 -s 0.1 $DEBUG
       #screen_unmonitor_window "$SCREEN_NAME" $SCREEN_DEBUG_WIN
     fi
 
