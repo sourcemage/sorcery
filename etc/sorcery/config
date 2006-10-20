@@ -177,24 +177,10 @@ CONFIG_STAGE_DIRECTORY=${STATE_ROOT}/var/state/sorcery/staged_configs
 
       # this is passed directly to installwatch so it can't contain
       # shell expansions or regex's
-INSTALLWATCH_UNSTAGED_PATHS=""
-for dir in /dev \
-           /proc \
-           /tmp  \
-           /var/tmp \
-           /sys \
-           ${BUILD_DIRECTORY} \
-           ${SGL_LIBRARY} \
-           ${INSTALL_ROOT}/${SGL_LIBRARY} \
-           ${SOURCE_CACHE} \
-           ${CONFIG_CACHE} \
-           ${STATE_DIRECTORY} \
-           ${LOG_DIRECTORY} ; do
-  INSTALLWATCH_UNSTAGED_PATHS="${INSTALLWATCH_UNSTAGED_PATHS}${dir},"
-done
-INSTALLWATCH_UNSTAGED_PATHS=${INSTALLWATCH_UNSTAGED_PATHS%,}
-# this value can be between 0-4, 0 is nothing and 4 is everything
-INSTALLWATCH_DEBUG_LEVEL=1
+CASTFS_UNSTAGED_PATHS="/dev /proc /tmp /var/tmp /sys ${BUILD_DIRECTORY} ${SGL_LIBRARY} ${INSTALL_ROOT}/${SGL_LIBRARY} ${SOURCE_CACHE} ${CONFIG_CACHE} ${STATE_DIRECTORY} ${LOG_DIRECTORY}"
+# this value is a mask bits set mean output is done for that particular 
+# component of castfs
+CASTFS_DEBUG_LEVEL=255
 
 # this makes appending the sorcery path idempotent
 [ -z ${PATH##*$SORCERY_PATH*} ] || export PATH="$PATH:$SORCERY_PATH"

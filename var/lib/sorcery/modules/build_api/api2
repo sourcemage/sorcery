@@ -26,15 +26,17 @@
 function run_build_spell() {
   debug "build_api/api2" "run_build_spell"
 
+  local CHROOT_CHECK=""
+
   export C_LOG=$TMP_DIR/$SPELL.compile.log
-  export IW_DBGLOG=$C_LOG.iwdbglog
+  export CASTFS_DBGLOG=$C_LOG.castfs.dbglog
   export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
   export S_PWD=$TMP_DIR/build.saved.pwd 
   export VOYEUR_STDOUT VOYEUR_STDERR
   export __DELVE_IN_CAST=on
 
-  rm  -f $IW_DBGLOG
-  touch $IW_DBGLOG
+  rm  -f $CASTFS_DBGLOG
+  touch $CASTFS_DBGLOG
   rm  -f $C_LOG
   touch $C_LOG
   
@@ -53,7 +55,7 @@ function run_build_spell() {
     VOYEUR_STDERR=/dev/null
   fi
   
-  if ! installwatch_is_stageable
+  if ! is_castfs_installed
   then
     STAGED_INSTALL=off
   fi
@@ -66,14 +68,16 @@ function run_build_spell() {
     (
       run_build                             &&
       run_pre_install                       &&
-      invoke_installwatch                   &&
       if [[ "$STAGED_INSTALL" != "off" ]]
       then
         prepare_stage_root                  &&
-        invoke_stage_root
+        invoke_stage_root                   &&
+        CHROOT_CHECK="chroot ${STAGE_DIRECTORY}/MOUNT"
+      else
+        invoke_installwatch                 
       fi                                    &&
-      set_stage_root_paths                  &&
-      delve $SPELL INSTALL                  &&
+      message "${MESSAGE_COLOR}iwlog $IW_LOG${DEFAULT_COLOR}" &&
+      $CHROOT_CHECK delve $SPELL INSTALL    &&
       delve $SPELL POST_INSTALL             || return 2
       run_stage_install                     &&
       devoke_installwatch                   &&
@@ -189,7 +193,6 @@ function run_pre_install() {
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
-  set_stage_root_paths 
   if [ -f $S_PWD ] ; then
     cd "`cat $S_PWD`"
   elif [ -d $SOURCE_DIRECTORY ] ; then
@@ -219,7 +222,6 @@ function run_install() {
 #---------------------------------------------------------------------
 function run_post_install() {
   debug "build_api/api2" "Starting run_post_install()"
-  set_stage_root_paths
   persistent_load &&
   if [[ $STAGED_INSTALL != off ]]
   then
@@ -237,7 +239,6 @@ function run_post_install() {
 function run_stage_install() {
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
-    set_stage_root_paths
     devoke_stage_root &&
     install_staged_spell
   fi

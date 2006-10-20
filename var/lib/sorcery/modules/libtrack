@@ -44,10 +44,19 @@ function real_track_manual()  {
 #---------------------------------------------------------------------
 function real_invoke_stage_root()
 {
-  export INSTW_TRANSL=1
-  export INSTW_LOGFILE=/dev/null
-  export DOCUMENT_DIRECTORY=${DOCUMENT_DIRECTORY#$INSTALL_ROOT}
-  unset INSTALL_ROOT
+  export CASTFS_LOGFILE=${CASTFS_DBGLOG}
+  export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
+  local CASTFS_IGNORE_LIST=""
+  # this forks and daemonizes so it will exit you simply unmount the dir to stop the process
+  for dir in ${CASTFS_UNSTAGED_PATHS}
+  do
+    CASTFS_IGNORE_LIST="${CASTFS_IGNORE_LIST} -o ignore=$dir"
+  done &&
+  castfs "${STAGE_DIRECTORY}/MOUNT" -o "stage=${STAGE_DIRECTORY}/TRANSL" $CASTFS_IGNORE_LIST &&
+  for dir in /dev /dev/pts /proc /sys
+  do
+    mount -o bind "$dir" "${STAGE_DIRECTORY}/MOUNT$dir"
+  done
 }
 
 #---------------------------------------------------------------------
@@ -57,11 +66,13 @@ function real_invoke_stage_root()
 #---------------------------------------------------------------------
 function real_devoke_stage_root()
 {
-  export INSTW_TRANSL=0
-  export INSTW_LOGFILE=$IW_LOG
-  [ -f $ROOTS_CONFIG ] && source $ROOTS_CONFIG
-  export DOCUMENT_DIRECTORY=${INSTALL_ROOT}/${DOCUMENT_DIRECTORY}
-  return 0
+  unset CASTFS_LOGFILE 
+  unset CASTFS_DBGLVL
+  for dir in /dev/pts /dev /proc /sys
+  do
+    umount "${STAGE_DIRECTORY}/MOUNT$dir"
+  done &&
+  umount "${STAGE_DIRECTORY}/MOUNT"
 }
 
 #---------------------------------------------------------------------
@@ -71,7 +82,9 @@ function real_devoke_stage_root()
 #---------------------------------------------------------------------
 function prepare_stage_root()
 {
-  mk_source_dir $STAGE_DIRECTORY
+  mk_source_dir "${STAGE_DIRECTORY}" &&
+  mk_source_dir "${STAGE_DIRECTORY}/TRANSL" &&
+  mk_source_dir "${STAGE_DIRECTORY}/MOUNT" 
 }
 
 #---------------------------------------------------------------------
@@ -92,13 +105,6 @@ function destroy_stage_root()
 function real_invoke_installwatch()  {
   if  [  -e  /usr/lib/installwatch.so  ];  then
     export  INSTALLWATCHFILE=$IW_LOG
-    export  INSTW_LOGFILE=$IW_LOG
-    export  INSTW_DBGFILE="$IW_DBGLOG"
-    export  INSTW_ROOTPATH=$STAGE_DIRECTORY
-    export  INSTW_TRANSL=0
-    export  INSTW_BACKUP=0
-    export  INSTW_DBGLVL=${INSTALLWATCH_DEBUG_LEVEL}
-    export  INSTW_EXCLUDE="$INSTALLWATCH_UNSTAGED_PATHS"
     export  LD_PRELOAD=/usr/lib/installwatch.so
   fi
 }
@@ -111,19 +117,11 @@ function real_invoke_installwatch()  {
 function real_devoke_installwatch()  {
   unset  LD_PRELOAD
   unset  INSTALLWATCHFILE
-  unset  INSTW_LOGFILE
-  unset  INSTW_DBGFILE
-  unset  INSTW_ROOTPATH
-  unset  INSTW_TRANSL
-  unset  INSTW_BACKUP
-  unset  INSTW_DBGLVL
-  unset  INSTW_EXCLUDE
 }
 
-function installwatch_is_stageable()
+function is_castfs_installed()
 {
-  local MINOR_VER="`installed_version installwatch | cut -d. -f2`"
-  if [[ $MINOR_VER == 7 ]]
+  if [[ $(installed_version castfs) || -f /usr/local/bin/castfs ]]
   then
     return 0
   else
@@ -161,14 +159,20 @@ function create_install_log()  {
   local OUTPUT=$2
 
   rm -f $OUTPUT
-  parse_iw $INPUT                     |
-  sort                                |
-  uniq                                |
-  install_log_filter $INSTALL_ROOT "" |
-  grep -v -x ""                       |
-  filter_excluded                     |
-  install_log_filter "" $INSTALL_ROOT |
-  exists                              >  $OUTPUT
+  if [[ $STAGED_INSTALL != off ]]
+  then
+    find "${STAGE_DIRECTORY}/TRANSL/"   |
+    sed "s#${STAGE_DIRECTORY}/TRANSL##g" > $OUTPUT
+  else
+    parse_iw $INPUT                     |
+    sort                                |
+    uniq                                |
+    install_log_filter $INSTALL_ROOT "" |
+    grep -v -x ""                       |
+    filter_excluded                     |
+    install_log_filter "" $INSTALL_ROOT |
+    exists                              >  $OUTPUT
+  fi
 
   echo "$C_LOG_COMP"                  >> $OUTPUT
   echo "$MD5_LOG"                     >> $OUTPUT
