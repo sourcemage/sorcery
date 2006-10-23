@@ -160,14 +160,35 @@ function delve_install() {
 
   delve_is_valid_step BUILD 2 || return 1
   delve_log_helper
-  if ! [[ "$__DELVE_IN_CAST" ]]
+  if [[ "$STAGED_INSTALL" != "off" ]]
   then
+    if [[ -z "$CHROOT_CHECK" ]]
+    then
+      echo "Preparing Stage Root" &&
+      prepare_stage_root &&
+      invoke_stage_root &&
+      export CHROOT_CHECK="true"
+      CHROOT_CMD="chroot ${STAGE_DIRECTORY}/MOUNT"
+    fi
+  else
     invoke_installwatch
   fi
   (
-    run_install || return 2
+    if [[ -z "$CHROOT_CMD" ]]
+    then
+      echo "Actually Running INSTALL"
+      run_install || return 2
+    else
+      echo "Running delve again" &&
+      $CHROOT_CMD delve $SPELL INSTALL
+    fi
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+  if [[ $CHROOT_CMD ]]
+  then
+    echo "Blowing away stage root"
+    devoke_stage_root
+  fi
 }
 
 function delve_post_build() {
@@ -337,7 +358,7 @@ function main() {
 
   echo "DEBUG: $STATES"
 
-  STAGED_INSTALL=off
+  #STAGED_INSTALL=off
 
   local last_rc=0
   for STATE in $STATES; do

@@ -68,16 +68,11 @@ function run_build_spell() {
     (
       run_build                             &&
       run_pre_install                       &&
-      if [[ "$STAGED_INSTALL" != "off" ]]
+      if [[ $STAGED_INSTALL == off ]]
       then
-        prepare_stage_root                  &&
-        invoke_stage_root                   &&
-        CHROOT_CHECK="chroot ${STAGE_DIRECTORY}/MOUNT"
-      else
-        invoke_installwatch                 
+        invoke_installwatch
       fi                                    &&
-      message "${MESSAGE_COLOR}iwlog $IW_LOG${DEFAULT_COLOR}" &&
-      $CHROOT_CHECK delve $SPELL INSTALL    &&
+      delve $SPELL INSTALL                  &&
       delve $SPELL POST_INSTALL             || return 2
       run_stage_install                     &&
       devoke_installwatch                   &&
@@ -239,7 +234,6 @@ function run_post_install() {
 function run_stage_install() {
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
-    devoke_stage_root &&
     install_staged_spell
   fi
 }
