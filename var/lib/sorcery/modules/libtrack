@@ -162,7 +162,8 @@ function create_install_log()  {
   if [[ $STAGED_INSTALL != off ]]
   then
     find "${STAGE_DIRECTORY}/TRANSL/"   |
-    sed "s#${STAGE_DIRECTORY}/TRANSL##g" > $OUTPUT
+    sed "s#${STAGE_DIRECTORY}/TRANSL##g"|
+    grep -v -x '/'                      > $OUTPUT
   else
     parse_iw $INPUT                     |
     sort                                |
