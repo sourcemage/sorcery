@@ -164,7 +164,6 @@ function delve_install() {
   then
     if [[ -z "$CHROOT_CHECK" ]]
     then
-      echo "Preparing Stage Root" &&
       prepare_stage_root &&
       invoke_stage_root &&
       export CHROOT_CHECK="true"
@@ -176,19 +175,18 @@ function delve_install() {
   (
     if [[ -z "$CHROOT_CMD" ]]
     then
-      echo "Actually Running INSTALL"
       run_install || return 2
     else
-      echo "Running delve again" &&
       $CHROOT_CMD delve $SPELL INSTALL
     fi
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+  local rc=$?
   if [[ $CHROOT_CMD ]]
   then
-    echo "Blowing away stage root"
     devoke_stage_root
-  fi
+  fi &&
+  return $rc
 }
 
 function delve_post_build() {
@@ -356,8 +354,6 @@ function main() {
     STATES=$(delve_make_continuation start end)
   fi
 
-  echo "DEBUG: $STATES"
-
   if [[ -z $CHROOT_CHECK ]] && ! is_castfs_installed
   then
     STAGED_INSTALL=off
@@ -365,7 +361,6 @@ function main() {
 
   local last_rc=0
   for STATE in $STATES; do
-    message "Running state $STATE"
     case $STATE in
              start) ;;
          PRE_BUILD) delve_pre_build ;;
