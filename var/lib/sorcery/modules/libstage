@@ -126,13 +126,13 @@ function stage_install_symlink()
       then
         touch "${INSTALL_ROOT}/$FILE" &&
         mkdir -p $(dirname $SAVE) &&
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" 
+        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$SAVE" 
       else
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE" 
       fi
       ;;
     *)
-      cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+      ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE" 
       ;;
   esac
 }
