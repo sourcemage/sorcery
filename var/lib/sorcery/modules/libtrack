@@ -122,7 +122,7 @@ function real_devoke_installwatch()  {
 
 function is_castfs_installed()
 {
-  if which castfs && ( modprobe fuse || cat /proc/filesystems | grep -q '^nodef[[:space:]]*fuse$' )
+  if which castfs && ( modprobe fuse || grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems ) && [ -c /dev/fuse ]
   then
     return 0
   else
