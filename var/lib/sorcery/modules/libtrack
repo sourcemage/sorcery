@@ -47,8 +47,9 @@ function real_invoke_stage_root()
   export CASTFS_LOGFILE=${CASTFS_DBGLOG}
   export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
   local CASTFS_IGNORE_LIST=""
+  local LOCAL_IGNORE_DIRS="${CCACHE_DIR}"
   # this forks and daemonizes so it will exit you simply unmount the dir to stop the process
-  for dir in ${CASTFS_UNSTAGED_PATHS}
+  for dir in ${CASTFS_UNSTAGED_PATHS} ${LOCAL_IGNORE_DIRS}
   do
     CASTFS_IGNORE_LIST="${CASTFS_IGNORE_LIST} -o ignore=$dir"
   done &&
@@ -70,9 +71,9 @@ function real_devoke_stage_root()
   unset CASTFS_DBGLVL
   for dir in /dev/pts /dev /proc /sys
   do
-    umount "${STAGE_DIRECTORY}/MOUNT$dir"
+    umount -l "${STAGE_DIRECTORY}/MOUNT$dir"
   done &&
-  umount "${STAGE_DIRECTORY}/MOUNT"
+  umount -l "${STAGE_DIRECTORY}/MOUNT"
 }
 
 #---------------------------------------------------------------------
@@ -121,7 +122,7 @@ function real_devoke_installwatch()  {
 
 function is_castfs_installed()
 {
-  if [[ $(installed_version castfs) || -x /usr/local/bin/castfs ]] && modprobe fuse
+  if which castfs && ( modprobe fuse || grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems ) && [ -c /dev/fuse ]
   then
     return 0
   else
@@ -162,7 +163,8 @@ function create_install_log()  {
   if [[ $STAGED_INSTALL != off ]]
   then
     find "${STAGE_DIRECTORY}/TRANSL/"   |
-    sed "s#${STAGE_DIRECTORY}/TRANSL##g" > $OUTPUT
+    sed "s#${STAGE_DIRECTORY}/TRANSL##g"|
+    grep -v -x '/'                      > $OUTPUT
   else
     parse_iw $INPUT                     |
     sort                                |
