@@ -145,7 +145,7 @@ function real_prepare_install() { (
 ## them as part of the spell
 ##
 #---------------------------------------------------------------------
-function real_gather_docs()  {
+function real_gather_docs()  { (
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
@@ -154,21 +154,23 @@ function real_gather_docs()  {
     DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
     mkdir  -p  $DOC_DIR
 
-    for i in ${DOCS[@]}
-    do
-      cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
+    cd $SOURCE_DIRECTORY
+    shopt -s nullglob
+    for i in ${DOCS}; do
+      if test -f "$i"; then
+        file $i|grep -q executable && continue
+        cp $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
+      elif test -d "$i"; then
+        cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
+      fi
     done
-
-    # what is this here for and why isn't it part of the standard DOCS
-    # variable?
-    cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
 
     # making installed docs readable for all users.
     chmod -fR a+r $DOC_DIR
 
   fi
 
-}
+) }
 
 
 #---------------------------------------------------------------------
