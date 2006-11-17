@@ -147,7 +147,7 @@ function delve_build() {
 
 function delve_pre_install() {
   debug "delve" "Running $FUNCNAME"
-  delve_is_valid_step BUILD 2 || return 1
+  delve_is_valid_step PRE_INSTALL 2 || return 1
   delve_log_helper
   (
     run_pre_install
@@ -158,7 +158,7 @@ function delve_pre_install() {
 function delve_install() {
   debug "delve" "Running $FUNCNAME"
 
-  delve_is_valid_step BUILD 2 || return 1
+  delve_is_valid_step INSTALL 2 || return 1
   delve_log_helper
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
@@ -189,10 +189,43 @@ function delve_install() {
   return $rc
 }
 
+function delve_install_extras() {
+  debug "delve" "Running $FUNCNAME"
+
+  delve_is_valid_step INSTALL_EXTRAS 2 || return 1
+  delve_log_helper
+  if [[ "$STAGED_INSTALL" != "off" ]]
+  then
+    if [[ -z "$CHROOT_CHECK" ]]
+    then
+      invoke_stage_root &&
+      export CHROOT_CHECK="true"
+      CHROOT_CMD="chroot ${STAGE_DIRECTORY}/MOUNT"
+    fi
+  else
+    invoke_installwatch
+  fi
+  (
+    if [[ -z "$CHROOT_CMD" ]]
+    then
+      run_install_extras || return 2
+    else
+      $CHROOT_CMD delve $SPELL INSTALL_EXTRAS
+    fi
+  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+  local rc=$?
+  if [[ $CHROOT_CMD ]]
+  then
+    devoke_stage_root
+  fi &&
+  return $rc
+}
+
 function delve_post_build() {
   debug "delve" "Running $FUNCNAME"
 
-  delve_is_valid_step BUILD 1 || return 1
+  delve_is_valid_step POST_BUILD 1 || return 1
   delve_log_helper
   [ -d $SOURCE_DIRECTORY ] || {
     message "Ack! there is no $SOURCE_DIRECTORY"
@@ -207,7 +240,7 @@ function delve_post_build() {
 
 function delve_post_install() {
   debug "delve" "Running $FUNCNAME"
-  delve_is_valid_step BUILD 1 2 || return 1
+  delve_is_valid_step POST_INSTALL 1 2 || return 1
   delve_log_helper
   (
     run_post_install
@@ -215,19 +248,19 @@ function delve_post_install() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
-function delve_stage_install() {
+function delve_transfer() {
   debug "delve" "Running $FUNCNAME"
-  delve_is_valid_step BUILD 1 2 || return 1
+  delve_is_valid_step TRANSFER 2 || return 1
   delve_log_helper
   (
-    run_stage_install
+    run_transfer
   ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 function delve_final() {
   debug "delve" "Running $FUNCNAME"
-  delve_is_valid_step BUILD 2 || return 1
+  delve_is_valid_step FINAL 2 || return 1
   delve_log_helper
   devoke_installwatch &&
   STAGED_INSTALL=off
@@ -269,7 +302,7 @@ function delve_make_continuation() {
   local begin=$1
   local end=$2
   local API1="start PRE_BUILD config_loc BUILD POST_BUILD POST_INSTALL TRIGGERS end"
-  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL POST_INSTALL stage_install FINAL TRIGGERS end"
+  local API2="start PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL INSTALL_EXTRAS POST_INSTALL TRANSFER FINAL TRIGGERS end"
   local THIS_API
   case $BUILD_API in 
     1) THIS_API=$API1 ;;
@@ -321,8 +354,9 @@ function process_parameters() {
        PRE_INSTALL) STATES="$STATES $param" ;;
            INSTALL) STATES="$STATES $param" ;;
         POST_BUILD) STATES="$STATES $param" ;;
+    INSTALL_EXTRAS) STATES="$STATES $param" ;;
       POST_INSTALL) STATES="$STATES $param" ;;
-     stage_install) STAGES="$STAGES $param" ;;
+          TRANSFER) STAGES="$STAGES $param" ;;
              FINAL) STATES="$STATES $param" ;;
           TRIGGERS) STATES="$STATES $param" ;;
            success) STATES="$STATES $param" ;;
@@ -369,8 +403,9 @@ function main() {
        PRE_INSTALL) delve_pre_install ;;
            INSTALL) delve_install ;;
         POST_BUILD) delve_post_build ;;
+    INSTALL_EXTRAS) delve_install_extras ;;
       POST_INSTALL) delve_post_install ;;
-     stage_install) delve_stage_install ;;
+          TRANSFER) delve_transfer ;;
              FINAL) delve_final ;;
           TRIGGERS) delve_triggers ;;
            success) delve_spell_success ;;

@@ -73,8 +73,9 @@ function run_build_spell() {
         invoke_installwatch
       fi                                    &&
       delve $SPELL INSTALL                  &&
-      delve $SPELL POST_INSTALL             || return 2
-      run_stage_install                     &&
+      delve $SPELL INSTALL_EXTRAS           &&
+      run_post_install                      || return 2
+      run_transfer                          &&
       devoke_installwatch                   &&
       STAGED_INSTALL=off                    &&
       run_final                             || return 3
@@ -206,6 +207,12 @@ function run_install() {
   fi
 }
 
+function run_install_extras() {
+  
+  debug "build_api/api2" "Starting run_install_extras()"
+  run_spell_file INSTALL_EXTRAS install_extras
+}
+
 #---------------------------------------------------------------------
 ## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is run after INSTALL and before
@@ -227,14 +234,15 @@ function run_post_install() {
   run_spell_file POST_INSTALL post_install
   unlock_resources "libgrimoire" "install"
 }
+
 #--------------------------------------------------------------------
 ### Checks against STAGED_INSTALL and installs the staged spell 
 ### accordingly
 ##--------------------------------------------------------------------
-function run_stage_install() {
+function run_transfer() {
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
-    install_staged_spell
+    run_spell_file TRANSFER transfer
   fi
 }
               
@@ -333,7 +341,7 @@ function real_default_sorcery_install() {
 ##
 ## This is identical to api1's post_build
 #---------------------------------------------------------------------
-function real_default_sorcery_post_install() {
+function real_default_sorcery_install_extras() {
 
   debug "build_api/api2" "Starting real_default_sorcery_post_install"
   install_xinetd
@@ -346,6 +354,12 @@ function real_default_sorcery_post_install() {
   # release_saved_libraries
   cd  /
 
+}
+
+function real_default_sorcery_transfer() {
+  
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
+  transfer_staged_spell
 }
 
 #---------------------------------------------------------------------
