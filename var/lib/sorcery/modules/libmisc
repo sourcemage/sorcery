@@ -702,11 +702,13 @@ function real_persistent_remove () {
 function real_persistent_load () {
     local PERSISTENT_LOADING=yes
     local PERSISTENT_FILE=${1:-$SPELL_CONFIG.p}
+    lock_file "$PERSISTENT_FILE"
     if [ -f "$PERSISTENT_FILE" ]; then
         . "$PERSISTENT_FILE"
         local line
         persistent_add `while read line; do echo ${line%%=*}; done < "$PERSISTENT_FILE"`
     fi
+    unlock_file "$PERSISTENT_FILE"
 }
 
 
@@ -719,12 +721,15 @@ function real_persistent_load () {
 function real_persistent_save () {
     local VAR
     local TMP
-    > "$SPELL_CONFIG.p"
+    local file=$SPELL_CONFIG.p
+    local tfile=$(lock_start_transaction $file)
+    > "$tfile"
     for VAR in $PERSISTENT_VARIABLES; do
         config_get_option $VAR TMP
-        echo "$VAR=\"$TMP\"" >> "$SPELL_CONFIG.p"
+        echo "$VAR=\"$TMP\"" >> "$tfile"
         unset "$VAR"
     done
+    lock_commit_transaction "$file"
     unset PERSISTENT_VARIABLES
 }
 
