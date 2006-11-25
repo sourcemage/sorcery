@@ -427,9 +427,9 @@ function source_sanity() {
   if [[ "$1" != "${1%.tar.bz2}" ]] ||
      [[ "$1" != "${1%.tar.gz}" ]] ||
      [[ "$1" != "${1%.tgz}" ]]; then
-    local _type=$(file "$1")
-    if echo $_type | grep -iq HTML ||
-       echo $_type | grep -iq ascii ; then
+    local _type=$(file -bi "$1")
+    if echo $_type | grep -iq text/html ||
+       echo $_type | grep -iq text/plain ; then
       upvar "$2" "$_type"
       return 1
     fi
