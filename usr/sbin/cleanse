@@ -359,21 +359,26 @@ function prune_depends()
 
     # If the spell is optional, then the dependency can be removed and the spell recast
     # If it's required, then it can't be removed
-    if [[ $3 == required ]] ; then
+    if [[ $3 == required ]] || [[ $3 == runtime ]]; then
       options=( "Ignore" "Dispel $1" "Cast $2" "${options[@]}" )
     elif [[ $3 == optional ]] ; then
       options=( "Ignore" "Dispel $1" "Cast $2" "Recast $1 without $2" "${options[@]}" )
+    elif [[ $3 == suggest ]] ; then
+      options=( "Ignore" "Dispel $1" "Cast $2" "Disable $2 in $1" "${options[@]}" )
     fi
     
     #Get the user's choice of action
     select_list choice "" "${options[@]}" 
     case ${choice} in
       I*)  message "Ignoring."                ;;
-      D*)  echo $1 >> $TMP_DIR/prune.dispel    ;;
+      Dispel*)  echo $1 >> $TMP_DIR/prune.dispel    ;;
       C*)  echo $2 >> $TMP_DIR/prune.cast      ;;
       R*)  echo $1 >> $TMP_DIR/prune.cast
         # Revise choice in the depends file
         sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
+        mv $TMP_DIR/prune.1 $DEPENDS_STATUS
+      Disable*) 
+        sed 's/^\('$1':'$2':\)on\(:suggest:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
         mv $TMP_DIR/prune.1 $DEPENDS_STATUS
         ;;
       S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
