@@ -184,6 +184,10 @@ function run_our_sub_depends() {
     sub_dependee=${tmp#*:};
     sub_depends=${triple##*:}
 
+    # if the requester has been processed skip any sub-depends its
+    # previous instance requested, bug 11865
+    [[ $(hash_get "depends_looked_at" "$requester") == done ]] && continue
+
     process_sub_depends "$requester" "$sub_dependee" "$sub_depends" || return 1
   done
 
@@ -1518,7 +1522,6 @@ function depends_message() {
   fi
   message ""
 }
-
 
 #########################BEGIN OTHER STUFF############################
 

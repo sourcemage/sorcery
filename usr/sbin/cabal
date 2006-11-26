@@ -17,21 +17,21 @@ function read_cabal_names()  {
 
   mkdir  -p  $CABAL_DIRECTORY
 
-  [  -f  $CABAL_NAMES  ] || return
+ [  -f  $CABAL_NAMES  ] || return
+        
 
-  eval `awk '{ print "CABAL[" NR-1 "]=\"" $0 "\""; }' "$CABAL_NAMES"`
+  eval `awk '{ print "CABALS[" NR-1 "]=\"" $0 "\""; }' "$CABAL_NAMES"`
 
 }
 
 #--------------------
 ## Overwrite the cabal name file with new member names
-## @Note The loop can probably be done more intelegently, so a MAX_CABALS is not necessary.
 ## @Globals CABAL_NAMES MAX_CABALS
 #--------------------
 function write_cabal_names()  {
 
   rm  -f  $CABAL_NAMES
-  for  ((  COUNT=0;  COUNT != MAX_CABALS;  COUNT++  ));   do
+  for  ((  COUNT=0;  COUNT != ${#CABALS[@]};  COUNT++  ));   do
     echo  "${CABALS[$COUNT]}"  >>  $CABAL_NAMES
   done
 
@@ -45,9 +45,11 @@ function write_cabal_names()  {
 #---------------------
 function print_cabal_names()  {
 
-  for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
-    echo  "${CABALS[$COUNT]}"
-  done
+eval ${DIALOG}  '--textbox  ${CABAL_NAMES}  0  0' 
+
+#for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
+#    echo  "${CABALS[$COUNT]}"
+#done
 
 }
 
@@ -257,7 +259,7 @@ function cabal_name_menu()  {
   do
 
     case  $COMMAND in
-      S)  print_cabal_names  |  $PAGER  ;;
+      S)  print_cabal_names   ;;
       E)  name_cabals                   ;;
     esac
 
@@ -379,16 +381,16 @@ function cabal_admin_menu()  {
 
 function cabal_copy()  {
 
-  SOURCE_MESSAGE="Please enter source files and directories."
-    DEST_MESSAGE="Please enter destination directory."
+  SOURCE_MESSAGE='"Please enter source files and directories."'
+    DEST_MESSAGE='"Please enter destination directory."'
 
   mkdir  -p  $CABAL_OUTPUT || {
     messasge "Failed to make CABAL_OUTPUT directory $CABAL_OUTPUT"
     exit 1
   }
 
-       SOURCE=`eval $DIALOG  --inputbox  "$SOURCE_MESSAGE"  0 0`  &&
-  DESTINATION=`eval $DIALOG  --inputbox  "$DEST_MESSAGE"    0 0`  &&
+       SOURCE=`eval $DIALOG  --inputbox  $SOURCE_MESSAGE  0 0`  &&
+  DESTINATION=`eval $DIALOG  --inputbox  $DEST_MESSAGE    0 0`  &&
         CABAL=`select_cabal`                                 &&
         ORDER=`select_order`                                 &&
 
@@ -430,16 +432,16 @@ function cabal_execute()  {
   case  $ORDER  in
     C)  cat  $CABAL_DIRECTORY/$CABAL  |
         while  read  BOX;  do  
-          ssh  -i  $CABAL_KEYS/$CABAL  \
+          echo "execing box $BOX" && ssh  -n -i  $CABAL_KEYS/$CABAL  \
                    root@${BOX}         \
                    "$COMMAND"          \
           >  $CABAL_OUTPUT/$BOX        &
         done
         ;;
 
-    S)  cat  $CABAL_DIRECTORY/$CABAL  |
+    S)  cat $CABAL_DIRECTORY/$CABAL  |
         while  read  BOX;  do  
-          ssh  -i  $CABAL_KEYS/$CABAL  \
+          echo "execing box $BOX" && ssh -n -i  $CABAL_KEYS/$CABAL  \
                    root@${BOX}         \
                    "$COMMAND"
         done
@@ -447,7 +449,7 @@ function cabal_execute()  {
         ;;
   esac
 
-  sleep  10
+  #sleep  10   <--not sure why that's there.. --dave
 
 }
 
@@ -456,9 +458,10 @@ function cabal_output()  {
 
   if  [  -d  $CABAL_OUTPUT  ];  then
     for  FILE  in  `ls  $CABAL_OUTPUT`;  do
-      echo  "$FILE  Beginning Output"
+      echo  "*------- $FILE  Beginning Output -------*"
       cat   $CABAL_OUTPUT/$FILE
-      echo  "$FILE  Ending Output"
+      echo  "*------- $FILE  Ending Output -------*"
+      echo
     done
   fi
 }
@@ -491,7 +494,7 @@ copies"
     case  $COMMAND in
       C)  cabal_copy               ;;
       E)  cabal_execute            ;;
-      S)  cabal_output  |  $PAGER  ;;
+      S)  cabal_output | ${PAGER}  ;;
     esac
 
   done
@@ -531,11 +534,37 @@ function cabal_menu()  {
 
 }
 
+function show_file()     {
+
+  if  [  -f  $1  ];  then
+
+    if  [  "`file  -b  $1  |  cut  -d ' '  -f1`"  == "bzip2" ];  then
+      bzcat  $1  |  $PAGER
+    elif  [  "`file  -b  $1  |  cut  -d ' '  -f1`"  == "gzip" ];  then
+      gzip  -cd  $1  |  $PAGER
+    else
+      eval $DIALOG  '--textbox  $1  0  0'
+    fi
+
+  else
+    eval $DIALOG  '--msgbox  "File not found."  0  0'
+    return  1
+  fi
+
+}
+
 . /etc/sorcery/config
-DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
+
+if [ -n "${PAGER}" ]
+then
+  PAGER=`which less`
+fi  
+
+DIALOG="${DIALOGPROG} --stdout"
+
 cabal_menu
 
-#---------------------------------------------------------------------
+##---------------------------------------------------------------------
 ##=back
 ##
 ##=head1 LICENSE
@@ -554,4 +583,4 @@ cabal_menu
 ## along with this software; if not, write to the Free Software
 ## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ##
-#---------------------------------------------------------------------
+##---------------------------------------------------------------------

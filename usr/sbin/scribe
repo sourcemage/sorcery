@@ -74,16 +74,19 @@ function unpackage_grimoire_tarball() {
   local tarball=$1
   local grimoire=$2
   local grim_name=$3
-  #untar the new grimoire update and remove zip
-  bzcat $tarball| tar -x  1>/dev/null 2>&1
-  #check for a successful unzip
-  if ! [ -d $grimoire ]; then
-    #uh oh! bad unzip.
-    message "ERROR: Grimoire tarball for $grim_name not" \
-            "formatted correctly!."
+  #untar the new grimoire tarball
+  if tar -xjf $tarball 1>/dev/null 2>&1; then
+    # ensure the grimoire unpacked where it was expected to
+    if ! [ -d $grimoire ]; then
+      message "ERROR: Grimoire tarball for $grim_name not" \
+              "formatted correctly!."
+      return 1
+    fi 
+    return 0
+  else
+    message "ERROR: Grimoire tarball for $grim_name did not unpack properly!"
     return 1
-  fi 
-  return 0
+  fi
 }
 
 #---------------------------------------------------------------------
