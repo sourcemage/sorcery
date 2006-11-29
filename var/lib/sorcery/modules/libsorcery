@@ -524,6 +524,7 @@ function filter() {
       
       # And to explain the reasoning
       # the grep -v command removes both the RID and NOT_RID lists
+      touch $TMP_DIR/filter_tmp_file
       exec 3> >(grep -v "$NOT_RID_LIST\|$RID_LIST")
       exec 4> >(grep "$NOT_RID_LIST" > $TMP_DIR/filter_tmp_file)
       tee -a /proc/self/fd/3 1>&4
