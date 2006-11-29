@@ -27,8 +27,10 @@
 #    default_sorcery_build          (build_api/...)   
 #    default_sorcery_download       (libsummon)
 #    default_sorcery_install        (build_api/api2)   (BUILD_API==2 only)
+#    default_sorcery_install_extras (build_api/api2)   (BUILD_API==2 only)
 #    default_sorcery_post_build     (build_api/api1)   (BUILD_API==1 only)
 #    default_sorcery_post_install   (build_api/api2)   (BUILD_API==2 only)
+#    default_sorcery_transfer       (build_api/api2)   (BUILD_API==2 only)
 #    default_sorcery_pre_build      (build_api/common)   
 #    default_sorcery_pre_install    (build_api/api2)   (BUILD_API==2 only)
 #    depends                        (libdepends)
@@ -332,6 +334,17 @@ function default_sorcery_install () {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_install_extras> for more details.
+## Only defined for BUILD_API==2
+## Installs configuration files and documentation. 
+#---------------------------------------------------------------------
+function default_sorcery_install_extras () {
+    debug "libapi" "default_sorcery_install_extras - $*"
+    real_default_sorcery_install_extras "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_post_build> for more details.
 ## Only defined for BUILD_API==1
 ## Installs configuration files and documentation.  Stops installwatch.
@@ -348,14 +361,24 @@ function default_sorcery_post_build () {
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_post_install> for more details.
 ## Only defined for BUILD_API==2
-## Installs configuration files and documentation.  Stops installwatch.
-## Used if no POST_INSTALL script is found for a spell.
-## equivalent to default_sorcery_post_build in BUILD_API==1
-##
+## Puts the spell at the root of the stage root so manipulation of the
+## installed files can happen
 #---------------------------------------------------------------------
 function default_sorcery_post_install () {
     debug "libapi" "default_sorcery_post_install - $*"
     real_default_sorcery_post_install "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_transfer> for more details.
+## Only defined for BUILD_API==2
+## Transfers the files from the stage area to the system. Default is
+## transfer_staged_spell
+#---------------------------------------------------------------------
+function default_sorcery_transfer () {
+    debug "libapi" "default_sorcery_transfer - $*"
+    real_default_sorcery_transfer "$@"
 }
 
 #---------------------------------------------------------------------
