@@ -1,3 +1,35 @@
+2006-11-29 David Brown <dmlb2000@gmail.com>
+	* etc/sorcery/compile_config: set DISTCC_DIR env-var
+	* etc/sorcery/config: remove installwatch stuff added castfs stuff
+	* confmeld: fixed parsing of the path to generate the correct data
+	* delve: added transfer and install extras as stages also added
+	  chroot checks since delve calls itself during the install stage.
+	  stage install is now called transfer so lots of one liners for that
+	  also swapped out installwatch checks for castfs checks
+	* var/lib/sorcery/build/run_compiler: added export of distcc dir
+	* build_api/api2: swapped out installwatch stuff for castfs stuff,
+	  stuff includes checks and logfile variables. Also added the install
+	  extras and transfer stages to the build process, this includes the
+	  default sorcery functions and making the run functions
+	* build_api/common: added an old.libraries hack for when we remove
+	  important libraries we save them first then library and run paths
+	  to find them again. This is here for similar reasons as the old
+	  binaries hack above it.
+	* libapi: added the new stages for install extras and transfer. Also
+	  modified the comment so it reflects the changes made.
+	* libcast: swapped out installwatch log for castfs log creation
+	* libgrimoire: added some recursive umount checks for deaddir in 
+	  rm_source_dir so we don't remove system stuff if there's a bind
+	* libsorcery: added !filter syntax for spell filters. The !filter
+	  takes presidence over the filter.
+	* libspell: added install extras and transfer magic to make sure
+	  sorcery calls the new spell files if they exist
+	* libstage: swap out installwatch for castfs, this includes changing
+	  out invoke devoke and prepare stage root and installwatch functions.
+	  Also the installwatch check is now castfs check. The install log is
+	  now created from a find of the stage root location instead of parsing
+	  installwatch logs.
+
 2006-11-25 Andrew Stitt <astitt@sourcemage.org>
 	* scribe: check for tar failure from unpacking, fixes bug 12387
 
