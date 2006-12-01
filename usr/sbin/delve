@@ -390,11 +390,14 @@ function main() {
 
   if [[ -z $CHROOT_CHECK ]]
   then
-    if ! is_castfs_installed
+    if [[ -z $STAGED_INSTALL ]]
     then
-      STAGED_INSTALL=off
-    else
-      STAGED_INSTALL=on
+      if ! is_castfs_installed
+      then
+        STAGED_INSTALL=off
+      else
+        STAGED_INSTALL=on
+      fi
     fi
   fi
 
