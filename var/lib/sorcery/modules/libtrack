@@ -133,10 +133,18 @@ function real_devoke_installwatch()  {
 
 function is_castfs_installed()
 {
-  if which castfs && ( modprobe fuse || grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems ) && [ -c /dev/fuse ]
+  local loc
+  if smgl_which castfs loc >/dev/null 2>&1 && 
+     (
+       modprobe fuse > /dev/null 2>&1 || 
+       grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems 
+     ) && 
+     [[ -c /dev/fuse ]] 
   then
+    message "${MESSAGE_COLOR}staging enabled${DEFAULT_COLOR}"
     return 0
   else
+    message "${MESSAGE_COLOR}staging disabled${DEFAULT_COLOR}"
     return 1
   fi
 }
