@@ -130,7 +130,20 @@ function real_prepare_install() { (
       dispel  --notriggers --nosustain  $SPELL
 
     fi
-)
+) &&
+save_bin_lib_paths
+}
+
+#--------------------------------------------------------------------
+## 
+## append old libraries and binaries to the appropriate environmental
+## variables so that they can be found by sorcery if they get 
+## dispelled
+##
+#--------------------------------------------------------------------
+
+function save_bin_lib_paths()
+{
   # TODO this is a dirty hack we need to remove it
   if test -d "$SOURCE_DIRECTORY/old.binaries" ; then
     for dir in $( find "$SOURCE_DIRECTORY/old.binaries" -type d); do
