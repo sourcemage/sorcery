@@ -511,25 +511,16 @@ function filter() {
                        echo -n "${thing/\!/}\|"
                      done
       echo -n /dev/null)
-    (
-      # Okay to explain the code
-      # exec 3> is opening up the 3 file descriptor for this shell and
-      # pointing all input to that file descriptor to the stdin of the
-      # subshell with grep
-      # similarly with exec 4> line
-      # the tee line is taking the stdin from this subshell and sending
-      # it to the two file descriptors 3 and 4
-      # the filter_tmp_file is used so the output going to fds 3 & 4 
-      # won't over-write each other
-      
-      # And to explain the reasoning
-      # the grep -v command removes both the RID and NOT_RID lists
-      touch $TMP_DIR/filter_tmp_file
-      exec 3> >(grep -v "$NOT_RID_LIST\|$RID_LIST")
-      exec 4> >(grep "$NOT_RID_LIST" > $TMP_DIR/filter_tmp_file)
-      tee -a /proc/self/fd/3 1>&4
-      cat $TMP_DIR/filter_tmp_file
-    )
+
+    local TMP_SSF=$(make_safe_dir)
+    local FILE=$TMP_SSF/ssf
+
+    cat > $FILE
+    {
+      grep -v "$NOT_RID_LIST\|$RID_LIST" $FILE
+      grep "$NOT_RID_LIST" $FILE
+    }
+    rm $FILE 2>/dev/null
   else
     cat
   fi
