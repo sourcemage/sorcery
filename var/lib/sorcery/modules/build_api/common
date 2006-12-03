@@ -170,22 +170,26 @@ function real_gather_docs()  { (
 
     debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
 
-    DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
-    mkdir  -p  $DOC_DIR
+    DEST_DIR=$DOCUMENT_DIRECTORY/$SPELL
+    mkdir  -p  $DEST_DIR
 
     cd $SOURCE_DIRECTORY
     shopt -s nullglob
     for i in ${DOCS}; do
       if test -f "$i"; then
-        file $i|grep -q executable && continue
-        cp $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
-      elif test -d "$i"; then
-        cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
+        file -bi $i|grep -q ^application && continue
+        cp $SOURCE_DIRECTORY/${i} $DEST_DIR 2>/dev/null
+      fi
+    done
+
+    for i in ${DOC_DIRS}; do
+      if test -d "$i"; then
+        cp -r $SOURCE_DIRECTORY/${i} $DEST_DIR 2>/dev/null
       fi
     done
 
     # making installed docs readable for all users.
-    chmod -fR a+r $DOC_DIR
+    chmod -fR a+r $DEST_DIR
 
   fi
 
