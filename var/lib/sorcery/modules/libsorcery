@@ -503,24 +503,36 @@ function filter() {
       cat $files   |
       grep -v '^!' | while read thing; do
                        echo -n "${thing}\|"
-                     done
-      echo -n /dev/null)
+                     done)
     NOT_RID_LIST=$(
       cat $files   |
       grep '^!'    | while read thing; do
                        echo -n "${thing/\!/}\|"
-                     done
-      echo -n /dev/null)
+                     done)
+    RID_LIST=${RID_LIST%\\|}
+	NOT_RID_LIST=${NOT_RID_LIST%\\|}
+	echo "R:$RID_LIST" >&2
+	echo "NR:$NOT_RID_LIST" >&2
 
     local TMP_SSF=$(make_safe_dir)
     local FILE=$TMP_SSF/ssf
 
-    cat > $FILE
-    {
-      grep -v "$NOT_RID_LIST\|$RID_LIST" $FILE
-      grep "$NOT_RID_LIST" $FILE
-    }
-    rm $FILE 2>/dev/null
+	if [[ $RID_LIST ]]
+	then
+	  if [[ $NOT_RID_LIST ]]
+	  then
+        cat > $FILE
+        {
+          grep -v "$NOT_RID_LIST\|$RID_LIST" $FILE
+          grep "$NOT_RID_LIST" $FILE
+        }
+        rm $FILE 2>/dev/null
+      else
+        grep -v "$RID_LIST"
+      fi
+	else
+      cat
+    fi
   else
     cat
   fi
@@ -549,20 +561,28 @@ function filter_in() {
       cat $files   | 
       grep -v '^!' | while read thing; do
                        echo -n "${thing}\|"
-                     done
-      echo -n /dev/null)
+                     done)
     NOT_RID_LIST=$(
       cat $files   | 
       grep '^!'    | while read thing; do
                        echo -n "${thing/\!/}\|"
-                     done
-      echo -n /dev/null)
-    if [[ $NOT_RID_LIST ]]
-    then
-      grep "$RID_LIST" |
-      grep -v "$NOT_RID_LIST"
-    else
-      grep "$RID_LIST"
+                     done)
+	RID_LIST=${RID_LIST%\\|}
+	NOT_RID_LIST=${NOT_RID_LIST%\\|}
+	echo "R:$RID_LIST" >&2
+	echo "NR:$NOT_RID_LIST" >&2
+	if [[ $RID_LIST ]]
+	then
+      if [[ $NOT_RID_LIST ]]
+      then
+        grep "$RID_LIST" |
+        grep -v "$NOT_RID_LIST"
+      else
+        grep "$RID_LIST"
+      fi
+	else
+	  # grep '' outputs everything in this case we want nothing
+      cat > /dev/null
     fi
   else
     cat
