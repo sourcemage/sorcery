@@ -510,17 +510,15 @@ function filter() {
                        echo -n "${thing/\!/}\|"
                      done)
     RID_LIST=${RID_LIST%\\|}
-	NOT_RID_LIST=${NOT_RID_LIST%\\|}
-	echo "R:$RID_LIST" >&2
-	echo "NR:$NOT_RID_LIST" >&2
+    NOT_RID_LIST=${NOT_RID_LIST%\\|}
 
     local TMP_SSF=$(make_safe_dir)
     local FILE=$TMP_SSF/ssf
 
-	if [[ $RID_LIST ]]
-	then
-	  if [[ $NOT_RID_LIST ]]
-	  then
+    if [[ $RID_LIST ]]
+    then
+      if [[ $NOT_RID_LIST ]]
+      then
         cat > $FILE
         {
           grep -v "$NOT_RID_LIST\|$RID_LIST" $FILE
@@ -530,7 +528,7 @@ function filter() {
       else
         grep -v "$RID_LIST"
       fi
-	else
+    else
       cat
     fi
   else
@@ -567,12 +565,11 @@ function filter_in() {
       grep '^!'    | while read thing; do
                        echo -n "${thing/\!/}\|"
                      done)
-	RID_LIST=${RID_LIST%\\|}
-	NOT_RID_LIST=${NOT_RID_LIST%\\|}
-	echo "R:$RID_LIST" >&2
-	echo "NR:$NOT_RID_LIST" >&2
-	if [[ $RID_LIST ]]
-	then
+    RID_LIST=${RID_LIST%\\|}
+    NOT_RID_LIST=${NOT_RID_LIST%\\|}
+
+    if [[ $RID_LIST ]]
+    then
       if [[ $NOT_RID_LIST ]]
       then
         grep "$RID_LIST" |
@@ -580,8 +577,8 @@ function filter_in() {
       else
         grep "$RID_LIST"
       fi
-	else
-	  # grep '' outputs everything in this case we want nothing
+    else
+      # grep '' outputs everything in this case we want nothing
       cat > /dev/null
     fi
   else
