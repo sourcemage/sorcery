@@ -23,7 +23,7 @@
 ## a spell for BUILD_API 1.
 #---------------------------------------------------------------------
 function run_build_spell() {
-  debug "build_api/api1" "run_build_spell"
+  $STD_SORCERY_DEBUG_HEAD
   C_LOG=$TMP_DIR/$SPELL.compile.log
   C_FIFO=/dev/stdout
   STAGED_INSTALL=off
@@ -82,7 +82,7 @@ function run_build_spell() {
 #---------------------------------------------------------------------
 function run_pre_build() {
 
-  debug "build_api/api1" "run_pre_build()"
+  $STD_SORCERY_DEBUG_HEAD
   message  "${MESSAGE_COLOR}Building"  \
            "${SPELL_COLOR}${SPELL}"    \
            "${DEFAULT_COLOR}"
@@ -102,7 +102,7 @@ function run_pre_build() {
 #---------------------------------------------------------------------
 function run_build()  {
 
-  debug "build_api/api1" "Starting run_build()"
+  $STD_SORCERY_DEBUG_HEAD
 
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
@@ -144,7 +144,7 @@ function run_build()  {
 #---------------------------------------------------------------------
 function run_post_build() {
 
-  debug "build_api/api1" "Starting run_post_build()"
+  $STD_SORCERY_DEBUG_HEAD
   run_spell_file POST_BUILD post_build
 
   # Lock made in prepare_install
@@ -160,7 +160,7 @@ function run_post_build() {
 #---------------------------------------------------------------------
 function run_post_install() {
 
-  debug "build_api/api1" "Starting run_post_install()"
+  $STD_SORCERY_DEBUG_HEAD
   run_spell_file INSTALL install
 }
 
@@ -172,7 +172,7 @@ function run_post_install() {
 #---------------------------------------------------------------------
 function real_default_sorcery_pre_build() {
 
-  debug "build_api/api1" "Starting real_default_sorcery_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
+  $STD_SORCERY_DEBUG SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
   unpack_file
 
@@ -199,7 +199,7 @@ function real_default_sorcery_pre_build() {
 #---------------------------------------------------------------------
 function real_default_sorcery_build() {
 
-  debug "build_api/api1" "Starting real_default_sorcery_build()"
+  $STD_SORCERY_DEBUG_HEAD
   OPTS="$OPTS --build=${BUILD}"
   #If this switches are used, they _may_ stop distcc and ccache from working
   # for some spells (bug 3798)
@@ -228,7 +228,7 @@ function real_default_sorcery_build() {
 #---------------------------------------------------------------------
 function real_default_sorcery_post_build() {
 
-  debug "build_api/api1" "Starting real_default_sorcery_post_build()"
+  $STD_SORCERY_DEBUG_HEAD
 
   install_xinetd
   install_initd

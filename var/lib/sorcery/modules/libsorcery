@@ -22,7 +22,7 @@ function update_sorcery_scripts() {
 
   local BRANCH=$1
 
-  debug "libsorcery" "update_sorcery_scripts() (sorcery-$BRANCH)"
+  $STD_SORCERY_DEBUG "sorcery-$BRANCH"
 
   {
     #This section is to make sure that all sorcery dependencies are cast
@@ -182,7 +182,7 @@ function report() {
 
   if  [  "$VIEW_REPORTS"  ==  "on"  ];  then
 
-    debug  "libsorcery" "Prompting to view $2 for $SPELL"
+    $STD_SORCERY_DEBUG "Prompting to view $2 for $SPELL"
 
     VIEW_PROMPT="View $2 for ${SPELL_COLOR}${SPELL}-${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}?"
     sound  REPORT
@@ -190,7 +190,7 @@ function report() {
   fi
 
   if  [  "$MAIL_REPORTS"  ==  "on"  ];  then
-    debug  "libsorcery" "Mailing report ($2) for $SPELL to $SORCERER"
+    $STD_SORCERY_DEBUG "Mailing report ($2) for $SPELL to $SORCERER"
     date  -u  |
     mail  -s  "Sorcery Report : $HOSTNAME : $2 for $SPELL-$VERSION"  \
               -a $1 $SORCERER 2>/dev/null
@@ -212,7 +212,7 @@ function guess_filename()  {
 
   FILENAME=$1
 
-  debug  "libsorcery" "Running guess_filename() on $FILENAME"
+  $STD_SORCERY_DEBUG "FILENAME = $FILENAME"
 
   BASENAME=`echo  $FILENAME         |
             sed  "s/\.tar\.gz$//"   |
@@ -250,7 +250,7 @@ function save_libraries()  {
   then  return
   fi
 
-  debug  "libsorcery" "Running save_libraries()"
+  $STD_SORCERY_DEBUG_HEAD
 
   OLD_LIBS=$SOURCE_DIRECTORY/old.libraries
   mkdir  -p  $OLD_LIBS
@@ -308,7 +308,7 @@ function save_binaries()  {
   then  return
   fi
 
-  debug  "libsorcery" "Running save_binaries()"
+  $STD_SORCERY_DEBUG_HEAD
 
   OLD_BINS=$SOURCE_DIRECTORY/old.binaries
   mkdir  -p  $OLD_BINS
@@ -371,7 +371,7 @@ function release_saved_libraries()  {
 #---------------------------------------------------------------------
 function spell_recover()  {
 
-  debug  "libsorcery" "Running spell_recover()"
+  $STD_SORCERY_DEBUG_HEAD
 
   message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL}" \
            "${MESSAGE_COLOR} and recovering${DEFAULT_COLOR}"
@@ -415,7 +415,7 @@ function spell_recover()  {
 #---------------------------------------------------------------------
 function find_section()  {
 
-  debug  "libsorcery" "Running find_section() on $1"
+  $STD_SORCERY_DEBUG_HEAD
 
   codex_get_spell_section_name  $1
 
@@ -594,13 +594,13 @@ function filter_generic() {
   local grimoire_filter section_filter spell_filter spell_dir
   if [[ $spell_from == "codex" ]]
   then
-    debug libsorcery "filter_generic codex at : $SCRIPT_DIRECTORY "
+    $STD_SORCERY_DEBUG "filter_generic codex at : $SCRIPT_DIRECTORY "
     grimoire_filter=$GRIMOIRE/$filter_name
     section_filter=$SECTION_DIRECTORY/$filter_name
     spell_filter=$SCRIPT_DIRECTORY/$filter_name
   else
     if tablet_find_spell_dir $SPELL spell_dir &>/dev/null; then
-      debug libsorcery "filter_generic tablet at : $spell_dir "
+      $STD_SORCERY_DEBUG "filter_generic tablet at : $spell_dir "
       tablet_get_spell_filter "$spell_dir" "$filter_name" spell_filter &>/dev/null
       tablet_get_section_filter "$spell_dir" "$filter_name" section_filter &>/dev/null
       tablet_get_grimoire_filter "$spell_dir" "$filter_name" grimoire_filter &>/dev/null
@@ -757,7 +757,7 @@ function push_remove_queue() {
 ##
 #---------------------------------------------------------------------
 function optimize()  {
-  debug "libsorcery" "In optimize()"
+  $STD_SORCERY_DEBUG_HEAD
 
   unset  CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
   unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STRIP TINY
@@ -771,12 +771,12 @@ function optimize()  {
     export CPPFLAGS="$OVERRIDE_CPPFLAGS"
   else
     set_architecture
-    debug "ARCHITECTURE='${ARCHITECTURE}'"
-    debug "libsorcery" "TARGET='${TARGET}'"
-    debug "libsorcery" "OPTIMIZATIONS='${OPTIMIZATIONS}'"
+    $STD_SORCERY_DEBUG "ARCHITECTURE='${ARCHITECTURE}'"
+    $STD_SORCERY_DEBUG "TARGET='${TARGET}'"
+    $STD_SORCERY_DEBUG"OPTIMIZATIONS='${OPTIMIZATIONS}'"
     BUILD=${HOST}
 
-    debug "libsorcery" "BUILD is $BUILD, HOST is $HOST"
+    $STD_SORCERY_DEBUG "BUILD is $BUILD, HOST is $HOST"
 
     CFLAGS="$CFLAGS -pipe"
     for  PARAM  in  $OPTIMIZATIONS;  do
@@ -1176,7 +1176,7 @@ function clean_logs()  {
 
   message "${CHECK_COLOR}Cleaning log files... ${DEFAULT_COLOR} "
 
-  debug  "libsorcery" "Running clean_logs()"
+  $STD_SORCERY_DEBUG_HEAD
 
   LOGS=`log_list`
 
@@ -1230,7 +1230,7 @@ function activity_log()  { (
 ##
 #---------------------------------------------------------------------
 function run_details() {
-  debug "libsorcery" "starting run_details for $SPELL"
+  $STD_SORCERY_DEBUG "SPELL = $SPELL"
   if  !  codex_set_current_spell_by_name  $SPELL;  then
     local  GRIMOIRES=`codex_get_all_grimoires`
     message  "${PROBLEM_COLOR}Unable to find spell"        \
@@ -1279,7 +1279,7 @@ function unset_details()  {
 #---------------------------------------------------------------------
 function boost() {
 
-  debug  "libsorcery" "Running boost() on $SPELL THIS IS DEPRECIATED"
+  $STD_SORCERY_DEBUG "Running boost() on $SPELL THIS IS DEPRECIATED"
   echo "Running boost() on $SPELL THIS IS DEPRECIATED, please contact the spell's maintainer and ask them to remove this call"
   true
 }
@@ -1394,7 +1394,7 @@ function generate_keep_list()  {
 #---------------------------------------------------------------------
 function prune()  {
 
-  debug  "libsorcery" "Running prune()"
+  $STD_SORCERY_DEBUG_HEAD
   local NO_KEEP
   local NUM_NO_KEEP=0
   
