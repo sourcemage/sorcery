@@ -16,7 +16,7 @@
 ## executable, runs it.
 #---------------------------------------------------------------------
 function run_triggers() {
-  debug "libtriggers" "Starting run_triggers() on $SPELL"
+  $STD_SORCERY_DEBUG "SPELL = $SPELL"
 
   run_spell_file TRIGGERS triggers
 
@@ -31,7 +31,7 @@ function run_triggers() {
 #---------------------------------------------------------------------
 function remove_triggers ()
 { 
-  debug "libtriggers" "remove_triggers - $*"
+  $STD_SORCERY_DEBUG_HEAD
 
   [ -f $TRIGGER_LIST ] || return 0
   tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
@@ -54,7 +54,7 @@ function remove_triggers ()
 #---------------------------------------------------------------------
 function trigger ()
 { 
-  debug "libtriggers" "trigger - $*"
+  $STD_SORCERY_DEBUG_HEAD
 
   local spell TRIGGER action
   action=$1
@@ -101,7 +101,7 @@ function get_run_script_triggers() {
 function set_trigger ()
 { #1==trigger to set, $2==spell that triggers it, $3=action, $4==(optional)spell this is for
 
-  debug "libtriggers" "set_trigger - $*"
+  $STD_SORCERY_DEBUG_HEAD
 
   local str spell
   [[ $4 ]] || [[ $SPELL ]] || return 1

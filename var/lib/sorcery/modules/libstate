@@ -25,7 +25,7 @@
 #---------------------------------------------------------------------
 function add_depends()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
-  debug "libstate" "add_depends() - $*"
+  $STD_SORCERY_DEBUG_HEAD
 
   #already here for some reason
   search_depends_status_exact "$@" >/dev/null  && return 0
@@ -76,7 +76,7 @@ function search_depends_status_exact()
 
   local a1 a2 a3 a4 a5 a6
   a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
-  debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
+  $STD_SORCERY_DEBUG "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
   grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $depends_status
 
 }
@@ -164,7 +164,7 @@ function get_depends_options()
   }
 
   local START="$(esc_str $1)"
-  debug "libstate" "get_depends_options() - START=$START"
+  $STD_SORCERY_DEBUG "get_depends_options() - START=$START"
   awk -F ':' -v start=$START "{ if (\$1 == start) if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status 2> /dev/null
 }
 
@@ -366,7 +366,7 @@ function remove_sub_depends() {
 ##
 #---------------------------------------------------------------------
 function add_default_depends() {
-        debug "libstate" "add_default_depends() - $*"
+        $STD_SORCERY_DEBUG_HEAD
 
         #already here
         search_default_depends "$@" >/dev/null  && return 0
@@ -443,7 +443,7 @@ function search_default_depends() {
         a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
         a3=${a3:-.*}
 
-        debug "libstate" "search_default_depends: [$a1:$a2:$a3]"
+        $STD_SORCERY_DEBUG "search_default_depends: [$a1:$a2:$a3]"
         grep "^$a1:$a2:$a3$" $default_depends
 }
 
@@ -459,7 +459,7 @@ function search_default_depends() {
 ##
 #---------------------------------------------------------------------
 function add_default_provider() {
-  debug "libstate" "add_default_depends() - $*"
+  $STD_SORCERY_DEBUG_HEAD
 
   #already here
   search_default_provider "$@" >/dev/null  && return 0
@@ -711,7 +711,7 @@ function remove_spell_status()
 ##
 #---------------------------------------------------------------------
 function remove_spell()  {
-  debug  "libsorcery" "Running remove_spell() on $1"
+  $STD_SORCERY_DEBUG "Running remove_spell() on $1"
   remove_spell_status $1
   if  [  -n  "$EXILE"  ];  then
     add_spell_status $1 "exiled" "0.0"
@@ -848,7 +848,7 @@ function get_all_spells_with_status () {
 ##
 #---------------------------------------------------------------------
 function modify_local_config() {
-    debug "libstate" "modify_local_config() - $*"
+    $STD_SORCERY_DEBUG_HEAD
     modify_config $LOCAL_CONFIG "$@"
 }
 
@@ -866,12 +866,12 @@ function modify_local_config() {
 #---------------------------------------------------------------------
 function modify_config()  {
 
-  debug "libstate" "modify_config() - $*"
+  $STD_SORCERY_DEBUG_HEAD
   local FILE=$1
   shift;
 
   if ! [[ $1 ]]; then
-    debug "libstate" "modify_config() - Warning: No name given for config option."
+    $STD_SORCERY_DEBUG "Warning: No name given for config option."
     return 1
   fi
 
@@ -908,7 +908,7 @@ function modify_config()  {
     TEMP="$TEMP "
   done
 
-  debug "libstate" "modify_config() - entering new value $VARIABLE $seperator $@ into $tFILE"
+  $STD_SORCERY_DEBUG "entering new value $VARIABLE $seperator $@ into $tFILE"
   # put new value and justification in
   echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
 
@@ -928,12 +928,12 @@ function modify_config()  {
 #---------------------------------------------------------------------
 function remove_config()  {
 
-  debug "libstate" "remove_config() - $*"
+  $STD_SORCERY_DEBUG_HEAD
   local FILE=$1
   shift;
 
   if ! [[ $1 ]]; then
-    debug "libstate" "remove_config() - Warning: No name given for config option."
+    $STD_SORCERY_DEBUG "Warning: No name given for config option."
     return 1
   fi
 

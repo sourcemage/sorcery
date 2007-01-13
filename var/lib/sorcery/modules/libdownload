@@ -86,8 +86,7 @@ function dl_get_bucket() {
   dl_${handler}_get "$target" "$url_list" "$hints" "$dl_target" "$dl_type"
   rc=$?
   if [[ $rc == 0 ]] ; then
-    debug "libdownload" "dl_handler -- downloaded $url"
-    eval debug "\$$dl_target \$$dl_type"
+    $STD_SORCERY_DEBUG "downloaded $url" "target ${!dl_target}" "type ${!dl_type}"
     return 0
   fi
   return 1
@@ -113,14 +112,14 @@ function dl_connect()  {
 
   [[ $INTERNET_AUTOCONNECT == on ]] || return 0
 
-  debug "libdownload" "connect()"
+  $STD_SORCERY_DEBUG_HEAD
 
   # We agree that while this lock is held, no other script will be
   # connecting or disconnecting internet service out from under us
   lock_resources internet signon
   for interface in $INTERNET_INTERFACES; do
     if ifconfig  |  grep  -q  "^$interface" ; then
-      debug "libdownload" "connected through $interface"
+      $STD_SORCERY_DEBUG "connected through $interface"
       unlock_resources internet signon
       return
     fi

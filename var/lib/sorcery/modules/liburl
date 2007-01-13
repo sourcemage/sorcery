@@ -111,7 +111,7 @@ function url_download_expand_sort() {
 
   local url expanded_urls sorted_urls
 
-  debug "liburl" "$FUNCNAME -- $@"
+  $STD_SORCERY_DEBUG_HEAD
   # you can't expect me to download something without urls...
   [ -z "$url_list" ] && return 255
 
@@ -127,7 +127,7 @@ function url_download_expand_sort() {
   # limit the number of expanded urls, only the linux kernel reaches this
   # limit and doing netselect on that many urls is absurd
   expanded_urls=$(echo "$expanded_urls"|head -n 50)
-  debug "liburl" "expanded urls $expanded_urls"
+  $STD_SORCERY_DEBUG "expanded urls $expanded_urls"
   # sort urls 
   url_sort_urls sorted_urls "$expanded_urls"
   if ! [[ "$sorted_urls" ]] ; then
@@ -136,7 +136,7 @@ function url_download_expand_sort() {
   fi
   # shorten the list to a manageable amount
   sorted_urls=$(echo "$sorted_urls"|head -n 10)
-  debug "liburl" "sorted urls $sorted_urls"
+  $STD_SORCERY_DEBUG "sorted urls $sorted_urls"
   url_download "$1" "$sorted_urls" "$3" "$4" "$5"
 }
 
@@ -168,7 +168,7 @@ function url_download() {
 
   local url
 
-  debug "liburl" "$FUNCNAME -- $@"
+  $STD_SORCERY_DEBUG_HEAD
 
   # you can't expect me to download something without urls...
   [ -z "$url_list" ] && return 255
@@ -203,7 +203,7 @@ function url_download() {
                   "$hints" "$udl_target" "$udl_type"
     rc=$?
     if [[ $rc == 0 ]] ; then
-      debug "liburl" "url_download -- downloaded $url $udl_r_target $udl_r_type"
+      $STD_SORCERY_DEBUG "downloaded $url $udl_r_target $udl_r_type"
       return 0
     fi
   done
@@ -283,7 +283,7 @@ function url_rank() {
   local finalList url_speed
   local tmp_url tmp_prefix tmp_hostname tmp_list
 
-  debug "liburl" "unsorted list: $*"
+  $STD_SORCERY_DEBUG "unsorted list: $*"
 
   urlList="$@"
 
@@ -305,7 +305,7 @@ function url_rank() {
 
   for tmp_prefix in $(hash_get_table_fields url_div_hash) ; do
     tmp_list=$(hash_get url_div_hash $tmp_prefix)
-    debug liburl "urls are $tmp_list"
+    $STD_SORCERY_DEBUG "urls are $tmp_list"
     # the awk command turns netselect output like this:
     # 69 url1
     # 234 url2
@@ -323,11 +323,11 @@ function url_rank() {
   # expand back in sorted order
 
   sortedList=$(echo ${url_speed[@]})
-  debug "liburl" "Ordered list pre-sanity check is $sortedList"
+  $STD_SORCERY_DEBUG "Ordered list pre-sanity check is $sortedList"
 
   # if all sites are ICMP Unreachable, return the unsorted list instead of null.
   if [[ -z "$sortedList" ]] ; then
-    debug "liburl" "Failed to expand list"
+    $STD_SORCERY_DEBUG "Failed to expand list"
     echo "$urlList"
     return
   fi
@@ -341,10 +341,10 @@ function url_rank() {
 
   # just in case something failed along the way just return what we had
   if [[ -z "$sortedList" ]] ; then
-    debug "liburl" "Ordering failed somewhere, giving back original input"
+    $STD_SORCERY_DEBUG "Ordering failed somewhere, giving back original input"
     echo "$urlList"
   else
-    debug "liburl" "Ordered URLs: $sortedList"
+    $STD_SORCERY_DEBUG "Ordered URLs: $sortedList"
     echo "$sortedList"
   fi
 }

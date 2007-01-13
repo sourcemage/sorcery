@@ -723,7 +723,7 @@ optimize_architecture()  {
 
 architecture_menu() {
 
-  debug "sorcery" "architecture_menu()"
+  $STD_SORCERY_DEBUG_HEAD
   local  SPECFILE
   local  LIST CPUNAME specname
   local specname CPUNAME
@@ -744,12 +744,12 @@ architecture_menu() {
   for specname in $(hash_get_table_fields archspec_hash|sort); do
     CPUNAME=""
     SPECFILE=$(hash_get archspec_hash $specname) &&
-    debug  "sorcery" "architecture_menu() - $specname found at $SPECFILE"
+    $STD_SORCERY_DEBUG "$specname found at $SPECFILE"
     CPUNAME=$( .  $SPECFILE  &&  echo $CPUNAME )  &&
     LIST="$LIST $specname  \"$CPUNAME\"    \"$CPUNAME\""
   done
   hash_reset archspec_hash
-  debug  "sorcery" "architecture_menu() - Dialog options are $LIST"
+  $STD_SORCERY_DEBUG "Dialog options are $LIST"
 
   local ARCH_TITLE="$2"
   local ARCH_HELP="Please select a microprocessor category"
@@ -776,7 +776,7 @@ architecture_menu() {
     # remove spurious ""
     NEW_ARCH=`echo "${NEW_ARCH}" | sed -e 's/^"//' -e 's/"$//'`
 
-    debug "sorcery" "architecture_menu() - NEW_ARCH='$NEW_ARCH'"
+    $STD_SORCERY_DEBUG "NEW_ARCH='$NEW_ARCH'"
 
     modify_local_config "$1" "${NEW_ARCH}"
   fi
@@ -816,7 +816,7 @@ optimization_menu(){
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`
-    debug "sorcery" "optimization_menu() - OPTIMIZATIONS='${OPTIMIZATIONS}'"
+    $STD_SORCERY_DEBUG "OPTIMIZATIONS='${OPTIMIZATIONS}'"
 
     modify_local_config "OPTIMIZATIONS" "$OPTIMIZATIONS"
 

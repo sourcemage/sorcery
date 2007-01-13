@@ -101,7 +101,7 @@ function isalpha() {
 #---------------------------------------------------------------------
 function real_query()  { (
 
-  debug  "libmisc" "Running query() with the following arguments: '$1' and '$2'"
+  $STD_SORCERY_DEBUG_HEAD
   
   while true ; do
   
@@ -137,8 +137,7 @@ function real_query()  { (
 ##
 #---------------------------------------------------------------------
 function real_query_string () {
-  
-    debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
+    $STD_SORCERY_DEBUG_HEAD
     
     local RESPONSE=""
     local RETURN=0
@@ -184,34 +183,6 @@ function real_message()    {
 }
 
 #---------------------------------------------------------------------
-## @param type
-## @param message
-##
-## Enters a debug message if the type of debug message != 'no'
-##
-## The 'type' is usually the name of the file the debug statement
-## comes from. i.e. DEBUG_liblock, DEBUG_libsorcery, DEBUG_cast etc.
-##
-#---------------------------------------------------------------------
-function debug()  {
-
-  [[ $DEBUG ]] || return 0
-  
-  local debugVar="DEBUG_${1}"
-  local i
-  if [[ ${!debugVar} != "no" ]] ; then
-    echo -n "$1($$): " >>$DEBUG
-    shift
-    for i in "$@" ; do
-      echo -n " \"$i\"" >>$DEBUG
-    done
-    echo >>$DEBUG
-  fi
-
-  true
-}
-
-#---------------------------------------------------------------------
 ## @Stdout progress spinner
 ## Displays progress spinner like the one in fsck.
 ##
@@ -236,7 +207,7 @@ function progress_spinner()  {
 ##</pre>
 #---------------------------------------------------------------------
 function progress_bar()  {
-debug "libmisc" "progress_bar - $*"
+  $STD_SORCERY_DEBUG_HEAD
   local percent i len num_dash
 
   if [[ $1 == -dot ]] ; then
@@ -329,9 +300,9 @@ function sound()  {
     on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
          if  [  -e  $SOUND_FILE  ];  then
            (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
-           debug "libmisc" "Playing $SOUND_FILE"
+           $STD_SORCERY_DEBUG "Playing $SOUND_FILE"
          else
-           debug "libmisc" "Error playing $SOUND_FILE: no such file"
+           $STD_SORCERY_DEBUG "Error playing $SOUND_FILE: no such file"
          fi
     ;;
   esac
@@ -444,7 +415,7 @@ function get_dirnames() {
 #----------------------------------------------------------------------
 function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
-#  debug "libmisc" "iterate - $@"
+#  $STD_SORCERY_DEBUG_HEAD
   
   [ $# -lt 2 ] && return 2
   
@@ -468,11 +439,11 @@ function iterate()
       eval "$func \"$token\""
       [[ $BREAK ]] && break
     done
-#   debug "leftover token: $token"
+#   $STD_SORCERY_DEBUG "leftover token: $token"
   fi
   
   returnValue=$?
-  [[ $BREAK ]] && debug "libmisc" "iterate - I was BREAKed."
+  [[ $BREAK ]] && $STD_SORCERY_DEBUG "iterate - I was BREAKed."
   unset BREAK
   return $returnValue
 }
@@ -1078,7 +1049,7 @@ function remove_files_and_dirs() {
 ## @param name of the script needing the tmp dir 
 #---------------------------------------------------------------------
 function mk_tmp_dirs() {
-  debug "$FUNCNAME" "Making tmp dirs for $$"
+  $STD_SORCERY_DEBUG_HEAD
   local SCRIPT_NAME=$1 STATS tmp
   SCRIPT_NAME=${SCRIPT_NAME:-misc}
 
@@ -1232,7 +1203,8 @@ function is_sorcery_var() {
   CAST_PASS download_log IW_LOG OPTS SOLO QUIET INSTALL_QUEUE \
   OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS \
   DOT_PROGRESS VOYEUR_OVERRIDE RECONFIGURE RECAST_DOWN COMPILE RECAST_UP \
-  FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX DEBUG SEPARATE BASE_URL \
+  FORCE_DOWNLOAD SOURCE_CACHE SILENT FIX SORCERY_DEBUG STD_SORCERY_DEBUG_HEAD \
+  STD_SORCERY_DEBUG SEPARATE BASE_URL \
   CAST_HASH BACK_CAST_HASH CANNOT_CAST_HASH uncommitted_hash NEW_DEPENDS \
   spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR \
   SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION \
@@ -1282,7 +1254,7 @@ function complain_sorcery_var() {
 #-------------------------------------------------------------------
 function set_architecture() {
 
-  $STD_DEBUG
+  $STD_SORCERY_DEBUG_HEAD
   local specdir
   local i j
   unset SPECFILE
@@ -1296,7 +1268,7 @@ function set_architecture() {
       [[ $CROSS_INSTALL == on ]] &&
       [[ $TARGET ]]
   then
-    debug "libmisc" "set_architecture: using cross-install's target arch"
+    $STD_SORCERY_DEBUG "using cross-install's target arch"
     arch=${arch:-$TARGET}
   fi
   
@@ -1323,7 +1295,7 @@ function set_architecture() {
     message "${PROBLEM_COLOR}Cannot find arch spec for $arch!"
     return 1
   fi
-  debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
+  $STD_SORCERY_DEBUG "SPECFILE=$SPECFILE"
   
   # turn the path into an array, but remove $specdir from the start first
   unset SMGL_COMPAT_ARCHS 
@@ -1348,11 +1320,11 @@ function set_architecture() {
 ## to override a bunch of functions which have already been defined.
 #--------------------------------------------------------------------- 
 function define_functions() {
+  $STD_SORCERY_DEBUG_HEAD
   local funcName
   local funcContent="$1"
   shift
   for funcName in $* ; do
-    debug "libmisc" "define_functions - redefining $funcName"
     eval "function $funcName () { \
       $funcContent \
     }"
@@ -1470,14 +1442,6 @@ function envar_prepend_path()
     echo $1:$2
   fi
 }
-
-
-# Standard debug line:
-# file "function@line" "all" "args"
-STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ; 
-  _stddbg_file=${_stddbg_file##*/};
-  debug "${_stddbg_file}" "${FUNCNAME[0]}@$LINENO" "$@"'
-
 
 #---------------------------------------------------------------------
 ## @License

@@ -340,7 +340,7 @@ function codex_set_grimoires() {
 ##
 #---------------------------------------------------------------------
 function codex_get_all_grimoires() {
-  debug "libcodex" "codex_get_all_grimoires()"
+  $STD_SORCERY_DEBUG_HEAD
   echo "${GRIMOIRE_DIR[*]}" | tr '[:blank:]' '\n'
   return $?
 }
@@ -366,7 +366,7 @@ function codex_find_section_by_name() {
   
   for GRIMOIRE in `codex_get_all_grimoires`; do
     if [ -d "$GRIMOIRE/$SECTION_NAME" ] ; then
-      debug "libcodex" "codex_find_section_by_name() - found section $GRIMOIRE/$SECTION_NAME"
+      $STD_SORCERY_DEBUG "found section $GRIMOIRE/$SECTION_NAME"
       echo "$GRIMOIRE/$SECTION_NAME"
       return 0
     fi
@@ -418,7 +418,7 @@ function codex_get_section_names() {
 ##
 #---------------------------------------------------------------------
 function codex_get_sections() { 
-  debug "libcodex" "codex_get_sections() - $@"
+  $STD_SORCERY_DEBUG_HEAD
   local GRIMOIRE
 
   while [ $# -gt 0 ] ; do
@@ -486,7 +486,7 @@ function codex_does_spell_exist() {
 #---------------------------------------------------------------------
 function codex_find_spell_by_name() {
 
-  debug "libcodex" "codex_find_spell_by_name - $*"
+  $STD_SORCERY_DEBUG_HEAD
   
   codex_cache_spell_lookup $1 `codex_get_all_grimoires`
   
@@ -501,7 +501,7 @@ function codex_find_spell_by_name() {
 ##
 #---------------------------------------------------------------------
 function codex_get_spells_in_section() {
-  debug "libcodex" "codex_get_spells_in_section - $*"
+  $STD_SORCERY_DEBUG_HEAD
   codex_is_canonicalized $1 || return 1
   local section=`basename $1`
   local index="`dirname $1`/$SPELL_INDEX_FILE"
@@ -599,7 +599,7 @@ function codex_clear_current_spell()  {
 #---------------------------------------------------------------------
 function codex_set_current_spell()  {
 
-  debug "libcodex" "runing codex_set_current_spell"
+  $STD_SORCERY_DEBUG_HEAD
 
   codex_clear_current_spell
 
@@ -609,11 +609,11 @@ function codex_set_current_spell()  {
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
 
-  debug "libcodex" "looking around for API_VERSION"
+  $STD_SORCERY_DEBUG "looking around for API_VERSION"
   [[ -x $GRIMOIRE/API_VERSION ]] && . $GRIMOIRE/API_VERSION
   [[ -x $SECTION_DIRECTORY/API_VERSION ]] && . $SECTION_DIRECTORY/API_VERSION
 
-  debug "libcodex" "sourcing DETAILS"
+  $STD_SORCERY_DEBUG "sourcing DETAILS"
   persistent_load
   .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
   persistent_clear
@@ -682,9 +682,9 @@ function codex_get_spell_paths() {
 ##
 #---------------------------------------------------------------------
 function codex_set_current_spell_by_name()  {
-  debug "libcodex" "codex_set_current_spell_by_name -- $1"
+  $STD_SORCERY_DEBUG_HEAD
   local SPELL_NAME=`codex_find_spell_by_name "$1"`
-  debug "libcodex" $SPELL_NAME
+  $STD_SORCERY_DEBUG $SPELL_NAME
 
   [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  $SPELL_NAME
 }
@@ -706,7 +706,7 @@ function codex_cache_spell_lookup()  {
   local spell="$1"
   shift
   while [ $# -gt 0 ] ; do
-   debug "libcodex" "looking up $spell in ${1}'s cache"
+    $STD_SORCERY_DEBUG "looking up $spell in ${1}'s cache"
     codex_check_cache $1
     SECTION=`grep -m 1 "^$spell " $1/$SPELL_INDEX_FILE | cut -d' ' -f2`
     [[ $SECTION ]] && echo "$SECTION/$spell" && return
@@ -742,7 +742,7 @@ function codex_check_cache()  {
 #---------------------------------------------------------------------
 function codex_create_cache()  {
 
-  debug "libcodex" "codex_create_cache - $*"
+  $STD_SORCERY_DEBUG_HEAD
   local list="$*"
   [[ $list ]] || list="${GRIMOIRE_DIR[*]}"
 

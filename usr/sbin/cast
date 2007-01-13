@@ -209,7 +209,7 @@ function get_option() {
 #---------------------------------------------------------------------
 function cast_spell()  { (
 
-  debug "cast" "Casting spell [$SPELL]"
+  $STD_SORCERY_DEBUG "Casting spell [$SPELL]"
   set_term_title "Casting spell [$SPELL]"
 
   run_details 
@@ -307,7 +307,7 @@ function cast_spell()  { (
 #---------------------------------------------------------------------
 function pass_one()  {
   #  This pass does configuration and dependency identification.
-  debug "cast" "Starting pass_one()"
+  $STD_SORCERY_DEBUG_HEAD
 
   echo -n "Computing previously installed dependencies..."
   compute_installed_depends "dep_f_hash"
@@ -379,7 +379,7 @@ function pass_one()  {
     hash_put dep_f_hash $i "$(hash_get to_cast $i)"
   done
 
-  debug "cast" "pass_one, done with SPELLS=$SPELLS"
+  $STD_SORCERY_DEBUG "pass_one, done with SPELLS=$SPELLS"
 
 }
 
@@ -398,7 +398,7 @@ function pass_one()  {
 function pass_two()  {
   #  This pass downloads required sources.
   #  And starts the make process
-  debug "cast" "Starting pass_two()"
+  $STD_SORCERY_DEBUG_HEAD
 
   unset_details
 
@@ -436,7 +436,7 @@ function pass_two()  {
     ) &
   fi
   
-  debug "cast" "Starting stage four make."
+  $STD_SORCERY_DEBUG "Starting stage four make."
   
   (
     CAST_PASS="four" 
@@ -485,7 +485,7 @@ function pass_two()  {
 ## If in screen mode it also execs a tail to the summon window
 #---------------------------------------------------------------------
 function pass_three()  {
-  debug "cast" "pass_three - $*"
+  $STD_SORCERY_DEBUG_HEAD
   unset CAST_PASS
   trap exit INT TERM
   local SPELL=$1
@@ -555,7 +555,7 @@ function pass_three()  {
 #---------------------------------------------------------------------
 function pass_four()  {
 
-  debug "cast" "pass_four - $*"
+  $STD_SORCERY_DEBUG_HEAD
   local do_resurrect=no
   local VERSION
   unset CAST_PASS
@@ -603,7 +603,7 @@ function pass_four()  {
 #---------------------------------------------------------------------
 function pass_five()  {
 
-  debug "cast" "Function : pass_five"
+  $STD_SORCERY_DEBUG_HEAD
 
   # must exist or we get problems with checks here.
   touch $SUCCESS_LIST
@@ -612,9 +612,9 @@ function pass_five()  {
   touch $CHECK_TRIGGERS_FAILURE
   touch $CONFLICT_LIST
   
-  debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
-  debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
-  debug "pass_five" "CONFLICT LIST is : `cat $CONFLICT_LIST 2>/dev/null`"
+  $STD_SORCERY_DEBUG "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
+  $STD_SORCERY_DEBUG "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
+  $STD_SORCERY_DEBUG "CONFLICT LIST is : `cat $CONFLICT_LIST 2>/dev/null`"
 
   if [ -s $SUCCESS_LIST ] ; then
 
@@ -708,7 +708,7 @@ function pass_five()  {
       return 1
     fi
   fi
-  debug "cast" "End of pass_five"
+  $STD_SORCERY_DEBUG "End of pass_five"
 
 }
 
@@ -720,13 +720,11 @@ function pass_five()  {
 #---------------------------------------------------------------------
 function pass_zero()  {
 
-  debug "cast" "Starting pass_zero()"
-  debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
-  debug "pass_zero" "   and with spells : '$SPELLS'"
+  $STD_SORCERY_DEBUG_HEAD
+  $STD_SORCERY_DEBUG "SPELLS = $SPELLS"
   export  CAST_PASS="one";    pass_one $*  &&
   export  CAST_PASS="two";    pass_two $SPELLS
   #pass_three and _four are run via pass_two
-  debug "pass_zero" "Starting pass 5 with: '$@'"
   export  CAST_PASS="five";  pass_five "$@"
 
 
@@ -768,7 +766,7 @@ function cast_cleanup() {
 ## according to CAST_PASS
 #---------------------------------------------------------------------
 function main()  {
-  debug "cast" "main() - $*"
+  $STD_SORCERY_DEBUG_HEAD
   local T_SPELLS
   process_parameters        "$@"
   SPELLS=`strip_parameters  "$@"`
@@ -881,7 +879,7 @@ else
       [[ $SCREEN == on ]]
   then
     export SCREEN=$SCREEN_OVERRIDE
-    debug "cast" "Turning $SCREEN_OVERRIDE screen mode"
+    $STD_SORCERY_DEBUG "Turning $SCREEN_OVERRIDE screen mode"
   fi
 
   # If screen mode is on, but we aren't in screen, start a new session 
@@ -903,7 +901,7 @@ else
       [[ $SCREEN_NAME ]]          && 
       [[ ! $SCREEN_INITIALIZED ]]
   then
-    debug "cast" "Initializing screen windows"
+    $STD_SORCERY_DEBUG "Initializing screen windows"
     screen_name_window "$SCREEN_NAME" $SCREEN_MAIN_WIN "Main"
 
     # Start debugging window if debugging is on and not set to /dev*
@@ -938,7 +936,7 @@ else
   exit $rc
 fi
 
-debug "cast" "exiting..."
+$STD_SORCERY_DEBUG "exiting..."
 
 #---------------------------------------------------------------------
 ##=back
