@@ -1502,8 +1502,8 @@ sorcery_devel_settings()   {
 
     D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
         FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
-        modify_local_config "DEBUG" "$FILE" ;;
-    F) sorcery_debug_filter() ;;
+        modify_local_config "SORCERY_DEBUG" "$FILE" ;;
+    F) sorcery_debug_filter ;;
     S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
         TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
         ( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
@@ -1516,7 +1516,7 @@ sorcery_devel_settings()   {
 }
 
 sorcery_debug_filter() {
-
+set -x
   local i
   local CHECKLIST=`make_debug_checklist`
 
@@ -1525,13 +1525,17 @@ sorcery_debug_filter() {
 
   if  OUTLIST=`eval $DIALOG '  --title "$DEVEL_TITLE"  \
                         --ok-label  "Commit"   \
+                        --separate-output      \
                         --checklist            \
+                        "$DEVEL_HELP"          \
                         0 0 0                  \
                         '$CHECKLIST`
   then
-    modify_local_config "SORCERY_DEBUG_FILTER" "( $OUTLIST )"
+    # The space on the end is there on purpose, so an empty list won't give an
+    # empty string, so default values will not be used
+    modify_local_config "SORCERY_DEBUG_FILTER" "$OUTLIST "
   fi
-
+set +x
 }
 
 make_debug_checklist()  {
@@ -1539,7 +1543,7 @@ make_debug_checklist()  {
   array=()
 
   find $SGL_LIBRARY_MODULES -type f -name 'lib*' -printf %f\\n | sort |
-    while read LINE
+    while read LINE ; do
       VAR=SORCERY_DEBUG_${LINE}
       echo -en "\"${LINE}\""
       echo -en "\t\"${LINE}\""
