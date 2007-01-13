@@ -1481,6 +1481,7 @@ sorcery_devel_settings()   {
 
   local D_HELP="Set the debugging file for normal debugging."
   local S_HELP="Turn on Super Debug. You probably don't want to do this."
+  local F_HELP="Selectivly disable output of debugging messages."
 
   while
 
@@ -1493,6 +1494,7 @@ sorcery_devel_settings()   {
             ""                      \
             0 0 0                    \
             "D"  "Debug file"        "$D_HELP"  \
+            "F"  "Filter messages"   "$F_HELP"  \
             "S"  "Super debugging toggle"  "$S_HELP"'`
   do
 
@@ -1501,6 +1503,7 @@ sorcery_devel_settings()   {
     D) TEXT="Note: if you turn this on, don't forget to empty the log file occasionaly.\nWhat file do you want the debugging logged to?"
         FILE=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$DEBUG\"` &&
         modify_local_config "DEBUG" "$FILE" ;;
+    F) sorcery_debug_filter() ;;
     S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
         TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
         ( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
@@ -1512,6 +1515,51 @@ sorcery_devel_settings()   {
 
 }
 
+sorcery_debug_filter() {
+
+  local i
+  local CHECKLIST=`make_debug_checklist`
+
+  local DEVEL_TITLE="Select common debug topics to filter"
+  local DEVEL_HELP="[ ]=displayed  [X]=surpressed"
+
+  if  OUTLIST=`eval $DIALOG '  --title "$DEVEL_TITLE"  \
+                        --ok-label  "Commit"   \
+                        --checklist            \
+                        0 0 0                  \
+                        '$CHECKLIST`
+  then
+    modify_local_config "SORCERY_DEBUG_FILTER" "( $OUTLIST )"
+  fi
+
+}
+
+make_debug_checklist()  {
+  local VAR
+  array=()
+
+  find $SGL_LIBRARY_MODULES -type f -name 'lib*' -printf %f\\n | sort |
+    while read LINE
+      VAR=SORCERY_DEBUG_${LINE}
+      echo -en "\"${LINE}\""
+      echo -en "\t\"${LINE}\""
+      if [[ ${!VAR} == "n" ]] ; then
+        echo -e "\t\"on\""
+      else
+        echo -e "\t\"off\""
+      fi
+  done
+  
+  # There's an extra special variable for turning on and off 
+  # function entry messages at once
+  echo -en "\"ENTRY\"\t\"Function Entry\"\t"
+  if [[ $SORCERY_ENTRY_DEBUG == "n" ]] ; then
+    echo -e "\t\"on\""
+  else
+    echo -e "\t\"off\""
+  fi
+
+}
 
 feature_menu()  {
 
