@@ -33,8 +33,7 @@
 #---------------------------------------------------------------------
 function real_mk_source_dir() {
 
-  $STD_SORCERY_DEBUG_HEAD
-  $STD_SORCERY_DEBUG "on $SOURCE_DIRECTORY"
+  debug  "libgrimoire" "Running mk_source_dir() on $SOURCE_DIRECTORY"
 
   local NEW_DIR=$1
   local NEW_DIR=${NEW_DIR:=$SOURCE_DIRECTORY}
@@ -66,7 +65,7 @@ function real_rm_source_dir() {
   DEAD_DIR=$1
   DEAD_DIR=${DEAD_DIR:-$SOURCE_DIRECTORY}
 
-  $STD_SORCERY_DEBUG "DEAD_DIR = $DEAD_DIR"
+  debug  "libgrimoire" "Running rm_source_dir() on $DEAD_DIR"
 
   if  [  -n  "$DEAD_DIR"  ] &&  [  -d  "$DEAD_DIR"  ];  then
 
@@ -81,7 +80,7 @@ function real_rm_source_dir() {
       local mountloc=$(echo $line | cut -d' ' -f3)
       if echo $mountloc | grep -q "^$DEAD_DIR"
       then
-        $STD_SORCERY_DEBUG "Unmounting $mount on $mountloc"
+        debug "libgrimoire" "Unmounting $mount on $mountloc"
         umount -l $mountloc 2> /dev/null
       fi
     done
@@ -143,7 +142,7 @@ function make() {
     JOBS="1" # Use default of one when MAKE_NJOBS is nonsense.
   fi
 
-  $STD_SORCERY_DEBUG "make: running with $JOBS jobs"
+  debug  "libgrimoire"  "make: running with $JOBS jobs"
   $REAL_MAKE -j $JOBS -S "$@"
 
   # Cache the result
@@ -167,7 +166,7 @@ function make() {
 ## @Stdout file name
 #---------------------------------------------------------------------
 function install_desktop_files() { 
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug "libgrimoire" "Running install_desktop_files() on $SPELL"
   local each file
   local target_dir="/usr/share/applications"
   local desktop_dir="$SCRIPT_DIRECTORY/desktop"
@@ -177,7 +176,7 @@ function install_desktop_files() {
   for each in $(find $desktop_dir -maxdepth 1 -type f); do
     file=$(basename $each)
     if ! test -f "$target_dir/$file" ; then
-      $STD_SORCERY_DEBUG "Installing $file in $target_dir as a desktop file"
+      debug "libgrimoire" "Installing $file in $target_dir as a desktop file"
       cp $each $target_dir
     fi
   done
@@ -218,7 +217,7 @@ function private_installed_version()  {
 #---------------------------------------------------------------------
 function real_conflicts() {
 
-  $STD_SORCERY_DEBUG "Running conflicts() on $1. Default query answer $2."
+  debug  "libgrimoire" "Running conflicts() on $1. Default query answer $2."
 
   if  spell_installed  $1;  then
     [  "$2"  =  y  ]  &&  echo  "$1:y"  ||  echo  "$1:n"

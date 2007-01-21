@@ -21,7 +21,7 @@
 #---------------------------------------------------------------------
 
 function dl_wget_get() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug libdownload "$FUNCNAME -- $@"
   dl_command_check wget || return 254
 
   local target=$1
@@ -60,7 +60,7 @@ function dl_wget_call_wget()  {
   local FILE=$1
   local URL=$2
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug 'dl_wget' "$funcname -- $@"
 
   rm -f $FILE
   wget $WGET_OPTIONS "$URL" 2>&1 &&
@@ -118,7 +118,7 @@ function dl_wget_set_options()  {
   DEREF_SYM="--retr-symlinks"
 
   WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM"
-  $STD_SORCERY_DEBUG "wget options: $WGET_OPTIONS"
+  debug 'dl_wget' "wget options: $WGET_OPTIONS"
 } 
 #---------------------------------------------------------------------
 ##=back

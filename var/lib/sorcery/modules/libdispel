@@ -20,7 +20,7 @@
 ##
 #---------------------------------------------------------------------
 function reap_regular_files()  {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libsorcery" "reap_regular_files()"
   local FILE
   while read FILE; do
     rm  -f   "$FILE"
@@ -37,14 +37,14 @@ function reap_regular_files()  {
 ##
 #---------------------------------------------------------------------
 function reap_config_files()  {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libsorcery" "reap_config_files()"
   local FILE
   while  read  FILE;  do
     [[ $FILE ]] || continue
     if [[ $TOTAL_DISPEL ]] ; then
       rm -f "$FILE"
     elif grep -q "$(md5sum "$FILE" )" "$MD5S"; then
-      $STD_SORCERY_DEBUG "$FILE is a config file that hasnt changed, removing..."
+      debug libdispel "$FILE is a config file that hasnt changed, removing..."
       rm -f "$FILE"
     else
       reap_modified_file "$FILE"
@@ -106,7 +106,7 @@ function reap_depends()  {
 function reaper()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug  "libsorcery" "Running reaper() on $1"
 
   if  !  [  "$REAP"  ==  "on"  ]   ||
       !  [  -f  $1             ];  then  return
@@ -170,7 +170,7 @@ function reaper()  {
 function reap_state_files()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug  "libsorcery" "Running reaper() on $1"
 
   local UNIQUE="$$.$RANDOM"
   local REAPER_FILES="$TMP_DIR/reaper.$UNIQUE.files"

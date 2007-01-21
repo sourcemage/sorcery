@@ -50,7 +50,7 @@ function depengine_entry_point() {
   for spell in $spell_list; do
     spell_status=$(dpgn_get_spell_color $spell)
     if [[ $spell_status != white ]] ; then
-      $STD_SORCERY_DEBUG "already did $spell"
+      debug "libdepengine" "already did $spell"
     else
       depengine_cast_engine $spell
     fi
@@ -113,7 +113,7 @@ function depengine_cast_engine() {
       [[ $triggerer == $spell ]] && continue
       child_status=$(hash_get state_hash $triggerer)
       if [[ $child_status == grey ]] ; then
-        $STD_SORCERY_DEBUG "$spell has a $child_status triggerer on $triggerer!"
+        debug "libdepengine" "$spell has a $child_status triggerer on $triggerer!"
         grey_triggerer=1
         break
       fi
@@ -159,7 +159,7 @@ function recurse_depends() {
             :
           ;;
           black:*)
-            $STD_SORCERY_DEBUG "$spell already had a failed dep on $_child"
+            debug libdepengine "$spell already had a failed dep on $_child"
             return 1
           ;;
         esac
@@ -181,20 +181,20 @@ function recurse_depends() {
       ;;
       grey)
        if [[ $in_trigger != 0 ]] ; then
-         $STD_SORCERY_DEBUG "found grey depend from trigger $spell -> $child"
+         debug "libdepengine" "found grey depend from trigger $spell -> $child"
          return 2
        else
-         $STD_SORCERY_DEBUG "detected a dependency loop $spell -> $child"
+         debug "libdepengine" "detected a dependency loop $spell -> $child"
        fi
       ;;
       brown)
-        $STD_SORCERY_DEBUG "found brown depend $spell -> $child"
+        debug "libdepengine" "found brown depend $spell -> $child"
       ;;
       black:0)
-        $STD_SORCERY_DEBUG "$child already built properly, continuing"
+        debug "libdepengine" "$child already built properly, continuing"
       ;;
       black:*)
-        $STD_SORCERY_DEBUG "$child failed, minus_k is $MINUS_K"
+        debug "libdepengine" "$child failed, minus_k is $MINUS_K"
         rc=1
         [[ $MINUS_K == no ]] && break
       ;;

@@ -175,7 +175,7 @@ function parse_iw()  {
 ##
 #---------------------------------------------------------------------
 function create_install_log()  {
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug  "libtrack" "$FUNCNAME on $SPELL"
   local INPUT=$1
   local OUTPUT=$2
 
@@ -209,14 +209,14 @@ function create_install_log()  {
 function create_md5list() {
   local INPUT=$1
   local OUTPUT=$2
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug  "libtrack" "$FUNCNAME on $SPELL"
 
   [[ $__MODIFIED_FILES ]] || export __MODIFIED_FILES="$TMP_DIR/modified_files"
   touch $__MODIFIED_FILES
   filter "$__MODIFIED_FILES" < $INPUT | while read LINE ; do
-    $STD_SORCERY_DEBUG "Checking file $LINE"
+    debug "libtrack" "Checking file $LINE"
     if  [ -f "$LINE" ] ; then
-      $STD_SORCERY_DEBUG "Running md5 on $LINE"
+      debug "libtrack" "Running md5 on $LINE"
       md5sum "$LINE"
     fi
   done 2>/dev/null > $OUTPUT
@@ -280,12 +280,12 @@ function check_if_modified() {
 #---------------------------------------------------------------------
 function create_cache_archive()  {
 
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug  "libtrack" "$FUNCNAME on $SPELL"
   if    [  "$ARCHIVE"  ==  "off"  ]; then
-    $STD_SORCERY_DEBUG "ARCHIVE=$ARCHIVE, aborting archival."
+    debug "libtrack" "$FUNCNAME - ARCHIVE=$ARCHIVE, aborting archival."
     return
   fi
-  $STD_SORCERY_DEBUG "ARCHIVE=$ARCHIVE, archiving."
+  debug "libtrack" "$FUNCNAME - ARCHIVE=$ARCHIVE, archiving."
   local input=$1
   local CACHE=$2
   local CACHE_COMP=$3
@@ -506,7 +506,7 @@ function make_safe_dir() { (
     RANDOM=$(date "+%N")
     TMP_SSF=$TMP_DIR/$RANDOM
     sleep .1
-    $STD_SORCERY_DEBUG "safe dir collision on $TMP_SSF"
+    debug "libtrack" "safe dir collision on $TMP_SSF"
   done
   echo $TMP_SSF
   return 0

@@ -16,7 +16,7 @@
 ## test -f $INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar.bz2
 #---------------------------------------------------------------------
 function can_resurrect()  {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libresurrect" "can_resurrect - $*"
   local SPELL=$1
   local VERSION=$2
   
@@ -24,7 +24,7 @@ function can_resurrect()  {
   local file=$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar$EXTENSION &&
   test -f $file &&
   echo $file &&
-  $STD_SORCERY_DEBUG "I am able to resurrect." &&
+  debug "libresurrect" "I am able to resurrect." &&
   return 0
 }
 
@@ -69,7 +69,7 @@ function can_resurrect()  {
 # FIXME: some of the informative message calls might work better as debug messages
 #------------------------------------------------------------------------
 function resurrect()  { (
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libresurrect" "resurrect - $*"
   local SPELL=$1
   local VERSION=$2
 
@@ -79,7 +79,7 @@ function resurrect()  { (
   }
 
   if [[ ! $VERSION ]] ; then
-    $STD_SORCERY_DEBUG "No spell version passed in"
+    debug libresurrect "No spell version passed in"
     return 1
   fi
 
@@ -104,7 +104,7 @@ function resurrect()  { (
 
   mkdir -p $BUILD_DIRECTORY &&
   mk_source_dir $RESURRECT_DIR || {
-    $STD_SORCERY_DEBUG "Failed to make $RESURRECT_DIR"
+    debug "libresurrect" "Failed to make $RESURRECT_DIR"
     resurrect_fail
     return 1
   }
@@ -192,7 +192,7 @@ function resurrect()  { (
   tablet_find_resurrect_dir $SPELL OLD_TABLET_DIR
   local TMP_VERSION=$VERSION
   if [[ $OLD_TABLET_DIR ]] && test -d $OLD_TABLET_DIR ; then
-    $STD_SORCERY_DEBUG "loading tablet at $OLD_TABLET_DIR"
+    debug "libresurrect" "loading tablet at $OLD_TABLET_DIR"
     tablet_set_spell $SPELL $OLD_TABLET_DIR || {
       message "something is wrong with $OLD_TABLET_DIR"
       returrect_fail
@@ -203,7 +203,7 @@ function resurrect()  { (
     tablet_get_section_filter "$OLD_TABLET_DIR" configs GRIMOIRE_CONFIG_FILTER
   else
     unset $OLD_TABLET_DIR
-    $STD_SORCERY_DEBUG "no tablet"
+    debug "libresurrect" "no tablet"
     codex_set_current_spell_by_name $SPELL
     SPELL_CONFIG_FILTER=$SCRIPT_DIRECTORY/configs
     SECTION_CONFIG_FILTER=$SECTION_DIRECTORY/configs
@@ -310,7 +310,7 @@ function resurrect_sub() {
   # 10) if theres a PRE_RESURRECT run it or fail/rollback
   if test -x $SCRIPT_DIRECTORY/PRE_RESURRECT ; then
     . $SCRIPT_DIRECTORY/PRE_RESURRECT || {
-      $STD_SORCERY_DEBUG "PRE_RESURRECT failed"
+      debug "libresurrect" "PRE_RESURRECT failed"
       resurrect_fail 1
       return 1
     }
@@ -332,7 +332,7 @@ function resurrect_sub() {
     test -h ".$line" && echo .$line ||
     test -d ".$line" || echo .$line
   done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
-    $STD_SORCERY_DEBUG "Failed to install regular files"
+    debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
   }
@@ -344,7 +344,7 @@ function resurrect_sub() {
 
   local res_fail=0 BREAK
   function resurrect_install_conf_sub() {
-    $STD_SORCERY_DEBUG "resurrect_install_conf_sub -- $@"
+    debug libresurrect "resurrect_install_conf_sub -- $@"
     test -d ".$1" ||
     internal_install_config_file ".$1" "${INSTALL_ROOT}${1}" $savetime \
                                                          "$OLD_MD5_LOG" || {
@@ -355,7 +355,7 @@ function resurrect_sub() {
   iterate resurrect_install_conf_sub $'\n' "$(<$NEW_DATA_F_C)"
 
   [[ $res_fail == 0 ]] || {
-    $STD_SORCERY_DEBUG "Failed to install config files"
+    debug "libresurrect" "Failed to install config files"
     resurrect_fail 1
     return 1
   }
@@ -442,7 +442,7 @@ function internal_install_config_file() {
   local savetime=$3
   local md5_log=$4
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug libresurrect "$FUNCNAME -- $@"
   # if its a symlink, just copy, someday maybe we should figure
   # out where it points to and so something, but thats too annoying
   if test -h "$from" ; then
@@ -589,7 +589,7 @@ function resurrect_success() {
       ln $COMPILE_LOG -sf $new_tablet/logs/compile
       find $new_tablet > $TMP_INSTALL_LOG_STATE # relative to STATE_ROOT
     else
-      $STD_SORCERY_DEBUG "WARNING: unable to make tablet for $SPELL, oh well"
+      debug "libresurrect" "WARNING: unable to make tablet for $SPELL, oh well"
     fi
   fi
 

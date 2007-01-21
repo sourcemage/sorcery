@@ -80,7 +80,7 @@ function run_prepare()
 {
   local SPELL=$1
 
-  $STD_SORCERY_DEBUG "SPELL = $SPELL  SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+  debug "cast" "run_prepare() - SPELL = $SPELL  SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
  
   depends_message  "${SPELL}" "preparing environment..."
 
@@ -119,7 +119,7 @@ function run_other() {
 #---------------------------------------------------------------------
 function run_configure() {
   local SPELL=$1
-  $STD_SORCERY_DEBUG_HEAD "SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+  debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
   function run_configure_msg() {
     depends_message  "${SPELL}" "running configuration..."
@@ -137,7 +137,7 @@ function run_configure() {
 #---------------------------------------------------------------------
 function run_depends() { 
   local SPELL=$1
-  $STD_SORCERY_DEBUG_HEAD "SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+  debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
   function run_depends_msg() {
     depends_message  "${SPELL}" "checking dependencies..."
@@ -155,7 +155,7 @@ function run_depends() {
 #---------------------------------------------------------------------
 function run_up_triggers() {
   local SPELL=$1
-  $STD_SORCERY_DEBUG_HEAD "SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
+  debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
   function run_up_triggers_msg() {
     depends_message  "${SPELL}" "checking for reverse triggers..."
@@ -255,7 +255,7 @@ function process_sub_depends() {
       run_spell_file SUB_DEPENDS sub_depends || return 1
       hash_append processed_sub_depends $sub_dependee $sub_depends
     else
-      $STD_SORCERY_DEBUG "SUB_DEPENDS: $sub_dependee needs to provide $sub_depends but has already been processed"
+      debug libdepends "SUB_DEPENDS: $sub_dependee needs to provide $sub_depends but has already been processed"
     fi
   else
     # sub-depends file doesnt exist, something messed up somewhere
@@ -374,7 +374,7 @@ function compute_uninstalled_depends()
   # $1=table to place spells in
   # $2=table to put problem spells in, $* = root spells
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libdepends" "compute_depends of $*"
   local CAST_HASH="$1"
   local BACK_CAST_HASH="$2"
   local CANNOT_CAST_HASH="$3"
@@ -397,7 +397,7 @@ function compute_uninstalled_depends()
         private_remove_dependees ${spells[$_idx]}
       fi
     else
-      $STD_SORCERY_DEBUG "already looked at ${spells[$_idx]}, skipping"
+      debug "libdepends" "already looked at ${spells[$_idx]}, skipping"
     fi
   done
   # we no longer need these, no sense in keeping them around
@@ -420,7 +420,7 @@ function compute_uninstalled_depends()
 #---------------------------------------------------------------------
 function private_run_depends()
 {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libdepends" "$FUNCNAME - $*"
   local SPELL=$1
 
   # special accumulators for the current spell
@@ -476,7 +476,7 @@ function private_run_depends()
     private_recast_optionals $SPELL &&
     private_add_triggerees        &&
     private_add_depends           ||
-    { $STD_SORCERY_DEBUG "$FUNCNAME failed to process $SPELL." ; return 1; }
+    { debug "libdepends" "$FUNCNAME failed to process $SPELL." ; return 1; }
     # no point in keeping the file around if its empty...
     test -s $spell_depends || rm -f $spell_depends $spell_sub_depends
 
@@ -874,7 +874,7 @@ function real_suggest_depends() {
 function work_depends_provider()
 {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libdepends" "$FUNCNAME - $@"
   local default tmp installed=no
   local status=()
 
@@ -955,7 +955,7 @@ function work_depends_provider()
 #---------------------------------------------------------------------
 function work_depends_spell()
 {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libdepends" "$FUNCNAME - $@"
 
   local failure_ok=$1
   local article=$2
@@ -986,7 +986,7 @@ function work_depends_spell()
 function work_optional_depends_provider()
 {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libdepends" "$FUNCNAME - $@"
   local default tmp installed=no
   local status=()
 
@@ -1087,7 +1087,7 @@ function work_optional_depends_provider()
 function work_optional_depends_spell()
 {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libdepends" "$FUNCNAME - $@"
   local default
 
   local failure_ok=$1
@@ -1136,39 +1136,39 @@ function work_optional_depends_spell()
 
   # check for abandoned answers
   if [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
-    $STD_SORCERY_DEBUG "Checking in abandoned depends"
+    debug "libdepends" "Checking in abandoned depends"
     default=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" "$1"|awk -F: '{print $3;exit}')
   fi
 
   # check the defaults file...
   # first for explicit $SPELL -> $2
   if [[ ! $default ]]; then
-    $STD_SORCERY_DEBUG "Checking in default answers"
+    debug "libdepends" "Checking in default answers"
     default=$(search_default_depends $DEFAULT_DEPENDS $SPELL $1|awk -F: '{print $3; exit}')
   fi
 
   # then for anything -> $2
   if [[ ! $default ]]; then
-    $STD_SORCERY_DEBUG "Checking in default answers"
+    debug "libdepends" "Checking in default answers"
     default=$(search_default_depends $DEFAULT_DEPENDS "" $1|awk -F: '{print $3; exit}')
   fi
 
   # then for $1 -> anything
   if [[ ! $default ]]; then
-    $STD_SORCERY_DEBUG "Checking in default answers"
+    debug "libdepends" "Checking in default answers"
     default=$(search_default_depends $DEFAULT_DEPENDS $SPELL "" |awk -F: '{print $3; exit}')
   fi
 
   # check the install queue
   if [[ ! $default ]]; then
-    $STD_SORCERY_DEBUG "Checking in queue"
+    debug "libdepends" "Checking in queue"
     #\< and \> match the empty string at the start and end of a word
     echo ${spells[@]}|tr " " "\n" | grep -x -q "$1" && default=on
   fi
 
   # check if installed/held
   if [[ ! $default ]]; then
-    $STD_SORCERY_DEBUG "Checking if already installed"
+    debug "libdepends" "Checking if already installed"
     spell_ok $1 && default=on
   fi
 
@@ -1309,7 +1309,7 @@ function real_sub_depends() {
   if spell_ok $sub_dependee; then
     if [[ $(search_sub_depends "$SUB_DEPENDS_STATUS" "$requester" \
                               "$sub_dependee" "$sub_depends") != "" ]]; then
-      $STD_SORCERY_DEBUG "$requester -> $sub_dependee" \
+      debug "libdepends" "$FUNCNAME -- $requester -> $sub_dependee" \
                          "-> $sub_depends provided by installed spell"
       return 0
     fi
@@ -1325,7 +1325,7 @@ function real_sub_depends() {
       rc=$?
       return $rc
     ) && {
-      $STD_SORCERY_DEBUG "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
+      debug "libdepends" "adding altruistic sub-depends for $sub_dependee with $sub_depends from $requester"
       add_sub_depends "$SUB_DEPENDS_STATUS" "$requester" \
                       "$sub_dependee" "$sub_depends"
       hash_append sub_dep_f_hash $requester $sub_dependee:$sub_depends $'\n'
@@ -1363,8 +1363,7 @@ function real_sub_depends() {
 # it'll get re-processed (assuming the caller also did a depends on it)
 #---------------------------------------------------------------------
 function real_force_depends() {
-  $STD_SORCERY_DEBUG_HEAD
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug "libdepends" "$FUNCNAME - $SPELL - $@"
   local check=$(hash_get "depends_looked_at" "$1")
 
   message "${SPELL}" "is forcing a recast of" "${1}"
@@ -1383,8 +1382,7 @@ function real_force_depends() {
 #---------------------------------------------------------------------
 function private_common_depends()
 {
-  $STD_SORCERY_DEBUG_HEAD
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug "libdepends" "$FUNCNAME - $SPELL - $@"
   add_depends $spell_depends "$SPELL" "$@"
 
   # runtime and suggested depends have no formal dependency info
@@ -1461,8 +1459,7 @@ function private_add_triggerees() {
 #---------------------------------------------------------------------
 function private_add_depends()
 {
-  $STD_SORCERY_DEBUG_HEAD
-  $STD_SORCERY_DEBUG "SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
+  debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   hash_append "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
 
   for child in ${NEW_DEPENDS[*]}; do
@@ -1552,10 +1549,10 @@ function run_spell_config()
 {
 
   SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
-  $STD_SORCERY_DEBUG "DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
+  debug "libdepends" "run_spell_config() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS" 
     
   if  [  -x  $SPELL_CONFIG  ];  then
-    $STD_SORCERY_DEBUG "found $SPELL_CONFIG"
+    debug "libdepends" "run_spell_config() - found $SPELL_CONFIG"
     .  $SPELL_CONFIG
   fi
 }

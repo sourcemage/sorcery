@@ -24,7 +24,7 @@
 # checks for a security file
 # returns 0 if spell should be cast, 1 otherwise
 function run_security() {
-    $STD_SORCERY_DEBUG "SPELL = $SPELL"
+    debug "build_api/common" "Starting run_security() on $SPELL"
     if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
       echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
       tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
@@ -49,7 +49,7 @@ function run_security() {
 ## asks the user if they want to edit the custom options
 #---------------------------------------------------------------------
 function run_config_loc () {
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug "build_api/common" "Starting run_config_loc() on $SPELL"
   pushd . > /dev/null # may have been somewhere else
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
   cd      $SOURCE_DIRECTORY   # we need to be in here for this function to work
@@ -113,7 +113,7 @@ function run_config_loc () {
 #---------------------------------------------------------------------
 function real_prepare_install() { ( 
 
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
   message  "${MESSAGE_COLOR}Preparing to install"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
@@ -168,7 +168,7 @@ function real_gather_docs()  { (
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
-    $STD_SORCERY_DEBUG "SPELL = $SPELL" "DOCS=$DOCS"
+    debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
 
     DEST_DIR=$DOCUMENT_DIRECTORY/$SPELL
     mkdir  -p  $DEST_DIR
@@ -203,7 +203,7 @@ function real_gather_docs()  { (
 #---------------------------------------------------------------------
 function install_pam_confs()  {
 
-  $STD_SORCERY_DEBUG "SPELL = $SPELL"
+  debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
 
   if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
     cd       "$SCRIPT_DIRECTORY/pam.d"
@@ -225,7 +225,7 @@ function install_pam_confs()  {
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
 function run_spell_success() {
-    $STD_SORCERY_DEBUG "cast of $SPELL-$VERSION was successful"
+    debug "build_api/common" "cast of $SPELL-$VERSION was successful"
 
     local INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
     local MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
@@ -244,7 +244,7 @@ function run_spell_success() {
     pop_install_queue "$SPELL"
 
     # update depends info
-    $STD_SORCERY_DEBUG "Merging depends info"
+    debug "build_api/common" "Merging depends info"
 
     local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
     # none of the old values are valid, only the new, uncommitted values are
@@ -338,7 +338,7 @@ function run_spell_success() {
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
 function run_spell_failure() {
-    $STD_SORCERY_DEBUG "cast of $SPELL-$VERSION failed"
+    debug "build_api/common" "cast of $SPELL-$VERSION failed"
     local rc=$1
 
     sound  FAILURE

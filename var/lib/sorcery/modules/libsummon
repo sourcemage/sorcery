@@ -33,7 +33,7 @@ function summon_spell() {
   if [ -n "${SPELL}" ] && lock_resources "summon" "${SPELL}"; then
     #local dl_dir=/tmp/sorcery/summon/${SPELL:-none}
     local dl_dir=$TMP_DIR/${SPELL:-none}
-    $STD_SORCERY_DEBUG "dl_dir is $dl_dir"
+    debug "libsummon" "dl_dir is $dl_dir"
     mkdir -p $dl_dir && pushd $dl_dir &>/dev/null &&
 
     # run in a subshell rather than try to unset_details
@@ -397,7 +397,7 @@ function unpack_for_update() {
     if test -f $SOURCE_CACHE/$target && ! list_find "$hints" no_update; then
       unpack_file_simple $target || return 1
       if ! test -d "$_new_target" ; then
-        $STD_SORCERY_DEBUG "unpacked $target but to somewhere strange"
+        debug "libsummon" "unpacked $target but to somewhere strange"
       fi
     fi
   else

@@ -19,7 +19,7 @@ function screen_quick_intro() {
 ## arguments.
 #-----
 function screen_start() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   local name="$1"
   local screen
   shift
@@ -38,7 +38,7 @@ function screen_start() {
 ## The .!!| args to exec were determined by trial and error. ::: didn't work.
 #-----
 function screen_command() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   local name="$1"
   shift
   screen -x "$name" -X exec '.!!|' echo "$@"
@@ -62,7 +62,7 @@ function screen_command() {
 ## They are actualy window numbers in disguise
 #-----
 function screen_new_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   local screen_name="$1"
   local win_num="$2"
   local win_name="$3"
@@ -80,7 +80,7 @@ function screen_new_window() {
 ## Default escape code is ^A.
 #-----
 function screen_attach() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -r "$1" $SCREEN_KEY &
 }
 
@@ -89,7 +89,7 @@ function screen_attach() {
 ## Detaches the named screen session from the tty. 
 #-----
 function screen_detach() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -X detach
 }
 
@@ -100,7 +100,7 @@ function screen_detach() {
 ## closed
 #-----
 function screen_kill_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -p "$2" -X kill
   sleep $SCREEN_ANTI_RACE_SLEEP
   screen_notify "$1" "$2 ended"
@@ -114,7 +114,7 @@ function screen_kill_window() {
 ## Give an existing window a new name
 #-----
 function screen_name_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -p "$2" -X title "$3"
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -125,7 +125,7 @@ function screen_name_window() {
 ## There are race conditions aplenty if you're not careful 
 #-----
 function screen_name_curr_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -X title "$2"
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -136,7 +136,7 @@ function screen_name_curr_window() {
 ## Notify the user of something happening using the status bar
 #-----
 function screen_notify() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -X echo "$@"
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -148,7 +148,7 @@ function screen_notify() {
 ## in the window.
 #-----
 function screen_monitor_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -p "$2" -X monitor on
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -159,7 +159,7 @@ function screen_monitor_window() {
 ## Stops a window from being monitored
 #-----
 function screen_unmonitor_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -p "$2" -X monitor off
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -170,7 +170,7 @@ function screen_unmonitor_window() {
 ## Changes the window the user sees
 #-----
 function screen_switch_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -X select "$2"
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -180,7 +180,7 @@ function screen_switch_window() {
 ## Ends the screen session. Should end all processes running in the screen.
 #-----
 function screen_quit() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -X quit
 }
 
@@ -192,7 +192,7 @@ function screen_quit() {
 ## If something is already at that number, it swaps them
 #-----
 function screen_move_window() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -p "$2" -X number "$3"
   sleep $SCREEN_ANTI_RACE_SLEEP
 }
@@ -203,7 +203,7 @@ function screen_move_window() {
 ## Sets the time screen shows messages for
 #-----
 function screen_set_msgwait() {
-  $STD_SORCERY_DEBUG_HEAD
+  $STD_DEBUG
   screen -x "$1" -X msgwait $2
   sleep $SCREEN_ANTI_RACE_SLEEP
 }

@@ -57,7 +57,7 @@ function hash_build_variable_name() {
   local ___TABLE="$1"
   local ___FIELD="$2"
 
-#  $STD_SORCERY_DEBUG "TABLE=$___TABLE:FIELD=$___FIELD"
+#  debug "libhash" "hash_build_variable_name() - TABLE=$___TABLE:FIELD=$___FIELD"
 
   ___TABLE=${___TABLE//\+/_P_}
   ___TABLE=${___TABLE//\-/_M_}
@@ -99,7 +99,7 @@ function hash_unbuild_field_name() {
   ___FIELD=${___FIELD%_*}
 #  `echo "$1" | sed -n "s/^$2\(.*\)_$/\1/p"`
   
-#  $STD_SORCERY_DEBUG "TABLE=$___TABLE:FIELD=$___FIELD"
+#  debug "libhash" "hash_unbuild_field_name() - TABLE=$___TABLE:FIELD=$___FIELD"
 
   ___FIELD=${___FIELD//_P_/\+}
   ___FIELD=${___FIELD//_M_/\-}
@@ -125,7 +125,7 @@ function hash_put() {
   local VARIABLE_NAME
   hash_build_variable_name "$1" "$2" VARIABLE_NAME
   eval "${VARIABLE_NAME}=\"${3}\""
-  $STD_SORCERY_DEBUG "VARIABLE_NAME=$VARIABLE_NAME, data=$3"
+  debug "libhash" "hash_put() - VARIABLE_NAME=$VARIABLE_NAME, data=$3"
 }
 
 

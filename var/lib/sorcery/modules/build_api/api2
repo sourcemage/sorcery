@@ -24,7 +24,7 @@
 ## a spell for BUILD_API 2.
 #---------------------------------------------------------------------
 function run_build_spell() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "run_build_spell"
 
   local CHROOT_CHECK=""
 
@@ -112,7 +112,7 @@ function run_build_spell() {
 #---------------------------------------------------------------------
 function run_pre_build() {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "run_pre_build()"
   message  "${MESSAGE_COLOR}Building"  \
            "${SPELL_COLOR}${SPELL}"    \
            "${DEFAULT_COLOR}"
@@ -133,7 +133,7 @@ function run_pre_build() {
 #---------------------------------------------------------------------
 function run_build()  {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting run_compile()"
 
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
@@ -169,7 +169,7 @@ function run_build()  {
 ## run_build finished, then runs PRE_INSTALL or default_pre_install
 #---------------------------------------------------------------------
 function run_pre_install() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting run_pre_install()"
 
   if [ -f $S_PWD ] ; then
     cd "`cat $S_PWD`"
@@ -193,7 +193,7 @@ function run_pre_install() {
 ## stage root properly
 #---------------------------------------------------------------------
 function run_install() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting run_install()"
   if [ -f $S_PWD ] ; then
     cd "`cat $S_PWD`"
   elif [ -d $SOURCE_DIRECTORY ] ; then
@@ -214,7 +214,7 @@ function run_install() {
 
 function run_install_extras() {
   
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting run_install_extras()"
   run_spell_file INSTALL_EXTRAS install_extras
 }
 
@@ -228,7 +228,7 @@ function run_install_extras() {
 ## stage root properly
 #---------------------------------------------------------------------
 function run_post_install() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting run_post_install()"
   persistent_load &&
   if [[ $STAGED_INSTALL != off ]]
   then
@@ -258,7 +258,7 @@ function run_transfer() {
 #---------------------------------------------------------------------
 function run_final() {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting run_final()"
   run_spell_file FINAL final
 }
 
@@ -270,7 +270,7 @@ function run_final() {
 #---------------------------------------------------------------------
 function real_default_sorcery_pre_build() {
 
-  $STD_SORCERY_DEBUG "SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
+  debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
   unpack_file
 
@@ -292,7 +292,7 @@ function real_default_sorcery_pre_build() {
 ##
 #---------------------------------------------------------------------
 function real_default_sorcery_build() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "real_default_sorcery_build"
 
   OPTS="$OPTS --build=${BUILD}"
   #If these switches are used, they _may_ stop distcc and ccache from working
@@ -320,7 +320,7 @@ function real_default_sorcery_build() {
 ##
 #---------------------------------------------------------------------
 function real_default_sorcery_pre_install() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting real_default_sorcery_pre_install"
   prepare_install
 }
 
@@ -334,7 +334,7 @@ function real_default_sorcery_pre_install() {
 ##
 #---------------------------------------------------------------------
 function real_default_sorcery_install() {
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting real_default_sorcery_install"
   make    install
 }
 
@@ -348,7 +348,7 @@ function real_default_sorcery_install() {
 #---------------------------------------------------------------------
 function real_default_sorcery_install_extras() {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
   install_xinetd
   install_initd
   install_pam_confs
@@ -363,7 +363,7 @@ function real_default_sorcery_install_extras() {
 
 function real_default_sorcery_transfer() {
   
-  $STD_SORCERY_DEBUG_HEAD
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
   transfer_staged_spell
 }
 

@@ -19,7 +19,7 @@
 #---------------------------------------------------------------------
 function load_build_api() {
 
-  $STD_SORCERY_DEBUG_HEAD
+  debug "libcast" "Starting load_build_api"
 
   source $SGL_LIBRARY_MODULES/build_api/common
   case $BUILD_API in
@@ -93,7 +93,7 @@ function prepare_spell_config()  {
 #---------------------------------------------------------------------
 function run_conflicts() {
 
-  $STD_SORCERY_DEBUG_HEAD "on $SPELL"
+  debug "build_api/common" "Starting run_conflicts() on $SPELL"
   local ignore_conflict=$1
   local each rc
 
@@ -657,7 +657,7 @@ function create_compile_log()  {
 #---------------------------------------------------------------------
 function view_compile_log()  {
 
-    $STD_SORCERY_DEBUG_HEAD "C_LOG=$C_LOG"
+    debug "libcast" "In view_compile_log, C_LOG=$C_LOG"
     report $C_LOG  "Compile log"
 }
 
@@ -668,7 +668,7 @@ function view_compile_log()  {
 #---------------------------------------------------------------------
 function report_install()  {
 
-  $STD_SORCERY_DEBUG_HEAD "INST_LOG=$INST_LOG"
+  debug "libcast" "In report_install, INST_LOG=$INST_LOG"
   report  $INST_LOG  "Install log"
 
 }
@@ -709,7 +709,7 @@ function show_downloading()  {
 
   local SPELL=$1
   local download_log=$(get_spell_dl_log $SPELL)
-  $STD_SORCERY_DEBUG "Started show_downloading() on $SPELL from $download_log"
+  debug "cast" "Started show_downloading() on $SPELL from $download_log"
 
   # poke around waiting for downloading to start
   while ! ( [[ $download_log ]] && 
@@ -725,7 +725,7 @@ function show_downloading()  {
   done
   
   show_download_progress $download_log
-  $STD_SORCERY_DEBUG_HEAD "Out of show_downloading"
+  debug "libcast" "Out of show_downloading"
 }
 
 #---------------------------------------------------------------------
