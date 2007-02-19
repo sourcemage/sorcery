@@ -98,9 +98,6 @@ function real_default_sorcery_download() {
 ## Acquire the source. Check locally unless options insist on not
 ## doing so.
 ##
-## Inspects $FORCE_DOWNLOAD and ${FORCE_DOWNLOAD[$srcnum]}
-## if either are set then downloading is forced, a local copy of the
-## file is ignored.
 #-------------------------------------------------------------------------
 function real_acquire_src() {
   $STD_DEBUG
@@ -108,24 +105,44 @@ function real_acquire_src() {
   local SVAR="SOURCE${DLNUM}"
   local target=${!SVAR}
 
-  
-  REASON="for spell ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
-
   # maybe we already have the file
   # but we can only use it if not FORCE_DOWNLOADing
+  is_downloaded "$target" "$DLNUM" \
+  "for spell ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} " && return 0
+
+  # else the source must be downloaded/updated
+  download_src "$DLNUM"
+}
+
+#-------------------------------------------------------------------------
+## @param download target
+## @param source number
+## @return 0 if the target already exsists and FORCE_DOWNLOADing is disabled
+## @return 1 otherwise
+##
+## Checks if the download target is already downloaded,
+## Inspects $FORCE_DOWNLOAD and ${FORCE_DOWNLOAD[$srcnum]}
+## if either are set then downloading is forced, a local copy of the
+## file is ignored.
+##
+#-------------------------------------------------------------------------
+function is_downloaded() {
+  local target="$1"
+  local dlnum="${2:-1}"
+  local reason="$3"
+
   if file_exists "$SOURCE_CACHE/$target " &&
      ! [[ ${FORCE_DOWNLOAD} ]] &&
-     ! [[ ${FORCE_DOWNLOAD[${DLNUM:-1}]} ]] ; then
+     ! [[ ${FORCE_DOWNLOAD[$dlnum]} ]] ; then
     # file_exists does a fuzzy match with gz, tgz and bz2
     # lookup what file it actually found and use that for the message
     local real_target=$(guess_filename $SOURCE_CACHE/$target)
     message  "${MESSAGE_COLOR}Found source file"             \
              "${FILE_COLOR}${real_target}${DEFAULT_COLOR}"     \
-             "$REASON in ${FILE_COLOR}${SOURCE_CACHE}${DEFAULT_COLOR}"
+             "${reason}in ${FILE_COLOR}${SOURCE_CACHE}${DEFAULT_COLOR}"
     return 0
   fi
-  # else the source must be downloaded/updated
-  download_src "$DLNUM"
+  return 1
 }
 
 #-------------------------------------------------------------------------

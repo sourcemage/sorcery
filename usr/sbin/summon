@@ -196,10 +196,12 @@ main() {
   process_parameters $*
 
   if [ -n "$RAW" ] ; then
-    local line rc
+    local line target rc
     while read line; do
       # eval is needed to preserve quoting
       eval set -a $line
+      target="${line%% *}"
+      is_downloaded "$target" && continue
       download_src_args "$@" || rc=$?
     done
     return $rc
