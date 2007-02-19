@@ -619,20 +619,29 @@ function real_list_add () {
 ## return 0 at least one element is in list
 ## return 1 none of supplied elements is not in list
 ##
-## Finds if at least one of given elements is in the string. Warning,
-## this function takes real string, not variable name as other list_*
-## functions
+## Finds if at least one of the given elements is in the string. They
+## can be delimited by spaces, tabs or newlines. The search elements 
+## must not contain any of these or they won't match. The matching is
+## exact, regular expressions and globbing patterns are not supported.
+##
+## Warning, this function takes a real string, not a variable name as 
+## other list_* functions. 
 ##
 #---------------------------------------------------------------------
 function real_list_find () {
-    local i
-    local input="$1"
-    shift
+  local item token
+  [[ "$1" ]] || return 1
+  local input=$1
+  shift
 
-    for i in $@; do
-        eval "echo \" $input \" | grep -q -e \"[[:space:]]$i[[:space:]]\" && return 0"
+  for item in $input
+  do
+    for token in "$@"
+    do
+      [[ "$item" == "$token" ]] && return 0
     done
-    return 1
+  done
+  return 1
 }
 
 #---------------------------------------------------------------------
