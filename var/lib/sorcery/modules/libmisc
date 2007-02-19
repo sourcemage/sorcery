@@ -478,7 +478,7 @@ function iterate()
 }
 
 #---------------------------------------------------------------------
-## @param return_var (must not be i, foo, temp, returnvar, stuff or default)
+## @param return_var (must not be i, foo, temp, returnvar, stuff, default, hashnum, msgstr, result or answer)
 ## @param default choice
 ## @param elements, ..
 ## 
@@ -491,9 +491,9 @@ function select_list()
     local i
     local foo temp number
     local returnvar=$1
-    local default=$2
+    local _default=$2
     local stuff=()
-    local default_num=0
+    local _default_num=0
 
     shift 2
     hash_unset select_list_hash
@@ -504,12 +504,12 @@ function select_list()
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR(${stuff[$i]})  $SPELL_COLOR$foo$DEFAULT_COLOR"
         hash_put select_list_hash "${stuff[$i]}" "$foo"
-        [[ "$foo" ]] && [[ "$foo" == "$default" ]] && default_num=${stuff[$i]}
+        [[ "$foo" ]] && [[ "$foo" == "$_default" ]] && _default_num=${stuff[$i]}
         let i++
     done
 
-    local msg="\n${QUERY_COLOR}Which one do you want? [$default_num]$DEFAULT_COLOR "
-    select_list_sub "$returnvar" select_list_hash "$msg" "$default_num"
+    local msg="\n${QUERY_COLOR}Which one do you want? [$_default_num]$DEFAULT_COLOR "
+    select_list_sub "$returnvar" select_list_hash "$msg" "$_default_num"
     hash_unset select_list_hash
 }
 
@@ -526,18 +526,18 @@ function select_list_sub() {
   local returnvar=$1
   local hashname=$2
   local msgstr=$3
-  local default=$4
+  local _default=$4
 
-  local result answer
+  local _result _answer
 
-  while [[ ! $result ]] ; do
+  while [[ ! $_result ]] ; do
     message -n "$msgstr"
-    read   -t  $PROMPT_DELAY  -n  1  answer
-    [[ "$answer" ]] || answer=$default
-    result="$(hash_get $hashname $answer)"
+    read   -t  $PROMPT_DELAY  -n  1  _answer
+    [[ "$_answer" ]] || _answer=$_default
+    _result="$(hash_get $hashname $_answer)"
   done
   echo
-  eval $returnvar=\"$result\"
+  eval $returnvar=\"$_result\"
 }
 
 #---------------------------------------------------------------------
