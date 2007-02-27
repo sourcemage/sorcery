@@ -49,6 +49,30 @@ function real_track_manual()  {
   return 0
 }
 
+#--------------------------------------------------------------------
+## Some simple castfs sanity checking
+## make a file, check to see if it exists, check to see if the 
+## contents of the file is what we made it
+#--------------------------------------------------------------------
+function run_castfs_sanity()
+{
+  (
+    debug  "libtrack" "$FUNCNAME on $SPELL"
+    (echo stuff > foo) &&
+    (ls foo > /dev/null 2>&1) &&
+    (test "stuff" = "`cat foo`") &&
+    rm foo
+  )
+  local rc=$?
+  if [[ $rc == 0 ]]
+  then
+    debug "libtrack" "$FUNCNAME success"
+  else
+    debug "libtrack" "$FUNCNAME failure"
+  fi
+  return $rc
+}
+
 #---------------------------------------------------------------------
 ##
 ## Starts Translation Stage Root
@@ -69,7 +93,12 @@ function real_invoke_stage_root()
   for dir in /dev /dev/pts /proc /sys
   do
     mount -o bind "$dir" "${STAGE_DIRECTORY}/MOUNT$dir"
-  done
+  done &&
+  pushd "${STAGE_DIRECTORY}/MOUNT" > /dev/null &&
+  run_castfs_sanity
+  local rc=$?
+  popd > /dev/null
+  return $rc
 }
 
 #---------------------------------------------------------------------
