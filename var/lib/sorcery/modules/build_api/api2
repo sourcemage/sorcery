@@ -54,7 +54,7 @@ function run_build_spell() {
     VOYEUR_STDOUT=/dev/null
     VOYEUR_STDERR=/dev/null
   fi
-  
+
   if [[ -z $STAGED_INSTALL ]] 
   then
     if ! is_castfs_installed
@@ -63,6 +63,12 @@ function run_build_spell() {
     else
       export STAGED_INSTALL=on
     fi
+  fi
+
+  if ! run_castfs_sanity
+  then
+    message "${PROBLEM_COLOR}CastFS failed sanity check turning off${DEFAULT_COLOR}"
+    export STAGED_INSTALL=off
   fi
 
   local PROTECT_SORCERY=yes

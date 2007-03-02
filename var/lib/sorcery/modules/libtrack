@@ -56,20 +56,28 @@ function real_track_manual()  {
 #--------------------------------------------------------------------
 function run_castfs_sanity()
 {
+  export CASTFS_LOGFILE=${CASTFS_DBGLOG}
+  export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
+  debug  "libtrack" "$FUNCNAME on $SPELL"
+  mkdir -p "${TMP_DIR}/test-mount" &&
+  mkdir -p "${TMP_DIR}/test-stage" &&
+  castfs "${TMP_DIR}/test-mount" -o "stage=${TMP_DIR}/test-stage" -o "ignore=/tmp" &&
+  pushd "${TMP_DIR}/test-mount" > /dev/null &&
   (
-    debug  "libtrack" "$FUNCNAME on $SPELL"
     (echo stuff > foo) &&
     (ls foo > /dev/null 2>&1) &&
     (test "stuff" = "`cat foo`") &&
-    rm foo
+    rm -f foo
   )
   local rc=$?
+  popd > /dev/null
   if [[ $rc == 0 ]]
   then
     debug "libtrack" "$FUNCNAME success"
   else
     debug "libtrack" "$FUNCNAME failure"
   fi
+  umount -l "${TMP_DIR}/test-mount"
   return $rc
 }
 
@@ -93,12 +101,7 @@ function real_invoke_stage_root()
   for dir in /dev /dev/pts /proc /sys
   do
     mount -o bind "$dir" "${STAGE_DIRECTORY}/MOUNT$dir"
-  done &&
-  pushd "${STAGE_DIRECTORY}/MOUNT" > /dev/null &&
-  run_castfs_sanity
-  local rc=$?
-  popd > /dev/null
-  return $rc
+  done 
 }
 
 #---------------------------------------------------------------------
