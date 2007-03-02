@@ -36,6 +36,10 @@ function dl_git_get () {
   for url in $url_list; do
     local URL GIT_ROOT GIT_DIRECTORY GIT_TAG
     url_crack "$url" "$hints"
+    if [[ -z $GIT_DIRECTORY ]]
+    then
+      GIT_DIRECTORY=${target/.git/}
+    fi
     if test -d $GIT_DIRECTORY; then
       message "${MESSAGE_COLOR}Running git pull...${DEFAULT_COLOR}"
       ( cd $GIT_DIRECTORY &&
