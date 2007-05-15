@@ -1481,6 +1481,7 @@ sorcery_devel_settings()   {
 
   local D_HELP="Set the debugging file for normal debugging."
   local S_HELP="Turn on Super Debug. You probably don't want to do this."
+  local C_HELP="Change this to 0 to remove castfs debugging."
 
   while
 
@@ -1493,7 +1494,8 @@ sorcery_devel_settings()   {
             ""                      \
             0 0 0                    \
             "D"  "Debug file"        "$D_HELP"  \
-            "S"  "Super debugging toggle"  "$S_HELP"'`
+            "S"  "Super debugging toggle"  "$S_HELP" \
+	    "C"  "Castfs debuging level"  "$C_HELP"'`
   do
 
     case $COMMAND in
@@ -1505,6 +1507,9 @@ sorcery_devel_settings()   {
         TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
         ( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
       ( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
+    C) TEXT="Note: This is a numeric value, if you change this to 0, castfs won't do any debugging, if its anything but a numeric value castfs could break."
+        LEVEL=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$CASTFS_DEBUG_LEVEL\"` &&
+	modify_local_config "CASTFS_DEBUG_LEVEL" "$LEVEL" ;;
 
   esac
 
