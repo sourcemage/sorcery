@@ -1495,7 +1495,7 @@ sorcery_devel_settings()   {
             0 0 0                    \
             "D"  "Debug file"        "$D_HELP"  \
             "S"  "Super debugging toggle"  "$S_HELP" \
-	    "C"  "Castfs debuging level"  "$C_HELP"'`
+            "C"  "Castfs debuging level"  "$C_HELP"'`
   do
 
     case $COMMAND in
@@ -1506,10 +1506,10 @@ sorcery_devel_settings()   {
     S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
         TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
         ( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
-      ( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
-    C) TEXT="Note: This is a numeric value, if you change this to 0, castfs won't do any debugging, if its anything but a numeric value castfs could break."
+        ( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
+	C) TEXT="Note: This is a numeric value that represents a mask to castfs, 0 means no debugging, 1 means file system debugging, 2 is lower level debugging, 3 means both. All other values are currently undefined."
         LEVEL=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$CASTFS_DEBUG_LEVEL\"` &&
-	modify_local_config "CASTFS_DEBUG_LEVEL" "$LEVEL" ;;
+        modify_local_config "CASTFS_DEBUG_LEVEL" "$LEVEL" ;;
 
   esac
 
