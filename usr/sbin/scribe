@@ -217,6 +217,12 @@ function scribe_add_update_worker() {
   if  [ -z "$from" ];  then
     #from is empty - use the default
     prefix=$(url_get_prefix $CODEX_URL)
+    if [[ $? != 0 ]]; then
+      message "${PROBLEM_COLOR}Failed to get the \$CODEX_URL prefix!" \
+      "${DEFAULT_COLOR}"
+      popd &>/dev/null
+      return 1
+    fi
 
     local tree_prefixes="rsync svn svn_http svn_https svn_ssh cvs smgl_tla"
     tree_prefixes="$tree_prefixes dir git git_http"
