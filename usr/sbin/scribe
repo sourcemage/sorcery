@@ -155,6 +155,13 @@ function scribe_add() {
       continue
     fi
 
+    # avoid deleting $grimoire if it is a dir #13742
+    if [[ -d $grimoire ]]; then
+      message "${PROBLEM_COLOR}The grimoire $grimoire is an" \
+              "exsisting directory! Refusing to add!${DEFAULT_COLOR}"
+      continue
+    fi
+
     local grim_name="$grimoire"
     # derive a full grimoire name
     grimoire=$(codex_canonicalize_grimoire_name $grimoire)
