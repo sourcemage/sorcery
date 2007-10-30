@@ -918,14 +918,14 @@ function work_depends_provider()
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
     tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
-    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
+    [[ $tmp ]] && echo "$CANDIDATES" | grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if theres a default provider
   if [[ ! $default ]]; then
     explode "$(search_default_provider $DEFAULT_PROVIDERS ".*" "$1")" ":" "status"
     tmp=${status[0]}
-    [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" && default=$tmp
+    [[ $tmp ]] && echo "$CANDIDATES" | grep -x -q "$tmp" && default=$tmp
   fi
 
   # check if we've already answered this question
@@ -1023,7 +1023,7 @@ function work_optional_depends_provider()
   # check if theres an abandoned answer, but only if its still a provider
   if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
     tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "on"|awk -F: '{print $2;exit}')
-    if [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" ; then
+    if [[ $tmp ]] && echo "$CANDIDATES" | grep -x -q "$tmp" ; then
       default=$tmp
     else
       tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "off")
@@ -1045,7 +1045,7 @@ function work_optional_depends_provider()
         # if the user said "on" use the default rather than none
         # unless theres something wrong with the provider they chose 
         # in which case fall back to none
-        [[ $tmp ]] && echo $CANDIDATES|grep -x -q "$tmp" &&
+        [[ $tmp ]] && echo "$CANDIDATES" | grep -x -q "$tmp" &&
         default=$tmp || default=none
       else
         default=none
