@@ -59,6 +59,13 @@ function run_castfs_sanity()
   export CASTFS_LOGFILE=${CASTFS_DBGLOG}
   export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
   debug  "libtrack" "$FUNCNAME on $SPELL"
+
+  # first check if /dev/null is really a character device #13315
+  if [[ ! -c /dev/null ]]; then
+    debug "libtrack" "$FUNCNAME failure: damaged /dev/null"
+    return 1
+  fi
+
   mkdir -p "${TMP_DIR}/test-mount" &&
   mkdir -p "${TMP_DIR}/test-stage" &&
   castfs "${TMP_DIR}/test-mount" -o "stage=${TMP_DIR}/test-stage" -o "ignore=/tmp" &&
