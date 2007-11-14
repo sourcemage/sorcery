@@ -14,11 +14,11 @@ function help()
 
 Melds the staged config files from $CONFIG_STAGE_DIRECTORY
 
-Example:                confmeld
+Example: confmeld
 
 Optional Parameters:
 
-            None at the moment
+none
 
 EOF
   exit 1
@@ -81,6 +81,19 @@ function parse_stage_config_path()
   eval "$4=\"$__path\""
 }
 
+function process_parameters()
+{
+  while [[ -n $1 ]]; do
+    if [[ ${1:0:1} == "-" ]]; then
+      case "$1" in
+        --help|-h) help ;;
+                *) help ;;
+      esac
+    else shift 1
+    fi
+  done
+}
+
 #--------------------------------------------------------------------
 ## Main
 ## 
@@ -93,6 +106,8 @@ function main()
   local last_spell=""
   local last_sdate=""
   
+  process_parameters "$@"
+
   for file in $(all_config_files)
   do
     parse_stage_config_path $file spell sdate target &&
