@@ -5,15 +5,22 @@ function build__find_non_volatile() {
 }
 
 branch_dir=$(basename $(pwd))
+if [[ $1 ]] ; then
+  branch_name=$1
+else
+  branch_name=$branch_dir
+fi
+
 if [ -e ../sorcery ]; then
   echo "We need a blank directory beneath the current on to link sorcery -> $branch_dir"
   exit 1
 fi
+[[ $branch_name == devel ]] && date "+%Y%m%d" > etc/sorcery/version
 pushd .. &>/dev/null
 NAMES_TMP=/tmp/sorcery.build.$$
 ln -sf $branch_dir sorcery
 build__find_non_volatile sorcery > $NAMES_TMP
-tar --owner=0 --group=0 -cvjf sorcery-${branch_dir}.tar.bz2 -T $NAMES_TMP
+tar --owner=0 --group=0 -cvjf sorcery-${branch_name}.tar.bz2 -T $NAMES_TMP
 rm $NAMES_TMP
 rm sorcery
 popd .. &>/dev/null
