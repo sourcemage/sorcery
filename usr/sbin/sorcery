@@ -311,25 +311,22 @@ file_menu() {
 
 
 show_installed_spells()  {
+  local spell date status version
 
-  for  LINE  in  `sort  $SPELL_STATUS`;  do
+  while read spell date status version; do
+    if  [[  $status  ==  "installed"  ]]  ||
+        [[  $status  ==  "held"       ]];  then
 
-      SPELL=`echo  "$LINE"    |  cut  -d : -f1`
-     STATUS=`echo  "$LINE"    |  cut  -d : -f3`
-    VERSION=`echo  "$LINE"    |  cut  -d : -f4`
-
-    if  [  "$STATUS"  ==  "installed"  ]  ||
-        [  "$STATUS"  ==  "held"       ];  then
-
-      if  codex_set_current_spell_by_name  $SPELL;  then
-        echo -en   '"'${SPELL:="Unknown"}'"'
-        echo -en '\t"'${VERSION:="-"}'"'
-        echo  -e '\t"'${SHORT:="Description Unavailable"}'"'
+      if  codex_set_current_spell_by_name  $spell;  then
+        SHORT=${SHORT:-"Description unavailable"}
+        echo -en   '"'${spell:="Unknown"}'"'
+        echo -en '\t"'${version:="-"}'"'
+        echo  -e '\t"'${SHORT//\"/\'}'"'
       fi
 
     fi
-  done
-
+  done < <(tr : " " < $SPELL_STATUS) | sort
+  codex_clear_current_spell
 }
 
 
@@ -356,13 +353,13 @@ remove_pkgs() {
     codex_set_current_spell_by_name  $SPELL
     DESCRIPTION=`codex_get_spell_description  $SPELL_DIRECTORY`
 
-    if  $DIALOG  --title      "Remove $SPELL?"  \
+    if  eval $DIALOG  '--title      "Remove $SPELL?"  \
                  --yesno      "$DESCRIPTION"    \
-                 0 0
+                 0 0'
     then
       push_remove_queue  $SPELL                                    &&
-      $DIALOG  --msgbox  "$SPELL added to the remove queue."  0 0  ||
-      $DIALOG  --msgbox  "$SPELL is not really installed?"    0 0
+      eval $DIALOG  '--msgbox  "$SPELL added to the remove queue."  0 0'  ||
+      eval $DIALOG  '--msgbox  "$SPELL is not really installed?"    0 0'
     fi
 
   done
