@@ -744,8 +744,8 @@ function real_long_search()  {
       pattern=${SEARCH[$i]}
       SEARCH_RESULTS=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
         /'"${pattern}"'/{
-          if(/^[[:blank:]]*SPELL/)   {print "(Name Match)";        exit 0;}
-          if(/^[[:blank:]]*SHORT/)   {print "(Short Description)"; exit 0;}
+          if(/^[[:blank:]]*SPELL=.*'"${pattern}"'/)   {print "(Name Match)";        exit 0;}
+          if(/^[[:blank:]]*SHORT=.*'"${pattern}"'/)   {print "(Short Description)"; exit 0;}
           if(inLongDesc) {print "(Description)";       exit 0;}
         }
         /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
