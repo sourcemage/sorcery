@@ -383,7 +383,7 @@ function compute_uninstalled_depends()
   local spell spells
   spells=( $@ )
 
-  PRETEND_NOT_INSTALLED=$(echo "$@"|tr " " "\n")
+  PRETEND_NOT_INSTALLED=" $@ "
 
   local _idx
   
@@ -510,7 +510,7 @@ function private_should_cast()
   # order is important here...
   if ! codex_does_spell_exist $1; then
     return 1
-  elif echo "$PRETEND_NOT_INSTALLED" | grep -x -q "$1" ; then
+  elif echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " ; then
     # always look at stuff on the command line unless its exiled
     return 0
   # from here on the spell was not on the command line...
@@ -931,7 +931,7 @@ function work_depends_provider()
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      echo ${spells[@]} | tr " " "\n"| grep -x -q "$tmp" && default=$tmp && break
+      echo " ${spells[@]} " |  grep -q " $tmp " && default=$tmp && break
     done
   fi
 
@@ -1056,7 +1056,7 @@ function work_optional_depends_provider()
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      echo ${spells[@]} | tr " " "\n" | grep -x -q "$tmp" && default=$tmp && break
+      echo " ${spells[@]} " | grep -q " $tmp " && default=$tmp && break
     done
   fi
 
@@ -1162,8 +1162,7 @@ function work_optional_depends_spell()
   # check the install queue
   if [[ ! $default ]]; then
     debug "libdepends" "Checking in queue"
-    #\< and \> match the empty string at the start and end of a word
-    echo ${spells[@]}|tr " " "\n" | grep -x -q "$1" && default=on
+    echo " ${spells[@]} " | grep -q " $1 " && default=on
   fi
 
   # check if installed/held
@@ -1282,7 +1281,7 @@ function private_up_trigger() {
 
   # afk 6-7-06 Im not sure this line is correct, it seems to only
   # make a circular depends, instead we want $TARGET to depend on $SPELL
-  echo ${NEW_DEPENDS[@]} |tr " " "\n"| grep -x -q "$TARGET" || 
+  echo " ${NEW_DEPENDS[@]} " | grep -q " $TARGET " || 
   NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
 
   triggerees=( ${triggerees[*]} $TARGET )
