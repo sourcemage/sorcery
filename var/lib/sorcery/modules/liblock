@@ -83,12 +83,13 @@ trylock_resources()
 
     if ! mkdir "${lockfile}" 2>/dev/null; then
     # we try to remove stale locks here and try again
+        sleep 0.1
         global_clean_resources
         if ! mkdir "${lockfile}" 2>/dev/null; then
             return 1
         fi
     fi
-    ln -sf /proc/$$ "${lockfile}/$$"
+    [[ -e ${lockfile}/$$ ]] || ln -s /proc/$$ "${lockfile}/$$"
     return 0
 }
 
