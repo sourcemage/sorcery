@@ -104,13 +104,13 @@ function stage_install_file()
       then
         message "${MESSAGE_COLOR}Staging config to $CONFIG_STAGE_DIRECTORY${DEFAULT_COLOR}"
         mkdir -p "$(dirname $SAVE)" &&
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE" 
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE"
       else
-        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+        cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE"
       fi
       ;;
     *)
-      cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE" 
+      cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE"
       ;;
   esac
 }
@@ -126,13 +126,13 @@ function stage_install_symlink()
       then
         touch "${INSTALL_ROOT}/$FILE" &&
         mkdir -p $(dirname $SAVE) &&
-        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$SAVE" 
+        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$SAVE"
       else
-        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE" 
+        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE"
       fi
       ;;
     *)
-      ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE" 
+      ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE"
       ;;
   esac
 }
@@ -217,7 +217,7 @@ function stage_install_list()
     stage_install_char_block "$@" c
   elif [[ -p $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
-    stage_install_fifo "$@" 
+    stage_install_fifo "$@"
   elif [[ ! -d $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
     stage_install_file "$@"

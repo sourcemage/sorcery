@@ -37,7 +37,7 @@ function exists()  {
 ##
 #---------------------------------------------------------------------
 function real_track_manual()  {
-  if  [[ -z "$STAGED_INSTALL" || $STAGED_INSTALL == off ]] && 
+  if  [[ -z "$STAGED_INSTALL" || $STAGED_INSTALL == off ]] &&
       [[ -z "$INSTALLWATCHFILE"  ]] ;  then
     echo "Can't tell installwatch to manually track... installwatch isn't running."
     return 1
@@ -51,7 +51,7 @@ function real_track_manual()  {
 
 #--------------------------------------------------------------------
 ## Some simple castfs sanity checking
-## make a file, check to see if it exists, check to see if the 
+## make a file, check to see if it exists, check to see if the
 ## contents of the file is what we made it
 #--------------------------------------------------------------------
 function run_castfs_sanity()
@@ -108,7 +108,7 @@ function real_invoke_stage_root()
   for dir in /dev /dev/pts /proc /sys
   do
     mount -o bind "$dir" "${STAGE_DIRECTORY}/MOUNT$dir"
-  done 
+  done
 }
 
 #---------------------------------------------------------------------
@@ -118,7 +118,7 @@ function real_invoke_stage_root()
 #---------------------------------------------------------------------
 function real_devoke_stage_root()
 {
-  unset CASTFS_LOGFILE 
+  unset CASTFS_LOGFILE
   unset CASTFS_DBGLVL
   for dir in /dev/pts /dev /proc /sys
   do
@@ -136,7 +136,7 @@ function prepare_stage_root()
 {
   mk_source_dir "${STAGE_DIRECTORY}" &&
   mk_source_dir "${STAGE_DIRECTORY}/TRANSL" &&
-  mk_source_dir "${STAGE_DIRECTORY}/MOUNT" 
+  mk_source_dir "${STAGE_DIRECTORY}/MOUNT"
 }
 
 #---------------------------------------------------------------------
@@ -174,12 +174,12 @@ function real_devoke_installwatch()  {
 function is_castfs_installed()
 {
   local loc
-  if smgl_which castfs loc >/dev/null 2>&1 && 
+  if smgl_which castfs loc >/dev/null 2>&1 &&
      (
-       modprobe fuse > /dev/null 2>&1 || 
-       grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems 
-     ) && 
-     [[ -c /dev/fuse ]] 
+       modprobe fuse > /dev/null 2>&1 ||
+       grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems
+     ) &&
+     [[ -c /dev/fuse ]]
   then
     message "${MESSAGE_COLOR}staging enabled${DEFAULT_COLOR}"
     return 0
@@ -474,7 +474,7 @@ function log_adjuster() {
   local TMP_SSF=$(make_safe_dir)
   local TMP_DATA=$TMP_SSF/foo.data
   local TMP_MDATA=$TMP_SSF/foo.mdata
-  
+
   seperate_state_files $input $TMP_DATA $TMP_MDATA
   {
     if [[ $cat_metadata ]] ; then

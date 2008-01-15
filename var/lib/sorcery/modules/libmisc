@@ -47,11 +47,11 @@ function explode()
 ## @param sed command
 ## @param file
 ##
-## First argument is a sed command.  Second argument is a file.  
-## sedit performs the sed command on the file, modifiying the 
-## original file.  For example, 
+## First argument is a sed command.  Second argument is a file.
+## sedit performs the sed command on the file, modifiying the
+## original file.  For example,
 ## <br>sedit "s/foo/bar/g" /tmp/somefile <br>
-## will replace all occurances of foo with bar in /tmp/somefile.  
+## will replace all occurances of foo with bar in /tmp/somefile.
 ## This function is often used in spells to make changes to source
 ## files before compiling.  See the sed man page for more information.
 ##
@@ -85,7 +85,7 @@ function isalpha() {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param question 
+## @param question
 ## @param default answer
 ##
 ## @return 0 on yes
@@ -93,7 +93,7 @@ function isalpha() {
 ##
 ## Asks the user a yes/no question.  First argument is the question to
 ## ask, second argument is the default answer.  If a timeout occurs
-## before the question is answered, the given default answer is 
+## before the question is answered, the given default answer is
 ## applied. Pressing spacebar or enter applies the default answer
 ## immediatelly without waiting for timeout.
 ## Returns true or false based on the answer given.
@@ -102,15 +102,15 @@ function isalpha() {
 function real_query()  { (
 
   debug  "libmisc" "Running query() with the following arguments: '$1' and '$2'"
-  
+
   while true ; do
-  
+
     RESPONSE=""
 
     if  [  -z  "$SILENT"  ];  then
 
       echo  -e  -n  "${QUERY_COLOR}$1 [$2] ${DEFAULT_COLOR}"
- 
+
       read   -t  $PROMPT_DELAY  -n  1  RESPONSE
       echo
     fi
@@ -120,7 +120,7 @@ function real_query()  { (
       n|N)  return 1  ;;
       y|Y)  return 0  ;;
     esac
-  
+
   done
 
 ) }
@@ -137,28 +137,28 @@ function real_query()  { (
 ##
 #---------------------------------------------------------------------
 function real_query_string () {
-  
+
     debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
-    
+
     local RESPONSE=""
     local RETURN=0
     local ANSWER_first ANSWER_rest
-    
+
     local DEFAULT=""
     [ -n "$3" ] && DEFAULT=" [$3] "
-    
+
     if [ -z "$SILENT" ]; then
         echo -e -n "${QUERY_COLOR}$2${DEFAULT}${DEFAULT_COLOR}"
         read -t $PROMPT_DELAY -n 1 ANSWER_first
-        if [[ $ANSWER_first ]] ; then 
+        if [[ $ANSWER_first ]] ; then
           read ANSWER_rest
         fi
         RESPONSE="${ANSWER_first}${ANSWER_rest}"
         echo
     fi
-  
+
     [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
-    
+
     eval $1=\"${RESPONSE}\"
     return $RETURN
 }
@@ -196,7 +196,7 @@ function real_message()    {
 function debug()  {
 
   [[ $DEBUG ]] || return 0
-  
+
   local debugVar="DEBUG_${1}"
   local i
   if [[ ${!debugVar} != "no" ]] ; then
@@ -217,7 +217,7 @@ function debug()  {
 ##
 #---------------------------------------------------------------------
 function progress_spinner()  {
-  let  PROGRESS_SPINNER=$PROGRESS_SPINNER+1 
+  let  PROGRESS_SPINNER=$PROGRESS_SPINNER+1
   if ((  PROGRESS_SPINNER > ${#PROGRESS_SPINNER_CHARS}-1  )); then
     PROGRESS_SPINNER=0;
   fi
@@ -245,19 +245,19 @@ debug "libmisc" "progress_bar - $*"
   else
     len=${3:-${COLUMNS:-70}}
   fi
-  
+
   # Can't make a bar because there's no total, or the length isn't
-  #  long enough, or if there is no length 
+  #  long enough, or if there is no length
   if [ $# -lt 2 ] || [ $len -lt 8 ] ; then
     message -n "."
     return 0
   fi
-  
+
   if [ $1 -lt 1 ] || [ $2 -lt 1 ] ; then return 1 ; fi
-  
+
   percent=$((100*$1/$2))
   percent=`printf "%.0f" $percent`
-  
+
   if [[ $LAST_PERCENT == $percent ]] ; then
     progress_spinner
     return 0
@@ -319,7 +319,7 @@ function clear_line()  {
 #---------------------------------------------------------------------
 ##
 ## @Globals SOUND
-## Plays a given soundfile if sounds are on and the file exists in 
+## Plays a given soundfile if sounds are on and the file exists in
 ## the chosen theme.
 ##
 #---------------------------------------------------------------------
@@ -430,24 +430,24 @@ function get_dirnames() {
 ##  @param The string to itterate over. (optional)
 ##  @Stdin is used when $3 isn't given.
 ##
-##  $3 is optional, when it isn't used, 
+##  $3 is optional, when it isn't used,
 ##  stdin is used and only the first letter in $2 is used. Note, using stdin
 ##  can have odd side effects when your function uses read and stdin itself.
 ##
-## Special vars: 
+## Special vars:
 ##  BREAK: Use this to break out of the loop prematurely, also causes a return of 1.
 ##
 ## If the function returns the value of the last return
 ## Notes:
-##  In stdin mode, if the string does not terminate with the delimiter, the last 
+##  In stdin mode, if the string does not terminate with the delimiter, the last
 ##  token will be ignored.
 #----------------------------------------------------------------------
 function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
 #  debug "libmisc" "iterate - $@"
-  
+
   [ $# -lt 2 ] && return 2
-  
+
   local oldIFS="$IFS"
   local token
   local func="$1"
@@ -457,10 +457,10 @@ function iterate()
     shift 2
     for token in $* ; do
       IFS="$oldIFS"
-      
+
       eval "$func \"$token\""
       [[ $BREAK ]] && break
-      
+
     done
     IFS="$oldIFS"
   else
@@ -470,7 +470,7 @@ function iterate()
     done
 #   debug "leftover token: $token"
   fi
-  
+
   returnValue=$?
   [[ $BREAK ]] && debug "libmisc" "iterate - I was BREAKed."
   unset BREAK
@@ -481,7 +481,7 @@ function iterate()
 ## @param return_var (must not be i, foo, temp, number, returnvar, stuff, msgstr or hashname)
 ## @param default choice
 ## @param elements, ..
-## 
+##
 ## gives the user some nice select list and puts the selected
 ## item in return_var
 ##
@@ -499,7 +499,7 @@ function select_list()
     hash_unset select_list_hash
     # see note in select_provider
     stuff=(0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z)
-    
+
     let i=0
     for foo in "$@"; do
         message "\t$DEFAULT_COLOR(${stuff[$i]})  $SPELL_COLOR$foo$DEFAULT_COLOR"
@@ -542,7 +542,7 @@ function select_list_sub() {
 
 #---------------------------------------------------------------------
 ## @param title
-## 
+##
 ## sets the terminal title if TERM=xterm|rxvt or the window title if
 ## TERM=screen
 ##
@@ -571,9 +571,9 @@ function set_term_title()
 function real_list_remove () {
     local var=$1
     shift
-    
+
     local i
-    
+
     for i in $@; do
         eval "$var=\`echo \" \$$var \" | sed  \
                -e \"s/[[:space:]]\\+/ /g\"   \
@@ -620,12 +620,12 @@ function real_list_add () {
 ## return 1 none of supplied elements is not in list
 ##
 ## Finds if at least one of the given elements is in the string. They
-## can be delimited by spaces, tabs or newlines. The search elements 
+## can be delimited by spaces, tabs or newlines. The search elements
 ## must not contain any of these or they won't match. The matching is
 ## exact, regular expressions and globbing patterns are not supported.
 ##
-## Warning, this function takes a real string, not a variable name as 
-## other list_* functions. 
+## Warning, this function takes a real string, not a variable name as
+## other list_* functions.
 ##
 #---------------------------------------------------------------------
 function real_list_find () {
@@ -883,7 +883,7 @@ function real_config_query () {
     if config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$ANSWER${DEFAULT_COLOR} ]]"
-  
+
         # already have a reasonable value...
         [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
     fi
@@ -919,7 +919,7 @@ function real_config_query () {
 #---------------------------------------------------------------------
 function real_config_query_option () {
     local ANSWER key
-  
+
     # If the option exists
     # If the option contains option_yes or option_no
     if config_get_option "$1" ANSWER && list_find "$ANSWER" $4 $5; then
@@ -940,7 +940,7 @@ function real_config_query_option () {
     # Find out if the option was 'y' or 'n'
     list_find "$last_answer" $4 && default=y
     list_find "$last_answer" $5 && default=n
-  
+
     if query "$2" "$default"; then
         list_add ANSWER $4
     else
@@ -965,7 +965,7 @@ function real_config_query_option () {
 #---------------------------------------------------------------------
 function real_config_query_string () {
     local ANSWER
-    
+
     if config_get_option "$1" ANSWER; then
         # option allready answered in config
         echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
@@ -1084,7 +1084,7 @@ function remove_files_and_dirs() {
 #---------------------------------------------------------------------
 ## Safely creates $TMP_DIR and exports the variable so we can use it
 ## even in subprocesses called through make.
-## @param name of the script needing the tmp dir 
+## @param name of the script needing the tmp dir
 #---------------------------------------------------------------------
 function mk_tmp_dirs() {
   debug "$FUNCNAME" "Making tmp dirs for $$"
@@ -1272,20 +1272,20 @@ function complain_sorcery_var() {
 ## @param (optional) Architecture to use
 ## Sets the SPECFILE glocal variable and the SMGL_COMPAT_ARCHS global array
 ## SPECFILE contains the compiler and other arch specifications
-## SMGL_COMPAT_ARCHS is an array that holds architectures which are compatible 
-## with the desired architecture. The desired architecture is determined as 
+## SMGL_COMPAT_ARCHS is an array that holds architectures which are compatible
+## with the desired architecture. The desired architecture is determined as
 ## follows:
 ## 1) If function is gien an argument, the argument is used, or
 ## 2) If cross-install is on, the TARGET architecture is used, or
 ## 3) The local ARCHITECTURE is used
 ##
-## The least specific arch is in SMGL_COMPAT_ARCHS[0], 
+## The least specific arch is in SMGL_COMPAT_ARCHS[0],
 ## SMGL_COMPAT_ARCHS[1] is more specific, et cetera. For example:
 ## desired architecture="athlon-xp" might result in:
 ## SPECFILE=/usr/share/archspecs/ia32/amd/athlon-xp
 ## SMGL_COMPAT_ARCHS=("ia32" "amd" "athlon-xp")
 ##
-## ARCHITECTURE is also modified to be an array, the reverse of 
+## ARCHITECTURE is also modified to be an array, the reverse of
 ## SMGL_COMPAT_ARCHS. The result is an array from most specific arch to least
 ## specific. $ARCHITECTURE does not change meaning since $A == ${A[0]}.
 #-------------------------------------------------------------------
@@ -1298,8 +1298,8 @@ function set_architecture() {
 
   # If given an argument, treat as the architecture to use
   local arch=${1}
-  
-  # If no arch is specified, see if this is a cross-install, if so, set arch to 
+
+  # If no arch is specified, see if this is a cross-install, if so, set arch to
   # the target arch
   if  [[ ! $arch ]] &&
       [[ $CROSS_INSTALL == on ]] &&
@@ -1308,12 +1308,12 @@ function set_architecture() {
     debug "libmisc" "set_architecture: using cross-install's target arch"
     arch=${arch:-$TARGET}
   fi
-  
+
   # If no arch given and this isn't a cross-install, then default to the ARCHITECTURE var
   if ! [[ $arch ]] ; then
     arch=$ARCHITECTURE
   fi
-  
+
   # Find the specfile to use
   local find_compat=0
   find --version|grep -q 'version 4\.1\(\.\|$\)' && find_compat=1
@@ -1328,14 +1328,14 @@ function set_architecture() {
     fi
     [ $SPECFILE ] && break
   done
-  if [[ ! $SPECFILE ]] ; then 
+  if [[ ! $SPECFILE ]] ; then
     message "${PROBLEM_COLOR}Cannot find arch spec for $arch!$DEFAULT_COLOR"
     return 1
   fi
   debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
-  
+
   # turn the path into an array, but remove $specdir from the start first
-  unset SMGL_COMPAT_ARCHS 
+  unset SMGL_COMPAT_ARCHS
   explode "${SPECFILE#$specdir/}" '/' SMGL_COMPAT_ARCHS
 
     unset ARCHITECTURE
@@ -1344,7 +1344,7 @@ function set_architecture() {
     for(( i=${#SMGL_COMPAT_ARCHS[@]}-1; i>=0; i--)) ; do
       ARCHITECTURE[j++]=${SMGL_COMPAT_ARCHS[i]}
     done
-    
+
     source "$SPECFILE"
 }
 
@@ -1353,9 +1353,9 @@ function set_architecture() {
 ## @param Function name
 ## @param (optional) Function name
 ## @param ...
-## Creates functions with identical bodies. It is useful if you need 
+## Creates functions with identical bodies. It is useful if you need
 ## to override a bunch of functions which have already been defined.
-#--------------------------------------------------------------------- 
+#---------------------------------------------------------------------
 function define_functions() {
   local funcName
   local funcContent="$1"
@@ -1385,7 +1385,7 @@ function define_functions() {
 ##   read -p "enter value (default $2)" y
 ##   upvar $var $y
 ## }
-## 
+##
 #---------------------------------------------------------------------
 function upvar() {
   # This makes eval see things as name=$2,
@@ -1467,7 +1467,7 @@ function smgl_basename() {
 ## @param old path
 ## @Stdout new path
 ##
-## TODO: remove grimoire functions libgcc gcc_prepend_path and use 
+## TODO: remove grimoire functions libgcc gcc_prepend_path and use
 ## this one
 #--------------------------------------------------------------------
 function envar_prepend_path()
@@ -1483,7 +1483,7 @@ function envar_prepend_path()
 
 # Standard debug line:
 # file "function@line" "all" "args"
-STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ; 
+STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ;
   _stddbg_file=${_stddbg_file##*/};
   debug "${_stddbg_file}" "${FUNCNAME[0]}@$LINENO" "$@"'
 

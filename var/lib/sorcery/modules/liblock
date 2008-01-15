@@ -10,7 +10,7 @@
 ## locks. Therefor, we need a list of locks for the current
 ## process. And we need to update this list at the same time we got the
 ## lock.
-## liblock is used to lock and unlock resources. It should be deadlock 
+## liblock is used to lock and unlock resources. It should be deadlock
 ## free, and clean up locks after processes that had locks die without
 ## unlocking the files. It uses the directory $LOCK_DIR defined in
 ## /etc/sorcery/config
@@ -26,13 +26,13 @@
 ## lock_resources
 ## @param Type of resource
 ## @param Name of resource
-## 
+##
 ## Type of resource | Name of resource | Usage
 ##     cast         | spell name       | when casting a spell
 ##     file         | file name        | to lock a file
 ##     summon       | spell name       | when downloading a spell
 ##     network      | network          | ?
-##     solo         | resource name    | when using a resource exclusively 
+##     solo         | resource name    | when using a resource exclusively
 ##     libgrimoire  | install          | when a spell is in the install stage
 ## locking solo will not cause these routines to behave any different.
 ## catching it has to be done externally (see cast for an example)
@@ -62,7 +62,7 @@ lock_resources()
 ## @param Type of resource
 ## @param Name of resource
 ##
-## this function tries to lock the specified resource. On success, it 
+## this function tries to lock the specified resource. On success, it
 ## immediately returns 0 (true). On failure (the lock cannot be
 ## acquired), it returns 1 (false).
 #---------------------------------------------------------------------
@@ -72,7 +72,7 @@ trylock_resources()
 #        echo "usage: trylock_resources type_of_resource name_of_resource"
 #        exit -1
 #    fi
-        
+
     local lockfile="$1.$2"
     # we replace / with ^
     lockfile="${LOCK_DIR}/${lockfile//\//^}"
@@ -111,12 +111,12 @@ excllock_resources()
 #  fi
 
   while find $LOCK_DIR -mindepth 1 -maxdepth 1 -name "$1.*" | grep -q '';
-  do    
+  do
     #^^^ look if a lock exists of the given type (ugly code)
     global_clean_resources
     local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
     sleep "$SLEEP"
-  done 
+  done
   #theoretically, someone could create a lock now... tiny race
   trylock_resources "$@"
 }
@@ -129,7 +129,7 @@ excllock_resources()
 ## this function unlocks the specified resource and returns immediately
 ## if the specified resource is :
 ##  - unlocked : nothing is done
-##  - locked by this process : it's unlocked 
+##  - locked by this process : it's unlocked
 ##  - locked by another process : it's kept locked.
 ## In all cases and for compatibility reasons with the old liblock, we
 ## return true
@@ -186,7 +186,7 @@ global_clean_resources()
 
     # we remove locks that are owned by dead processes
     find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 | \
-    
+
     while read file; do
       # check if the process still exist (we use procfs mounted on /proc)
       if [ ! -d "${file}" ]; then
@@ -202,10 +202,10 @@ global_clean_resources()
 ## @param Name of file to lock
 ## @param <file> ... (optional)
 ##
-## Locks files for access to only this PID. Will cause attempts by 
+## Locks files for access to only this PID. Will cause attempts by
 ## other processes that want to lock the file(s) to block until this
 ## PID unlocks the file, or this PID dies.
-## It cannot prevent bad programs from modifying the file w/o 
+## It cannot prevent bad programs from modifying the file w/o
 ## permission.
 ## Note: Files with funky chars may break things. No colons or stuff.
 ## @Blocking
@@ -215,7 +215,7 @@ function lock_file()
 {
   debug "liblock" "$FUNCNAME - $*"
   local FILE
-  lock_resources $( 
+  lock_resources $(
     for FILE in "$@" ; do
       echo file $FILE
     done
@@ -247,10 +247,10 @@ function unlock_file()
 ##
 ## A transaction locks a file and ensures that changes made to the
 ## file are all made at once. No changes are made to the file until
-## the transaction is commited. Furthermore, a transaction can be 
-## killed before it is commited, ending the transaction and not 
-## making any changes to the files. All files are locked at once. 
-## If not all can be locked, they will be unlocked, and another try 
+## the transaction is commited. Furthermore, a transaction can be
+## killed before it is commited, ending the transaction and not
+## making any changes to the files. All files are locked at once.
+## If not all can be locked, they will be unlocked, and another try
 ## will be made.
 ##
 ## @return The name of a temporary file that should be written to
@@ -261,32 +261,32 @@ function lock_start_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
   local i TRANSNAME NUMTRANS RET=""
-  
+
   if lock_file "$@" ; then
-  
+
     lock_file $LOCK_TRANSACTIONS
     [ -s $LOCK_TRANSACTIONS ] || echo "0:::" > $LOCK_TRANSACTIONS
-    
+
     NUMTRANS=`tail -n 1 $LOCK_TRANSACTIONS | cut -d : -f 1`
     NUMTRANS=${NUMTRANS:-1}
     RET=()
-    
+
     for i in $* ; do
       let NUMTRANS++
       # cp file to temp file, if doesn't exist, create empty file.
       if [ -e "$i" ]   ; then
-        cp "$i" "$LOCK_TRANSACTIONS.$NUMTRANS" 
+        cp "$i" "$LOCK_TRANSACTIONS.$NUMTRANS"
       else
         echo -n "" > $LOCK_TRANSACTIONS.$NUMTRANS
       fi
       echo "$NUMTRANS:$i:$$" >$LOCK_TRANSACTIONS
       RET[$NUMTRANS]="${LOCK_TRANSACTIONS}.${NUMTRANS}"
     done
-    
+
     unlock_file $LOCK_TRANSACTIONS
     echo ${RET[*]}
     return 0
-  
+
   else
     return 1
   fi
@@ -304,7 +304,7 @@ function lock_commit_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
   local TMP_FILE unlockList=""
-  
+
   lock_file $LOCK_TRANSACTIONS
   for i in $* ; do
     TMP_FILE=${LOCK_TRANSACTIONS}.$(grep ".*:$i:$$" $LOCK_TRANSACTIONS | cut -d : -f 1)
@@ -317,7 +317,7 @@ function lock_commit_transaction()
         exit 1
       fi
     else
-      rm $TMP_FILE      
+      rm $TMP_FILE
     fi
     unlock_file $i
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.new
@@ -333,7 +333,7 @@ function lock_commit_transaction()
     { rm $LOCK_TRANSACTIONS.new ||
       message "${PROBLEM_COLOR}Very odd case. Quitting."; exit 1; }
   done
-  unlock_file $LOCK_TRANSACTIONS  
+  unlock_file $LOCK_TRANSACTIONS
 
 }
 
@@ -349,7 +349,7 @@ function lock_kill_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
   local TMP_FILE
-  
+
   lock_file $LOCK_TRANSACTIONS
   for i in $* ; do
     TMP_FILE=$(grep `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS | cut -d : -f 1)
@@ -357,7 +357,7 @@ function lock_kill_transaction()
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.1
     grep -v `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
   done
-  unlock_file $LOCK_TRANSACTIONS  
+  unlock_file $LOCK_TRANSACTIONS
 }
 
 #---------------------------------------------------------------------
@@ -444,7 +444,7 @@ function counter_check() {
 }
 
 #---------------------------------------------------------------------
-## 
+##
 ## @Internal
 ## @param counter file
 ##
@@ -460,8 +460,8 @@ function counter_clean() {
 
 #---------------------------------------------------------------------
 ##=item SYNCHRONIZE
-## 
-## Prevents more than one process from entering a section of code 
+##
+## Prevents more than one process from entering a section of code
 ## at a time
 ## NOTE: This assumes that two functions of the same name will
 ## not havethe SYNCHRONIZE command on the same line in different
@@ -476,7 +476,7 @@ function counter_clean() {
 ## } && eval "$UNSYNCHRONIZE"
 ## echo "PID $$ done."
 ##
-## Note: SYNCHRONIZE and UNSYNCHRONIZE must be in the same local 
+## Note: SYNCHRONIZE and UNSYNCHRONIZE must be in the same local
 ## scope. Nested SYNCHs are not allowed in the same local scopes.
 ## Local scope usualy being a function.
 ## (Blocking)

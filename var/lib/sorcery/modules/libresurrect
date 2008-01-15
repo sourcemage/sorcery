@@ -19,7 +19,7 @@ function can_resurrect()  {
   debug "libresurrect" "can_resurrect - $*"
   local SPELL=$1
   local VERSION=$2
-  
+
   # FIXME accept files of other extensions
   local file=$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar$EXTENSION &&
   test -f $file &&
@@ -29,7 +29,7 @@ function can_resurrect()  {
 }
 
 #------------------------------------------------------------------------
-# @param spell 
+# @param spell
 # @param version
 #
 # High level overview:
@@ -62,7 +62,7 @@ function can_resurrect()  {
 #   remove regular files unique to the old spell
 #   remove unchanged config files
 #   ask about changed config files
-# 
+#
 # update state data
 # call it a day
 #
@@ -331,7 +331,7 @@ function resurrect_sub() {
     # test -d so handle them specially
     test -h ".$line" && echo .$line ||
     test -d ".$line" || echo .$line
-  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
+  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || {
     debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
@@ -412,7 +412,7 @@ function real_install_config_file() {
             "$DEFAULT_COLOR"
     return 1
   fi
-  
+
   local old_md5_log
   if [[ $OLD_SPELL_VERSION ]] ; then
     old_md5_log=$MD5SUM_LOGS/$SPELL-$OLD_SPELL_VERSION
@@ -451,7 +451,7 @@ function internal_install_config_file() {
     return $?
   fi
 
-  # if the file does not exist, or stage root is invoked 
+  # if the file does not exist, or stage root is invoked
   if ! test -e "$to" || [[ "$STAGED_INSTALL" != "off" ]] ; then
     # copy the new one in (plus leading directories)
     mkdir -p "$(dirname "$to")" &&
@@ -580,7 +580,7 @@ function resurrect_success() {
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
     lock_commit_transaction $DEPENDS_STATUS
- 
+
     #   if theres a tablet dir, store it with a new timestamp
     if new_tablet=$(tablet_get_path $SPELL) ; then
       cp -Rp $OLD_TABLET_DIR/* $new_tablet
@@ -597,7 +597,7 @@ function resurrect_success() {
   echo $COMPILE_LOG >> $TMP_INSTALL_LOG_STATE
   echo $INSTALL_LOG >> $TMP_INSTALL_LOG_STATE
   echo $MD5_LOG >> $TMP_INSTALL_LOG_STATE
-  
+
   # Use the cache's listing of files in filterable form
   # dont use root form because it may be different
   log_adjuster $NEW_DATA_F $TMP_INSTALL_LOG_DATA filterable root
@@ -621,14 +621,14 @@ function resurrect_success() {
   activity_log  "resurrect"  "$SPELL"  "$VERSION"  "success"
   message  "${RESURRECT_COLOR}Resurrected spell: ${SPELL_COLOR}${SPELL}" \
            "${DEFAULT_COLOR} version ${VERSION_COLOR}${VERSION}"         \
-           "${DEFAULT_COLOR}" 
+           "${DEFAULT_COLOR}"
 }
 
 
 function resurrect_fail() {
   message  "${PROBLEM_COLOR}Resurrect failed for spell:" \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} version" \
-           "${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}" 
+           "${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}"
 
   #if [[ $1 == 1 ]] ; then
     #TODO evaluate the usefulness of a backup/rollback scheme
@@ -642,7 +642,7 @@ function resurrect_fail() {
   unlock_resources "solo" "cast"
 
   [[  $CLEAN_SOURCE == on ]] && rm_source_dir $RESURRECT_DIR 2>/dev/null
-  
+
   echo $SPELL >> $FAILED_LIST
 }
 

@@ -9,7 +9,7 @@
 ## values into fields of a table.  The 'hash_put' function takes the
 ## name of the table, a field name in the table, and the value to be
 ## stored in the table.  The 'hash_get' function retrieves a value from
-## the table given the table and field name.  
+## the table given the table and field name.
 ##
 ## <pre>
 ## To store a value into a field of a table, use hash_put:
@@ -25,12 +25,12 @@
 ## <br>
 ## <p>IMPLEMENTATION NOTE</p>
 ## <br>
-## Bash does not provide direct support for hash tables.  These 
+## Bash does not provide direct support for hash tables.  These
 ## functions are implemented by first building a variable using the
 ## table name and field name, then using the eval function to store
 ## (retrieve) value into (from) the variable.
 ##
-## The idea for the hash data structure in bash was inspired by a 
+## The idea for the hash data structure in bash was inspired by a
 ## short example by Phil Howard which shows the use of hashes in bash.
 ## Phil Howard's original example can be found here:
 ##
@@ -65,8 +65,8 @@ function hash_build_variable_name() {
   ___TABLE=${___TABLE//\:/_CLN_}
   ___TABLE=${___TABLE// /_SPC_}
   ___TABLE=${___TABLE//[/_OSB_}
-  ___TABLE=${___TABLE//]/_CSB_}  
-  
+  ___TABLE=${___TABLE//]/_CSB_}
+
   if [[ $___FIELD ]] ; then
     ___FIELD=${___FIELD//\+/_P_}
     ___FIELD=${___FIELD//\-/_M_}
@@ -98,7 +98,7 @@ function hash_unbuild_field_name() {
   local ___FIELD=${1#$___TABLE}
   ___FIELD=${___FIELD%_*}
 #  `echo "$1" | sed -n "s/^$2\(.*\)_$/\1/p"`
-  
+
 #  debug "libhash" "hash_unbuild_field_name() - TABLE=$___TABLE:FIELD=$___FIELD"
 
   ___FIELD=${___FIELD//_P_/\+}
@@ -117,7 +117,7 @@ function hash_unbuild_field_name() {
 ## @param table name
 ## @param field name
 ## @param value
-## 
+##
 ## Saves the value in the specified table/field.
 ##
 #---------------------------------------------------------------------
@@ -132,10 +132,10 @@ function hash_put() {
 #---------------------------------------------------------------------
 ## @param table name
 ## @param field name
-## 
+##
 ## @Stdout Value stored in table/field
-## Echos the value stored in the table/field.  If no value was 
-## previously stored in the table/field, this function echos an empty 
+## Echos the value stored in the table/field.  If no value was
+## previously stored in the table/field, this function echos an empty
 ## string.
 ##
 #---------------------------------------------------------------------
@@ -149,7 +149,7 @@ function hash_get() {
 ## @param table name
 ## @param field name
 ## @param upvar name
-## 
+##
 ## @Stdout none
 ## Returns the value stored in the table/field through the upvar variable
 ## name. If no value was previously stored in the table/field, then an
@@ -166,7 +166,7 @@ function hash_get_ref() {
 ## @param table name
 ## @param field name
 ## @param value
-## 
+##
 ## Appends the value to the specified table/field.
 ##
 #---------------------------------------------------------------------
@@ -178,14 +178,14 @@ function hash_append() {
   old_value=${!VARIABLE_NAME}
   if [[ -n $old_value ]] ; then
     eval "${VARIABLE_NAME}=\"$old_value${sep}${3}\""
-  else 
+  else
     eval "${VARIABLE_NAME}=\"$3\""
   fi
 }
 
 #---------------------------------------------------------------------
 ## @param table name
-## 
+##
 ## 'export' all the values in the table. This is useful for getting
 ## hash table data from cast's pass_one/two into pass_three/pass_four
 ## which are run through make. Essentially exporting lets us pass
@@ -203,7 +203,7 @@ function hash_export() {
 #---------------------------------------------------------------------
 ## @param table name
 ## @param field name
-## 
+##
 ## Unsets field. Deletes value.
 ##
 #---------------------------------------------------------------------
@@ -216,7 +216,7 @@ function hash_unset() {
 
 #---------------------------------------------------------------------
 ## @param table name
-## 
+##
 ## Unsets all fields in a table.
 ##
 #---------------------------------------------------------------------
@@ -224,7 +224,7 @@ function hash_reset()  {
   local TABLE_NAME
   hash_build_variable_name "$1" '' TABLE_NAME
   local VARIABLES=`eval 'echo ${!'${TABLE_NAME}'*}'`
-  unset $VARIABLES   
+  unset $VARIABLES
 
 }
 
@@ -232,7 +232,7 @@ function hash_reset()  {
 ## @param table name
 ## @param opt delimiter
 ## @Stdout table data
-## Outputs the entire table data, with fields separated by the  
+## Outputs the entire table data, with fields separated by the
 ## optional delimiter. If no delimiter is give, \n will be used.
 ##
 #---------------------------------------------------------------------
@@ -244,11 +244,11 @@ function hash_get_table()  {
   local separator="$2"
   separator=${separator:-$'\n'}
   VARIABLES=`eval 'echo ${!'${TABLE_NAME}'*}'`
-  
+
   for i in $VARIABLES; do
     echo -n "${!i}${separator}"
   done
-  
+
 }
 
 
@@ -256,8 +256,8 @@ function hash_get_table()  {
 ## @param table name
 ## @param opt delimiter
 ## @Stdout Fields in table
-## Outputs all of the fields in the table , with fields separated    
-## by the optional delimiter. If no delimiter is give, \n wil be 
+## Outputs all of the fields in the table , with fields separated
+## by the optional delimiter. If no delimiter is give, \n wil be
 ## used.
 ##
 #---------------------------------------------------------------------
@@ -269,13 +269,13 @@ function hash_get_table_fields()  {
   local separator="$2"
   separator=${separator:-$'\n'}
   VARIABLES=`eval 'echo ${!'${TABLE_NAME}'*}'`
-  
+
   local FIELD
   for i in $VARIABLES ; do
     hash_unbuild_field_name "$i" "$TABLE_NAME" FIELD
     echo -n "${FIELD}${separator}"
   done
-  
+
 }
 
 #---------------------------------------------------------------------

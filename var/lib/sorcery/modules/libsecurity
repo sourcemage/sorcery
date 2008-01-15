@@ -46,7 +46,7 @@ function gaze_checkmd5 () {
   fi
 
   REALSOURCE=
-  if test "$SOURCE" != '' 
+  if test "$SOURCE" != ''
   then
     if [ -f $SOURCE_CACHE/$SOURCE ]
     then
@@ -65,14 +65,14 @@ function gaze_checkmd5 () {
           APPEND=
           REALSOURCE="$OLDESTSOURCE"
         fi
-      else 
+      else
         APPEND=
         SOURCE="$OLDESTSOURCE"
       fi
     fi
     if test -z "$PRECACHEDF"
     then
-      if test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'gzip'   && 
+      if test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'gzip'   &&
          test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'bzip2'  &&
          test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'compress'"'"'d' &&
          test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'Zip'  &&
@@ -83,7 +83,7 @@ function gaze_checkmd5 () {
       else
         fMD5=$(
           uncompress $SOURCE_CACHE/$SOURCE `
-            guess_compressor $SOURCE_CACHE/$SOURCE` | 
+            guess_compressor $SOURCE_CACHE/$SOURCE` |
           md5sum | cut -d' ' -f1
         )
       fi
@@ -117,7 +117,7 @@ function gaze_checkmd5 () {
         if test "$tMD5" == ""
         then
           echo -en "${YELLOW}${BOLD}UNCHECKED $SRCDATA INSERT MD5[$MD5num]=$fMD5 or MD5[$MD5num]=IGNORE"
-        else   
+        else
           if test "$tMD5" == "IGNORE"
           then
             echo -en "${YELLOW}IGNORED $SRCDATA"
@@ -126,7 +126,7 @@ function gaze_checkmd5 () {
             then
               bMD5="`md5sum $SOURCE_CACHE/$SOURCE | cut -d' ' -f1` | head -n 1"
             else
-              bMD5="`grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$'`" 
+              bMD5="`grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$'`"
             fi
             if test "$tMD5" == "$bMD5"
             then
@@ -155,7 +155,7 @@ function gaze_checkmd5 () {
           fi
         fi
       fi
-    fi  
+    fi
     echo -n " $APPEND"
     if test "$tMD5" != "IGNORE" ; then
       gaze_checkmd5syntax "$1" "$2"
@@ -174,7 +174,7 @@ function gaze_checkmd5 () {
 ##
 ## spelldirectory is the spell's directory
 ## sourcenumber is '' or '2', '3', '4', etc.
-## Checks the syntax related to md5 checking of a single source file 
+## Checks the syntax related to md5 checking of a single source file
 ## sourcenumber in spelldirectory.
 ##
 #---------------------------------------------------------------------
@@ -271,7 +271,7 @@ function gaze_checkmd5s() {
 ## @param [<item> ...]
 ##
 ## item is a spell or section name.
-## Checks the md5s of various spells, sections, or if called with no 
+## Checks the md5s of various spells, sections, or if called with no
 ## arguments, the entire grimoire.
 ##
 #---------------------------------------------------------------------

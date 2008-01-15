@@ -18,14 +18,14 @@
 ##
 ## The F<url_download> function parses the url prefix (in this
 ## case, http) and passes the url to the http download handler
-## (F<url_http_download>).  A similar approach is used for url 
+## (F<url_http_download>).  A similar approach is used for url
 ## verification.
 ##
 ## This file provides an infrastructure that makes it relatively easy
 ## to add new url handlers.  In order to add new handlers, all that
 ## has to be done is add a new file to the sorcerer library directory
 ## with the new url handler functions defined in the file.  This new
-## file will automatically be discovered and used by the sorcerer 
+## file will automatically be discovered and used by the sorcerer
 ## scripts.
 ##
 ## The following section describes how to add new url handlers in
@@ -85,8 +85,8 @@
 if ! [[ $URL_HANDLER_FILES ]] ; then
   URL_HANDLER_FILES=`ls $SGL_LIBRARY_MODULES/url_handlers/url_*[^~]`
   for  url_handler_file  in  $URL_HANDLER_FILES;  do
-    [  -x $url_handler_file  ]                               && 
-    URL_PREFIX=`echo $url_handler_file | sed "s/.*\/url_//"` && 
+    [  -x $url_handler_file  ]                               &&
+    URL_PREFIX=`echo $url_handler_file | sed "s/.*\/url_//"` &&
     URL_TYPES[${#URL_TYPES[@]}]=$URL_PREFIX                  &&
     . $url_handler_file
   done
@@ -128,7 +128,7 @@ function url_download_expand_sort() {
   # limit and doing netselect on that many urls is absurd
   expanded_urls=$(echo "$expanded_urls"|head -n 50)
   debug "liburl" "expanded urls $expanded_urls"
-  # sort urls 
+  # sort urls
   url_sort_urls sorted_urls "$expanded_urls"
   if ! [[ "$sorted_urls" ]] ; then
     message "No sorted urls! If you get this it is a sorcery bug"
@@ -153,7 +153,7 @@ function url_download_expand_sort() {
 ##
 ## @return 0 if file could be downloaded
 ## @return 1 otherwise
-## Downloads the specified url.  Returns true if file could be 
+## Downloads the specified url.  Returns true if file could be
 ## downloaded, false otherwise.
 ##
 ##
@@ -192,7 +192,7 @@ function url_download() {
       message "Failed to find a download handler for $url, this is likely to be a sorcery bug"
     fi
   done
-  
+
   # sort buckets, someday a better algorithm may be used, however
   # this should be sufficient for now.
   buckets=$(hash_get_table_fields dl_buckets|sort)
@@ -291,7 +291,7 @@ function url_rank() {
   # want netselect to find the fastest one
 
   # The take home message is that a url can be /any/ random string of text,
-  # and a url is officially defined by its handler. 
+  # and a url is officially defined by its handler.
 
   # So we are having the handler give us the netselected output
   # from there we are sticking things into an array and letting
@@ -318,7 +318,7 @@ function url_rank() {
              }
            }')
   done
-  
+
   # since we put things in url_speed indexed by speed, the * should
   # expand back in sorted order
 
@@ -351,7 +351,7 @@ function url_rank() {
 
 #---------------------------------------------------------------------
 ## @Type Private
-## @param url 
+## @param url
 ## @Stdout url prefix
 ## @return 0 valid url
 ## @return 1 otherwise
@@ -374,7 +374,7 @@ function url_get_prefix()  {
 
 #---------------------------------------------------------------------
 ## @Type Private
-## @param url 
+## @param url
 ## @param url prefix
 ## @stdout url sans prefix
 #---------------------------------------------------------------------
@@ -389,7 +389,7 @@ function url_strip_prefix() {
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
-## @param url 
+## @param url
 ## @stdout dl handler
 ##
 ## Get the download handler for this url
@@ -400,7 +400,7 @@ function url_bucketize()  {
 }
 
 #---------------------------------------------------------------------
-## @param url 
+## @param url
 ##
 ## Parse the url somehow. The results are url specific right now,
 ## this is usually only called by dl handlers who know what url types
@@ -424,7 +424,7 @@ function url_expand()  {
 }
 
 #---------------------------------------------------------------------
-## @param url 
+## @param url
 ##
 ## Verify the url, this usually means going out to the internet and
 ## somehow determining if the link is good.
@@ -435,7 +435,7 @@ function url_verify()  {
 }
 
 #---------------------------------------------------------------------
-## @param url 
+## @param url
 ## @Stdout url hostname
 ## @return 0 valid url
 ## @return 1 otherwise
@@ -449,7 +449,7 @@ function url_hostname()  {
 }
 
 #---------------------------------------------------------------------
-## @param url 
+## @param url
 ## @Stdout url netslect output
 ## @return 0 valid url
 ## @return 1 otherwise
