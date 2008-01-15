@@ -572,10 +572,10 @@ function resurrect_success() {
   # 15) commit state data:
   if [[ $OLD_TABLET_DIR ]] ; then
     # depends info if it exists
-    local t_DEPENDS_STATUS=$(lock_start_transaction "$DEPENDS_STATUS")
     # none of the old values are valid, only the new, uncommitted values are
-    remove_depends_status $t_DEPENDS_STATUS $SPELL
+    remove_depends_status $DEPENDS_STATUS $SPELL
     local spell_depends=$OLD_TABLET_DIR/depends
+    local t_DEPENDS_STATUS=$(lock_start_transaction "$DEPENDS_STATUS")
     if [ -e $spell_depends ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
