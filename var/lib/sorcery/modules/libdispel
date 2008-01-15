@@ -81,7 +81,9 @@ function reap_depends()  {
   # save the old depends data as abandoned stuff so its seen later on
   # recasts as the default
   mkdir -p $ABANDONED_DEPENDS
-  search_depends_status $DEPENDS_STATUS $SPELL > $ABANDONED_DEPENDS/$SPELL
+  t_file=$(lock_start_transaction "$ABANDONED_DEPENDS/$SPELL")
+  search_depends_status $DEPENDS_STATUS $SPELL > $t_file
+  lock_commit_transaction "$ABANDONED_DEPENDS/$SPELL"
 
   # This conditional is here because the iso team wants to be able to
   # save dependencies after dispel (bug 8109), average users are expected
