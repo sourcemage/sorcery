@@ -45,7 +45,9 @@ function add_depends()
     return 1
   fi
 
-  echo "$1:$2:$3:$4:$5:$6" >> $depends_status
+  local t_status=$(lock_start_transaction "$depends_status")
+  echo "$1:$2:$3:$4:$5:$6" >> "$t_status"
+  lock_commit_transaction "$depends_status"
 
   return 0
 
@@ -67,6 +69,10 @@ function add_depends()
 ## @param on arg
 ## @param off arg
 ##
+## @return 0 if entry was found
+## @return 1 if entry was not found
+## @return 2 on error
+##
 #---------------------------------------------------------------------
 function search_depends_status_exact()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
@@ -77,8 +83,13 @@ function search_depends_status_exact()
   local a1 a2 a3 a4 a5 a6
   a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
   debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
-  grep "^$a1:$a2:$a3:$a4:$a5:$a6$" $depends_status
 
+  lock_file "$depends_status"
+  grep "^$a1:$a2:$a3:$a4:$a5:$a6$" "$depends_status"
+  rc=$?
+  unlock_file "$depends_status"
+
+  return $rc
 }
 
 #---------------------------------------------------------------------
@@ -110,8 +121,9 @@ function search_depends_status_simple()
     a5=`esc_str "$5"`; a6=`esc_str "$6"`
     a5=${5:-.*} ; a6=${6:-.*}
 
-    grep "^$a1:$a2\(([^:]*)\)\?:$a3:$a4:$a5:$a6$" $depends_status
-
+    lock_file "$depends_status"
+    grep "^$a1:$a2\(([^:]*)\)\?:$a3:$a4:$a5:$a6$" "$depends_status"
+    unlock_file "$depends_status"
 }
 
 
@@ -130,12 +142,17 @@ function search_depends_status_simple()
 function search_depends_status()
 { # $1=depends file $2=spell, $3=(opt)depends
 
+  [[ -z $2 ]] && return 1
   local depends_status=$1
   shift
 
-  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $depends_status
-  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $depends_status
-
+  lock_file "$depends_status"
+  if [[ -z $2 ]]; then
+    grep "^`esc_str "$1"`:" "$depends_status"
+  else
+    grep "^`esc_str "$1:$2"`:" "$depends_status"
+  fi
+  unlock_file "$depends_status"
 }
 
 
@@ -165,7 +182,9 @@ function get_depends_options()
 
   local START="$(esc_str $1)"
   debug "libstate" "get_depends_options() - START=$START"
+  lock_file "$depends_status"
   awk -F ':' -v start=$START "{ if (\$1 == start) if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status 2> /dev/null
+  unlock_file "$depends_status"
 }
 
 
@@ -202,8 +221,9 @@ function remove_depends_status()
     a5=${a5:-.*}; a6=${a6:-.*}
     [[ "$a5" == "[none]" ]] && a5="\\[none\\]"
 
-    sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" $depends_status
-
+    local t_status=$(lock_start_transaction "$depends_status")
+    sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" "$t_status"
+    lock_commit_transaction "$depends_status"
 }
 
 #---------------------------------------------------------------------
@@ -287,8 +307,10 @@ function add_sub_depends() {
   remove_sub_depends "$@" || return 1
   local file=$1
   shift
-  # FIXME LOCK
-  echo "$1:$2:$3" >> "$file"
+
+  local t_file=$(lock_start_transaction "$file")
+  echo "$1:$2:$3" >> "$t_file"
+  lock_commit_transaction "$file"
 }
 
 #---------------------------------------------------------------------
@@ -308,8 +330,10 @@ function search_sub_depends() {
   a1=${a1:-.*}
   a2=${a2:-.*}
   a3=${a3:-.*}
-  # FIXME LOCK
+
+  lock_file "$file"
   grep "^$a1:$a2:$a3$" "$file"
+  unlock_file "$file"
 }
 
 #---------------------------------------------------------------------
@@ -331,8 +355,9 @@ function remove_sub_depends() {
   a1=`esc_str "$1"`; a2=`esc_str "$2"`; a3=`esc_str "$3"`
   a1=${a1:-.*}; a2=${a2:-.*}; a3=${a3:-.*}
 
-  # FIXME LOCK
-  sedit "/^$a1:$a2:$a3$/D" "$file"
+  local t_file=$(lock_start_transaction "$file")
+  sedit "/^$a1:$a2:$a3$/D" "$t_file"
+  lock_commit_transaction "$file"
 }
 
 #---------------------------------------------------------------------
@@ -420,7 +445,9 @@ function remove_default_depends() {
 
         a3=${a3:-.*}
 
-        sedit "/^$a1:$a2:$a3$/D" $file
+        local t_file=$(lock_start_transaction "$file")
+        sedit "/^$a1:$a2:$a3$/D" $t_file
+        lock_commit_transaction "$file"
 }
 
 #---------------------------------------------------------------------
@@ -444,7 +471,12 @@ function search_default_depends() {
         a3=${a3:-.*}
 
         debug "libstate" "search_default_depends: [$a1:$a2:$a3]"
+        lock_file "$default_depends"
         grep "^$a1:$a2:$a3$" $default_depends
+        rc=$?
+        unlock_file "$default_depends"
+
+        return $rc
 }
 
 
@@ -553,10 +585,17 @@ function add_spell()  {
 ##
 #---------------------------------------------------------------------
 function search_spell_status() {
+  [[ -z $2 ]] && return 1
   local spell_status=$1
   shift
-  [ $# -eq 1 ] && grep "^`esc_str "$1"`:" $spell_status
-  [ $# -gt 1 ] && grep "^`esc_str "$1"`:`esc_str "$2"`:" $spell_status
+
+  lock_file "$spell_status"
+  if [[ -z $2 ]]; then
+    grep "^`esc_str "$1"`:" $spell_status
+  else
+    grep "^`esc_str "$1:$2"`:" $spell_status
+  fi
+  unlock_file "$spell_status"
 }
 
 #---------------------------------------------------------------------
@@ -580,8 +619,13 @@ function query_spell_status()
   local version
   version=`esc_str ${2:-".*"}`
 
+  lock_file "$SPELL_STATUS"
   tac $SPELL_STATUS | grep -m 1 "^$1:.*:.*:$version$" | \
   cut -d ":" -f 3
+  rc=$?
+  unlock_file "$SPELL_STATUS"
+
+  return $rc
 }
 
 #---------------------------------------------------------------------
@@ -727,9 +771,9 @@ function remove_spell()  {
 #---------------------------------------------------------------------
 function all_spell_status()
 {
-
+  lock_file "$SPELL_STATUS"
   cat $SPELL_STATUS
-
+  unlock_file "$SPELL_STATUS"
 }
 
 
@@ -740,7 +784,6 @@ function all_spell_status()
 #---------------------------------------------------------------------
 function set_held () {
     local t_status=$(lock_start_transaction $SPELL_STATUS)
-    cp $SPELL_STATUS $t_status
     for to_hold in $@; do
         sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)installed/\1held/' $t_status
     done
@@ -815,7 +858,6 @@ function set_unexiled () {
 #---------------------------------------------------------------------
 function set_unheld () {
     local t_status=$(lock_start_transaction $SPELL_STATUS)
-    cp $SPELL_STATUS $t_status
     for to_hold in $@; do
         sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)held/\1installed/' $t_status
     done
