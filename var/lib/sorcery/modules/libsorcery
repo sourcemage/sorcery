@@ -388,10 +388,10 @@ function spell_recover()  {
   then
     CONTINUE=true
   fi
- 
+
   if  $CONTINUE
   then
- 
+
     if  [  -n  "$EXTENSION"  ];  then
       $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Pkx  2>/dev/null
     else
@@ -453,7 +453,7 @@ function directories() {
 function files()  {
 
   while  read       ITEM;   do
- 
+
     if  [     -f  "$ITEM"  ]   &&
         !  [  -h  "$ITEM"  ];  then
       echo "$ITEM"
@@ -497,7 +497,7 @@ function filter() {
   for each in $@; do
     test -f $each && files="$files $each"
   done
-    
+
   if [[ $files ]] ; then
     RID_LIST=$(
       cat $files   |
@@ -553,15 +553,15 @@ function filter_in() {
   for each in $@; do
     test -f $each && files="$files $each"
   done
-    
+
   if [[ $files ]] ; then
     RID_LIST=$(
-      cat $files   | 
+      cat $files   |
       grep -v '^!' | while read thing; do
                        echo -n "${thing}\|"
                      done)
     NOT_RID_LIST=$(
-      cat $files   | 
+      cat $files   |
       grep '^!'    | while read thing; do
                        echo -n "${thing/\!/}\|"
                      done)
@@ -671,7 +671,7 @@ function pop_queue() {  (
       exit_code=1
     else
       FOUND=`esc_str $FOUND`
-      grep  -v  "^$FOUND$"  $1 > tQUEUE_FILE
+      grep  -v  "^$FOUND$"  $1 > $tQUEUE_FILE
       echo  $FOUND
     fi
   fi
@@ -686,11 +686,11 @@ function pop_queue() {  (
 ## @param filename
 ##
 ## The first argument is the name of the file that installed correctly
-## and will be removed from the install file (this makes a failure of 
+## and will be removed from the install file (this makes a failure of
 ## the casting of the queue not have to recast completed spells).
 ##
 #---------------------------------------------------------------------
-function pop_install_queue() {  
+function pop_install_queue() {
 
   pop_queue  $INSTALL_QUEUE  "$1"
 
@@ -708,7 +708,10 @@ function pop_install_queue() {
 #---------------------------------------------------------------------
 function push_queue()  {
 
-  pop_queue  "$1"  "$2";  echo  "$2" >>  $1;
+  pop_queue  "$1"  "$2"
+  t_file=$(lock_start_transaction "$1")
+  echo  "$2" >>  "$t_file";
+  lock_commit_transaction "$1"
 
 }
 
@@ -854,7 +857,7 @@ function list_install_queue() {
 
 #---------------------------------------------------------------------
 ## Frontend routine to encapsulate whether or not a spell needs updating
-## 
+##
 #---------------------------------------------------------------------
 function does_spell_need_update() {
   local line curr_updated curr_version status
@@ -926,7 +929,7 @@ function update_install_queue()  {
     curr_updated=${info[1]}
     status=${info[2]}
     curr_version=${info[3]}
-    
+
     ( # do this in a subshell in case a spell mis-behaves and exits we
       # still want queueing to work
       if  [[  "$status"  ==  "installed"  ]] &&
@@ -957,7 +960,7 @@ function update_security_install_queue()  {
     explode "$line" ":" "info"
     spell=${info[0]}
     status=${info[2]}
-    
+
     ( # do this in a subshell in case a spell mis-behaves and exits we
       # still want queueing to work
       if  [[  "$status"  ==  "installed"  ]] &&
@@ -1243,8 +1246,8 @@ function run_details() {
 #---------------------------------------------------------------------
 ##
 ## unsets variables set by DETAILS. <br>
-## vars: SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT SOURCE* 
-## 
+## vars: SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT SOURCE*
+##
 ## Needs to be merged with the libcodex function since they are both
 ## needed to fully unset a DETAILS (afk 4/21/04)
 ##
@@ -1301,7 +1304,7 @@ function verify_source()  { (
       message  "${PROBLEM_COLOR}Cast aborting.${DEFAULT_COLOR}"
       activity_log  "cast"  "$SPELL"  "$VERSION"  "failed"  \
                     "because it was missing source:  $1"
-      return 1 
+      return 1
     fi
   done
 
@@ -1364,7 +1367,7 @@ function generate_keep_list()  {
   local type=$3
   if [[ $type == installed_only ]] ; then
     {
-      get_all_spells_with_status installed 
+      get_all_spells_with_status installed
       get_all_spells_with_status held
     } | sort | uniq | while read spell ; do
       codex_find_spell_by_name $spell
@@ -1391,14 +1394,14 @@ function generate_keep_list()  {
 #---------------------------------------------------------------------
 ##
 ## Removes unnecessary files from the source cache and install cache.
-## 
+##
 #---------------------------------------------------------------------
 function prune()  {
 
   debug  "libsorcery" "Running prune()"
   local NO_KEEP
   local NUM_NO_KEEP=0
-  
+
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
   local SOURCE_KEEP="$TMP_DIR/prune-keep-source"
   local CACHE_KEEP="$TMP_DIR/prune-keep-cache"
@@ -1422,7 +1425,7 @@ function prune()  {
            }' $SOURCE_KEEP - |sort|uniq > $SOURCE_RM
   if test -s $SOURCE_RM ; then
     NUM_NO_KEEP=$(cat $SOURCE_RM|wc -l)
-    
+
     message "There are $NUM_NO_KEEP files that can be removed"
     if query "Edit the list?" "n" ; then
       edit_file $SOURCE_RM
@@ -1431,12 +1434,12 @@ function prune()  {
       cat $SOURCE_RM|xargs rm
     fi
   fi
-  
+
   message "${MESSAGE_COLOR}Cleaning up install cache" \
           "(${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
   local CACHE_RM="$TMP_DIR/prune.rm.cache"
   find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f|
-  awk -F/ 'BEGIN { 
+  awk -F/ 'BEGIN {
              while ( getline < ARGV[1] ) {
                keep[$NF] = 1;
              }
@@ -1468,7 +1471,7 @@ function prune()  {
 ## Adds /var/lib/sorcery/build to the C<PATH> if necessary.
 ##
 #---------------------------------------------------------------------
-function invoke_build_dir() { 
+function invoke_build_dir() {
 
   # This merits some explaination:
   #
@@ -1490,7 +1493,7 @@ function invoke_build_dir() {
   # make matters worse inside make() we have to fiddle with the number of
   # make jobs to use in case distcc is disabled (badly).
   #
-  # so the answer is: 
+  # so the answer is:
   # 1) make a new variable "USE_DISTCC" and set it to "off" if distcc
   # is being disabled by the spell
   # 2) check if USE_DISTCC == off in run_compiler, but still check the
@@ -1503,7 +1506,7 @@ function invoke_build_dir() {
   # MAKE_NJOBS to that. This results in the number of jobs being $MAKE_NJOBS
   # (default 1) when distcc is disabled (bug 6432), and allows an automatic
   # increase in the number of jobs per host if its desired.
-  # 
+  #
 
   USE_DISTCC=off
   if [[ $DISABLE_DISTCC != yes ]] ; then
@@ -1517,9 +1520,9 @@ function invoke_build_dir() {
   fi
 
   if [[ "$CCACHE" == on ]] || [[ "$USE_DISTCC" == on ]] ; then
-    export  PATH="$RUN_COMPILER_DIR:$PATH" 
+    export  PATH="$RUN_COMPILER_DIR:$PATH"
   fi
-} 
+}
 
 
 #---------------------------------------------------------------------
@@ -1583,7 +1586,7 @@ function verify_sources()  {
 ##
 ## Will set the prefered compression type based on user filled option
 ## in dialog menu (either gzip/bzip).
-## 
+##
 #---------------------------------------------------------------------
 function set_compression_type() {
 
@@ -1619,7 +1622,7 @@ function set_compression_type() {
           modify_local_config "EXTENSION" ""         ;;
 
     esac
-      
+
   done
 
 }
