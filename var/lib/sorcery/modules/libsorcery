@@ -709,7 +709,7 @@ function pop_install_queue() {
 function push_queue()  {
 
   pop_queue  "$1"  "$2"
-  t_file=$(lock_start_transaction "$1")
+  local t_file=$(lock_start_transaction "$1")
   echo  "$2" >>  "$t_file";
   lock_commit_transaction "$1"
 
@@ -1020,14 +1020,19 @@ function build_install_queue()  {
 function install_queue_history() {
   local spell
   for spell in `cat $INSTALL_QUEUE`; do
+    lock_file "$SPELL_STATUS"
     local date="`grep "^${spell}:" $SPELL_STATUS | cut -d':' -f2`"
+    unlock_file "$SPELL_STATUS"
     local datedash="`echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,'`"
 
     get_new_changes "Viewing history since last update ($datedash) for spell --  ${spell}  -- :" "$date" "$(codex_find_spell_by_name $spell)/HISTORY"
 
-    query "Would you like to ${RED} remove ${QUERY_COLOR} spell ${SPELL_COLOR} $spell ${QUERY_COLOR} from the install queue?" n &&
-      sedit "s/^$spell$//" $INSTALL_QUEUE &&
+    if query "Would you like to ${RED}remove ${QUERY_COLOR}spell $SPELL_COLOR$spell$QUERY_COLOR from the install queue?" n; then
+      local t_queue=$(lock_start_transaction "$INSTALL_QUEUE")
+      sedit "s/^$spell$//" "$t_queue"
+      lock_commit_transaction "$INSTALL_QUEUE"
       echo -e "${QUERY_COLOR} The spell ${SPELL_COLOR} $spell ${QUERY_COLOR} removed from $INSTALL_QUEUE.${DEFAULT_COLOR}"
+    fi
   done
 }
 
