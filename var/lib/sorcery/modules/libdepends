@@ -293,6 +293,8 @@ function compute_installed_depends() {
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
+  lock_file "$DEPENDS_STATUS"
+  lock_file "$SPELL_STATUS"
   # sub(/(.*)/, "", $2) removes a provider name
   eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
@@ -307,6 +309,8 @@ function compute_installed_depends() {
       }
     }
   }' $DEPENDS_STATUS $SPELL_STATUS )
+  unlock_file "$DEPENDS_STATUS"
+  unlock_file "$SPELL_STATUS"
 }
 
 #---------------------------------------------------------------------
@@ -331,6 +335,8 @@ function compute_reverse_installed_depends() {
 
   # From here forward $1 and $2 are only used to refer to awk variables
 
+  lock_file "$DEPENDS_STATUS"
+  lock_file "$SPELL_STATUS"
   # sub(/(.*)/, "", $2) removes a provider name
   eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
     while (getline < ARGV[1] ) {
@@ -345,6 +351,8 @@ function compute_reverse_installed_depends() {
       }
     }
   }' $DEPENDS_STATUS $SPELL_STATUS )
+  unlock_file "$DEPENDS_STATUS"
+  unlock_file "$SPELL_STATUS"
 }
 
 #---------------------------------------------------------------------
@@ -440,7 +448,6 @@ function private_run_depends()
   local base_deps
   base_deps=$(search_depends_status $DEPENDS_STATUS basesystem|cut -f2 -d:)
 
-
   # We only need to run the stuff if we are going to be casting.
   # It only needs to be added to the casting hash table if we are
   # really casting it
@@ -459,7 +466,11 @@ function private_run_depends()
       rm  -f  $DEPENDS_CONFIG/$SPELL
       test -f $DEPENDS_CONFIG/$SPELL.p &&
       mkdir -p $ABANDONED_PERSIST      &&
-      mv  -f  $DEPENDS_CONFIG/$SPELL.p $ABANDONED_PERSIST/$SPELL.p
+      local t_spell_p=$(lock_start_transaction "$DEPENDS_CONFIG/$SPELL.p") &&
+      local t_abandonded_p=$(lock_start_transaction "$ABANDONED_PERSIST/$SPELL.p") &&
+      mv -f "$t_spell_p" "$t_abandonded_p" &&
+      lock_commit_transaction "$DEPENDS_CONFIG/$SPELL.p" &&
+      lock_commit_transaction "$ABANDONED_PERSIST/$SPELL.p"
     fi
     prepare_spell_config
     SCRIPT_DIRECTORY=`codex_find_spell_by_name $SPELL`
@@ -549,7 +560,9 @@ function private_upward_depends() {
     # Note, use the reverse depends tree for this when we get a chance
     # and/or move the weird pattern into library functions...
     # (afrayedknot 2005-10-02)
+    lock_file "$DEPENDS_STATUS"
     tmp=$(grep "^.*:$1\(([^:]*)\)\?" $DEPENDS_STATUS|cut -f1 -d:|tr "\n" " ")
+    unlock_file "$DEPENDS_STATUS"
     local j k each
     let j=${#NEW_UP_DEPENDS[*]}
     for each in $tmp; do
@@ -1585,9 +1598,11 @@ function real_show_up_depends()
     hash_reset done
     compute_reverse_installed_depends foo
     if [[ "$type" == "verbose" ]] ; then
+      lock_file "$DEPENDS_STATUS"
       show_up_depends_sub "$1"|while read line; do
         grep "$line" "$DEPENDS_STATUS"
       done
+      unlock_file "$DEPENDS_STATUS"
     else
       show_up_depends_sub "$1"|cut -f1 -d:
     fi|sort|uniq
