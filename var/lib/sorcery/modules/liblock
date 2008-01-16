@@ -77,9 +77,9 @@ trylock_resources()
 
     debug "trylock_resources" "lockfile=${lockfile}"
 
-    mkdir -p "${LOCK_DIR}"
+    [[ -d $LOCK_DIR ]] || mkdir -p "$LOCK_DIR"
 
-    if ! mkdir "${lockfile}" 2>/dev/null; then
+    if [[ -d ${lockfile} ]] || ! mkdir "${lockfile}" 2>/dev/null; then
     # we try to remove stale locks here and try again
         sleep 0.1
         global_clean_resources
