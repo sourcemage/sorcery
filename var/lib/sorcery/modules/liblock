@@ -214,12 +214,7 @@ global_clean_resources()
 function lock_file()
 {
   debug "liblock" "$FUNCNAME - $*"
-  local FILE
-  lock_resources $(
-    for FILE in "$@" ; do
-      echo file $FILE
-    done
-  )
+  lock_resources file "$1"
 }
 
 
@@ -233,12 +228,7 @@ function lock_file()
 function unlock_file()
 {
   debug "liblock" "$FUNCNAME - $*"
-  local FILE
-  unlock_resources $(
-  for FILE in "$@" ; do
-    echo file $FILE
-  done
-  )
+  unlock_resources file "$1"
 }
 
 #---------------------------------------------------------------------
@@ -260,31 +250,27 @@ function unlock_file()
 function lock_start_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
-  local i TRANSNAME NUMTRANS RET=""
+  local NUMTRANS file="$1"
 
-  if lock_file "$@" ; then
+  if lock_file "$file" ; then
 
     lock_file $LOCK_TRANSACTIONS
     [ -s $LOCK_TRANSACTIONS ] || echo "0:::" > $LOCK_TRANSACTIONS
 
     NUMTRANS=`tail -n 1 $LOCK_TRANSACTIONS | cut -d : -f 1`
-    NUMTRANS=${NUMTRANS:-1}
-    RET=()
+    NUMTRANS=${NUMTRANS:-1} # TODO: check if this should fallback to 0
 
-    for i in $* ; do
-      let NUMTRANS++
-      # cp file to temp file, if doesn't exist, create empty file.
-      if [ -e "$i" ]   ; then
-        cp "$i" "$LOCK_TRANSACTIONS.$NUMTRANS"
-      else
-        echo -n "" > $LOCK_TRANSACTIONS.$NUMTRANS
-      fi
-      echo "$NUMTRANS:$i:$$" >$LOCK_TRANSACTIONS
-      RET[$NUMTRANS]="${LOCK_TRANSACTIONS}.${NUMTRANS}"
-    done
+    let NUMTRANS++
+    # cp file to temp file or if doesn't exist, create an empty file.
+    if [[ -e $file ]]; then
+      cp "$file" "$LOCK_TRANSACTIONS.$NUMTRANS"
+    else
+      echo -n "" > $LOCK_TRANSACTIONS.$NUMTRANS
+    fi
+    echo "$NUMTRANS:$file:$$" >$LOCK_TRANSACTIONS
 
     unlock_file $LOCK_TRANSACTIONS
-    echo ${RET[*]}
+    echo "$LOCK_TRANSACTIONS.$NUMTRANS"
     return 0
 
   else
