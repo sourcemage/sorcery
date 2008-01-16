@@ -204,7 +204,7 @@ function real_installed_version()  {
 ##
 #---------------------------------------------------------------------
 function private_installed_version()  {
-  grep "^$1:"  $SPELL_STATUS  |  cut  -d : -f4  |  head  -n 1
+  awk -F : '/^'$1':/ {print $4; exit}' $SPELL_STATUS
 }
 
 #---------------------------------------------------------------------
