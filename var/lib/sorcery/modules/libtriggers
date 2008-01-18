@@ -34,7 +34,7 @@ function remove_triggers ()
   debug "libtriggers" "remove_triggers - $*"
 
   [ -f $TRIGGER_LIST ] || return 0
-  tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
+  lock_start_transaction "$TRIGGER_LIST" tTRIGGER_LIST
   [ -f $tTRIGGER_LIST ] || return 0
   grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
   lock_commit_transaction $TRIGGER_LIST

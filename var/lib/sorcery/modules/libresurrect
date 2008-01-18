@@ -575,7 +575,8 @@ function resurrect_success() {
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $DEPENDS_STATUS $SPELL
     local spell_depends=$OLD_TABLET_DIR/depends
-    local t_DEPENDS_STATUS=$(lock_start_transaction "$DEPENDS_STATUS")
+    local t_DEPENDS_STATUS
+    lock_start_transaction "$DEPENDS_STATUS" t_DEPENDS_STATUS
     if [ -e $spell_depends ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi

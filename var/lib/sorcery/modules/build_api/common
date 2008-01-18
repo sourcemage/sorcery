@@ -249,7 +249,8 @@ function run_spell_success() {
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $DEPENDS_STATUS $SPELL
     local spell_depends spell_sub_depends spell_rsub_depends
-    local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
+    local t_DEPENDS_STATUS
+    lock_start_transaction "$DEPENDS_STATUS" t_DEPENDS_STATUS
     get_uncommitted_depends_file $SPELL spell_depends
     if [ -e "$spell_depends" ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
@@ -264,7 +265,8 @@ function run_spell_success() {
     # none of the old values are valid, only the new, uncommitted values are
     remove_sub_depends $SUB_DEPENDS_STATUS "" "$SPELL"
     local spell_sub_depends
-    local t_SUB_DEPENDS_STATUS=$(lock_start_transaction $SUB_DEPENDS_STATUS)
+    local t_SUB_DEPENDS_STATUS
+    lock_start_transaction "$SUB_DEPENDS_STATUS" t_SUB_DEPENDS_STATUS
     get_uncommitted_sub_depends_file $SPELL spell_sub_depends
     if [ -e "$spell_sub_depends" ] ; then
       cat  $spell_sub_depends >> $t_SUB_DEPENDS_STATUS

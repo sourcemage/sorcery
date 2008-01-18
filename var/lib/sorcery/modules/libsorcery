@@ -659,7 +659,7 @@ function pop_queue() {  (
   local ITEM=`esc_str $2`
   local exit_code=0
 
-  tQUEUE_FILE=$( lock_start_transaction $1 )
+  lock_start_transaction "$1" tQUEUE_FILE
   if  !  [  -f  "$1"  ];  then
     exit_code=1
   elif  [  -n  "$ITEM"  ];  then
@@ -709,7 +709,8 @@ function pop_install_queue() {
 function push_queue()  {
 
   pop_queue  "$1"  "$2"
-  local t_file=$(lock_start_transaction "$1")
+  local t_file
+  lock_start_transaction "$1" t_file
   echo  "$2" >>  "$t_file";
   lock_commit_transaction "$1"
 
@@ -1028,7 +1029,8 @@ function install_queue_history() {
     get_new_changes "Viewing history since last update ($datedash) for spell --  ${spell}  -- :" "$date" "$(codex_find_spell_by_name $spell)/HISTORY"
 
     if query "Would you like to ${RED}remove ${QUERY_COLOR}spell $SPELL_COLOR$spell$QUERY_COLOR from the install queue?" n; then
-      local t_queue=$(lock_start_transaction "$INSTALL_QUEUE")
+      local t_queue
+      lock_start_transaction "$INSTALL_QUEUE" t_queue
       sedit "s/^$spell$//" "$t_queue"
       lock_commit_transaction "$INSTALL_QUEUE"
       echo -e "${QUERY_COLOR} The spell ${SPELL_COLOR} $spell ${QUERY_COLOR} removed from $INSTALL_QUEUE.${DEFAULT_COLOR}"

@@ -983,12 +983,12 @@ function cleanse_fix_md5sum_check() {
       # the wrong place a future improvement would be
       # to use iterate or some other method that is not naive to
       # filenames with spaces in them
-      tfile=`lock_start_transaction $INSTALL_LOG`
+      lock_start_transaction "$INSTALL_LOG" tfile
       sed "s${A}^$LINE\$${A}${A}" $INSTALL_LOG|tr -s '\n'  > $tfile
       lock_commit_transaction $INSTALL_LOG
       message -n '.'
 
-      tfile=`lock_start_transaction $MD5_LOG`
+      lock_start_transaction "$MD5_LOG" tfile
       sed "s$A.*  $LINE\$${A}${A}"  $MD5_LOG|tr -s '\n'  > $tfile
       lock_commit_transaction $MD5_LOG
       message -n '.'
@@ -996,7 +996,7 @@ function cleanse_fix_md5sum_check() {
       test -d $POSSESSED_LOGS || mkdir -p $POSSESSED_LOGS
       
       possessed=$POSSESSED_LOGS/$SPELL-$2
-      tfile=`lock_start_transaction $possessed`
+      lock_start_transaction "$possessed" tfile
       echo $LINE >> $tfile
       # remove duplicates
       cp $tfile $TMP_DIR/$SPELL.possessed.$$

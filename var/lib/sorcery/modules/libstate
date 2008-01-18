@@ -45,7 +45,8 @@ function add_depends()
     return 1
   fi
 
-  local t_status=$(lock_start_transaction "$depends_status")
+  local t_status
+  lock_start_transaction "$depends_status" t_status
   echo "$1:$2:$3:$4:$5:$6" >> "$t_status"
   lock_commit_transaction "$depends_status"
 
@@ -221,7 +222,8 @@ function remove_depends_status()
     a5=${a5:-.*}; a6=${a6:-.*}
     [[ "$a5" == "[none]" ]] && a5="\\[none\\]"
 
-    local t_status=$(lock_start_transaction "$depends_status")
+    local t_status
+    lock_start_transaction "$depends_status" t_status
     sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" "$t_status"
     lock_commit_transaction "$depends_status"
 }
@@ -308,7 +310,8 @@ function add_sub_depends() {
   local file=$1
   shift
 
-  local t_file=$(lock_start_transaction "$file")
+  local t_file
+  lock_start_transaction "$file" t_file
   echo "$1:$2:$3" >> "$t_file"
   lock_commit_transaction "$file"
 }
@@ -355,7 +358,8 @@ function remove_sub_depends() {
   a1=`esc_str "$1"`; a2=`esc_str "$2"`; a3=`esc_str "$3"`
   a1=${a1:-.*}; a2=${a2:-.*}; a3=${a3:-.*}
 
-  local t_file=$(lock_start_transaction "$file")
+  local t_file
+  lock_start_transaction "$file" t_file
   sedit "/^$a1:$a2:$a3$/D" "$t_file"
   lock_commit_transaction "$file"
 }
@@ -414,7 +418,7 @@ function add_default_depends() {
           return 1
         fi
 
-        tfile=`lock_start_transaction $file`
+        lock_start_transaction "$file" tfile
         remove_default_depends $tfile $1 $2
         echo "$1:$2:$3" >> $tfile
         lock_commit_transaction $file
@@ -445,7 +449,8 @@ function remove_default_depends() {
 
         a3=${a3:-.*}
 
-        local t_file=$(lock_start_transaction "$file")
+        local t_file
+        lock_start_transaction "$file" t_file
         sedit "/^$a1:$a2:$a3$/D" $t_file
         lock_commit_transaction "$file"
 }
@@ -510,7 +515,7 @@ function add_default_provider() {
     return 1
   fi
 
-  tfile=`lock_start_transaction $file`
+  lock_start_transaction "$file" tfile
   remove_default_provider $tfile "" $2
   echo "$1:$2:$3" >> $tfile
   lock_commit_transaction $file
@@ -555,7 +560,7 @@ function add_spell_status()
   fi
   [[ $spell ]] && [[ $action ]] && [[ $version ]] || return 1
   date=`date +%Y%m%d`
-  tSPELL_STATUS=`lock_start_transaction $SPELL_STATUS`
+  lock_start_transaction "$SPELL_STATUS" tSPELL_STATUS
   echo "$spell:$date:$action:$version" >> $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
 
@@ -741,7 +746,7 @@ function real_spell_exiled()    {
 function remove_spell_status()
 { #$1=spell to remove status of
 
-  tSPELL_STATUS=`lock_start_transaction $SPELL_STATUS`
+  lock_start_transaction "$SPELL_STATUS" tSPELL_STATUS
   grep  -v  "^$1:" $SPELL_STATUS  >  $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
 
@@ -783,7 +788,8 @@ function all_spell_status()
 ##
 #---------------------------------------------------------------------
 function set_held () {
-    local t_status=$(lock_start_transaction $SPELL_STATUS)
+    local t_status
+    lock_start_transaction "$SPELL_STATUS" t_status
     for to_hold in $@; do
         sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)installed/\1held/' $t_status
     done
@@ -857,7 +863,8 @@ function set_unexiled () {
 ##
 #---------------------------------------------------------------------
 function set_unheld () {
-    local t_status=$(lock_start_transaction $SPELL_STATUS)
+    local t_status
+    lock_start_transaction "$SPELL_STATUS" t_status
     for to_hold in $@; do
         sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)held/\1installed/' $t_status
     done
@@ -939,7 +946,7 @@ function modify_config()  {
   fi
 
   # remove previous reference
-  tFILE=`lock_start_transaction $FILE`
+  lock_start_transaction "$FILE" tFILE
   grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
 
   # justifying...
@@ -987,7 +994,7 @@ function remove_config()  {
   else separator="=" ; fi
 
   # remove previous reference
-  tFILE=`lock_start_transaction $FILE`
+  lock_start_transaction "$FILE" tFILE
   grep  -v  "^[[:blank:]]*${1}${separator}" $FILE >  $tFILE
   lock_commit_transaction $FILE
 

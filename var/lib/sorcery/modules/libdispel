@@ -81,7 +81,8 @@ function reap_depends()  {
   # save the old depends data as abandoned stuff so its seen later on
   # recasts as the default
   mkdir -p $ABANDONED_DEPENDS
-  local t_file=$(lock_start_transaction "$ABANDONED_DEPENDS/$SPELL")
+  local t_file
+  lock_start_transaction "$ABANDONED_DEPENDS/$SPELL" t_file
   search_depends_status $DEPENDS_STATUS $SPELL > $t_file
   lock_commit_transaction "$ABANDONED_DEPENDS/$SPELL"
 

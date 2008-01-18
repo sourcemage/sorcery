@@ -383,7 +383,8 @@ function counter_down() {
   counterfile="${LOCK_DIR}/${counterfile//\//^}"
 
   touch $counterfile
-  local tc=$(lock_start_transaction $counterfile)
+  local tc
+  lock_start_transaction "$counterfile" tc
   for each in $(counter_clean $tc); do
     [[ $foo ]] && echo $each && continue
     if [[ $each == $$ ]] ; then foo=found ; else echo $each; fi
@@ -423,7 +424,8 @@ function counter_check() {
   # we replace / with ^
   counterfile="${LOCK_DIR}/${counterfile//\//^}"
   if test -f $counterfile ; then
-    local tc=$(lock_start_transaction $counterfile)
+    local tc
+    lock_start_transaction "$counterfile" tc
     # sort saves a temp file since it has to read all the input
     counter_clean $tc |sort > $tc
     lock_commit_transaction $counterfile

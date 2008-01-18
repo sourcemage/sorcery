@@ -1930,7 +1930,7 @@ sorcery_remove_defaults () {
 ## cli function
 #---------------------------------------------------------------------
 sorcery_queue_add() {
-  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  lock_start_transaction "$INSTALL_QUEUE" tINSTALL_QUEUE
   for SPELL in "$@"; do
     grep -qE "^$SPELL\$" "$tINSTALL_QUEUE" || echo "$SPELL" >> "$tINSTALL_QUEUE"
   done
@@ -1945,7 +1945,7 @@ sorcery_queue_add() {
 ## cli function
 #---------------------------------------------------------------------
 sorcery_queue_remove() {
-  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  lock_start_transaction "$INSTALL_QUEUE" tINSTALL_QUEUE
   for SPELL in "$@"; do
     if grep -qE "^$SPELL\$" "$tINSTALL_QUEUE"; then
       grep -vE "^$SPELL\$" "$tINSTALL_QUEUE" > "$TMP_DIR/tmp_queue"

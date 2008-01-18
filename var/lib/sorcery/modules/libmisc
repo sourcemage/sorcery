@@ -731,7 +731,8 @@ function real_persistent_save () {
     local VAR
     local TMP
     local file=$SPELL_CONFIG.p
-    local tfile=$(lock_start_transaction $file)
+    local tfile
+    lock_start_transaction "$file" tfile
     > "$tfile"
     for VAR in $PERSISTENT_VARIABLES; do
         config_get_option $VAR TMP

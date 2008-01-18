@@ -778,7 +778,8 @@ function main()  {
   if [[ "$CAST_QUEUE" == yes ]] ; then
 
     touch "$INSTALL_QUEUE"
-    local tfile=$(lock_start_transaction "$INSTALL_QUEUE")
+    local tfile
+    lock_start_transaction "$INSTALL_QUEUE" tfile
     grep -Ev '^$' $INSTALL_QUEUE > $tfile
     lock_commit_transaction "$INSTALL_QUEUE"
     if  [  -s $INSTALL_QUEUE  ]; then

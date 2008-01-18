@@ -222,7 +222,7 @@ function codex_add_grimoire() {
 
   local i
   touch  $GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  lock_start_transaction "$GRIMOIRE_LIST" tGRIMOIRE_LIST
   rm $tGRIMOIRE_LIST
   for ((i=0; i<$GRIMOIRE_COUNT;i++)); do
     echo GRIMOIRE_DIR[$i]=${GRIMOIRE_DIR[$i]} >> $tGRIMOIRE_LIST
@@ -245,7 +245,7 @@ function codex_remove_grimoire() {
 
   local  GRIMOIRES=`codex_get_all_grimoires`
 
-  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  lock_start_transaction "$GRIMOIRE_LIST" tGRIMOIRE_LIST
   touch  $GRIMOIRE_LIST
   cp     $GRIMOIRE_LIST  $GRIMOIRE_LIST_BACKUP
   rm  -f $tGRIMOIRE_LIST
@@ -282,7 +282,7 @@ function codex_remove_duplicates() {
 
 
   touch  $GRIMOIRE_LIST
-  tGRIMOIRE_LIST=`lock_start_transaction $GRIMOIRE_LIST`
+  lock_start_transaction "$GRIMOIRE_LIST" tGRIMOIRE_LIST
   rm  -f $tGRIMOIRE_LIST
 
 
