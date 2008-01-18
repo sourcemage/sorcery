@@ -232,6 +232,7 @@ function unlock_file()
 #---------------------------------------------------------------------
 ## @param File to start transaction on
 ## @param <file> ... (optional)
+## @param variable to set (optional)
 ##
 ## A transaction locks a file and ensures that changes made to the
 ## file are all made at once. No changes are made to the file until
@@ -268,7 +269,11 @@ function lock_start_transaction()
     echo "$NUMTRANS:$file:$$" >$LOCK_TRANSACTIONS
 
     unlock_file $LOCK_TRANSACTIONS
-    echo "$LOCK_TRANSACTIONS.$NUMTRANS"
+    if [[ $2 ]]; then
+      eval "$2=\"\$LOCK_TRANSACTIONS.\$NUMTRANS\""
+    else
+      echo "$LOCK_TRANSACTIONS.$NUMTRANS"
+    fi
     return 0
 
   else
