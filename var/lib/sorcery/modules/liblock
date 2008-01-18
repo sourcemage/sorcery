@@ -249,7 +249,7 @@ function unlock_file()
 function lock_start_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
-  local NUMTRANS file="$1"
+  local NUMTRANS transaction_file file="$1"
 
   if lock_file "$file" ; then
 
@@ -260,19 +260,20 @@ function lock_start_transaction()
     NUMTRANS=${NUMTRANS:-1} # TODO: check if this should fallback to 0
 
     let NUMTRANS++
+    transaction_file="$LOCK_TRANSACTIONS.$NUMTRANS"
     # cp file to temp file or if doesn't exist, create an empty file.
     if [[ -e $file ]]; then
-      cp "$file" "$LOCK_TRANSACTIONS.$NUMTRANS"
+      cp "$file" "$transaction_file"
     else
-      echo -n "" > $LOCK_TRANSACTIONS.$NUMTRANS
+      echo -n "" > "$transaction_file"
     fi
     echo "$NUMTRANS:$file:$$" >$LOCK_TRANSACTIONS
 
     unlock_file $LOCK_TRANSACTIONS
     if [[ $2 ]]; then
-      eval "$2=\"\$LOCK_TRANSACTIONS.\$NUMTRANS\""
+      eval "$2=\"\$transaction_file\""
     else
-      echo "$LOCK_TRANSACTIONS.$NUMTRANS"
+      echo "$transaction_file"
     fi
     return 0
 
