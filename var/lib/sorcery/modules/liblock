@@ -320,8 +320,10 @@ function lock_commit_transaction()
       fi
     fi
     grep -v ".*:$i:$$" $LOCK_TRANSACTIONS.new >$LOCK_TRANSACTIONS &&
-    { rm $LOCK_TRANSACTIONS.new ||
-      message "${PROBLEM_COLOR}Very odd case. Quitting."; exit 1; }
+    if ! rm $LOCK_TRANSACTIONS.new; then
+      message "${PROBLEM_COLOR}Very odd case. Quitting."
+      exit 1
+    fi
   done
   unlock_file $LOCK_TRANSACTIONS
 
