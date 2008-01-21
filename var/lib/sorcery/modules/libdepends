@@ -463,14 +463,14 @@ function private_run_depends()
     get_uncommitted_depends_file $SPELL spell_depends
     spell_sub_depends=$spell_depends.sub
     if  [  -n  "$RECONFIGURE"  ];  then
-      local t_spell_p t_abandonded_p
+      local t_abandonded_p
       rm  -f  $DEPENDS_CONFIG/$SPELL
       test -f $DEPENDS_CONFIG/$SPELL.p &&
       mkdir -p $ABANDONED_PERSIST      &&
-      lock_start_transaction "$DEPENDS_CONFIG/$SPELL.p" t_spell_p &&
+      lock_file "$DEPENDS_CONFIG/$SPELL.p" &&
       lock_start_transaction "$ABANDONED_PERSIST/$SPELL.p" t_abandonded_p &&
-      mv -f "$t_spell_p" "$t_abandonded_p" &&
-      lock_commit_transaction "$DEPENDS_CONFIG/$SPELL.p" &&
+      mv -f "$DEPENDS_CONFIG/$SPELL.p" "$t_abandonded_p" &&
+      unlock_file "$DEPENDS_CONFIG/$SPELL.p" &&
       lock_commit_transaction "$ABANDONED_PERSIST/$SPELL.p"
     fi
     prepare_spell_config
