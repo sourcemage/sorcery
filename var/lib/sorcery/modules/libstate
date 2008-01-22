@@ -606,11 +606,12 @@ function search_spell_status() {
 #---------------------------------------------------------------------
 ##
 ## @param spell ( [A-Za-z0-9_-] )
-## @param version ( may not contain space,
+## @param version (optional and may not contain spaces or colons,
 ##                  '.' and '*' have special meaning)
+## @param variable to set
 ## @Stdout last matching line ( only one even if there are more )
 ##
-## Searches the SPELL_STATUS file for a spell and optionaly
+## Searches the SPELL_STATUS file for a spell and optionally
 ## a version.
 ##
 ## Prints out the matching spell's status
@@ -621,14 +622,20 @@ function search_spell_status() {
 function query_spell_status()
 { #$1=spell, $2=(OPT)version
 
-  local version
-  version=`esc_str ${2:-".*"}`
+  local version return_var __status rc
+  if [[ -z $3 ]]; then
+    version=".*"
+    return_var="$2"
+  else
+    version=`esc_str ${2:-".*"}`
+    return_var="$3"
+  fi
 
   lock_file "$SPELL_STATUS"
-  tac $SPELL_STATUS | grep -m 1 "^$1:.*:.*:$version$" | \
-  cut -d ":" -f 3
+  __status=$(sed -n "/^$1:.*:\(.*\):$version$/ { s,,\1,; h }; $ {x; p}" "$SPELL_STATUS")
   rc=$?
   unlock_file "$SPELL_STATUS"
+  eval "$return_var=\"\$__status\""
 
   return $rc
 }
@@ -640,7 +647,9 @@ function query_spell_status()
 ## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
 function real_spell_installed() {
-  [  "$(  query_spell_status  $1  )"  ==  "installed"  ];
+  local status
+  query_spell_status "$1" status
+  [[ $status == installed ]]
 }
 
 
@@ -651,7 +660,9 @@ function real_spell_installed() {
 ##
 #---------------------------------------------------------------------
 function real_spell_held()      {
-  [  "$(  query_spell_status  $1  )"  ==  "held"       ];
+  local status
+  query_spell_status "$1" status
+  [[ $status == held ]]
 }
 
 #---------------------------------------------------------------------
@@ -661,8 +672,9 @@ function real_spell_held()      {
 ## @return 0 if the given spell's status is "installed" or "held"
 #---------------------------------------------------------------------
 function real_spell_ok() {
-  local res="$(  query_spell_status  $1  )"
-  [  "$res"  ==  "installed"  ] || [  "$res"  ==  "held" ]
+  local status
+  query_spell_status "$1" status
+  [[ $status == installed ]] || [[ $status == held ]]
 }
 
 
@@ -734,7 +746,9 @@ function real_is_depends_enabled() {
 ##
 #---------------------------------------------------------------------
 function real_spell_exiled()    {
-  [  "$(  query_spell_status  $1  )"  ==  "exiled"     ];
+  local status
+  query_spell_status "$1" status
+  [[ $status == exiled ]]
 }
 
 
@@ -808,7 +822,7 @@ function set_exiled () {
     local MY_STATUS
 
     for TO_EXILE in $@; do
-        MY_STATUS=$(query_spell_status "$TO_EXILE")
+        query_spell_status "$TO_EXILE" MY_STATUS
         case "$MY_STATUS" in
             "" )
                 add_spell_status $TO_EXILE exiled 0.0
@@ -846,7 +860,7 @@ function set_unexiled () {
     local MY_STATUS
     local TO_UNEXILE
     for TO_UNEXILE in $@; do
-        MY_STATUS=$(query_spell_status "$TO_UNEXILE")
+        query_spell_status "$TO_UNEXILE" MY_STATUS
         if [ x"$MY_STATUS" == x"exiled" ]; then
             remove_spell $TO_UNEXILE
         else
