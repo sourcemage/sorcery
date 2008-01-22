@@ -33,17 +33,13 @@ function add_depends()
   local depends_status=$1
   shift
 
+  # ensure the info is valid (perhaps add check that spells exist?)
+  list_find "on off" "$3" || return 1
+  list_find "required optional runtime suggest" "$4" || return 1
+
   # Allow add_depends to override previous ones for the same pair of spells
   search_depends_status "$depends_status" "$1" "$2" >/dev/null &&
   remove_depends_status "$depends_status" "$1" "$2"
-
-
-  #ensure the info is valid (perhaps add check that spells exist?)
-  if ( [[ $3 != on ]]       && [[ $3 != off ]]      ) ||
-     ( [[ $4 != required ]] && [[ $4 != optional ]] &&
-       [[ $4 != runtime ]] && [[ $4 != suggest ]]; ); then
-    return 1
-  fi
 
   local t_status
   lock_start_transaction "$depends_status" t_status
