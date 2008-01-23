@@ -47,7 +47,7 @@ a more in-depth explaination refer to the manual
                         4 parameters:
                         ignore, ask-yes, ask-no, always
 
---orphan                Default action for dispelling a newly orphaned child 
+--orphan                Default action for dispelling a newly orphaned child
                         spell.
 --non-orphan            Default action for dispelling a dependee of
                         another spell, that is not an orphan (doing this
@@ -137,7 +137,7 @@ function downgrade()  {
              "to version"                            \
              "${VERSION_COLOR}${REQUESTED_VERSION}"  \
              "${DEFAULT_COLOR}"
-  else 
+  else
     message  "${RESURRECT_COLOR}Installed:"         \
              "${SPELL_COLOR}${SPELL}"                \
              "${DEFAULT_COLOR}"                      \
@@ -193,7 +193,7 @@ function process_parameters()  {
                       shift 1 ;;
   --user-child-deps)  validate_param "$ORPHAN_MENU_DEFAULT" ORPHAN_DEFAULT
                       validate_param "$NONORPHAN_MENU_DEFAULT" NONORPHAN_DEFAULT
-                      shift ;; 
+                      shift ;;
     --recast-parent)  validate_param $2 RECAST_PARENT_DEFAULT
                       shift ;;
     --dispel-parent)  validate_param $2 DISPEL_PARENT_DEFAULT
@@ -202,7 +202,7 @@ function process_parameters()  {
                                      RECAST_PARENT_DEFAULT
                       validate_param "$DISPEL_PARENT_MENU_DEFAULT" \
                                      DISPEL_PARENT_DEFAULT
-                      shift ;; 
+                      shift ;;
      --debug-dispel)  DEBUG_DISPEL=yes ; shift 1 ;;
      --total-dispel)  TOTAL_DISPEL=yes ; shift 1 ;;
                   *)  help                       ;;
@@ -646,7 +646,7 @@ function main() {
       debug dispel "SPELLS $SPELLS"
     done
   else
-    for SPELL in $SPELLS; do 
+    for SPELL in $SPELLS; do
       dispel_spell_wrapper $SPELL ||
       DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
     done
@@ -658,13 +658,13 @@ function main() {
 
 if    [  $#      ==  0  ];  then  help  |  $PAGER
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
-elif  [  "$UID"  ==  0  ];  then 
+elif  [  "$UID"  ==  0  ];  then
   mk_tmp_dirs dispel
   main  "$@"
   rc=$?
   cleanup_tmp_dir $TMP_DIR
   exit $rc
-else  
+else
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
   su -c "$0 $PARAMS" root
