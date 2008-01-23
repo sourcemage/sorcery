@@ -93,7 +93,6 @@ function downgrade()  {
   fi
 
   if  spell_installed  $SPELL;  then
-    previously_installed=yes
     dispel_spell  $SPELL
     if [ $? != 0 ] ; then
       message  "${PROBLEM_COLOR}Unable to downgrade"   \
@@ -119,33 +118,9 @@ function downgrade()  {
     return 1
   fi
 
-  pushd $INSTALL_ROOT/ &>/dev/null
-  if  [  -n  "$EXTENSION"  ];  then
-    $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Px
-  else
-    tar  -Pxf  $CACHE_COMP
-  fi
-  popd &>/dev/null
+  SUCCESS_LIST=/dev/null
+  resurrect $SPELL $REQUESTED_VERSION
 
-  codex_set_current_spell_by_name  $SPELL
-
-  add_spell  $SPELL installed $REQUESTED_VERSION
-  if [[ $previously_installed ]] ; then
-    message  "${RESURRECT_COLOR}Downgraded:"         \
-             "${SPELL_COLOR}${SPELL}"                \
-             "${DEFAULT_COLOR}"                      \
-             "to version"                            \
-             "${VERSION_COLOR}${REQUESTED_VERSION}"  \
-             "${DEFAULT_COLOR}"
-  else
-    message  "${RESURRECT_COLOR}Installed:"         \
-             "${SPELL_COLOR}${SPELL}"                \
-             "${DEFAULT_COLOR}"                      \
-             "to version"                            \
-             "${VERSION_COLOR}${REQUESTED_VERSION}"  \
-             "${DEFAULT_COLOR}"
-  fi
-  activity_log  "cast"  "$SPELL"  "$REQUESTED_VERSION"  "success"
   return 0
 }
 
