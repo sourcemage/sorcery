@@ -575,12 +575,20 @@ function resurrect_success() {
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $DEPENDS_STATUS $SPELL
     local spell_depends=$OLD_TABLET_DIR/depends
-    local t_DEPENDS_STATUS
+    local t_DEPENDS_STATUS t_SUB_DEPENDS_STATUS
     lock_start_transaction "$DEPENDS_STATUS" t_DEPENDS_STATUS
     if [ -e $spell_depends ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
     lock_commit_transaction $DEPENDS_STATUS
+
+    remove_sub_depends $SUB_DEPENDS_STATUS $SPELL
+    local spell_sub_depends=$OLD_TABLET_DIR/sub_depends
+    if [[ -e $spell_sub_depends ]]; then
+      lock_start_transaction "$SUB_DEPENDS_STATUS" t_SUB_DEPENDS_STATUS
+      cat $spell_sub_depends >> $t_SUB_DEPENDS_STATUS
+      lock_commit_transaction $SUB_DEPENDS_STATUS
+    fi
 
     #   if theres a tablet dir, store it with a new timestamp
     if new_tablet=$(tablet_get_path $SPELL) ; then
