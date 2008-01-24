@@ -81,9 +81,9 @@ EOF
 
 #---------------------------------------------------------------------
 ## @Aguments Arguments of cast
-## @Globals DEPS_ONLY RECONFIGURE COMPILE 
+## @Globals DEPS_ONLY RECONFIGURE COMPILE
 ## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT SEPARATE
-## @Globals BASE_URL INSTALL_QUEUE 
+## @Globals BASE_URL INSTALL_QUEUE
 ##
 #---------------------------------------------------------------------
 function process_parameters()  {
@@ -126,7 +126,7 @@ function process_parameters()  {
     else
 
       shift
- 
+
    fi
 
   done
@@ -176,7 +176,7 @@ function strip_parameters()  {
 
       echo  $1
       shift
- 
+
    fi
 
   done
@@ -212,7 +212,7 @@ function cast_spell()  { (
   debug "cast" "Casting spell [$SPELL]"
   set_term_title "Casting spell [$SPELL]"
 
-  run_details 
+  run_details
   load_build_api || return 1
 
 # these both prompt, and prompting should NOT occur at this point
@@ -231,7 +231,7 @@ function cast_spell()  { (
   fi
 
   verify_sources ||   return 1
-  
+
   # wait for solo casts, to finish and ensure that others can't
   acquire_cast_lock
 
@@ -245,19 +245,19 @@ function cast_spell()  { (
   # must declare OPS before sourcing config
   local OPTS
   export OPTS
-  run_spell_config                            
+  run_spell_config
 
   libtrack_init
 
   local spell_depends spell_sub_depends
   get_uncommitted_depends_file $SPELL spell_depends
-  test -e $spell_depends && 
+  test -e $spell_depends &&
   OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
 
   get_uncommitted_sub_depends_file $SPELL spell_sub_depends
-  test -e $spell_sub_depends && 
+  test -e $spell_sub_depends &&
   local PROCESSED_SUB_DEPENDS=$(cut -f3 -d: $spell_sub_depends|tr '\n' ' ')
-  
+
   # HACK for bug 2910 and 10546
   local saved_lc_all=$LC_ALL
   export LC_ALL=C
@@ -322,12 +322,12 @@ function pass_one()  {
 
   # special case of no spell making it through dependency resolution
   # or if DEPS_ONLY is set, there arent any dependent spells to cast
-  if [ -z "$SPELLS_TO_CAST" ] ; then 
+  if [ -z "$SPELLS_TO_CAST" ] ; then
     local cannot_cast=$(hash_get_table_fields "bad_spells")
     message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Cannot cast these spells:${DEFAULT_COLOR}"
     message "---------------------------"
-    message "${PROBLEM_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column 
+    message "${PROBLEM_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column
     message "${DEFAULT_COLOR}"
     exit 1
   fi
@@ -362,13 +362,13 @@ function pass_one()  {
     SPELLS_TO_CAST=$(hash_get_table_fields "deps_only"|tr '\n' ' ')
     hash_reset deps_only
     hash_reset looked_at
-    if [ -z "$SPELLS_TO_CAST" ] ; then 
+    if [ -z "$SPELLS_TO_CAST" ] ; then
       local parents=$(hash_get_table_fields "to_cast")
       message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
       message "${MESSAGE_COLOR}None of the spells have dependencies" \
               "to cast:${DEFAULT_COLOR}"
       message "---------------------------"
-      message "${PROBLEM_COLOR}${parents}" | tr '[:blank:]' '\n' | column 
+      message "${PROBLEM_COLOR}${parents}" | tr '[:blank:]' '\n' | column
       message "${DEFAULT_COLOR}"
       exit 1
     fi
@@ -389,10 +389,10 @@ function pass_one()  {
 #---------------------------------------------------------------------
 ## @Arguments Spells to be cast
 ## @Stdout the "Spells are to be cast" message.
-## @Stdin User interface, y or n  
+## @Stdin User interface, y or n
 ## @Globals SEPARATE
 ## Asks whether you want to cast the listed spells or not.
-## Returns if not. 
+## Returns if not.
 ## Then it starts pass three and four by calling make.
 ## Depending on SEPARATE it starts pass three in the background
 ## or not.
@@ -406,7 +406,7 @@ function pass_two()  {
 
   message "${MESSAGE_COLOR}Spells are to be cast:${DEFAULT_COLOR}"
   message "---------------------------"
-  message "${SPELL_COLOR}${SPELLS_TO_CAST}" | tr '[:blank:]' '\n' | column 
+  message "${SPELL_COLOR}${SPELLS_TO_CAST}" | tr '[:blank:]' '\n' | column
   message "${DEFAULT_COLOR}"
 
   if ! query "Do you want to cast these spells?" "y" ; then
@@ -417,7 +417,7 @@ function pass_two()  {
   rm -f $TMP_DIR/pass_three.done # don't return until this file exists
   MINUS_K=yes
   if  [[  $SEPARATE   ]] ; then
-    ( CAST_PASS="three" 
+    ( CAST_PASS="three"
       depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
       if [[ $SCREEN_NAME ]] ; then
         screen_notify "$SCREEN_NAME" "Done downloading"
@@ -437,16 +437,16 @@ function pass_two()  {
       touch $TMP_DIR/pass_three.done &>/dev/null
     ) &
   fi
-  
+
   debug "cast" "Starting stage four make."
-  
+
   (
-    CAST_PASS="four" 
+    CAST_PASS="four"
     depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
     touch $TMP_DIR/pass_four.done
   )
 
-  
+
   # pass three might not finish, give it a short amount of time to complete
   # in case its near the end of a download or something, if after a minute
   # it doesn't finish just kill everything off.
@@ -456,7 +456,7 @@ function pass_two()  {
   if ! test -e $TMP_DIR/pass_three.done; then
     message "Download pass has not completed yet, pausing momentarily"
   fi
-  while ! test -e $TMP_DIR/pass_three.done; do 
+  while ! test -e $TMP_DIR/pass_three.done; do
     sleep 5
     let i+=5
     if [[ $i -gt 60 ]] ; then
@@ -501,8 +501,8 @@ function pass_three()  {
     # Neither tail not cat work properly on FIFOs so a while loop will
     # have to be used
     screen_new_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL" \
-      /bin/bash -c  'while : ; do 
-          read LINE && echo $LINE || sleep 0.1 ; 
+      /bin/bash -c  'while : ; do
+          read LINE && echo $LINE || sleep 0.1 ;
         done < '$TMP_DIR/download.fifo
     sleep 0.1
   fi
@@ -511,11 +511,11 @@ function pass_three()  {
     screen_name_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL"
     # symlink the d/l log to the fifo
     ln -s $TMP_DIR/download.fifo $download_log
-  else 
+  else
     # normal non-screen cast, create a normal file
     touch $download_log
   fi
-  
+
   # check if this is being resurrected and if so, don't summon
   # this will go away when resurrect support and dependency resolution merge
   if ! [[ $COMPILE ]] ; then
@@ -530,7 +530,7 @@ function pass_three()  {
       return
     fi
   fi
-  
+
   if  [[  $SEPARATE   ]] ; then
     summon_spell "$SPELL" >"$download_log"
   else
@@ -538,7 +538,7 @@ function pass_three()  {
     summon_spell "$SPELL" >  "$download_log"
     unlock_file   $download_log
   fi
-  
+
   # This is to notify show_downloading/cast_spell that it is done with
   # this source
   touch "${download_log}.done"
@@ -549,7 +549,7 @@ function pass_three()  {
 ## @Globals SPELL COMPILE
 ## Sets SPELL to spellname.
 ## Calls trigger "pre_cast"
-## If COMPILE is not set and it can be resurrected 
+## If COMPILE is not set and it can be resurrected
 ## (can_resurrect SPELL) it calls resurrect with SPELL as argument.
 ## Otherwise it calls cast_spell.
 ## If resurrect or cast_spell returned 0 it calls trigger "cast"
@@ -613,7 +613,7 @@ function pass_five()  {
   touch $CHECK_TRIGGERS_SUCCESS
   touch $CHECK_TRIGGERS_FAILURE
   touch $CONFLICT_LIST
-  
+
   debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
   debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
   debug "pass_five" "CONFLICT LIST is : `cat $CONFLICT_LIST 2>/dev/null`"
@@ -628,11 +628,11 @@ function pass_five()  {
     for item in `cat $SUCCESS_LIST 2>/dev/null`; do
       message "$item"
     done | column
-   
+
     set_term_title "Casting successful."
     message "${DEFAULT_COLOR}"
 
-  fi 
+  fi
 
   if  [  -s  $CHECK_TRIGGERS_SUCCESS ] ; then
     message "${DEFAULT_COLOR}"
@@ -655,7 +655,7 @@ function pass_five()  {
   fi
 
   local NOT_CAST
-  NOT_CAST=$( { hash_get_table_fields to_cast 
+  NOT_CAST=$( { hash_get_table_fields to_cast
     cat $SUCCESS_LIST
     cat $FAILED_LIST
     cat $CHECK_TRIGGERS_SUCCESS
@@ -677,13 +677,13 @@ function pass_five()  {
     done | column
     message "${DEFAULT_COLOR}"
   fi
-  
+
   #
-  # To check for failed spells, we only need to see what is remaining in the 
+  # To check for failed spells, we only need to see what is remaining in the
   # install queue.
   #
   if  [  -s  $FAILED_LIST   ] ; then
-    
+
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that encountered problems:"
     message "---------------------------------${PROBLEM_COLOR}"
@@ -696,8 +696,8 @@ function pass_five()  {
     message "${DEFAULT_COLOR}"
     return 1
 
-  fi 
-  
+  fi
+
   if [[ "$CAST_QUEUE" == "yes" ]] ; then
     if  [  -s  $INSTALL_QUEUE  ] ; then
       message "${MESSAGE_COLOR}The install queue is not empty, "
@@ -717,7 +717,7 @@ function pass_five()  {
 #---------------------------------------------------------------------
 ## @Arguments Spells to cast
 ## @Globals CAST_PASS
-## 
+##
 ## Starts the passes and sets CAST_PASS accordingly.
 #---------------------------------------------------------------------
 function pass_zero()  {
@@ -736,7 +736,7 @@ function pass_zero()  {
 
 #---------------------------------------------------------------------
 ## @STDOUT User information ("Cleaning up as well as I can...")
-## That function is being called when the process receives 
+## That function is being called when the process receives
 ## SIGINT. It then calls cleanup.
 #---------------------------------------------------------------------
 function int_trap()
@@ -762,7 +762,7 @@ function cast_cleanup() {
 
 #---------------------------------------------------------------------
 ## @Arguments arguments of cast
-## @Globals CAST_PASS 
+## @Globals CAST_PASS
 ## @return 0 always
 ## Starts prameter processing and casts the given spells.
 ## The list of given spells is being searched for invalid spells
@@ -792,7 +792,7 @@ function main()  {
       fi
 
       SPELLS=$(<$INSTALL_QUEUE)
-    else 
+    else
       message "${MESSAGE_COLOR}Install queue is empty${DEFAULT_COLOR}"
       exit
     fi
@@ -853,32 +853,32 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
   export CHECK_TRIGGERS_SUCCESS="$TMP_DIR/check_trigger_success_list"
   export CHECK_TRIGGERS_FAILURE="$TMP_DIR/check_trigger_failure_list"
   lock_file $SAFE_CAST
-  
+
   cp  $0  $SAFE_CAST
   chmod +x $SAFE_CAST
   exec bash $SAFE_CAST "$@"
-  
+
 else
   export TOP_LEVEL=${TOP_LEVEL:-$SHLVL}
   if  [[  $NICE != "0"  ]] ; then
     renice $NICE -p $$  >/dev/null
   fi
-  
+
   # If we are in a screen, weird things happen if we make another screen.
-  # So disable screen mode if we are in a screen aready which wasn't started 
+  # So disable screen mode if we are in a screen aready which wasn't started
   # by smgl. We also have to make sure this is the top level cast so the SA
   # won't see the message over and over and over
   if  [[ $TERM == screen ]]       &&
       [[ $TOP_LEVEL == $SHLVL ]]  &&
       [[ $SCREEN == on ]]         &&
-      [[ ! $SCREEN_NAME ]] 
+      [[ ! $SCREEN_NAME ]]
   then
     export SCREEN_OVERRIDE=no
     message "${MESSAGE_COLOR}Although screen mode is enabled, you already seem to be in a another"
     message "screen session. Screen-in-screen is disabled."
     message "Continuing with screen mode off.${DEFAULT_COLOR}"
   fi
-  
+
   # Disable screen mode if the appropriate env var is set
   if  [[ $SCREEN_OVERRIDE ]]       &&
       [[ $SCREEN == on ]]
@@ -887,9 +887,9 @@ else
     debug "cast" "Turning $SCREEN_OVERRIDE screen mode"
   fi
 
-  # If screen mode is on, but we aren't in screen, start a new session 
-  # Call to screen_start never exits 
-  if  [[ $SCREEN == on ]]         && 
+  # If screen mode is on, but we aren't in screen, start a new session
+  # Call to screen_start never exits
+  if  [[ $SCREEN == on ]]         &&
       [[ $TERM != screen ]]
   then
     SCREEN_NAME="ScreenCast $*"
@@ -898,21 +898,21 @@ else
     echo "WTF?? We should not get here. screen_start execs!"
     exit 1
   fi
-  
+
   # If running in screen, screen mode is on, screen was started by us
   # and finally, it hasn't been initialized yet.
-  if  [[ $TERM == screen ]]       && 
-      [[ $SCREEN == on ]]         && 
-      [[ $SCREEN_NAME ]]          && 
+  if  [[ $TERM == screen ]]       &&
+      [[ $SCREEN == on ]]         &&
+      [[ $SCREEN_NAME ]]          &&
       [[ ! $SCREEN_INITIALIZED ]]
   then
     debug "cast" "Initializing screen windows"
     screen_name_window "$SCREEN_NAME" $SCREEN_MAIN_WIN "Main"
 
     # Start debugging window if debugging is on and not set to /dev*
-    if  [[ $DEBUG ]]              && 
+    if  [[ $DEBUG ]]              &&
         [[ ${DEBUG#/dev} == $DEBUG ]]
-    then 
+    then
       touch $DEBUG
       screen_new_window "$SCREEN_NAME" $SCREEN_DEBUG_WIN "Debug" \
       tail -f -n 0 -s 0.1 $DEBUG
@@ -935,7 +935,7 @@ else
   if [[ $SCREEN_NAME ]] && [[ $TOP_LEVEL -eq $SHLVL ]] ;  then
     screen_notify "$SCREEN_NAME" "Done casting"
     message -n "Press enter to exit screen."
-    read 
+    read
     screen_quit "$SCREEN_NAME"
   fi
   exit $rc
