@@ -618,22 +618,22 @@ function search_spell_status() {
 function query_spell_status()
 { #$1=spell, $2=(OPT)version
 
-  local version return_var __status rc
-  if [[ -z $3 ]]; then
-    version=".*"
-    return_var="$2"
-  else
-    version=`esc_str ${2:-".*"}`
-    return_var="$3"
-  fi
+  local return_var __status
+  [[ -e $SPELL_STATUS ]] || return 1
 
   lock_file "$SPELL_STATUS"
-  __status=$(sed -n "/^$1:.*:\(.*\):$version$/ { s,,\1,; h }; $ {x; p}" "$SPELL_STATUS")
-  rc=$?
+  if [[ -z $3 ]]; then
+    [[ -z $2 ]] && return 0
+    return_var="$2"
+    __status=$(awk -F: -v spell="$1" '{ if (spell == $1) status=$3 } END{print status}' "$SPELL_STATUS")
+  else
+    return_var="$3"
+    __status=$(awk -F: -v spell="$1" -v version="$2" '{ if (spell == $1 && version == $4) status=$3 } END{print status}' "$SPELL_STATUS")
+  fi
   unlock_file "$SPELL_STATUS"
-  eval "$return_var=\"\$__status\""
 
-  return $rc
+  eval "$return_var=\"\$__status\""
+  return 0
 }
 
 #---------------------------------------------------------------------
