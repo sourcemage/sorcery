@@ -606,6 +606,7 @@ function pass_four()  {
 function pass_five()  {
 
   debug "cast" "Function : pass_five"
+  local rc=0
 
   # must exist or we get problems with checks here.
   touch $SUCCESS_LIST
@@ -694,7 +695,7 @@ function pass_five()  {
 
     set_term_title "Casting failed."
     message "${DEFAULT_COLOR}"
-    return 1
+    rc=1
 
   fi
 
@@ -707,11 +708,29 @@ function pass_five()  {
         message "$item"
       done | column
       message "${DEFAULT_COLOR}"
-      return 1
+      rc=1
     fi
   fi
-  debug "cast" "End of pass_five"
 
+  # check if confmeld should be run
+  local spell deferred_list
+  while read spell; do
+    # ignore the date - previously deferred files should be merged too
+    if [[ -d $CONFIG_STAGE_DIRECTORY/$spell ]]; then
+      deferred_list="$spell $deferred_list"
+    fi
+  done < $SUCCESS_LIST
+  if [[ $deferred_list ]]; then
+    message "${MESSAGE_COLOR}Cast deferred installing some configuration files."
+    message "The following spells have pending updates: "
+    message "---------------------------------$SPELL_COLOR"
+    message "$deferred_list" | column
+    message "${MESSAGE_COLOR}Please run confmeld to merge them into your system."
+    message "$DEFAULT_COLOR"
+  fi
+
+  debug "cast" "End of pass_five"
+  return $rc
 }
 
 #---------------------------------------------------------------------
