@@ -26,7 +26,7 @@ EOF
 
 #--------------------------------------------------------------------
 ## List all the configs in the config stage root
-## 
+##
 ## @stdout a list of all configs in the config stage root
 #--------------------------------------------------------------------
 function all_config_files()
@@ -96,16 +96,16 @@ function process_parameters()
 
 #--------------------------------------------------------------------
 ## Main
-## 
+##
 ## No real arguments get all the config files and start installing
 ## them to the system using install_config_file
 #--------------------------------------------------------------------
 function main()
 {
-  local target spell sdate 
+  local target spell sdate
   local last_spell=""
   local last_sdate=""
-  
+
   process_parameters "$@"
 
   for file in $(all_config_files)
@@ -118,11 +118,11 @@ function main()
       tablet_set_spell $spell &&
       install_config_file $file $INSTALL_ROOT/$target
       #
-      # since we use find we need to remove empty directories 
-      # so if the spell or the date changes then we remove the directory so 
+      # since we use find we need to remove empty directories
+      # so if the spell or the date changes then we remove the directory so
       # CONFIG_STAGE_DIRECTORY should always be empty after you complete the
       # call to confmeld
-      # 
+      #
       # find does a preorder traversal of the directory tree keeping the path
       # (esentially a stack) of where its been in the tree. If a particular date
       # or spell name changes at the same level in the tree we can safely assume
@@ -149,7 +149,7 @@ function main()
   #
   if [[ $last_spell ]]
   then
-    message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"    
+    message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
     rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
   fi
 }
