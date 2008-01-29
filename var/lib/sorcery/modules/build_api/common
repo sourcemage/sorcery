@@ -317,7 +317,16 @@ function run_spell_success() {
     # md5sum log
     message  "${MESSAGE_COLOR}Creating MD5 log"        \
              "${FILE_COLOR}${MD5_LOG}${DEFAULT_COLOR}"
-    create_md5list $TMP_INST_LOG $TMP_MD5_LOG
+    if [[ $STAGED_INSTALL == on ]]; then
+      # save the md5sums of the files in the stage and not the target
+      # ones on the system, otherwise config merging breaks #13835
+      local STAGE_INST_LOG="$TMP_DIR/$SPELL-$VERSION.stage.install"
+      create_stage_install_log $TMP_INST_LOG $STAGE_INST_LOG
+      create_md5list $STAGE_INST_LOG $TMP_MD5_LOG
+      sed -i "s#${STAGE_DIRECTORY}/TRANSL##g" $TMP_MD5_LOG
+    else
+      create_md5list $TMP_INST_LOG $TMP_MD5_LOG
+    fi
     log_adjuster $TMP_MD5_LOG $MD5_LOG root log md5_log_filter
 
     # do this before cache archive creation (bug 8249)
@@ -335,8 +344,8 @@ function run_spell_success() {
     create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
-    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends \
-           "$spell_sub_depends" "$spell_rsub_depends"
+    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG "$STAGE_INST_LOG" \
+           "$spell_sub_depends" "$spell_rsub_depends" "$spell_depends"
 }
 
 #---------------------------------------------------------------------

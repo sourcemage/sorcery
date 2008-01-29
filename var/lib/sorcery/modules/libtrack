@@ -243,6 +243,26 @@ function create_install_log()  {
 }
 
 #---------------------------------------------------------------------
+##
+## Creates the install log containing all staged files. It reuses
+## the existing install log and just prepends $STAGE_DIRECTORY/TRANSL
+## to every line
+##
+## @param input log file
+## @param output log file
+##
+#---------------------------------------------------------------------
+function create_stage_install_log()  {
+  debug  "libtrack" "$FUNCNAME on $SPELL"
+  local input="$1"
+  local output="$2"
+
+  # the three cast logs weren't staged, but we'll deal with that later/manually
+  sed "s#^#$STAGE_DIRECTORY/TRANSL#" "$input" > "$output"
+
+}
+
+#---------------------------------------------------------------------
 ## Makes a list of files with the md5sum
 #---------------------------------------------------------------------
 function create_md5list() {
