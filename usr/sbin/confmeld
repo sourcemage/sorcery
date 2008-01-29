@@ -113,8 +113,9 @@ function main()
     parse_stage_config_path $file spell sdate target &&
     if [[ -f $file && $target ]]
     then
-      message "${MESSAGE_COLOR}$spell cast on $sdate has config${DEFAULT_COLOR}"
-      message "${MESSAGE_COLOR}$file to be merged with /$target${DEFAULT_COLOR}"
+      message "${SPELL_COLOR}$spell$DEFAULT_COLOR cast on $sdate has config"
+      message "${FILE_COLOR}$file$DEFAULT_COLOR"
+      message "to be merged with $FILE_COLOR/$target${DEFAULT_COLOR}\n"
       tablet_set_spell $spell &&
       install_config_file $file $INSTALL_ROOT/$target
       #
@@ -149,7 +150,7 @@ function main()
   #
   if [[ $last_spell ]]
   then
-    message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
+    message "\n${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
     rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
   fi
   find $CONFIG_STAGE_DIRECTORY -mindepth 1 -maxdepth 2 -type d -empty -delete
