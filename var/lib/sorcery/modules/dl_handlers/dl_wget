@@ -2,14 +2,14 @@
 #---------------------------------------------------------------------
 ##
 ##=head1 SYNOPSIS
-## 
+##
 ## Url handler functions for downloading http, https, and ftp urls
 ##
 ##=head1 DESCRIPTION
 ##
-## This file contains functions for downloading and verifying 
+## This file contains functions for downloading and verifying
 ## http, https, and ftp urls.  This file uses the "wget" program.
-## 
+##
 ##=head1 COPYRIGHT
 ##
 ## Copyright 2002 by the Source Mage Team
@@ -52,11 +52,11 @@ function dl_wget_get() {
 
 #---------------------------------------------------------------------
 # dl_wget_call_wget <filename> <extension-less filename> <url>
-# 
+#
 # Private Function.  Call wget to download the url.
 #
 #---------------------------------------------------------------------
-function dl_wget_call_wget()  {  
+function dl_wget_call_wget()  {
   local FILE=$1
   local URL=$2
 
@@ -73,8 +73,8 @@ function dl_wget_call_wget()  {
 }
 
 #---------------------------------------------------------------------
-# dl_wget_set_wget_options 
-# 
+# dl_wget_set_wget_options
+#
 # Private Function.  Sets wget options
 #
 #---------------------------------------------------------------------
@@ -88,7 +88,7 @@ function dl_wget_set_options()  {
 
   # Check for ? in the url, this seems to indicate that there may be
   # some cgi redirection involved which means continued downloading would
-  # not work (bug 8993). 
+  # not work (bug 8993).
   # The sourceforge check pre-dates that but is lacking any documentation,
   # I suspect it is a less general attempt to solve the same problem.
   # (afk 2005-06-25)
@@ -113,13 +113,13 @@ function dl_wget_set_options()  {
   else
     URL_HTTP_RETRIES="-t 3"
   fi
-  
+
   ONLY_NEWER=""
   DEREF_SYM="--retr-symlinks"
 
   WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM"
   debug 'dl_wget' "wget options: $WGET_OPTIONS"
-} 
+}
 #---------------------------------------------------------------------
 ##=back
 ##
