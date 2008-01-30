@@ -257,8 +257,12 @@ function create_stage_install_log()  {
   local input="$1"
   local output="$2"
 
-  # the three cast logs weren't staged, but we'll deal with that later/manually
-  sed "s#^#$STAGE_DIRECTORY/TRANSL#" "$input" > "$output"
+  # treat the logs specially, as they weren't staged
+  grep -v "$C_LOG_COMP\|$MD5_LOG\|$INST_LOG" "$input" > "$output"
+  sed -i "s#^#$STAGE_DIRECTORY/TRANSL#" "$output"
+  echo "$C_LOG_COMP"                 >> "$output"
+  echo "$MD5_LOG"                    >> "$output"
+  echo "$INST_LOG"                   >> "$output"
 
 }
 

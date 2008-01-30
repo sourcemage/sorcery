@@ -309,6 +309,16 @@ function run_spell_success() {
     # reformatted to "log" format (see log_adjuster in libtrack for details)
     # but basically replacing INSTALL_ROOT with TRACK_ROOT
     create_install_log $IW_LOG $TMP_INST_LOG
+    if [[ $STAGED_INSTALL == on ]]; then
+      # save the md5sums of the files in the stage and not the target
+      # ones on the system, otherwise config merging breaks #13835
+      # for this we need an "install" log of what is in the stage
+      local STAGE_INST_LOG="$TMP_DIR/$SPELL-$VERSION.stage.install"
+      create_stage_install_log $TMP_INST_LOG $STAGE_INST_LOG
+      if [[ $tablet_dir ]] ; then
+        find $tablet_dir >> $STAGE_INST_LOG
+      fi
+    fi
     if [[ $tablet_dir ]] ; then
       find $tablet_dir >> $TMP_INST_LOG
     fi
@@ -318,10 +328,6 @@ function run_spell_success() {
     message  "${MESSAGE_COLOR}Creating MD5 log"        \
              "${FILE_COLOR}${MD5_LOG}${DEFAULT_COLOR}"
     if [[ $STAGED_INSTALL == on ]]; then
-      # save the md5sums of the files in the stage and not the target
-      # ones on the system, otherwise config merging breaks #13835
-      local STAGE_INST_LOG="$TMP_DIR/$SPELL-$VERSION.stage.install"
-      create_stage_install_log $TMP_INST_LOG $STAGE_INST_LOG
       create_md5list $STAGE_INST_LOG $TMP_MD5_LOG
       sed -i "s#${STAGE_DIRECTORY}/TRANSL##g" $TMP_MD5_LOG
     else
