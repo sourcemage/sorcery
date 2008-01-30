@@ -132,16 +132,17 @@ function main()
       #
       if [[ $last_sdate && $last_sdate != $sdate ]]
       then
-        message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
+        message "${MESSAGE_COLOR}Removing stale dirs and files in the config stage area.${DEFAULT_COLOR}"
         rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell/$last_sdate
       fi
       if [[ $last_spell && $last_spell != $spell ]]
       then
-        message "${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
+        message "${MESSAGE_COLOR}Removing stale dirs and files in the config stage area.${DEFAULT_COLOR}"
         rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
       fi
       last_sdate="$sdate"
       last_spell="$spell"
+      echo -e "\n"
     fi
   done
   #
@@ -150,7 +151,7 @@ function main()
   #
   if [[ $last_spell ]]
   then
-    message "\n${MESSAGE_COLOR}Removing dirs and files in config stage area.${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Removing any remaining stale dirs and files in the config stage area.${DEFAULT_COLOR}"
     rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
   fi
   find $CONFIG_STAGE_DIRECTORY -mindepth 1 -maxdepth 2 -type d -empty -delete
