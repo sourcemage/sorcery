@@ -45,9 +45,15 @@ function url_https_bucketize() {
 #---------------------------------------------------------------------
 function url_http_verify() {
   local  URL=$1
+  local hints="$2"
+  local check_certificate
+
+  if list_find "$hints" no-check-certificate; then
+    check_certificate=--no-check-certificate
+  fi
 
   if [  -n  "$URL"  ]; then
-    if  OUTPUT=`wget --passive-ftp -t 1 -T 30 --spider "$URL" 2>&1`;  then
+    if  OUTPUT=`wget --passive-ftp -t 1 -T 30 --spider $check_certificate "$URL" 2>&1`;  then
       true
     else
       echo  $OUTPUT
@@ -65,7 +71,7 @@ function url_http_verify() {
 ##
 #---------------------------------------------------------------------
 function url_https_verify() {
-  url_http_verify  $1
+  url_http_verify  "$@"
 }
 
 

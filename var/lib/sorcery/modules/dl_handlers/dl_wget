@@ -36,7 +36,7 @@ function dl_wget_get() {
 
   for url in $url_list; do
     local WGET_OPTIONS
-    dl_wget_set_options  $url
+    dl_wget_set_options $url $hints
     dl_wget_call_wget  $target $url
     rc=$?
     [[ $rc == 0 ]] && break
@@ -80,6 +80,8 @@ function dl_wget_call_wget()  {
 #---------------------------------------------------------------------
 function dl_wget_set_options()  {
   local URL=$1
+  local hints="$2"
+
   if [  -n  "$ACTIVE_FTP"  ] ; then
     unset  PASSIVE
   else
@@ -114,10 +116,15 @@ function dl_wget_set_options()  {
     URL_HTTP_RETRIES="-t 3"
   fi
 
+  local check_certificate
+  if list_find "$hints" no-check-certificate; then
+    check_certificate=--no-check-certificate
+  fi
+
   ONLY_NEWER=""
   DEREF_SYM="--retr-symlinks"
 
-  WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM"
+  WGET_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $NO_CACHE $RATE $PASSIVE $CONTINUE $ONLY_NEWER $DEREF_SYM $check_certificate"
   debug 'dl_wget' "wget options: $WGET_OPTIONS"
 }
 #---------------------------------------------------------------------
