@@ -62,9 +62,9 @@ EOF
 ## Common error messag when downloading a grimoire fails.
 #---------------------------------------------------------------------
 function scribe_download_fail_error_msg() {
-    message "Error downloading grimoire..."
-    message "Grimoire tarballs are located at $CODEX_TARBALL_URL"
-    message "Grimoire rsync modules are located at $CODEX_RSYNC_URL"
+  error_message "Error downloading grimoire..."
+  error_message "Grimoire tarballs are located at $CODEX_TARBALL_URL"
+  error_message "Grimoire rsync modules are located at $CODEX_RSYNC_URL"
 }
 
 #---------------------------------------------------------------------
@@ -78,13 +78,13 @@ function unpackage_grimoire_tarball() {
   if tar -xjf $tarball 1>/dev/null 2>&1; then
     # ensure the grimoire unpacked where it was expected to
     if ! [ -d $grimoire ]; then
-      message "ERROR: Grimoire tarball for $grim_name not" \
-              "formatted correctly!."
+      error_message "ERROR: Grimoire tarball for $grim_name not" \
+                    "formatted correctly!"
       return 1
     fi
     return 0
   else
-    message "ERROR: Grimoire tarball for $grim_name did not unpack properly!"
+    error_message "ERROR: Grimoire tarball for $grim_name did not unpack properly!"
     return 1
   fi
 }
@@ -112,7 +112,7 @@ function scribe_validate_tree_common() {
   local grim_name=$2
   local grimoire=$3
     if ! test -d "$scribe_target"; then
-      message "Downloaded a tree but directory doesn't exist! file a bug if you see this"
+      error_message "Downloaded a tree but directory doesn't exist! file a bug if you see this."
       return 1
     fi
     if [[ "$scribe_target" != "$grim_name" ]] ; then
@@ -157,14 +157,14 @@ function scribe_add() {
     fi
 
     if codex_find_grimoire $grimoire >/dev/null; then
-      message "${PROBLEM_COLOR}There already exists a grimoire with" \
+      error_message "${PROBLEM_COLOR}There already exists a grimoire with" \
               "the name $grimoire! Refusing to add.${DEFAULT_COLOR}"
       continue
     fi
 
     # avoid deleting $grimoire if it is a dir #13742
     if [[ -d $grimoire ]]; then
-      message "${PROBLEM_COLOR}The grimoire $grimoire is an" \
+      error_message "${PROBLEM_COLOR}The grimoire $grimoire is an" \
               "exsisting directory! Refusing to add!${DEFAULT_COLOR}"
       continue
     fi
@@ -201,14 +201,14 @@ function scribe_add_update_worker() {
   local add_or_update=$3
 
   if [ -z $grimoire ] ; then
-    message "Empty grimoire name! Please contact the sorcery team if" \
-            "you see this"
+    error_message "Empty grimoire name! Please contact the sorcery team if" \
+            "you see this."
     return 1
   fi
 
   if [[ $add_or_update == update ]] ; then
     if ! test -d $grimoire ; then
-      message "$grimoire is not a directory! refusing to update"
+      error_message "$grimoire is not a directory! refusing to update!"
       return 1
     fi
   fi
@@ -221,7 +221,7 @@ function scribe_add_update_worker() {
   if  [ -n "$from" ];  then
     if ! url_is_valid "$from"; then
       #if not valid, use default
-      message  "Error: $from is not a recognized url. Using default."
+      error_message  "Error: $from is not a recognized url. Using the default."
       from=""
     else
       grim_target=$(basename $from)
@@ -233,7 +233,7 @@ function scribe_add_update_worker() {
     #from is empty - use the default
     prefix=$(url_get_prefix $CODEX_URL)
     if [[ $? != 0 ]]; then
-      message "${PROBLEM_COLOR}Failed to get the \$CODEX_URL prefix!" \
+      error_message "${PROBLEM_COLOR}Failed to get the \$CODEX_URL prefix!" \
       "${DEFAULT_COLOR}"
       popd &>/dev/null
       return 1
@@ -300,7 +300,7 @@ function scribe_add_update_worker() {
       popd &>/dev/null; return 1
     fi
   else
-    message "Unknown download type $scribe_type, file a bug if you see this"
+    error_message "Unknown download type $scribe_type, file a bug if you see this."
     return 1
   fi
   popd &>/dev/null
@@ -339,7 +339,7 @@ function scribe_fix() {
   for grim in $grimoires; do
 
     if ! grimoire=$(codex_find_grimoire $grim) ; then
-      message "Grimoire $grim not found"
+      error_message "Grimoire $grim not found!"
       return 1
     fi
 
@@ -348,13 +348,13 @@ function scribe_fix() {
       if scribe_fix_metadata $grimoire; then
         message "$grimoire fixed."
       else
-        message "$grimoire not fixed"
+        error_message "$grimoire not fixed!"
       fi
     elif query "Metadata for $grimoire found. Fix anyway?" n; then
       if scribe_fix_metadata $grimoire 1; then
         message "$grimoire fixed."
       else
-        message "$grimoire not fixed"
+        error_message "$grimoire not fixed!"
       fi
     else
       message "$grimoire ignored"
@@ -375,7 +375,7 @@ function scribe_fix_metadata() {
   local URL grimoire_dir grimoire_name
 
   if ! grimoire_dir=$(codex_find_grimoire $1) ; then
-    message "Grimoire $1 not found, this may be a sorcery bug..."
+    error_message "Grimoire $1 not found, this may be a sorcery bug..."
     return 1
   fi
   grimoire_name=$(basename $1)
@@ -444,7 +444,7 @@ function scribe_localize() {
 function scribe_localize_sub() {
     path=$(codex_find_grimoire $grimoire)
     if [ -z "$path" ]; then
-      message "No such grimoire: $grimoire"
+      error_message "No such grimoire: $grimoire"
       continue
     fi
     touch "$path/GRIMOIRE" &&
@@ -470,7 +470,7 @@ function scribe_reindex() {
 
   for grim in $grimoires; do
     if ! grimoire=$(codex_find_grimoire $grim) ; then
-      message "Grimoire $grim not found"
+      error_message "Grimoire $grim not found!"
       return 1
     fi
     paths="$paths $grimoire"
@@ -502,7 +502,7 @@ function scribe_reindex_keyword() {
 
   for grim in $grimoires; do
     if ! grimoire=$(codex_find_grimoire $grim) ; then
-      message "Grimoire $grim not found"
+      error_message "Grimoire $grim not found!"
       return 1
     fi
     message -n "Reindexing keywords for $grim ..."
@@ -526,7 +526,7 @@ function scribe_remove() {
     # if the grimoire name starts with / they may have given a
     # full path, the [[ ]] actually doesnt expand /* to $(ls /)
     if ! grimoire=$(codex_find_grimoire $grim) ; then
-      message "Grimoire $grim not found"
+      error_message "Grimoire $grim not found!"
       return 1
     fi
 
@@ -534,7 +534,7 @@ function scribe_remove() {
     rm -rf $grimoire &&
     message "Removing grimoire $grimoire from codex" &&
     codex_remove_grimoire $grimoire ||
-    { message "An error occured trying to remove $grimoire, I wonder why"
+    { error_message "An error occured trying to remove $grimoire, I wonder why?"
       return 1
     }
   done
@@ -556,19 +556,19 @@ function scribe_set(){
   local grim2=$2 grimoire2
   local idx1 idx2
   if [ $grim1 == $grim2 ] ; then
-    message "$grim1 IS $grim2, can't set a grimoire to itself"
+    error_message "$grim1 IS $grim2, can't set a grimoire to itself!"
     return 1
   fi
   if ! codex_find_grimoire $grim1 grimoire1 idx1 ; then
-    message "Grimoire $grim1 not found"
+    error_message "Grimoire $grim1 not found!"
     return 1
   fi
   if ! codex_find_grimoire $grim2 grimoire2 idx2 ; then
-    message "Grimoire $grim2 not found"
+    error_message "Grimoire $grim2 not found!"
     return 1
   fi
   if [ $idx1 -eq $idx2 ] ; then
-    message "This shouldn't happen, but if it does contact the sorcery team"
+    error_message "This shouldn't happen, but if it does contact the sorcery team."
     return 1
   elif [ $idx1 -lt $idx2 ] ; then
     let idx2-- # grim1 is before grim2, by removing grim1, the position
@@ -596,11 +596,11 @@ function scribe_swap() {
   local grim2=$2 grimoire2
   local idx1 idx2
   if ! codex_find_grimoire $grim1 grimoire1 idx1 ; then
-    message "Grimoire $grim1 not found"
+    error_message "Grimoire $grim1 not found!"
     return 1
   fi
   if ! codex_find_grimoire $grim2 grimoire2 idx2 ; then
-    message "Grimoire $grim2 not found"
+    error_message "Grimoire $grim2 not found!"
     return 1
   fi
   message -n "swapping "
@@ -624,21 +624,21 @@ function scribe_update() {
     while [ -n "$1" ] ; do
       grim="$1"
       if ! grimoire=$(codex_find_grimoire $grim) ; then
-        message "Grimoire $grim not found"
+        error_message "Grimoire $grim not found!"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         let rc++
         continue
       fi
 
       if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grim; then
-        message "$grim has invalid metadata. Not Updating"
+        error_message "$grim has invalid metadata. Not Updating!"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         let rc++
         continue
       fi
 
       if codex_is_local $grimoire; then
-        message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is marked" \
+        error_message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is marked" \
                 "as local. Won't update.${DEFAULT_COLOR}"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         continue
@@ -664,12 +664,12 @@ function scribe_update() {
       grim=$(basename $grimoire)
       if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grimoire; then
         #no metadata found. dont auto-update
-        message "$grim has invalid metadata. Not Updating"
+        error_message "$grim has invalid metadata. Not Updating!"
         continue
       fi
 
       if codex_is_local $grimoire; then
-        message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is marked as local. Won't update.${DEFAULT_COLOR}"
+        error_message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is marked as local. Won't update.${DEFAULT_COLOR}"
         continue
       fi
 
