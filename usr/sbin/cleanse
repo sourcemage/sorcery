@@ -2,7 +2,7 @@
 
 #---------------------------------------------------------------------
 ## This script should clean up the sorcery files, particularly
-## the depends and packages files. It should validate the files 
+## the depends and packages files. It should validate the files
 ## remove corrupted lines, and ensure the information all agrees
 ## with itself. It is also to clean out unused lines and files.
 ##
@@ -37,7 +37,7 @@ function usage()
 {
   local s=$(basename $0)
 cat << EOF
-Invoke $s with one of the arguments below. 
+Invoke $s with one of the arguments below.
 
 Command         Description
 --delint        Finds stale dependency entries
@@ -102,10 +102,10 @@ function args()
   while [ $# -gt 0 ] ; do
     arg=$1
     shift
-  
+
     case $arg in
       --help)    usage         ;;
-      --delint)  
+      --delint)
         if [[ $1 == full ]] ; then
           delint full
           let rc+=$?
@@ -184,9 +184,9 @@ function delint()
   if [[ $1 == full ]] ; then
     cond=''
   fi
-  
+
   lock_file $DEPENDS_STATUS
-  
+
   message "Pass one (malformed depends lines)"
   # This grep will pull out malformed lines from the depends file
   regex='^[^:]*:[^:]*:(on|off):(optional|required|suggest|runtime):'
@@ -195,7 +195,7 @@ function delint()
     message "The following malformed lines were found"
     message "and will cause problems with the following passes:"
     message "$lines"
-    if query "Do you want them removed" "n" ; then  
+    if query "Do you want them removed" "n" ; then
       message "Removing lines..."
       grep -E "$regex" $DEPENDS_STATUS > $TMP_DIR/delint.1
       mv $TMP_DIR/delint.1 $DEPENDS_STATUS
@@ -208,15 +208,15 @@ function delint()
       return 1
     fi
   fi
-  
+
   generic_remove_stale "$DEPENDS_STATUS" depends two
 
   message "Pass three (duplicate depends entries)"
   for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/p' $DEPENDS_STATUS | sed 's/+/\\+/' | sort | uniq -d ) ; do
     message
     options=()
-    eval $(awk '/^'$LINE':/{ 
-      if(!ENTRIES[$0]) {  
+    eval $(awk '/^'$LINE':/{
+      if(!ENTRIES[$0]) {
         printf("options[%d]=\"%s\"\n", count++, $0); ENTRIES[$0]=1;
       } }' $DEPENDS_STATUS)
     if [ ${#options[@]} -gt 1 ] ; then
@@ -235,7 +235,7 @@ function delint()
 
   touch $SUB_DEPENDS_STATUS
   lock_file $SUB_DEPENDS_STATUS
-  generic_remove_duplicate "$SUB_DEPENDS_STATUS" sub_depends four 
+  generic_remove_duplicate "$SUB_DEPENDS_STATUS" sub_depends four
   generic_remove_stale "$SUB_DEPENDS_STATUS" sub_depends five
   unlock_file $SUB_DEPENDS_STATUS
 
@@ -267,13 +267,13 @@ function generic_remove_stale() {
   local tmp=$TMP_DIR/delint.$2.stale
   local t
   awk -F: '
-    BEGIN { 
-      while (getline < "'$SPELL_STATUS'") 
-        Installed[$1] = 1; 
-    } 
-    { 
-      if ( ! Installed[$1]) 
-        print $0;  
+    BEGIN {
+      while (getline < "'$SPELL_STATUS'")
+        Installed[$1] = 1;
+    }
+    {
+      if ( ! Installed[$1])
+        print $0;
     }' "$1" |tee $tmp
   t=$(wc -l $tmp | awk '{print $1;}')
   message "\t$t bad lines, $(( $(wc -l $1| cut -f1 -d' ') - t))" \
@@ -301,29 +301,29 @@ function prune_depends()
   local action=""
   local LINE DISPEL_LIST CAST_LIST
   local choice options provider spell
-  
+
   # actualy do the actions, or just output what should be done
   if [[ $1 == doit ]] ; then
     action="doit"
   fi
-  
+
   # Lock the depends file so no one messes with it while it's being worked on
-  lock_file $DEPENDS_STATUS  
-  
+  lock_file $DEPENDS_STATUS
+
   # Get a list of bad dependencies
   # Output is in the form "SPELL DEPENDENCY optional/reqired PROVIDER"
   bad=( $( awk -F: '
-    BEGIN { 
-      while (getline < "'$SPELL_STATUS'") 
-        Installed[$1] = 1; 
-    } 
-    $3=="on"{ 
+    BEGIN {
+      while (getline < "'$SPELL_STATUS'")
+        Installed[$1] = 1;
+    }
+    $3=="on"{
       if($2 ~ "[(].*[)]")
         prov=gensub("^.*\\((.*)\\).*$", "\\1", 1, $2);
       else
         prov="__BLANK__";
       gsub("\\(.*\\)", "", $2)
-      if ( Installed[$1] && ! Installed[$2] && $2!="") 
+      if ( Installed[$1] && ! Installed[$2] && $2!="")
         printf("%s %s %s %s\n", $1, $2, $4, prov);
      }' $DEPENDS_STATUS ) )
 
@@ -366,9 +366,9 @@ function prune_depends()
     elif [[ $3 == suggest ]] ; then
       options=( "Ignore" "Dispel $1" "Cast $2" "Disable $2 in $1" "${options[@]}" )
     fi
-    
+
     #Get the user's choice of action
-    select_list choice "" "${options[@]}" 
+    select_list choice "" "${options[@]}"
     case ${choice} in
       I*)  message "Ignoring."                ;;
       Dispel*)  echo $1 >> $TMP_DIR/prune.dispel    ;;
@@ -378,7 +378,7 @@ function prune_depends()
         sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
         mv $TMP_DIR/prune.1 $DEPENDS_STATUS
         ;;
-      Disable*) 
+      Disable*)
         sed 's/^\('$1':'$2':\)on\(:suggest:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
         mv $TMP_DIR/prune.1 $DEPENDS_STATUS
         ;;
@@ -386,20 +386,20 @@ function prune_depends()
         mv $TMP_DIR/prune.1 $DEPENDS_STATUS
         echo $1 >>$TMP_DIR/prune.cast
         ;;
-      *)  message "We should never get here." 
+      *)  message "We should never get here."
         exit 1
         ;;
     esac
     shift 4
   done
-  
-  unlock_file $DEPENDS_STATUS  
-  
+
+  unlock_file $DEPENDS_STATUS
+
   # put the spells in two files for later perusal
   if [[ $action ]] ; then
-    [ -s $TMP_DIR/prune.dispel ] && 
+    [ -s $TMP_DIR/prune.dispel ] &&
       dispel $( sort $TMP_DIR/prune.dispel | uniq )
-    [ -s $TMP_DIR/prune.cast ] && 
+    [ -s $TMP_DIR/prune.cast ] &&
       cast -c $( sort $TMP_DIR/prune.cast | uniq )
   else
     t=$(date +%Y%m%d%s)
@@ -420,7 +420,7 @@ function packages()
   local spell t LINE
   message "Fixing packages..."
   lock_file $SPELL_STATUS
-  
+
   message "Pass 1 (bad lines)"
   sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/!p' $SPELL_STATUS > $TMP_DIR/packages.bad
   if [ -s $TMP_DIR/packages.bad ] ; then
@@ -432,7 +432,7 @@ function packages()
     message "\tRemoving bad entries"
     mv $TMP_DIR/packages.good $SPELL_STATUS
   fi
-  
+
   message "Pass 2 (non-existant spells)"
   t=""
   for spell in $( sed -n 's/^\([^:]*\):.*$/\1/p' $SPELL_STATUS ) ; do
@@ -448,7 +448,7 @@ function packages()
     message "these spells went. They may have been deprecated and then"
     message "removed. You may want to dispel these if that is the case."
   fi
-    
+
   message "Pass 3 (duplicate entries)"
   t=$(
     for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1/p' $SPELL_STATUS | sort | uniq -d ) ; do
@@ -460,7 +460,7 @@ function packages()
     message "\tRemoving bad entries"
     mv $TMP_DIR/packages.3 $SPELL_STATUS
   fi
-  
+
   unlock_file $SPELL_STATUS
   message "Done fixing packages."
 }
@@ -528,15 +528,15 @@ function cleanse_fix()
   echo
   echo ".PHONY : all $SPELLS"
   ) > $MAKEFILE
-  
+
   # load our ldd hash with the spells we know we'll care about
   # but no more then necessary
   cleanse_fix_init_ldd_check $($REAL_MAKE -s -f $MAKEFILE all 2>/dev/null)
 
   local PASSED FIXED HOPELESS TOTALNR CURNR unused
- 
+
   CURNR=0
- 
+
   if [ $FIX == quick ] ; then
     TOTALNR=0 #counting them like this doesn't seem to take substantial time
     for unused in $SPELLS ; do let TOTALNR++ ; done
@@ -627,11 +627,11 @@ function cleanse_fix_spell() {
     return 1
   fi
 
-  cast -c $SPELL                && 
+  cast -c $SPELL                &&
   cleanse_fix_run_checks $SPELL &&
   FIXED="${FIXED}${SPELL}"$'\n' &&
   return 0
-  
+
   # if we get here the spell is deemed hopeless
 
   HOPELESS="${HOPELESS}${SPELL}"$'\n'
@@ -670,7 +670,7 @@ function cleanse_fix_run_checks()  {
 ## @FIXME The skipped directories should be made configurable somewhere
 ## @return 0 The files were all in existance
 ## @return 1 At least one file was found missing
-## 
+##
 #-----------------------
 function cleanse_fix_find_check()  {
   if  [ "$FIND_CHECK" == "off" ] ; then
@@ -713,7 +713,7 @@ function cleanse_fix_find_check()  {
   if [[ $BADLIST ]] ; then
     message "${PROBLEM_COLOR}The following files from"             \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"               \
-            "${PROBLEM_COLOR}don't exist: "$'\n'"${DEFAULT_COLOR}" 
+            "${PROBLEM_COLOR}don't exist: "$'\n'"${DEFAULT_COLOR}"
     message "$BADLIST"
 
     return 1
@@ -729,9 +729,9 @@ function cleanse_fix_find_check()  {
 ## what library directories a spell has libraries in, this is because
 ## some spells have their own private libraries and arent happy if
 ## they dont know where they are
-## 
+##
 #-----------------------
-function cleanse_fix_init_ldd_check()  { 
+function cleanse_fix_init_ldd_check()  {
   if  [ "$LDD_CHECK" == "off" ] ;  then
     return 0
   fi
@@ -758,7 +758,7 @@ function cleanse_fix_init_ldd_check()  {
 ## Check that all libraries the spell binaries need exist
 ## @return 0 The libraries have their requirements met
 ## @return 1 At least one library isnt happy
-## 
+##
 #-----------------------
 function cleanse_fix_ldd_check()  { (
   if  [ "$LDD_CHECK" == "off" ] ;  then
@@ -830,7 +830,7 @@ function cleanse_fix_ldd_check()  { (
 ## Check that all symlink targets exist
 ## @return 0 The symlinks point to real files
 ## @return 1 At least one symlink doesnt have its target
-## 
+##
 #-----------------------
 function cleanse_fix_sym_check() {
   if [ "$SYM_CHECK" == "off" ] ; then
@@ -889,7 +889,7 @@ function cleanse_fix_sym_check() {
 ## Verify the md5sum of all the files
 ## @return 0 The md5sum of a file is incorrect
 ## @return 1 At least one md5sum is wrong
-## 
+##
 #-----------------------
 function cleanse_fix_md5sum_check() {
 
@@ -994,7 +994,7 @@ function cleanse_fix_md5sum_check() {
       message -n '.'
 
       test -d $POSSESSED_LOGS || mkdir -p $POSSESSED_LOGS
-      
+
       possessed=$POSSESSED_LOGS/$SPELL-$2
       lock_start_transaction "$possessed" tfile
       echo $LINE >> $tfile

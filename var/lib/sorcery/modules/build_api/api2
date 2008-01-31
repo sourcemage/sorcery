@@ -31,7 +31,7 @@ function run_build_spell() {
   export C_LOG=$TMP_DIR/$SPELL.compile.log
   export CASTFS_DBGLOG=$C_LOG.castfs.dbglog
   export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
-  export S_PWD=$TMP_DIR/build.saved.pwd 
+  export S_PWD=$TMP_DIR/build.saved.pwd
   export VOYEUR_STDOUT VOYEUR_STDERR
   export __DELVE_IN_CAST=on
 
@@ -39,8 +39,8 @@ function run_build_spell() {
   touch $CASTFS_DBGLOG
   rm  -f $C_LOG
   touch $C_LOG
-  
-  if [[ $SCREEN_NAME ]] ; then  
+
+  if [[ $SCREEN_NAME ]] ; then
     screen_new_window "$SCREEN_NAME" $SCREEN_CAST_WIN "cast $SPELL" \
       tail -f -s 0.1 $C_LOG
     screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
@@ -55,7 +55,7 @@ function run_build_spell() {
     VOYEUR_STDERR=/dev/null
   fi
 
-  if [[ -z $STAGED_INSTALL ]] 
+  if [[ -z $STAGED_INSTALL ]]
   then
     if ! is_castfs_installed
     then
@@ -104,7 +104,7 @@ function run_build_spell() {
   elif [[ $SCREEN_NAME ]] ; then
     screen_kill_window "$SCREEN_NAME" $SCREEN_CAST_WIN
   fi
-  
+
   # triggers don't run in the window
   [ $rs -gt 0 ] && return $rs
 
@@ -185,7 +185,7 @@ function run_pre_install() {
   else
     cd "$BUILD_DIRECTORY"
   fi
-  
+
   run_spell_file PRE_INSTALL pre_install
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
   pwd > $S_PWD
@@ -210,7 +210,7 @@ function run_install() {
   fi
 
   run_spell_file INSTALL install
-  
+
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
              "! Problem Detected !"  \
@@ -220,7 +220,7 @@ function run_install() {
 }
 
 function run_install_extras() {
-  
+
   debug "build_api/api2" "Starting run_install_extras()"
   run_spell_file INSTALL_EXTRAS install_extras
 }
@@ -248,7 +248,7 @@ function run_post_install() {
 }
 
 #--------------------------------------------------------------------
-### Checks against STAGED_INSTALL and installs the staged spell 
+### Checks against STAGED_INSTALL and installs the staged spell
 ### accordingly
 ##--------------------------------------------------------------------
 function run_transfer() {
@@ -257,7 +257,7 @@ function run_transfer() {
     run_spell_file TRANSFER transfer
   fi
 }
-              
+
 #---------------------------------------------------------------------
 ## Checks for a FINAL file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is used for extra files that need
@@ -286,7 +286,7 @@ function real_default_sorcery_pre_build() {
 
 #---------------------------------------------------------------------
 ## @Type API
-## Used if no BUILD script is found 
+## Used if no BUILD script is found
 ## Default build is:
 ## <pre>
 ##  ./configure  --build=$BUILD        \
@@ -369,7 +369,7 @@ function real_default_sorcery_install_extras() {
 }
 
 function real_default_sorcery_transfer() {
-  
+
   debug "build_api/api2" "Starting real_default_sorcery_post_install"
   transfer_staged_spell
 }

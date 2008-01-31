@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------
 ##
 ##=head1 SYNOPSIS
-## 
+##
 ## Url handler functions for grabbing cvs urls.
 ##
 ##=head1 DESCRIPTION
@@ -11,7 +11,7 @@
 ##
 ##=head1 CVS URL Format
 ##
-## There is no standard (that I know of) for cvs urls so we use a 
+## There is no standard (that I know of) for cvs urls so we use a
 ## source mage specific format:
 ##
 ##      cvs://CVSROOT:MODULE_NAME
@@ -22,13 +22,13 @@
 ##
 ##      cvs://CVSROOT:MODULE_NAME:REVISION_TAG
 ##
-## The CVSROOT portion of the url may include information such as type of cvs 
-## server, port number for the server, user name, password, cvs repository 
+## The CVSROOT portion of the url may include information such as type of cvs
+## server, port number for the server, user name, password, cvs repository
 ## directory, etc.  The CVSROOT syntax is defined by cvs and is as follows:
-## 
+##
 ##      :method:[[user][:password]@]hostname[:[port]]/path/to/repository
 ##
-## For more details, see the CVS manual at 
+## For more details, see the CVS manual at
 ## http://www.cvshome.org/docs/manual/cvs.html
 ##
 ##=head1 EXAMPLES
@@ -44,15 +44,15 @@
 ##      cvs://:pserver:anonymous@mplayerhq.hu:/cvsroot/mplayer:main:1_0pre7
 ##
 ## Some cvs repositories require passwords.  One such repository is the
-## cvs repository for the ROOT package (an object-oriented data analysis 
-## framework, see L<http://root.cern.ch/root/>). The CVSROOT, without the 
+## cvs repository for the ROOT package (an object-oriented data analysis
+## framework, see L<http://root.cern.ch/root/>). The CVSROOT, without the
 ## password, would look like this:
 ##
 ##      :pserver:cvs@root.cern.ch:/user/cvs
 ##
 ## The password for their cvs repository is I<cvs>.  Adding the password would
 ## make the CVSROOT look like this:
-## 
+##
 ##      :pserver:cvs:cvs@root.cern.ch:/user/cvs
 ##
 ## Thus, the full cvs url, including the password, would be:
@@ -71,7 +71,7 @@
 
 #---------------------------------------------------------------------
 ##=item url_file_download <url>
-## 
+##
 ## Parse the specified cvs url.
 ##
 ## @global URL
@@ -80,12 +80,12 @@
 ## @global CVS_TAG
 ##
 #---------------------------------------------------------------------
-function url_cvs_crack() { 
+function url_cvs_crack() {
 
   URL=`url_strip_prefix "$1" cvs`
   CVS_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
   local CVS_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  CVS_MODULE=`echo $CVS_MODULE_TAG | cut -d : -f2` 
+  CVS_MODULE=`echo $CVS_MODULE_TAG | cut -d : -f2`
   local CVS_TAGNAME=`echo $CVS_MODULE_TAG | cut -d : -f3`
   CVS_TAG=${CVS_TAGNAME:=HEAD}
 

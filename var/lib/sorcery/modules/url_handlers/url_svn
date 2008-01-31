@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------
 ##
 ##=head1 SYNOPSIS
-## 
+##
 ## Url handler functions for parsing subversion urls.
 ##
 ##=head1 SVN URL Format
@@ -24,7 +24,7 @@
 ## which uses http:// as the underlying protocol, a hint may be specified
 ## named "old_svn_compat".
 ##
-## For more details, see the SVN manual at 
+## For more details, see the SVN manual at
 ## http://svnbook.red-bean.com/svnbook/ch03s04.html
 ##
 ##=head1 EXAMPLES
@@ -53,7 +53,7 @@
 
 #---------------------------------------------------------------------
 ##=item url_svn_crack <url>
-## 
+##
 ## Parse the specified svn url.
 ##
 ## @Global URL
@@ -62,7 +62,7 @@
 ## @Global SVN_TAG
 ##
 #---------------------------------------------------------------------
-function url_svn_crack() { 
+function url_svn_crack() {
 
   URL=`url_strip_prefix "$1" svn`
   SVN_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
@@ -72,7 +72,7 @@ function url_svn_crack() {
     SVN_ROOT=svn://$SVN_ROOT
   fi
   local SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2` 
+  SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2`
   local SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
   SVN_TAG=${SVN_TAGNAME:=HEAD}
 

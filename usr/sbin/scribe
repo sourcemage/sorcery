@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------
 ##
 ## @scribe
-## 
+##
 ## @Synopsis scribe handles adding/updating/reindexing/etc. of grimoires
 ##
 ## @Copyright
@@ -81,7 +81,7 @@ function unpackage_grimoire_tarball() {
       message "ERROR: Grimoire tarball for $grim_name not" \
               "formatted correctly!."
       return 1
-    fi 
+    fi
     return 0
   else
     message "ERROR: Grimoire tarball for $grim_name did not unpack properly!"
@@ -183,7 +183,7 @@ function scribe_add() {
     scribe_add_update_worker "$grimoire" "$from" add
   done
 }
-  
+
 #---------------------------------------------------------------------
 ## scribe_add_worker
 ##
@@ -306,8 +306,8 @@ function scribe_add_update_worker() {
   popd &>/dev/null
 
   #success! create a GRIMOIRE file that stores where it was downloaded from
-  echo "FROM_URL=$from" > $grimoire/GRIMOIRE && 
-  chmod +x $grimoire/GRIMOIRE && 
+  echo "FROM_URL=$from" > $grimoire/GRIMOIRE &&
+  chmod +x $grimoire/GRIMOIRE &&
 
   if [[ $add_or_update == add ]] ; then
     codex_add_grimoire $grimoire 0 &&
@@ -401,7 +401,7 @@ function scribe_fix_metadata() {
 #---------------------------------------------------------------------
 function scribe_index() {
   local idx grimoire
-  
+
   echo ""
   echo "Codex Listing"
   echo "-------------"
@@ -574,7 +574,7 @@ function scribe_set(){
     let idx2-- # grim1 is before grim2, by removing grim1, the position
                # decrease by 1
   fi
-  
+
   message "Setting $grim1 before $grim2"
   codex_remove_grimoire $grimoire1
   codex_add_grimoire $grimoire1 $idx2
@@ -773,7 +773,7 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then
   help
 elif [[ $1 == index ]] ; then
   scribe_index # this requires no access privaledges so special case it
-else  
+else
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
   su -c "$0 $PARAMS" root

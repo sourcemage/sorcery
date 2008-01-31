@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------
 ##
 ##=head1 SYNOPSIS
-## 
+##
 ## Url handler functions for downloading rsync urls.
 ##
 ##=head1 DESCRIPTION
@@ -10,7 +10,7 @@
 ## This file contains functions for I<downloading> files through rsync.
 ##
 ## In order for rsync urls to be downloaded, the I<rsync> spell must have been
-## cast. This script first determines if rsync has been installed before 
+## cast. This script first determines if rsync has been installed before
 ## attempting to download a rsync url.
 ##
 ##=head1 RSYNC URL Format
@@ -45,13 +45,13 @@
 
 #---------------------------------------------------------------------
 ##=item dl_rsync_download <url>
-## 
+##
 ## Fetch the specified rsync url.
 ##
 ## This handler supports both files and trees.
 ##
 #---------------------------------------------------------------------
-function dl_rsync_get() { 
+function dl_rsync_get() {
   dl_command_check rsync || return 254
 
   local target=$1
@@ -96,7 +96,7 @@ function dl_rsync_run_rsync() {
   local COUNT=0
   local position="a"
   local use_spinner
-  
+
   if [ "$dl_file" == 1 ]; then
     TOTAL=0 # downloading a single file, not a source tree
   else
@@ -108,7 +108,7 @@ function dl_rsync_run_rsync() {
       let TOTAL+=10
     fi
   fi
-  
+
   message "${MESSAGE_COLOR}Running rsync...${DEFAULT_COLOR}"
   if [ $TOTAL -lt 10 ] ; then
     echo rsync -rz --delete --stats --progress "$url" "$target"
@@ -117,7 +117,7 @@ function dl_rsync_run_rsync() {
   else
     echo rsync -rz --delete --stats -vv "$url" "$target"
     {
-      rsync -rz --delete --stats -vv "$url" "$target" 
+      rsync -rz --delete --stats -vv "$url" "$target"
       echo $? > $TMP_DIR/rsync.rc
     } | tee $TMP_DIR/rsyncout$$ |
     while read line ; do

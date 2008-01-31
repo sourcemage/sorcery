@@ -29,7 +29,7 @@ function run_build_spell() {
   STAGED_INSTALL=off
   rm -f $C_LOG
   touch $C_LOG
-  if [[ $SCREEN_NAME ]] ; then  
+  if [[ $SCREEN_NAME ]] ; then
     screen_new_window "$SCREEN_NAME" $SCREEN_CAST_WIN "cast $SPELL" \
       tail -f -s 0.1 $C_LOG
     screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
@@ -58,7 +58,7 @@ function run_build_spell() {
     run_post_install                      || return 3
   )
   rs=$?
-  
+
   if [[ $SCREEN_NAME ]] && [ $rs -gt 0 ] ; then
     screen_move_window "$SCREEN_NAME" $SCREEN_CAST_WIN $SCREEN_LAST_FAILED_CAST_WIN
     screen_name_window "$SCREEN_NAME" $SCREEN_LAST_FAILED_CAST_WIN "Failed $SPELL"
@@ -67,11 +67,11 @@ function run_build_spell() {
   elif [[ $SCREEN_NAME ]]  ; then
     screen_kill_window "$SCREEN_NAME" $SCREEN_CAST_WIN
   fi
-  
+
   # Triggers don't run in the window
   [ $rs -gt 0 ] && return $rs
   run_triggers || return 4
-  
+
   return $rs
 }
 
@@ -131,7 +131,7 @@ function run_build()  {
              "! Problem Detected !"  \
              "${DEFAULT_COLOR}"
     return 1
-  fi 
+  fi
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
 
 }
