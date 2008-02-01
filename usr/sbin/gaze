@@ -586,6 +586,11 @@ function older()  {
 #-----
 function show_from()  {
 
+  if [[ -z $1 ]]; then
+    error_message "${PROBLEM_COLOR}Missing search string parameter!$DEFAULT_COLOR"
+    exit 1
+  fi
+
   cd $INSTALL_LOGS
   find . -printf "%f\n" | xargs grep "`esc_str $1`$" |
   seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
