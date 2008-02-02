@@ -625,10 +625,10 @@ function query_spell_status()
   if [[ -z $3 ]]; then
     [[ -z $2 ]] && return 0
     return_var="$2"
-    __status=$(awk -F: -v spell="$1" '{ if (spell == $1) status=$3 } END{print status}' "$SPELL_STATUS")
+    __status=$(awk -F: -v spell="$1" '{ if (spell == $1) status=$3 } END{print status}' "$SPELL_STATUS" 2>/dev/null)
   else
     return_var="$3"
-    __status=$(awk -F: -v spell="$1" -v version="$2" '{ if (spell == $1 && version == $4) status=$3 } END{print status}' "$SPELL_STATUS")
+    __status=$(awk -F: -v spell="$1" -v version="$2" '{ if (spell == $1 && version == $4) status=$3 } END{print status}' "$SPELL_STATUS" 2>/dev/null)
   fi
   unlock_file "$SPELL_STATUS"
 
