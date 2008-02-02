@@ -399,7 +399,13 @@ function unpack_gpg() {
   rc="$?"
   case "$rc" in
     0)
-      if is_allowed_hash $GPGALGO_USED $GPGLEVEL ; then rc=0 ; else rc=1 ; fi
+      local algo
+      for algo in $GPGALGO_USED; do
+        if is_allowed_hash "$algo" "$GPGLEVEL"; then
+          rc=0
+          break
+        fi
+      done
       ;;
     3) message_file="Signature" ;;
     4) message_file="Source" ;;
@@ -468,7 +474,8 @@ function unpack_hash() {
               "$HASH != $HASHSUM !${DEFAULT_COLOR}"      &&
       hash_user_query 1 "$SPELL" spell || return 1
     else
-      if is_allowed_hash ${ALGORITHM} ${HLEVEL} ; then rc=0 ; else rc=1 ; fi
+      is_allowed_hash "$ALGORITHM" "$HLEVEL"
+      rc=$?
       hash_user_query $rc "$SPELL" spell || return 1
     fi
   else

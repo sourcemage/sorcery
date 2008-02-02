@@ -65,7 +65,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
       cat $output
       return $rc
     fi
-    algo=$(grep 'digest algorithm' $output | awk '{ print $NF }' | tr A-Z a-z)
+    algo=$(awk '/digest algorithm/ { print tolower($NF) }' $output | sort -u)
     rm $output &>/dev/null
   fi
   [ ! -z "$4" ] && eval "$4=\"$algo\""
