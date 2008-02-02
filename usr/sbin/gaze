@@ -136,6 +136,11 @@ function maybe_column()  {
 #-----
 function export_snapshot()  {
 
+  if [[ $UID != 0 ]]; then
+    error_message "${PROBLEM_COLOR}gaze export needs to be run as root, aborting...$DEFAULT_COLOR"
+    exit 1
+  fi
+
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
   mk_source_dir          $SOURCE_DIRECTORY
   cp  -a  /etc           $SOURCE_DIRECTORY
@@ -170,6 +175,11 @@ function export_snapshot()  {
 ## @param snapshot file
 #-----
 function import_snapshot()  {
+
+  if [[ $UID != 0 ]]; then
+    error_message "${PROBLEM_COLOR}gaze import needs to be run as root, aborting...$DEFAULT_COLOR"
+    exit 1
+  fi
 
           SNAPSHOT=$1
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
