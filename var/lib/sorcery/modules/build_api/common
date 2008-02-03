@@ -294,6 +294,27 @@ function run_spell_success() {
       then
         if ! rmdir $spell_config_stage/current $spell_config_stage 2>/dev/null;
         then
+          # check if a config we staged was already staged and if so, remove it.
+          # this way users don't have to merge the same old default config again
+          # and again if they cast a spell multiple times
+          local deferred_file file quasi_basename
+          find $spell_config_stage/current -type f |
+          while read deferred_file; do
+            quasi_basename=$(sed "s,$spell_config_stage/current/,," <<< "$deferred_file")
+            find $spell_config_stage -wholename $spell_config_stage/current \
+                 -prune -o -type f -wholename "*/$quasi_basename" -print |
+            while read file; do
+              if cmp -s $deferred_file $file; then
+                rm $deferred_file
+                pushd $spell_config_stage
+                rmdir -p $(smgl_dirname $deferred_file)
+                popd
+                continue
+              fi &>/dev/null
+            done
+          done
+
+          [[ -d $spell_config_stage/current ]] &&
           mv $spell_config_stage/current \
              $spell_config_stage/$(basename $tablet_dir)
         fi
