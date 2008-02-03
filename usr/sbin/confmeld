@@ -11,14 +11,23 @@
 function help()
 {
   cat << EOF
-
 Melds the staged config files from $CONFIG_STAGE_DIRECTORY
 
-Example: confmeld
+Examples:
+confmeld
+confmeld -l
+confmeld nano
+confmeld /etc/sysconfig/facilities
 
 Optional Parameters:
+-l, --list             will just list all the spells and their staged configs
+-c, --list-configs     will just list all the staged configs
+-s, --list-spells      will just list all the spells with staged configs
+-q, --no-column        don't column the output
 
-none
+Optional arguments:
+You can invoke confmeld with a spell name or a staged config as an argument.
+Confmeld will then work only on that argument.
 
 EOF
   exit 1
@@ -31,21 +40,19 @@ EOF
 #--------------------------------------------------------------------
 function all_config_files()
 {
-  find $CONFIG_STAGE_DIRECTORY
+  find $CONFIG_STAGE_DIRECTORY -type f
 }
 
 #--------------------------------------------------------------------
-## List all uniq config files in the config stage directory
+## List all uniq config *filenames* in the config stage directory
 ##
 ## @stdout a list of all uniq configs in the stage directory
 #--------------------------------------------------------------------
 function all_uniq_config_files()
 {
   all_config_files |
-  while read file
-  do
-    echo ${file%.*}
-  done | uniq
+  sed "s#^$CONFIG_STAGE_DIRECTORY/[^/]*/[^/]*##" |
+  sort -u
 }
 
 #--------------------------------------------------------------------
@@ -56,8 +63,63 @@ function all_uniq_config_files()
 function all_spells_with_staged_configs()
 {
   all_config_files |
-  sed "s#$CONFIG_STAGE_DIRECTORY/##g" |
-  cut -d/ -f1 | uniq
+  sed "s#$CONFIG_STAGE_DIRECTORY/*##g" |
+  cut -s -d/ -f1 | uniq
+}
+
+#-----
+## override column so that we can pass -q to not columnate. Adapted from gaze
+#-----
+function maybe_column()  {
+  if [[ $USE_COLUMN == no ]]; then
+    cat
+  else
+    column "$@"
+  fi
+}
+
+#--------------------------------------------------------------------
+## nicely list all spells that have staged configs and exit
+##
+## @stdout list of spells that have staged configs
+#--------------------------------------------------------------------
+function list_spells_with_staged_configs()
+{
+  message "${MESSAGE_COLOR}Spells with staged configuration files:$SPELL_COLOR"
+  all_spells_with_staged_configs | maybe_column
+  message "$DEFAULT_COLOR"
+  exit 0
+}
+
+#--------------------------------------------------------------------
+## nicely list all staged configs and exit
+##
+## @stdout list of staged configs
+#--------------------------------------------------------------------
+function list_staged_configs()
+{
+  message "${MESSAGE_COLOR}Staged configuration files:$FILE_COLOR"
+  all_uniq_config_files | maybe_column
+  message "$DEFAULT_COLOR"
+  exit 0
+}
+
+#--------------------------------------------------------------------
+## nicely list all spells and their staged configs
+##
+## @stdout list of spells and their staged configs
+#--------------------------------------------------------------------
+function list_all()
+{
+  local spell config
+  for spell in $(all_spells_with_staged_configs); do
+    message "${SPELL_COLOR}$spell:$FILE_COLOR"
+    all_config_files |
+    sed -n "s,^$CONFIG_STAGE_DIRECTORY/$spell/[^/]*,,p" |
+    maybe_column
+    message "$DEFAULT_COLOR"
+  done
+  exit 0
 }
 
 #--------------------------------------------------------------------
@@ -83,15 +145,23 @@ function parse_stage_config_path()
 
 function process_parameters()
 {
+  local subroutine
   while [[ -n $1 ]]; do
     if [[ ${1:0:1} == "-" ]]; then
       case "$1" in
-        --help|-h) help ;;
-                *) help ;;
+                --help|-h) help ;;
+           --no-column|-q) USE_COLUMN=no ;;
+        --list-configs|-c) subroutine=list_staged_configs ;;
+         --list-spells|-s) subroutine=list_spells_with_staged_configs ;;
+                --list|-l) subroutine=list_all ;;
+                        *) help ;;
       esac
-    else shift 1
+      shift
+    else
+    shift 1
     fi
   done
+  $subroutine
 }
 
 #--------------------------------------------------------------------
