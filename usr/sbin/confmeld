@@ -24,6 +24,13 @@ Optional Parameters:
 -c, --list-configs     will just list all the staged configs
 -s, --list-spells      will just list all the spells with staged configs
 -q, --no-column        don't column the output
+-f, --force <action>   always use do <action> when merging
+
+where <action> can be one of:
+discard-new            do nothing
+discard-old            trash the old config and install over it
+use-old                leave the old config in its place and backup the new one
+use-new                backup the old config and install the new one in its place
 
 Optional arguments:
 You can invoke confmeld with a spell name or a staged config as an argument.
@@ -152,6 +159,26 @@ function parse_stage_config_path()
 }
 
 #--------------------------------------------------------------------
+## Override the merging menu and always use a preset action
+##
+## @param action
+#--------------------------------------------------------------------
+function override_changed_config_menu()
+{
+
+  case $1 in
+    discard-new) DEFAULT_CHANGED_CONFIG_ACTION=3 ;;
+    discard-old) DEFAULT_CHANGED_CONFIG_ACTION=0 ;;
+        use-old) DEFAULT_CHANGED_CONFIG_ACTION=2 ;;
+        use-new) DEFAULT_CHANGED_CONFIG_ACTION=1 ;;
+              *) error_message "${PROBLEM_COLOR}Bad default merge action!$DEFAULT_COLOR"
+                 help ;;
+  esac
+  PROMPT_DELAY=0
+
+}
+
+#--------------------------------------------------------------------
 ## merge only the passed file
 ##
 ## @param config
@@ -270,6 +297,8 @@ function process_parameters()
         --list-configs|-c) subroutine=list_staged_configs ;;
          --list-spells|-s) subroutine=list_spells_with_staged_configs ;;
                 --list|-l) subroutine=list_all ;;
+               --force|-f) subroutine="override_changed_config_menu $2"
+                           shift ;;
                         *) help ;;
       esac
     else
