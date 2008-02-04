@@ -29,44 +29,44 @@ function can_resurrect()  {
 }
 
 #------------------------------------------------------------------------
-# @param spell
-# @param version
-#
-# High level overview:
-#
-# ensure theres a cache tarball
-#
-# unpack the tarball somewhere
-#
-# if the spell is installed backup everything
-#
-# split the files into three categories: state data, config files, regular files
-#   this can be roughly viewed as (its slightly more complicated)
-#   state data is data owned by sorcery (/var/state)
-#   config files are defined in the /var/lib/sorcery/configs file
-#   things not in the above categories are regular files
-#
-# copy regular files onto the system
-# copy config files carefully (dont trample on user changes)
-#   if the file does not exist, just copy the new one
-#   elif the file exists and is identical to the new one, do nothing
-#   else the file exists and differs from the new one then
-#     if it is owned by the old spell with a valid md5
-#       replace the file
-#     elif it is owned by the old spell with an invalid md5 (admin changed it)
-#       ask if the user wants to change it
-#     else the file might be owned by another spell, or might be an alien
-#       ask if the user wants to change it
-#
-# if the spell was installed
-#   remove regular files unique to the old spell
-#   remove unchanged config files
-#   ask about changed config files
-#
-# update state data
-# call it a day
-#
-# FIXME: some of the informative message calls might work better as debug messages
+## @param spell
+## @param version
+##
+## High level overview:
+##
+## ensure theres a cache tarball
+##
+## unpack the tarball somewhere
+##
+## if the spell is installed backup everything
+##
+## split the files into three categories: state data, config files, regular files
+##   this can be roughly viewed as (its slightly more complicated)
+##   state data is data owned by sorcery (/var/state)
+##   config files are defined in the /var/lib/sorcery/configs file
+##   things not in the above categories are regular files
+##
+## copy regular files onto the system
+## copy config files carefully (dont trample on user changes)
+##   if the file does not exist, just copy the new one
+##   elif the file exists and is identical to the new one, do nothing
+##   else the file exists and differs from the new one then
+##     if it is owned by the old spell with a valid md5
+##       replace the file
+##     elif it is owned by the old spell with an invalid md5 (admin changed it)
+##       ask if the user wants to change it
+##     else the file might be owned by another spell, or might be an alien
+##       ask if the user wants to change it
+##
+## if the spell was installed
+##   remove regular files unique to the old spell
+##   remove unchanged config files
+##   ask about changed config files
+##
+## update state data
+## call it a day
+##
+## FIXME: some of the informative message calls might work better as debug messages
 #------------------------------------------------------------------------
 function resurrect()  { (
   debug "libresurrect" "resurrect - $*"
@@ -403,8 +403,7 @@ function resurrect_sub() {
 #------------------------------------------------------------------------
 ## @param from        File we might want to install
 ## @param to          File to replace
-## @param savetime    Backup time if necessary (optional, defaults to
-##                      $(date +'%Y%m%d%H%M')
+## @param savetime    Backup time if necessary (optional, defaults to $(date +'%Y%m%d%H%M')
 #------------------------------------------------------------------------
 function real_install_config_file() {
   if [[ ! $1 ]] || [[ ! $2 ]] ; then
@@ -433,8 +432,7 @@ function real_install_config_file() {
 ## @param from          File we might want to install
 ## @param to            File to replace
 ## @param savetime      Backup time if necessary
-## @param md5_log       MD5 log for previous version of the spell,
-#                       must be in root form
+## @param md5_log       MD5 log for previous version of the spell, must be in root form
 #------------------------------------------------------------------------
 function internal_install_config_file() {
   local from=$1

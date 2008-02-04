@@ -24,7 +24,7 @@
 ## lock_resources
 ## @param Type of resource
 ## @param Name of resource
-##
+## <pre>
 ## Type of resource | Name of resource | Usage
 ##     cast         | spell name       | when casting a spell
 ##     file         | file name        | to lock a file
@@ -32,6 +32,7 @@
 ##     network      | network          | ?
 ##     solo         | resource name    | when using a resource exclusively
 ##     libgrimoire  | install          | when a spell is in the install stage
+## </pre>
 ## locking solo will not cause these routines to behave any different.
 ## catching it has to be done externally (see cast for an example)
 ##
@@ -242,9 +243,9 @@ function unlock_file()
 ## If not all can be locked, they will be unlocked, and another try
 ## will be made.
 ##
-## @return The name of a temporary file that should be written to
-## instead of the real file.
-##
+## @Stdout The name of a temporary file that should be written to instead of the real file.
+## @return 0 If successful
+## @return 1 If not successful
 #---------------------------------------------------------------------
 function lock_start_transaction()
 {
@@ -457,10 +458,10 @@ function counter_clean() {
 ##
 ## Prevents more than one process from entering a section of code
 ## at a time
-## NOTE: This assumes that two functions of the same name will
-## not havethe SYNCHRONIZE command on the same line in different
-## files.
-##
+## @NOTE This assumes that two functions of the same name will
+## @NOTE not havethe SYNCHRONIZE command on the same line in different
+## @NOTE files.
+## <pre>
 ## Example:
 ## #!/bin/bash
 ## echo "Script started with PID=$$
@@ -469,11 +470,11 @@ function counter_clean() {
 ## sleep 10
 ## } && eval "$UNSYNCHRONIZE"
 ## echo "PID $$ done."
-##
+## </pre>
 ## Note: SYNCHRONIZE and UNSYNCHRONIZE must be in the same local
 ## scope. Nested SYNCHs are not allowed in the same local scopes.
 ## Local scope usualy being a function.
-## (Blocking)
+## @Blocking
 ##
 #---------------------------------------------------------------------
 SYNCHRONIZE='
@@ -491,4 +492,3 @@ UNSYNCHRONIZE='
   debug "liblock" "+++ in unsynch code"
   unlock_resources "lockfunction" "${FUNCNAME}/${__llSYNCH_LINE}"
   unset __llSYNCH_LINE'
-

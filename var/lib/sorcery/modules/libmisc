@@ -5,7 +5,6 @@
 ## @param delimiter
 ## @param name of array to put it in
 ##
-## @Description
 ## Turns a string into an array. Each element of the array
 ## is separated in the string by the delimiter.
 ##
@@ -63,24 +62,26 @@ function real_sedit()  {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param string to check
+## @return 0 if true
+## @return 1 if false
 ##
 ## Argument is a string to check if the string contains all digits or
 ## not
 #--------------------------------------------------------------------
 function isdigit() {
-  echo $1 | grep '[[:digit:]]+' >> /dev/null 2>&1 &&
-  return 0
+  echo $1 | grep '[[:digit:]]+' >> /dev/null 2>&1
 }
 
 #--------------------------------------------------------------------
 ## @Type API
 ## @param string to check
+## @return 0 if true
+## @return 1 if false
 ##
-## Argumtemt is a string to check if it contains all chars a-zA-Z
+## Argument is a string to check if it contains all chars a-zA-Z
 #--------------------------------------------------------------------
 function isalpha() {
-  echo $1 | grep '[[:alpha:]]+' >> /dev/null 2>&1 &&
-  return 0
+  echo $1 | grep '[[:alpha:]]+' >> /dev/null 2>&1
 }
 
 #---------------------------------------------------------------------
@@ -776,8 +777,7 @@ function real_persistent_clear () {
 ## @param return variable (optional)
 ##
 ## @return 1 option is not present in the config
-## @return 0 option is present in the config (even if the option is
-##           empty string "") and it's set.
+## @return 0 option is present in the config (even if the option is empty string "") and it's set.
 ##
 ## Retrieves setting from $SPELL_CONFIG file and optionally sets user
 ## supplied variable. Function is here to make possible changes to
@@ -785,13 +785,6 @@ function real_persistent_clear () {
 ## function and are not working with variables directly
 ##
 #---------------------------------------------------------------------
-#function config_get_option {
-#    local VAR=$2
-#    local REPLY=`grep -E "^$1=" $SPELL_CONFIG | head -n 1 | sed "s/^[^=]*=//"`
-#    [ -n "$VAR" ] && eval $VAR=\"$REPLY\"
-#    [ -z "$REPLY" ] && return 1
-#    return 0
-#}
 function config_get_option () {
   if [[ $PROTECT_SORCERY ]] ; then
     if is_sorcery_var $1; then
@@ -811,13 +804,19 @@ function config_get_option () {
     return 1
   fi
 }
+#function config_get_option {
+#    local VAR=$2
+#    local REPLY=`grep -E "^$1=" $SPELL_CONFIG | head -n 1 | sed "s/^[^=]*=//"`
+#    [ -n "$VAR" ] && eval $VAR=\"$REPLY\"
+#    [ -z "$REPLY" ] && return 1
+#    return 0
+#}
 
 #---------------------------------------------------------------------
 ## @param Name of variable
 ## @param return variable
 ##
-## @return 0 if the variable could be found, 1 if no old persistent file
-##         exists.
+## @return 0 if the variable could be found, 1 if no old persistent file exists.
 ##
 ## Get value of a persistent variable from the previous cast when
 ## there is a -r. The persistent data moves to a seperate directory
@@ -870,14 +869,13 @@ function config_get_last_option() {
 ## working with variables directly
 ##
 #---------------------------------------------------------------------
-#function config_set_option {
-#    echo "$1=$2" >> $SPELL_CONFIG
-#}
 function config_set_option () {
     persistent_add $1
     eval "$1=\"$2\""
 }
-
+#function config_set_option {
+#    echo "$1=$2" >> $SPELL_CONFIG
+#}
 
 #---------------------------------------------------------------------
 ## @param config file variable
@@ -1267,8 +1265,8 @@ function is_sorcery_var() {
 
 #---------------------------------------------------------------------
 ## @param Variable name used in complaint
-## @stdout Complain vehemently that a variable name is used by sorcery
-## and the user should file a bug because a spell is using the variable
+## @stdout Complain vehemently that a variable name is used by sorcery and
+## @stdout the user should file a bug because a spell is using the variable
 #---------------------------------------------------------------------
 function complain_sorcery_var() {
   message "${PROBLEM_COLOR}WARNING: ATTEMPTING TO USE" \
@@ -1287,10 +1285,11 @@ function complain_sorcery_var() {
 ## SMGL_COMPAT_ARCHS is an array that holds architectures which are compatible
 ## with the desired architecture. The desired architecture is determined as
 ## follows:
+## <pre>
 ## 1) If function is gien an argument, the argument is used, or
 ## 2) If cross-install is on, the TARGET architecture is used, or
 ## 3) The local ARCHITECTURE is used
-##
+## </pre>
 ## The least specific arch is in SMGL_COMPAT_ARCHS[0],
 ## SMGL_COMPAT_ARCHS[1] is more specific, et cetera. For example:
 ## desired architecture="athlon-xp" might result in:
@@ -1386,7 +1385,7 @@ function define_functions() {
 ## Set variable by name, useful for setting variables that were passed
 ## by reference.
 ## Example:
-##
+## <pre>
 ## function uber() {
 ##   local x
 ##  unter x 5
@@ -1397,7 +1396,7 @@ function define_functions() {
 ##   read -p "enter value (default $2)" y
 ##   upvar $var $y
 ## }
-##
+## </pre>
 #---------------------------------------------------------------------
 function upvar() {
   # This makes eval see things as name=$2,
@@ -1414,7 +1413,7 @@ function awkuniq() {
 }
 
 #---------------------------------------------------------------------
-# Dirname written in bash, optionally uses an upvar (making it forkless).
+## Dirname written in bash, optionally uses an upvar (making it forkless).
 #---------------------------------------------------------------------
 function smgl_dirname() {
   local __dir=$1
@@ -1451,8 +1450,8 @@ function smgl_dirname() {
 }
 
 #---------------------------------------------------------------------
-# basename written in bash, optionally uses upvar (making it forkless).
-# Does not have ability to remove file extension like the real basename.
+## basename written in bash, optionally uses upvar (making it forkless).
+## Does not have ability to remove file extension like the real basename.
 #---------------------------------------------------------------------
 function smgl_basename() {
   local __base=$1

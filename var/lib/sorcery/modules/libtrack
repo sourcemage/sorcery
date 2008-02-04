@@ -337,8 +337,7 @@ function check_if_modified() {
 ## Creates a bzip/gzip'ed tar file containing an archived backup of
 ## file specified on standard input into $CACHE_COMP
 ## @stdin files, one per line, to put into the archive
-## @param directory input files are relative to install root for regular
-## files state root for state files
+## @param directory input files are relative to install root for regular files state root for state files
 ##
 #---------------------------------------------------------------------
 function create_cache_archive()  {
@@ -377,8 +376,8 @@ function create_cache_archive()  {
 }
 
 #---------------------------------------------------------------------
-# this is to filter the install log from one form to another
-# for install_root/track_root conversions
+## this is to filter the install log from one form to another
+## for install_root/track_root conversions
 #---------------------------------------------------------------------
 function install_log_filter() {
   sed "s:^$1:$2:"
@@ -388,40 +387,37 @@ function md5_log_filter() {
 }
 
 #---------------------------------------------------------------------
-# @param input file (can be /dev/stdin)
-# @param output file (can be /dev/stdout)
-# @param input format (root/log/filterable)
-# @param output format (root/log/filterable)
-# @param filter callback (optional install_log_filter, could be
-#                        md5_log_filter)
-#
-# This filters an install log from a given format into another format
-#
-# root: relative to / all paths are relative to / file existence tests
-# should work, INSTALL_ROOT and STATE_ROOT are prepended to data and
-# state files respectively
-#
-# log: relative to track_root etc, format used in the logs (see note on
-# special behavior below)
-#
-# filterable: track_root/install_root/state_root stripped out files can
-# have filters applied to them
-#
-# "Special" handling applies depending on whether STATE_ROOT is inside
-# or outside INSTALL_ROOT.
-# For converting into log format:
-# If STATE_ROOT is within INSTALL_ROOT
-# eg: STATE_ROOT=/opt/stuff INSTALL_ROOT=/opt/stuff
-# or  STATE_ROOT=/opt/stuff/state INSTALL_ROOT=/opt/stuff
-# the portion of INSTALL_ROOT within STATE_ROOT is replaced with TRACK_ROOT
-# if STATE_ROOT is outside of INSTALL_ROOT (eg /opt/stuff and /opt/state)
-# then STATE_ROOT is left as is
-#
-# Converting from log to root format is the inverse, and of course going
-# to filterable format just requires removing whatever the expected prefix is.
-#
-#
-#
+## @param input file (can be /dev/stdin)
+## @param output file (can be /dev/stdout)
+## @param input format (root/log/filterable)
+## @param output format (root/log/filterable)
+## @param filter callback (optional install_log_filter, could be md5_log_filter)
+##
+## This filters an install log from a given format into another format
+## <pre>
+## root: relative to / all paths are relative to / file existence tests
+## should work, INSTALL_ROOT and STATE_ROOT are prepended to data and
+## state files respectively
+##
+## log: relative to track_root etc, format used in the logs (see note on
+## special behavior below)
+##
+## filterable: track_root/install_root/state_root stripped out files can
+## have filters applied to them
+##
+## "Special" handling applies depending on whether STATE_ROOT is inside
+## or outside INSTALL_ROOT.
+## For converting into log format:
+## If STATE_ROOT is within INSTALL_ROOT
+## eg: STATE_ROOT=/opt/stuff INSTALL_ROOT=/opt/stuff
+## or  STATE_ROOT=/opt/stuff/state INSTALL_ROOT=/opt/stuff
+## the portion of INSTALL_ROOT within STATE_ROOT is replaced with TRACK_ROOT
+## if STATE_ROOT is outside of INSTALL_ROOT (eg /opt/stuff and /opt/state)
+## then STATE_ROOT is left as is
+##
+## Converting from log to root format is the inverse, and of course going
+## to filterable format just requires removing whatever the expected prefix is.
+## </pre>
 #---------------------------------------------------------------------
 function log_adjuster() {
   local input=$1
@@ -517,11 +513,9 @@ function log_adjuster() {
 ## Split a log file into data that should be TRACK_ROOT'd versus
 ## STATE_ROOT'd.
 ##
-## @param filename or - (or /dev/stdin) for a pipe. This routine will
-##        read the input only once in-order to work with pipes.
+## @param filename or - (or /dev/stdin) for a pipe. This routine will read the input only once in-order to work with pipes.
 ## @param filename for non-state files, possibly /dev/stdout or /dev/stderr
-## @param filename for state files, possibly /dev/stdout or /dev/stderr
-##        don't use the same stream for both types.
+## @param filename for state files, possibly /dev/stdout or /dev/stderr don't use the same stream for both types.
 ##
 #---------------------------------------------------------------------
 function seperate_state_files() {
