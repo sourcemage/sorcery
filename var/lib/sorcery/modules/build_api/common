@@ -289,6 +289,7 @@ function run_spell_success() {
       tablet_install_spell_files $tablet_dir
       local TABLET_SPELL_DIR=$tablet_dir spell_config_stage
       spell_config_stage=$CONFIG_STAGE_DIRECTORY/$SPELL
+      lock_file "$spell_config_stage"
       if [[ $STAGED_INSTALL != "off" && -d $spell_config_stage/current ]]
       then
         if ! rmdir $spell_config_stage/current $spell_config_stage 2>/dev/null;
@@ -304,7 +305,7 @@ function run_spell_success() {
                  -prune -o -type f -wholename "*/$quasi_basename" -print |
             while read file; do
               if cmp -s $deferred_file $file; then
-                recursive_config_stage_cleanup $deferred_file
+                recursive_config_stage_cleanup $deferred_file $SPELL
                 continue 2
               fi &>/dev/null
             done
@@ -315,6 +316,7 @@ function run_spell_success() {
              $spell_config_stage/$(basename $tablet_dir)
         fi
       fi
+      unlock_file "$spell_config_stage"
       # this data is now doubly stale, remove it
       rm  -f $ABANDONED_PERSIST/$SPELL.p
     fi

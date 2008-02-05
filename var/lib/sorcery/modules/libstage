@@ -12,8 +12,10 @@
 #---------------------------------------------------------------------
 function transfer_staged_spell()
 {
+  lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
   mkdir -p "$CONFIG_STAGE_DIRECTORY/$SPELL/current"
   stage_install_configs
+  unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
   stage_install_rest
 }
 
@@ -237,16 +239,23 @@ function stage_install_list()
 ## to $CONFIG_STAGE_DIRECTORY if they are empty
 ##
 ## @param file
+## @param spell  owner of the file, so we don't need to look that up
 #--------------------------------------------------------------------
 function recursive_config_stage_cleanup()
 {
   local file=$1 dirname
-  smgl_dirname "$file" dirname
+  local spell=$2
 
+  smgl_dirname "$file" dirname
+  dirname="${dirname#$CONFIG_STAGE_DIRECTORY/}" #make it a relative path
+
+  # lock_file works on dirs too
+  lock_file "$CONFIG_STAGE_DIRECTORY/$spell"
   rm "$file"
   {
     pushd $CONFIG_STAGE_DIRECTORY
-    rmdir -p "${dirname#$CONFIG_STAGE_DIRECTORY/}" #make it a relative path
+    rmdir -p "$dirname"
     popd
   } &> /dev/null
+  unlock_file "$CONFIG_STAGE_DIRECTORY/$spell"
 }
