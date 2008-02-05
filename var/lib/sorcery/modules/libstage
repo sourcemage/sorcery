@@ -231,3 +231,22 @@ function stage_install_list()
     message "is some other kind of a file and not a directory${DEFAULT_COLOR}"
   fi
 }
+
+#--------------------------------------------------------------------
+## Removes the passed file and possibly its parent directories up
+## to $CONFIG_STAGE_DIRECTORY if they are empty
+##
+## @param file
+#--------------------------------------------------------------------
+function recursive_config_stage_cleanup()
+{
+  local file=$1 dirname
+  smgl_dirname "$file" dirname
+
+  rm "$file"
+  {
+    pushd $CONFIG_STAGE_DIRECTORY
+    rmdir -p "${dirname#$CONFIG_STAGE_DIRECTORY/}" #make it a relative path
+    popd
+  } &> /dev/null
+}

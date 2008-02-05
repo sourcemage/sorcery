@@ -304,11 +304,8 @@ function run_spell_success() {
                  -prune -o -type f -wholename "*/$quasi_basename" -print |
             while read file; do
               if cmp -s $deferred_file $file; then
-                rm $deferred_file
-                pushd $spell_config_stage
-                rmdir -p $(smgl_dirname $deferred_file)
-                popd
-                continue
+                recursive_config_stage_cleanup $deferred_file
+                continue 2
               fi &>/dev/null
             done
           done

@@ -180,6 +180,15 @@ function override_changed_config_menu()
 }
 
 #--------------------------------------------------------------------
+## Final check for removing empty spell directories, so the stage dir
+## is left clean
+#--------------------------------------------------------------------
+function final_cleanup()
+{
+  find $CONFIG_STAGE_DIRECTORY -mindepth 1 -maxdepth 2 -type d -empty -delete
+}
+
+#--------------------------------------------------------------------
 ## merge only the passed file
 ##
 ## @param config
@@ -196,30 +205,7 @@ function merge_single_file()
     message "to be merged with $FILE_COLOR/$target${DEFAULT_COLOR}\n"
     tablet_set_spell $spell &&
     install_config_file $file $INSTALL_ROOT/$target
-    #
-    # since we use find we need to remove empty directories
-    # so if the spell or the date changes then we remove the directory so
-    # CONFIG_STAGE_DIRECTORY should always be empty after you complete the
-    # call to confmeld
-    #
-    # find does a preorder traversal of the directory tree keeping the path
-    # (esentially a stack) of where its been in the tree. If a particular date
-    # or spell name changes at the same level in the tree we can safely assume
-    # the previous date or spell has been walked and all files have been delt
-    # with accordingly so we can safely remove them.
-    #
-    if [[ $last_sdate && $last_sdate != $sdate ]]
-    then
-      message "${MESSAGE_COLOR}Removing stale dirs and files in the config stage area.${DEFAULT_COLOR}"
-      rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell/$last_sdate
-    fi
-    if [[ $last_spell && $last_spell != $spell ]]
-    then
-      message "${MESSAGE_COLOR}Removing stale dirs and files in the config stage area.${DEFAULT_COLOR}"
-      rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
-    fi
-    last_sdate="$sdate"
-    last_spell="$spell"
+    recursive_config_stage_cleanup $file
     echo -e "\n"
   fi
 }
@@ -251,16 +237,8 @@ function confmeld_partial()
       merge_single_file "$config"
     done
   done
-  #
-  # final check for removing spell directories this is mainly a check so that
-  # empty directories will get removed
-  #
-  if [[ $last_spell ]]
-  then
-    message "${MESSAGE_COLOR}Removing any remaining stale dirs and files in the config stage area.${DEFAULT_COLOR}"
-    rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
-  fi
-  find $CONFIG_STAGE_DIRECTORY -mindepth 1 -maxdepth 2 -type d -empty -delete
+  final_cleanup
+
   exit $rc
 }
 
@@ -275,16 +253,8 @@ function confmeld_all()
   do
     merge_single_file "$file"
   done
-  #
-  # final check for removing spell directories this is mainly a check so that
-  # empty directories will get removed
-  #
-  if [[ $last_spell ]]
-  then
-    message "${MESSAGE_COLOR}Removing any remaining stale dirs and files in the config stage area.${DEFAULT_COLOR}"
-    rm_source_dir $CONFIG_STAGE_DIRECTORY/$last_spell
-  fi
-  find $CONFIG_STAGE_DIRECTORY -mindepth 1 -maxdepth 2 -type d -empty -delete
+
+  final_cleanup
 }
 
 function process_parameters()
@@ -315,7 +285,7 @@ function process_parameters()
 #--------------------------------------------------------------------
 ## Main
 ##
-## No real arguments get all the config files and start installing
+## If there's no arguments get all the config files and start installing
 ## them to the system using install_config_file
 #--------------------------------------------------------------------
 function main()
