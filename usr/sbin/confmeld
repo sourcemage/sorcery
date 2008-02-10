@@ -195,12 +195,16 @@ function final_cleanup()
 #--------------------------------------------------------------------
 function merge_single_file()
 {
-  local file=$1 spell sdate target
+  local file=$1 spell sdate target nice_date
 
   parse_stage_config_path $file spell sdate target &&
   if [[ -f $file && $target ]]
   then
-    message "${SPELL_COLOR}$spell$DEFAULT_COLOR cast on $sdate has config"
+    # make the $sdate human readable
+    # date -d can't use the whole original, so we have to do it in steps
+    nice_date=$(date -d ${sdate:0:8} "+%a %d %b %Y")
+    nice_date="$nice_date $(date -d ${sdate:8:4} "+%X %Z")"
+    message "${SPELL_COLOR}$spell$DEFAULT_COLOR cast on $nice_date has config"
     message "${FILE_COLOR}$file$DEFAULT_COLOR"
     message "to be merged with $FILE_COLOR/$target${DEFAULT_COLOR}\n"
     tablet_set_spell $spell &&
