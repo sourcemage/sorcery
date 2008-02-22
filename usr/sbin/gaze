@@ -1095,10 +1095,14 @@ function gaze_show_version()  {
   echo " "
 
 
-  [  -n  "$UNKNOWN"  ]                  &&
-  message "Unknown Spells or Sections"  &&
-  message "--------------------------"  &&
-  message "$UNKNOWN"
+  if [[ -n $UNKNOWN ]]; then
+    message "Unknown Spells or Sections"
+    message "--------------------------"
+    message "$UNKNOWN"
+    return 1
+  else
+    return 0
+  fi
 
 }
 
