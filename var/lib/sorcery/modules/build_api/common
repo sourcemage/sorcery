@@ -292,7 +292,8 @@ function run_spell_success() {
       lock_file "$spell_config_stage"
       if [[ $STAGED_INSTALL != "off" && -d $spell_config_stage/current ]]
       then
-        if ! rmdir $spell_config_stage/current $spell_config_stage 2>/dev/null;
+        rmdir $spell_config_stage/current $spell_config_stage 2>/dev/null
+        if [[ -d $spell_config_stage/current ]]
         then
           # check if a config we staged was already staged and if so, remove it.
           # this way users don't have to merge the same old default config again
