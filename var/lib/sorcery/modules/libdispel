@@ -75,6 +75,16 @@ function reap_modified_file()  {
 }
 
 #---------------------------------------------------------------------
+## Removes spell config stages if there are any
+#---------------------------------------------------------------------
+function reap_spell_config_stage()  {
+  lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
+  # it's locked - we also don't have to care about the unlikely "current" stage
+  rm -fr "$CONFIG_STAGE_DIRECTORY/$SPELL"
+  unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
+}
+
+#---------------------------------------------------------------------
 ## Removes depends entries for what the spell depends on
 #---------------------------------------------------------------------
 function reap_depends()  {
@@ -323,6 +333,7 @@ function dispel_spell() {
       reaper  $INST_LOG  $MD5_LOG &&
       post_remove                 &&
       reap_state_files $INST_LOG  &&
+      reap_spell_config_stage     &&
       remove_spell  $SPELL        &&
       { [[ $TRIGGER == off ]] || trigger "dispel";} &&
       remove_triggers $SPELL      &&

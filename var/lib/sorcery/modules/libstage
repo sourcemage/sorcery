@@ -247,7 +247,8 @@ function recursive_config_stage_cleanup()
   local spell=$2
 
   smgl_dirname "$file" dirname
-  dirname="${dirname#$CONFIG_STAGE_DIRECTORY/}" #make it a relative path
+  # make it a relative path for rmdir -p
+  dirname="${dirname#$CONFIG_STAGE_DIRECTORY/}"
 
   # lock_file works on dirs too
   lock_file "$CONFIG_STAGE_DIRECTORY/$spell"
