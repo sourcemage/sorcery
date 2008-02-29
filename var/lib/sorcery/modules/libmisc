@@ -402,7 +402,8 @@ function esc_str()
 function consolidate_params() {
   local param
   for param in "$@"; do
-    echo -n $param | sed 's/ /\\ /g'
+    # add and remove a dummy space, so echo parameters can be used as values
+    echo -n "" $param | sed 's/ //; s/ /\\ /g'
     echo -n " "
   done
 }
