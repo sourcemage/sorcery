@@ -122,16 +122,17 @@ function stage_install_symlink()
 {
   local FILE=$1
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
-  message "${FILE_COLOR}Symlink $FILE -> $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE")${DEFAULT_COLOR}"
+  local LINK=$(readlink "$STAGE_DIRECTORY/TRANSL/$FILE")
+  message "${FILE_COLOR}Symlink $FILE -> $LINK${DEFAULT_COLOR}"
   case $2 in
     config)
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
         touch "${INSTALL_ROOT}/$FILE" &&
         mkdir -p $(dirname $SAVE) &&
-        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$SAVE"
+        ln -sfn "$LINK" "${INSTALL_ROOT}/$SAVE"
       else
-        ln -sfn $(readlink "$STAGE_DIRECTORY/TRANSL/$FILE") "${INSTALL_ROOT}/$FILE"
+        ln -sfn "$LINK" "${INSTALL_ROOT}/$FILE"
       fi
       ;;
     *)
