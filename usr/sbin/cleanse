@@ -346,7 +346,11 @@ function prune_depends()
 
       if [[ ${provider} ]] ; then
         message -n "$provider "
-        options=( "Switch from $2 to ${provider} and recompile" )
+        if [[ $3 == suggest ]] || [[ $3 == runtime ]]; then
+          options=( "Switch from $2 to ${provider}" )
+        else
+          options=( "Switch from $2 to ${provider} and recompile" )
+        fi
       else
         message -n "${PROBLEM_COLOR}no one${DEFAULT_COLOR} "
       fi
@@ -380,7 +384,9 @@ function prune_depends()
         ;;
       S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
         mv $TMP_DIR/prune.1 $DEPENDS_STATUS
-        echo $1 >>$TMP_DIR/prune.cast
+        if [[ $3 == required ]] || [[ $3 == optional ]]; then
+          echo $1 >>$TMP_DIR/prune.cast
+        fi
         ;;
       *)  message "We should never get here."
         exit 1
