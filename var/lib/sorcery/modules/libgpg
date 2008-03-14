@@ -17,11 +17,11 @@
 ## @param public keyring
 ##
 ## @return 0 on success, non-zero on failure:
-##    1: verification failure
-##    3: no signature file
-##    4: no file to verify
-##    5: no keyring
-##  200: gpg isnt installed
+## @return 1 verification failure
+## @return 3 no signature file
+## @return 4 no file to verify
+## @return 5 no keyring
+## @return 200 gpg isnt installed
 ##
 ## @stdout message when gpg is not installed
 ##
@@ -104,19 +104,16 @@ function gpg_get_grimoire_key() {
 ## Verify a grimoire tarball's gpg signature
 ## @param file on local disk to verify
 ## @param url from which to get the signature
-## @param (optional) grimoire branch, if derive it from the filename with
-##                   ${SOURCE%%*.}
-## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT
-##                   from $2
+## @param (optional) grimoire branch, if derive it from the filename with ${SOURCE%%*.}
+## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT from $2
 ## @return 0 on success, non-zero on failure:
-##   1: verification failed
-##   2: verification is disabled
-## 254: no keyring found
-## 255: could not download signature
-## anything else see gpg_verify_signature
+## @return 1 verification failed
+## @return 2 verification is disabled
+## @return 254 no keyring found
+## @return 255 could not download signature
+## @return anything else see gpg_verify_signature
 ##
-## @stdout possibly a failure message depending on what happens (nothing
-##         is output on success)
+## @stdout possibly a failure message depending on what happens (nothing is output on success)
 #---------------------------------------------------------------------
 function gpg_verify_grimoire() {
   if [[ "$GPG_VERIFY_GRIMOIRE" != on ]] ; then
@@ -187,18 +184,16 @@ function verify_grimoire_tree() {
 ## Verify a sorcery tarball's gpg signature
 ## @param file on local disk to verify
 ## @param url from which to get the signature
-## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT
-## from $2
+## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT from $2
 ##
 ## @return 0 on success, non-zero on failure:
-##   1: verification failed
-##   2: verification is disabled
-## 254: no keyring found
-## 255: could not download signature
-## anything else see gpg_verify_signature
+## @return 1 verification failed
+## @return 2 verification is disabled
+## @return 254 no keyring found
+## @return 255 could not download signature
+## @return anything else see gpg_verify_signature
 ##
-## @stdout possibly a failure message depending on what happens (nothing
-##         is output on success)
+## @stdout possibly a failure message depending on what happens (nothing is output on success)
 #---------------------------------------------------------------------
 function gpg_verify_sorcery() {
   if [[ "$GPG_VERIFY_SORCERY" != on ]] ; then
@@ -224,18 +219,15 @@ function gpg_verify_sorcery() {
 ## @param file on local disk to verify
 ## @param url from which to get the signature
 ## @param keyring to verify with
-## @param grimoire or sorcery, whatever it is thats being verified (used in
-##        an output message
-## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT
-##                   from $2
+## @param grimoire or sorcery, whatever it is thats being verified (used in an output message
+## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT from $2
 ##
 ## @return 0 on success, non-zero on failure:
-##   1: verification failed
-## 255: could not download signature
-## anything else see gpg_verify_signature
+## @return 1 verification failed
+## @return 255 could not download signature
+## @return anything else see gpg_verify_signature
 ##
-## @stdout possibly a failure message depending on what happens (nothing
-##         is output on success)
+## @stdout possibly a failure message depending on what happens (nothing is output on success)
 #---------------------------------------------------------------------
 function gpg_verify_common() {
   # download the signature
@@ -276,11 +268,12 @@ function gpg_verify_common() {
 ## gpg_verify_grimoire.
 ##
 ## @param return code of gpg_verify_sorcery or gpg_verify_grimoire
-## @return 0 if the program should continue, 1 if not
+## @return 0 if the program should continue
+## @return 1 if not
 ##
 ## @stdout Some message thats supposed to inform the user of whats
-##         going on, or possibly a query asking the user if they want
-##         to continue even though gpg verification failed.
+## @stdout going on, or possibly a query asking the user if they want
+## @stdout to continue even though gpg verification failed.
 #---------------------------------------------------------------------
 function gpg_user_query() {
   local rc=$1
@@ -314,9 +307,9 @@ function gpg_user_query() {
 #---------------------------------------------------------------------
 ## @param algorithm to use
 ## @param file to get hashsum of
-## @out output is exactly the same format as md5sum/sha1sum, just with
-## a different hashsum. "hashsum<space><space>filename". The hashsum is
-## printed with all lowercase letters.
+## @stdout output is exactly the same format as md5sum/sha1sum, just with
+## @stdout a different hashsum. "hashsum<space><space>filename". The hashsum is
+## @stdout printed with all lowercase letters.
 ##
 ## This assumes that the caller has already verified that gpg is
 ## installed and supports the specified hash function.
@@ -331,8 +324,8 @@ function gpg_hashsum() {
 }
 
 #---------------------------------------------------------------------
-## @out All the hash algorithms supported by gpg, algorithms printed in
-## lower case.
+## @stdout All the hash algorithms supported by gpg, algorithms printed in
+## @stdout lower case.
 ##
 ## This assumes the caller has already verified that gpg is installed.
 #---------------------------------------------------------------------
@@ -343,8 +336,7 @@ function gpg_get_hashes() {
 #---------------------------------------------------------------------
 ## Verify a tree against a manifest file
 ## @param directory to verify
-## @param manifest file, the format is like what the md5sum tool would
-##        produce
+## @param manifest file, the format is like what the md5sum tool would produce
 ## @param algorithm to use, this can be anything supported by gpg
 ## @param regular expression of files to ignore
 #---------------------------------------------------------------------
