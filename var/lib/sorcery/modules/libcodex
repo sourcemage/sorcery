@@ -727,6 +727,8 @@ function codex_cache_spell_lookup()  {
 #---------------------------------------------------------------------
 function codex_check_cache()  {
   codex_is_canonicalized $1 || return 1
+  [[ -x $1 ]] || return 1
+
   if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
       codex_create_cache
   fi
