@@ -464,8 +464,8 @@ function unpack_hash() {
 
     if [[ "$HASH" != "$HASHSUM" ]] || [[ $rc != 0 ]]
     then
-      message "${PROBLEM_COLOR}$ALGORITHM check failed"  \
-              "$HASH != $HASHSUM !${DEFAULT_COLOR}"      &&
+      error_message "${PROBLEM_COLOR}$ALGORITHM check failed!" &&
+      error_message "$HASH (computed) != $HASHSUM (expected)!$DEFAULT_COLOR" &&
       hash_user_query 1 "$SPELL" spell || return 1
     else
       if is_allowed_hash ${ALGORITHM} ${HLEVEL} ; then rc=0 ; else rc=1 ; fi
