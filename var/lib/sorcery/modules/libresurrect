@@ -202,7 +202,7 @@ function resurrect()  { (
     tablet_get_grimoire_filter "$OLD_TABLET_DIR" configs SECTION_CONFIG_FILTER
     tablet_get_section_filter "$OLD_TABLET_DIR" configs GRIMOIRE_CONFIG_FILTER
   else
-    unset $OLD_TABLET_DIR
+    unset OLD_TABLET_DIR
     debug "libresurrect" "no tablet"
     codex_set_current_spell_by_name $SPELL
     SPELL_CONFIG_FILTER=$SCRIPT_DIRECTORY/configs
@@ -300,7 +300,9 @@ function resurrect()  { (
   #cleanse --fix  $SILENT  $SPELL
 
   # n) run triggers
-  #run_triggers
+  #TABLET_PATH=$STATE_DIRECTORY/tablet # reset to default, was relative
+  #SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
+  #run_triggers # doesn't work since the spell isn't installed yet
 
   return 0
 ) }
