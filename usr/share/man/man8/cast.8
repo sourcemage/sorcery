@@ -54,14 +54,14 @@ Specify an alternate directory to search for cached sources.
 An alternate to /var/spool/sorcery.
 Usually though, you'd just copy the source to /var/spool/sorcery.
 .SS "--queue"
-re-casts all spells in the install queue, as generated for example by
+Re-casts all spells in the install queue, as generated for example by
 .BI sorcery " queue"
 .SS "-V on|off"
-overrides the VOYEUR option, which specifies whether or not
+Overrides the VOYEUR option, which specifies whether or not
 compile output should be displayed. Helpful if you usually have
 it off and want to see where an error is.
 .SS "-d, --download"
-forces redownloading of sources, sources are freshly downloaded
+Forces redownloading of sources, sources are freshly downloaded
 even when we already have them.
 .SS "-R, --recast-down"
 recasts all the spells the given spell(s) depend on
@@ -69,6 +69,14 @@ recasts all the spells the given spell(s) depend on
 This might be quite a lot of spells.
 .SS "-B, --recast-up"
 recasts all the spells that depend on the given spell(s).
+.SS "-O, --recast-optional [option]"
+If a spell being built has spells which could optionally depend on it, but those
+dependencies are disabled, ask to recast the dependee. Option can be one of: "always",
+"ask-yes", "ask-no", or "ignore"; it defaults to what is set via the sorcery menu.
+.SS "-Z, --lazy-updates [option]"
+Perform updates on installed spells that need updates. Optional parameter are the same as above.
+.SS "-b, --force-base-dep"
+Force all spells to depend on basesystem.
 .SS "-h, --help"
 Display short help.
 .SH "ENVIRONMENT"
@@ -96,7 +104,7 @@ If spell fails during a cast, try recasting it with
 to reconfigure and recompile.
 .SH "COMMENTS"
 Unless the
-.B -from
+.B --from
 option is specified cast will always check the
 .I /var/spool/sorcery
 directory first to see if the package exists. If the package does not
