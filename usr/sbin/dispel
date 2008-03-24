@@ -24,7 +24,7 @@ Optional Parameters:
 -e | --exile spell      Removes spells and blocks them
                         from being automatically reinstalled.
 
--d | --downgrade spell version
+-d | --downgrade spell [version]
                         Removes the spell and reinstalls
                         the selected version from cache
 
@@ -85,7 +85,7 @@ function downgrade()  {
   REQUESTED_VERSION=$2
   CACHE_COMP="$INSTALL_CACHE/$SPELL-$REQUESTED_VERSION-$HOST.tar$EXTENSION"
 
-  if    [  !  -f  $CACHE_COMP   ];  then
+  if [[ -n $REQUESTED_VERSION && ! -f $CACHE_COMP ]]; then
     message  "${FILE_COLOR}$CACHE_COMP"        \
              "${PROBLEM_COLOR}was not found."  \
              "${DEFAULT_COLOR}"
@@ -118,8 +118,35 @@ function downgrade()  {
     return 1
   fi
 
+  local version versions chosen_version
+  versions=$(find $INSTALL_CACHE -name "$SPELL-*-$HOST.*" -printf "%f\n" |
+    sed "s,^$SPELL-\(\S*\)-$HOST\.\S*$,\1," |
+    while read version; do
+      # we need to ignore other spells with similar names due to laxed matching
+      # for example, wine-gecko would match when searching for wine, but we can
+      # check if wine + gecko is a spell. We do that by comparing version parts
+      if ! codex_find_spell_by_name "$SPELL-${version%%-*}" &>/dev/null; then
+        local version2="${version#*-}"
+        if ! codex_find_spell_by_name "$SPELL-${version%%-*}-${version2%%-*}" &>/dev/null; then
+          echo $version
+        fi
+      fi
+    done | sort -r)
+  if [[ -z $versions ]]; then
+    error_message "${PROBLEM_COLOR}Unable to downgrade"   \
+                  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+                  "because no cache was found."
+    return 1
+  fi
+  # skip the query if there is only one candidate version
+  if [[ $(wc -l <<< "$versions") != 1 ]]; then
+    select_list chosen_version "$REQUESTED_VERSION" $versions
+  else
+    chosen_version="$versions"
+  fi
+
   SUCCESS_LIST=/dev/null
-  resurrect $SPELL $REQUESTED_VERSION
+  resurrect $SPELL $chosen_version
 
   return 0
 }
@@ -140,13 +167,14 @@ function process_parameters()  {
             EXILE="yes"; shift 1
             ;;
      -d|--downgrade)
-            if [[ -z $3 ]]; then
+            if [[ -z $2 ]]; then
               message  "${PROBLEM_COLOR}Missing parameters!${DEFAULT_COLOR}"
               help
             fi
             downgrade  $2  $3
             DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
-            shift  3
+            [[ ${3:0:1} == - ]] || shift
+            shift 2
             ;;
            --noreap)  REAP="off";         shift  1  ;;
   --no-reap-depends)  NO_REAP_DEPENDS="on";  shift  1  ;;
@@ -207,7 +235,7 @@ function strip_parameters()  {
     if  echo  "" $1  |  grep  -q  "^ -";  then
       case  $1  in
             -e|--exile)  shift  1  ;;
-        -d|--downgrade)  shift  3  ;;
+        -d|--downgrade)  shift  2; [[ ${3:0:1} == - ]] || shift ;;
               --noreap)  shift  1  ;;
      --no-reap-depends)  shift  1  ;;
            --nosustain)  shift  1  ;;
