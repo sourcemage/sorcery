@@ -937,7 +937,7 @@ function cleanse_fix_md5sum_check() {
     test -h $LINE && continue
     REAL_MD5=$(md5sum $LINE)
     # find the file in some log somewhere...
-    FOUND_IN=$(grep -l "^$REAL_MD5\$" $MD5SUM_LOGS/*)
+    FOUND_IN=$(echo $MD5SUM_LOGS/* | xargs grep -l "^$REAL_MD5\$")
 
     # remove anything from a non-current version of the spell
     # this is ugly but the only reasonable way I know of to do this...
