@@ -19,7 +19,7 @@ function can_resurrect()  {
   debug "libresurrect" "can_resurrect - $*"
   local SPELL=$1
   local VERSION=$2
-  
+
   # FIXME accept files of other extensions
   local file=$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar$EXTENSION &&
   test -f $file &&
@@ -29,44 +29,44 @@ function can_resurrect()  {
 }
 
 #------------------------------------------------------------------------
-# @param spell 
-# @param version
-#
-# High level overview:
-#
-# ensure theres a cache tarball
-#
-# unpack the tarball somewhere
-#
-# if the spell is installed backup everything
-#
-# split the files into three categories: state data, config files, regular files
-#   this can be roughly viewed as (its slightly more complicated)
-#   state data is data owned by sorcery (/var/state)
-#   config files are defined in the /var/lib/sorcery/configs file
-#   things not in the above categories are regular files
-#
-# copy regular files onto the system
-# copy config files carefully (dont trample on user changes)
-#   if the file does not exist, just copy the new one
-#   elif the file exists and is identical to the new one, do nothing
-#   else the file exists and differs from the new one then
-#     if it is owned by the old spell with a valid md5
-#       replace the file
-#     elif it is owned by the old spell with an invalid md5 (admin changed it)
-#       ask if the user wants to change it
-#     else the file might be owned by another spell, or might be an alien
-#       ask if the user wants to change it
-#
-# if the spell was installed
-#   remove regular files unique to the old spell
-#   remove unchanged config files
-#   ask about changed config files
-# 
-# update state data
-# call it a day
-#
-# FIXME: some of the informative message calls might work better as debug messages
+## @param spell
+## @param version
+##
+## High level overview:
+##
+## ensure theres a cache tarball
+##
+## unpack the tarball somewhere
+##
+## if the spell is installed backup everything
+##
+## split the files into three categories: state data, config files, regular files
+##   this can be roughly viewed as (its slightly more complicated)
+##   state data is data owned by sorcery (/var/state)
+##   config files are defined in the /var/lib/sorcery/configs file
+##   things not in the above categories are regular files
+##
+## copy regular files onto the system
+## copy config files carefully (dont trample on user changes)
+##   if the file does not exist, just copy the new one
+##   elif the file exists and is identical to the new one, do nothing
+##   else the file exists and differs from the new one then
+##     if it is owned by the old spell with a valid md5
+##       replace the file
+##     elif it is owned by the old spell with an invalid md5 (admin changed it)
+##       ask if the user wants to change it
+##     else the file might be owned by another spell, or might be an alien
+##       ask if the user wants to change it
+##
+## if the spell was installed
+##   remove regular files unique to the old spell
+##   remove unchanged config files
+##   ask about changed config files
+##
+## update state data
+## call it a day
+##
+## FIXME: some of the informative message calls might work better as debug messages
 #------------------------------------------------------------------------
 function resurrect()  { (
   debug "libresurrect" "resurrect - $*"
@@ -202,7 +202,7 @@ function resurrect()  { (
     tablet_get_grimoire_filter "$OLD_TABLET_DIR" configs SECTION_CONFIG_FILTER
     tablet_get_section_filter "$OLD_TABLET_DIR" configs GRIMOIRE_CONFIG_FILTER
   else
-    unset $OLD_TABLET_DIR
+    unset OLD_TABLET_DIR
     debug "libresurrect" "no tablet"
     codex_set_current_spell_by_name $SPELL
     SPELL_CONFIG_FILTER=$SCRIPT_DIRECTORY/configs
@@ -300,7 +300,9 @@ function resurrect()  { (
   #cleanse --fix  $SILENT  $SPELL
 
   # n) run triggers
-  #run_triggers
+  #TABLET_PATH=$STATE_DIRECTORY/tablet # reset to default, was relative
+  #SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
+  #run_triggers # doesn't work since the spell isn't installed yet
 
   return 0
 ) }
@@ -331,7 +333,7 @@ function resurrect_sub() {
     # test -d so handle them specially
     test -h ".$line" && echo .$line ||
     test -d ".$line" || echo .$line
-  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || { 
+  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || {
     debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1
@@ -347,7 +349,7 @@ function resurrect_sub() {
     debug libresurrect "resurrect_install_conf_sub -- $@"
     test -d ".$1" ||
     internal_install_config_file ".$1" "${INSTALL_ROOT}${1}" $savetime \
-                                                         "$OLD_MD5_LOG" || {
+                                                         "$OLD_MD5_LOG_R" || {
       res_fail=1
       BREAK=1
     }
@@ -401,10 +403,9 @@ function resurrect_sub() {
 
 
 #------------------------------------------------------------------------
-## @param from	File we might want to install
-## @param to	File to replace
-## @param savetime	Backup time if necessary (optional, defaults to
-##                      $(date +'%Y%m%d%H%M')
+## @param from        File we might want to install
+## @param to          File to replace
+## @param savetime    Backup time if necessary (optional, defaults to $(date +'%Y%m%d%H%M')
 #------------------------------------------------------------------------
 function real_install_config_file() {
   if [[ ! $1 ]] || [[ ! $2 ]] ; then
@@ -412,7 +413,7 @@ function real_install_config_file() {
             "$DEFAULT_COLOR"
     return 1
   fi
-  
+
   local old_md5_log
   if [[ $OLD_SPELL_VERSION ]] ; then
     old_md5_log=$MD5SUM_LOGS/$SPELL-$OLD_SPELL_VERSION
@@ -430,11 +431,10 @@ function real_install_config_file() {
 }
 
 #------------------------------------------------------------------------
-## @param from	File we might want to install
-## @param to	File to replace
-## @param savetime	Backup time if necessary
-## @param md5_log	MD5 log for previous version of the spell,
-#                       must be in root form
+## @param from          File we might want to install
+## @param to            File to replace
+## @param savetime      Backup time if necessary
+## @param md5_log       MD5 log for previous version of the spell, must be in root form
 #------------------------------------------------------------------------
 function internal_install_config_file() {
   local from=$1
@@ -451,8 +451,8 @@ function internal_install_config_file() {
     return $?
   fi
 
-  # if the file does not exist, 
-  if ! test -e "$to"; then
+  # if the file does not exist, or stage root is invoked
+  if ! test -e "$to" || [[ $STAGED_INSTALL == on ]] ; then
     # copy the new one in (plus leading directories)
     mkdir -p "$(dirname "$to")" &&
     cp -pv "$from" "$to"
@@ -490,9 +490,9 @@ function internal_install_config_file() {
 }
 
 #------------------------------------------------------------------------
-## @param from	File we might want to install
-## @param to	File to replace
-## @param savetime	Backup time if necessary
+## @param from          File we might want to install
+## @param to            File to replace
+## @param savetime      Backup time if necessary
 ##
 ## Present the user with the following menu
 ## (0) trash $to and install over it
@@ -508,15 +508,15 @@ function real_handle_changed_config() {
   local to=$2
   local savetime=$3
   local number
-  local default=2 # TODO: this should come from a variable someday
+  local default=$DEFAULT_CHANGED_CONFIG_ACTION
 
   local continue=yes
   message "${MESSAGE_COLOR}Installing to $to, please choose an option:"
   while [[ "$continue" == "yes" ]] ; do
-    message "${QUERY_COLOR}"
+    message -n "${QUERY_COLOR}"
     message "(0) trash $to and install over it"
-    message "(1) backup $to to $to.$savetime, install the new file in its place"
-    message "(2) leave $to in its place, copy the new file to $to.$savetime"
+    message "(1) backup $to to $to.$savetime.old, install the new file in its place"
+    message "(2) leave $to in its place, copy the new file to $to.$savetime.new"
     message "(3) do nothing"
     message "(4) see a diff between $to and the new file"
     # TODO: someday add an option to use an external merge tool
@@ -534,10 +534,10 @@ function real_handle_changed_config() {
     case $number in
       0)  cp -pv "$from" "$to"
           break ;;
-      1)  cp -pv "$to" "$to.$savetime"
+      1)  cp -pv "$to" "$to.$savetime.old"
           cp -pv "$from" "$to"
           break ;;
-      2)  cp -pv "$from" "$to.$savetime"
+      2)  cp -pv "$from" "$to.$savetime.new"
           mark_file_modified "$to"
           # this is deliberatly not track_manual, if this is run from
           # FINAL the user might not have wanted the files tracked
@@ -572,15 +572,24 @@ function resurrect_success() {
   # 15) commit state data:
   if [[ $OLD_TABLET_DIR ]] ; then
     # depends info if it exists
-    local t_DEPENDS_STATUS=$(lock_start_transaction "$DEPENDS_STATUS")
     # none of the old values are valid, only the new, uncommitted values are
-    remove_depends_status $t_DEPENDS_STATUS $SPELL
+    remove_depends_status $DEPENDS_STATUS $SPELL
     local spell_depends=$OLD_TABLET_DIR/depends
+    local t_DEPENDS_STATUS t_SUB_DEPENDS_STATUS
+    lock_start_transaction "$DEPENDS_STATUS" t_DEPENDS_STATUS
     if [ -e $spell_depends ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
     lock_commit_transaction $DEPENDS_STATUS
- 
+
+    remove_sub_depends $SUB_DEPENDS_STATUS ".*" $SPELL
+    local spell_sub_depends=$OLD_TABLET_DIR/sub_depends
+    if [[ -e $spell_sub_depends ]]; then
+      lock_start_transaction "$SUB_DEPENDS_STATUS" t_SUB_DEPENDS_STATUS
+      cat $spell_sub_depends >> $t_SUB_DEPENDS_STATUS
+      lock_commit_transaction $SUB_DEPENDS_STATUS
+    fi
+
     #   if theres a tablet dir, store it with a new timestamp
     if new_tablet=$(tablet_get_path $SPELL) ; then
       cp -Rp $OLD_TABLET_DIR/* $new_tablet
@@ -597,7 +606,7 @@ function resurrect_success() {
   echo $COMPILE_LOG >> $TMP_INSTALL_LOG_STATE
   echo $INSTALL_LOG >> $TMP_INSTALL_LOG_STATE
   echo $MD5_LOG >> $TMP_INSTALL_LOG_STATE
-  
+
   # Use the cache's listing of files in filterable form
   # dont use root form because it may be different
   log_adjuster $NEW_DATA_F $TMP_INSTALL_LOG_DATA filterable root
@@ -621,14 +630,14 @@ function resurrect_success() {
   activity_log  "resurrect"  "$SPELL"  "$VERSION"  "success"
   message  "${RESURRECT_COLOR}Resurrected spell: ${SPELL_COLOR}${SPELL}" \
            "${DEFAULT_COLOR} version ${VERSION_COLOR}${VERSION}"         \
-           "${DEFAULT_COLOR}" 
+           "${DEFAULT_COLOR}"
 }
 
 
 function resurrect_fail() {
   message  "${PROBLEM_COLOR}Resurrect failed for spell:" \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} version" \
-           "${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}" 
+           "${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}"
 
   #if [[ $1 == 1 ]] ; then
     #TODO evaluate the usefulness of a backup/rollback scheme
@@ -642,7 +651,7 @@ function resurrect_fail() {
   unlock_resources "solo" "cast"
 
   [[  $CLEAN_SOURCE == on ]] && rm_source_dir $RESURRECT_DIR 2>/dev/null
-  
+
   echo $SPELL >> $FAILED_LIST
 }
 

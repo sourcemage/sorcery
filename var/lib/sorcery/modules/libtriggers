@@ -18,28 +18,23 @@
 function run_triggers() {
   debug "libtriggers" "Starting run_triggers() on $SPELL"
 
-  if [ -x $SCRIPT_DIRECTORY/TRIGGERS ]; then
-    persistent_load
-    . $SCRIPT_DIRECTORY/TRIGGERS
-    persistent_save
-  fi
+  run_spell_file TRIGGERS triggers
 
 }
 
 #---------------------------------------------------------------------
 ## @param spell
 ##
-## Remove's all of a spell's triggers from the list of registered 
+## Remove's all of a spell's triggers from the list of registered
 ## triggers.
 ##
 #---------------------------------------------------------------------
 function remove_triggers ()
-{ 
+{
   debug "libtriggers" "remove_triggers - $*"
 
   [ -f $TRIGGER_LIST ] || return 0
-  tTRIGGER_LIST=`lock_start_transaction $TRIGGER_LIST`
-  [ -f $tTRIGGER_LIST ] || return 0
+  lock_start_transaction "$TRIGGER_LIST" tTRIGGER_LIST
   grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
   lock_commit_transaction $TRIGGER_LIST
   return $?
@@ -52,17 +47,17 @@ function remove_triggers ()
 ##
 ## @Stdout Query and warnings
 ## @Stdin y/n
-## Triggers an event and performs necessary actions. Argument 2 is 
+## Triggers an event and performs necessary actions. Argument 2 is
 ## optional. If omitted, the value of SPELL will be used.
 ##
 #---------------------------------------------------------------------
 function trigger ()
-{ 
+{
   debug "libtriggers" "trigger - $*"
 
   local spell TRIGGER action
   action=$1
-  spell=`esc_str ${SPELL:-$4}`
+  spell=`esc_str ${SPELL:-$2}`
 
   [ -f $TRIGGER_LIST ] || return 0
   iterate do_trigger $'\n' "`grep "^[^:]*:$spell:on_$action" $TRIGGER_LIST`"
@@ -98,7 +93,7 @@ function get_run_script_triggers() {
 ## @param causing-spell
 ## @param action
 ## @param subject-spell
-## Registers a trigger in the list of triggers. Also verifies that 
+## Registers a trigger in the list of triggers. Also verifies that
 ## the trigger and action exist.
 ##
 #---------------------------------------------------------------------
@@ -126,10 +121,10 @@ function set_trigger ()
       ;;
   esac
   #perhaps a check to make sure that $2 exists?
-  
+
   spell=${SPELL:-$4}
   str="$spell:$2:$1:$3"
-  
+
   lock_file $TRIGGER_LIST
   if ! test -f $TRIGGER_LIST || ! grep -q "$str" $TRIGGER_LIST ; then
     echo "$str" >> $TRIGGER_LIST

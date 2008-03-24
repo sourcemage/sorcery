@@ -6,6 +6,17 @@
 #---------------------------------------------------------------------
 
 #---------------------------------------------------------------------
+##
+##  Initialize libtrack, currently this is just the modified files list.
+##  This is used by cast to exclude files it's modified from the md5 list.
+##
+#---------------------------------------------------------------------
+function libtrack_init() {
+  [[ $__MODIFIED_FILES ]] || export __MODIFIED_FILES="$TMP_DIR/modified_files"
+}
+
+
+#---------------------------------------------------------------------
 ## @Stdin list of files
 ## @Stdout list of files
 ## Reads a list of files from standard in, and returns a list of the
@@ -26,7 +37,8 @@ function exists()  {
 ##
 #---------------------------------------------------------------------
 function real_track_manual()  {
-  if  [[  -z  "$INSTALLWATCHFILE"  ]];  then
+  if  [[ -z "$STAGED_INSTALL" || $STAGED_INSTALL == off ]] &&
+      [[ -z "$INSTALLWATCHFILE"  ]] ;  then
     echo "Can't tell installwatch to manually track... installwatch isn't running."
     return 1
   fi
@@ -37,6 +49,105 @@ function real_track_manual()  {
   return 0
 }
 
+#--------------------------------------------------------------------
+## Some simple castfs sanity checking
+## make a file, check to see if it exists, check to see if the
+## contents of the file is what we made it
+#--------------------------------------------------------------------
+function run_castfs_sanity()
+{
+  export CASTFS_LOGFILE=${CASTFS_DBGLOG}
+  export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
+  debug  "libtrack" "$FUNCNAME on $SPELL"
+
+  # first check if /dev/null is really a character device #13315
+  if [[ ! -c /dev/null ]]; then
+    debug "libtrack" "$FUNCNAME failure: damaged /dev/null"
+    return 1
+  fi
+
+  mkdir -p "${TMP_DIR}/test-mount" &&
+  mkdir -p "${TMP_DIR}/test-stage" &&
+  castfs "${TMP_DIR}/test-mount" -o "stage=${TMP_DIR}/test-stage" -o "ignore=/tmp" &&
+  pushd "${TMP_DIR}/test-mount" > /dev/null &&
+  (
+    (echo stuff > foo) &&
+    (ls foo > /dev/null 2>&1) &&
+    (test "stuff" = "`cat foo`") &&
+    rm -f foo
+  )
+  local rc=$?
+  popd > /dev/null
+  if [[ $rc == 0 ]]
+  then
+    debug "libtrack" "$FUNCNAME success"
+  else
+    debug "libtrack" "$FUNCNAME failure"
+  fi
+  umount -l "${TMP_DIR}/test-mount"
+  return $rc
+}
+
+#---------------------------------------------------------------------
+##
+## Starts Translation Stage Root
+##
+#---------------------------------------------------------------------
+function real_invoke_stage_root()
+{
+  export CASTFS_LOGFILE=${CASTFS_DBGLOG}
+  export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
+  local CASTFS_IGNORE_LIST=""
+  local LOCAL_IGNORE_DIRS="${CCACHE_DIR} ${DISTCC_DIR}"
+  # this forks and daemonizes so it will exit you simply unmount the dir to stop the process
+  for dir in ${CASTFS_UNSTAGED_PATHS} ${LOCAL_IGNORE_DIRS}
+  do
+    CASTFS_IGNORE_LIST="${CASTFS_IGNORE_LIST} -o ignore=$dir"
+  done &&
+  castfs "${STAGE_DIRECTORY}/MOUNT" -o "stage=${STAGE_DIRECTORY}/TRANSL" $CASTFS_IGNORE_LIST &&
+  for dir in /dev /dev/pts /proc /sys
+  do
+    mount -o bind "$dir" "${STAGE_DIRECTORY}/MOUNT$dir"
+  done
+}
+
+#---------------------------------------------------------------------
+##
+## Stops Translation Stage Root
+##
+#---------------------------------------------------------------------
+function real_devoke_stage_root()
+{
+  unset CASTFS_LOGFILE
+  unset CASTFS_DBGLVL
+  for dir in /dev/pts /dev /proc /sys
+  do
+    umount -l "${STAGE_DIRECTORY}/MOUNT$dir"
+  done &&
+  umount -l "${STAGE_DIRECTORY}/MOUNT"
+}
+
+#---------------------------------------------------------------------
+##
+## Prepare Stage Root
+##
+#---------------------------------------------------------------------
+function prepare_stage_root()
+{
+  mk_source_dir "${STAGE_DIRECTORY}" &&
+  mk_source_dir "${STAGE_DIRECTORY}/TRANSL" &&
+  mk_source_dir "${STAGE_DIRECTORY}/MOUNT"
+}
+
+#---------------------------------------------------------------------
+##
+## Destroy Stage Root
+##
+#---------------------------------------------------------------------
+function destroy_stage_root()
+{
+  rm_source_dir $STAGE_DIRECTORY
+}
 
 #---------------------------------------------------------------------
 ##
@@ -46,17 +157,9 @@ function real_track_manual()  {
 function real_invoke_installwatch()  {
   if  [  -e  /usr/lib/installwatch.so  ];  then
     export  INSTALLWATCHFILE=$IW_LOG
-    export  INSTW_LOGFILE=$IW_LOG
-    export  INSTW_DBGFILE="$TMP_DIR/dbgfile"
-    export  INSTW_ROOTPATH=$TMP_DIR
-    export  INSTW_TRANSL=0
-    export  INSTW_BACKUP=0
-    export  INSTW_DBGLVL=0
-    export  INSTW_EXCLUDE="/dev,/proc,/tmp,/var/tmp,/usr/src,/sys"
     export  LD_PRELOAD=/usr/lib/installwatch.so
   fi
 }
-
 
 #---------------------------------------------------------------------
 ##
@@ -66,15 +169,25 @@ function real_invoke_installwatch()  {
 function real_devoke_installwatch()  {
   unset  LD_PRELOAD
   unset  INSTALLWATCHFILE
-  unset  INSTW_LOGFILE
-  unset  INSTW_DBGFILE
-  unset  INSTW_ROOTPATH
-  unset  INSTW_TRANSL
-  unset  INSTW_BACKUP
-  unset  INSTW_DBGLVL
-  unset  INSTW_EXCLUDE	      
 }
 
+function is_castfs_installed()
+{
+  local loc
+  if smgl_which castfs loc >/dev/null 2>&1 &&
+     (
+       modprobe fuse > /dev/null 2>&1 ||
+       grep -q '^nodev[[:space:]]*fuse$' /proc/filesystems
+     ) &&
+     [[ -c /dev/fuse ]]
+  then
+    message "${MESSAGE_COLOR}staging enabled${DEFAULT_COLOR}"
+    return 0
+  else
+    message "${MESSAGE_COLOR}staging disabled${DEFAULT_COLOR}"
+    return 1
+  fi
+}
 
 #---------------------------------------------------------------------
 ##
@@ -87,7 +200,7 @@ function parse_iw()  {
   # it is EXTREMELY IMPORTANT that this variable contains an actual
   # tab character and not some number of spaces. Otherwise BAD THINGS
   # will happen.
-  local TAB="	"
+  local TAB=$'\t'
   OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
 
   grep -v "$OMIT_IN" $INPUT | cut -f3 | grep "^/" | sed 's#^//#/#g'
@@ -106,18 +219,50 @@ function create_install_log()  {
   local OUTPUT=$2
 
   rm -f $OUTPUT
-  parse_iw $INPUT                     |
-  sort                                |
-  uniq                                |
-  install_log_filter $INSTALL_ROOT "" |
-  grep -v -x ""                       |
-  filter_excluded                     |
-  install_log_filter "" $INSTALL_ROOT |
-  exists                              >  $OUTPUT
+  if [[ $STAGED_INSTALL != off ]]
+  then
+    find "${STAGE_DIRECTORY}/TRANSL/"   |
+    sed "s#${STAGE_DIRECTORY}/TRANSL##g"|
+    grep -v -x '/'                      |
+    filter_excluded                     > $OUTPUT
+  else
+    parse_iw $INPUT                     |
+    sort                                |
+    uniq                                |
+    install_log_filter $INSTALL_ROOT "" |
+    grep -v -x ""                       |
+    filter_excluded                     |
+    install_log_filter "" $INSTALL_ROOT |
+    exists                              >  $OUTPUT
+  fi
 
   echo "$C_LOG_COMP"                  >> $OUTPUT
   echo "$MD5_LOG"                     >> $OUTPUT
   echo "$INST_LOG"                    >> $OUTPUT
+
+}
+
+#---------------------------------------------------------------------
+##
+## Creates the install log containing all staged files. It reuses
+## the existing install log and just prepends $STAGE_DIRECTORY/TRANSL
+## to every line
+##
+## @param input log file
+## @param output log file
+##
+#---------------------------------------------------------------------
+function create_stage_install_log()  {
+  debug  "libtrack" "$FUNCNAME on $SPELL"
+  local input="$1"
+  local output="$2"
+
+  # treat the logs specially, as they weren't staged
+  grep -v "$C_LOG_COMP\|$MD5_LOG\|$INST_LOG" "$input" > "$output"
+  sed -i "s#^#$STAGE_DIRECTORY/TRANSL#" "$output"
+  echo "$C_LOG_COMP"                 >> "$output"
+  echo "$MD5_LOG"                    >> "$output"
+  echo "$INST_LOG"                   >> "$output"
 
 }
 
@@ -139,6 +284,16 @@ function create_md5list() {
     fi
   done 2>/dev/null > $OUTPUT
 }
+
+#---------------------------------------------------------------------
+## External api to note config files
+#---------------------------------------------------------------------
+function real_note_config_file() {
+  if check_if_modified "$1"; then
+    mark_file_modified "$1"
+  fi
+}
+
 
 #---------------------------------------------------------------------
 ## Notes that a file was previously modified so that its md5 is
@@ -175,6 +330,7 @@ function check_if_modified() {
     true
   fi
 }
+
 
 #---------------------------------------------------------------------
 ##
@@ -335,14 +491,10 @@ function log_adjuster() {
     fi
   fi
 
-  local TMP_SSF=$TMP_DIR/$RANDOM
-  while ! mkdir $TMP_SSF &>/dev/null; do
-    TMP_SSF=$TMP_DIR/$RANDOM
-    sleep 1
-  done
+  local TMP_SSF=$(make_safe_dir)
   local TMP_DATA=$TMP_SSF/foo.data
   local TMP_MDATA=$TMP_SSF/foo.mdata
-  
+
   seperate_state_files $input $TMP_DATA $TMP_MDATA
   {
     if [[ $cat_metadata ]] ; then
@@ -354,6 +506,7 @@ function log_adjuster() {
   } > $output
   rm $TMP_DATA $TMP_MDATA
   rmdir $TMP_SSF
+  return 0
 }
 
 #---------------------------------------------------------------------
@@ -370,19 +523,51 @@ function seperate_state_files() {
   local REAL_STATE_DIR=${STATE_DIRECTORY#$STATE_ROOT}
 
   # the input file is almost certainly a pipe, and things get weird
-  # since we have to grep twice, so just dump the data into a unique
-  # file, the loop below shouldn't go forever unless there's ~30,000 pipes
+  # since we have to grep twice, so just dump the data into a unique file
 
-  local FILE=$TMP_DIR/ssf.$RANDOM
-  while test -e $FILE; do
-    FILE=$TMP_DIR/ssf.$RANDOM
-  done
+  local TMP_SSF=$(make_safe_dir)
+  local FILE=$TMP_SSF/ssf
   cat $1 > $FILE
   grep -v "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE | grep -xv '' > $2
   grep    "$REAL_LOG_DIR\|$REAL_STATE_DIR" $FILE | grep -xv '' > $3
   rm $FILE
+  rmdir $TMP_SSF
   return 0
 }
+
+#---------------------------------------------------------------------
+## Try to make a unique directory using $RANDOM, leverage the fact that
+## two simultaneous mkdir's will have one succeed and the other fail.
+##
+## This is run from log_adjuster primarily which may be invoked several
+## times in a pipe, when this happens, bash does a fork, but does not
+## seem to reseed the random number generator, causing a high rate of
+## collisions. This is not easily reproducable outside of sorcery at
+## the time of writing, but inside it happens nearly everytime with bash
+## 3.1. This may actually be a bash 3.1 bug.
+##
+## The collisions aren't bad necessarily, but they result in un-necesary
+## delay.
+##
+## Setting RANDOM re-seeds the random number generator.
+##
+## Despite the fact that the subshell and invocation of date are slow
+## the consequence for not doing them are worse. The nano-seconds
+## are usually going to be different between forks so the liklihood
+## of a collision is greatly reduced.
+#---------------------------------------------------------------------
+function make_safe_dir() { (
+  RANDOM=$(date "+%N")
+  local TMP_SSF=$TMP_DIR/$RANDOM
+  while ! mkdir "$TMP_SSF" &> /dev/null; do
+    RANDOM=$(date "+%N")
+    TMP_SSF=$TMP_DIR/$RANDOM
+    sleep .1
+    debug "libtrack" "safe dir collision on $TMP_SSF"
+  done
+  echo $TMP_SSF
+  return 0
+) }
 
 #---------------------------------------------------------------------
 ## @License

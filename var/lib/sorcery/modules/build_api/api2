@@ -26,13 +26,21 @@
 function run_build_spell() {
   debug "build_api/api2" "run_build_spell"
 
-  C_LOG=$TMP_DIR/$SPELL.compile.log
-  C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
+  local CHROOT_CHECK=""
 
+  export C_LOG=$TMP_DIR/$SPELL.compile.log
+  export CASTFS_DBGLOG=$C_LOG.castfs.dbglog
+  export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
+  export S_PWD=$TMP_DIR/build.saved.pwd
+  export VOYEUR_STDOUT VOYEUR_STDERR
+  export __DELVE_IN_CAST=on
+
+  rm  -f $CASTFS_DBGLOG
+  touch $CASTFS_DBGLOG
   rm  -f $C_LOG
   touch $C_LOG
-  
-  if [[ $SCREEN_NAME ]] ; then  
+
+  if [[ $SCREEN_NAME ]] ; then
     screen_new_window "$SCREEN_NAME" $SCREEN_CAST_WIN "cast $SPELL" \
       tail -f -s 0.1 $C_LOG
     screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
@@ -46,22 +54,48 @@ function run_build_spell() {
     VOYEUR_STDOUT=/dev/null
     VOYEUR_STDERR=/dev/null
   fi
-                      
+
+  if [[ -z $STAGED_INSTALL ]]
+  then
+    if ! is_castfs_installed
+    then
+      export STAGED_INSTALL=off
+    else
+      export STAGED_INSTALL=on
+    fi
+  fi
+
+  if [[ $STAGED_INSTALL == on ]] && ! run_castfs_sanity
+  then
+    message "${PROBLEM_COLOR}CastFS failed the sanity check, staging disabled!"
+    message -n "$DEFAULT_COLOR"
+    export STAGED_INSTALL=off
+  fi
+
   local PROTECT_SORCERY=yes
   local rs
   (
-    run_pre_build                         || return 1
-    run_config_loc                        || return 2
+    run_pre_build                           || return 1
+    run_config_loc                          || return 2
     (
-      run_build                           &&
-      run_pre_install                     &&
-      run_install                         || return 2
-      run_post_install                    &&
-      run_final                           || return 3
+      run_build                             &&
+      run_pre_install                       &&
+      if [[ $STAGED_INSTALL == off ]]
+      then
+        invoke_installwatch
+      fi                                    &&
+      delve $SPELL INSTALL                  &&
+      delve $SPELL INSTALL_EXTRAS           &&
+      run_post_install                      || return 2
+      run_transfer                          &&
+      devoke_installwatch                   &&
+      STAGED_INSTALL=off                    &&
+      run_final                             || return 3
     ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
        > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
   )
   rs=$?
+  unset __DELVE_IN_CAST
   if [[ $SCREEN_NAME ]] && [ $rs -gt 0 ] ; then
     screen_move_window "$SCREEN_NAME" $SCREEN_CAST_WIN $SCREEN_LAST_FAILED_CAST_WIN
     screen_name_window "$SCREEN_NAME" $SCREEN_LAST_FAILED_CAST_WIN "Failed $SPELL"
@@ -70,7 +104,7 @@ function run_build_spell() {
   elif [[ $SCREEN_NAME ]] ; then
     screen_kill_window "$SCREEN_NAME" $SCREEN_CAST_WIN
   fi
-  
+
   # triggers don't run in the window
   [ $rs -gt 0 ] && return $rs
 
@@ -92,18 +126,10 @@ function run_pre_build() {
 
   rm_source_dir
   mkdir -p $BUILD_DIRECTORY
-  cd  $BUILD_DIRECTORY
+  cd  "$BUILD_DIRECTORY"
 
   verify_sources &&
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_BUILD  ];  then
-    debug "build_api/api2" "run_pre_build() - Prebuild script exists, now sourcing "
-    . $SCRIPT_DIRECTORY/PRE_BUILD
-  else
-    debug "build_api/api2" "run_pre_build() - Prebuild script not found, using default"
-    default_pre_build
-  fi &&
-  persistent_save
+  run_spell_file PRE_BUILD pre_build
 }
 
 
@@ -119,8 +145,11 @@ function run_build()  {
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
 
-  [  -d  "$SOURCE_DIRECTORY"  ]  &&
-  cd      $SOURCE_DIRECTORY
+  if [  -d  "$SOURCE_DIRECTORY"  ] ; then
+    cd "$SOURCE_DIRECTORY"
+  else
+    cd "$BUILD_DIRECTORY"
+  fi &&
 
   invoke_build_dir
   invoke_gcc2
@@ -130,13 +159,7 @@ function run_build()  {
   pwd
   message "$SPELL    $VERSION"
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/BUILD  ];  then
-    .  $SCRIPT_DIRECTORY/BUILD
-  else
-    default_build
-  fi &&
-  persistent_save
+  run_spell_file BUILD build
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -144,6 +167,7 @@ function run_build()  {
              "${DEFAULT_COLOR}"
     return 1
   fi
+  pwd > $S_PWD
 }
 
 
@@ -154,34 +178,38 @@ function run_build()  {
 function run_pre_install() {
   debug "build_api/api2" "Starting run_pre_install()"
 
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/PRE_INSTALL  ];  then
-    .  $SCRIPT_DIRECTORY/PRE_INSTALL 
+  if [ -f $S_PWD ] ; then
+    cd "`cat $S_PWD`"
+  elif [ -d $SOURCE_DIRECTORY ] ; then
+    cd "$SOURCE_DIRECTORY"
   else
-    default_pre_install
-  fi &&
-  persistent_save &&
+    cd "$BUILD_DIRECTORY"
+  fi
+
+  run_spell_file PRE_INSTALL pre_install
   echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
+  pwd > $S_PWD
 }
 
 
 #---------------------------------------------------------------------
-## Turns all the various logs back on that were turned off from after
-## run_pre_install finished, then runs INSTALL or default_install
+## load persistent vars, then runs INSTALL or default_install
 ## Along with other stuff that needs to be transplanted elsewhere.
+## NOTE: this function is run from delve so installwatch can be invoked
+## around an execed bash shell, this is needed for installwatch to
+## stage root properly
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
-
-  invoke_installwatch
-
-  persistent_load &&
-  if  [  -x  $SCRIPT_DIRECTORY/INSTALL  ];  then
-    .  $SCRIPT_DIRECTORY/INSTALL 
+  if [ -f $S_PWD ] ; then
+    cd "`cat $S_PWD`"
+  elif [ -d $SOURCE_DIRECTORY ] ; then
+    cd "$SOURCE_DIRECTORY"
   else
-    default_install
-  fi &&
-  persistent_save &&
+    cd "$BUILD_DIRECTORY"
+  fi
+
+  run_spell_file INSTALL install
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
@@ -191,21 +219,43 @@ function run_install() {
   fi
 }
 
+function run_install_extras() {
+
+  debug "build_api/api2" "Starting run_install_extras()"
+  run_spell_file INSTALL_EXTRAS install_extras
+}
+
 #---------------------------------------------------------------------
 ## Checks for a POST_BUILD file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it. This file is run after INSTALL and before
-## FINAL. Its purpose is to bookend INSTALL and shutoff installwatch.
+## FINAL. Its purpose is to manipulate the installed files in the stage
+## root and install other tracked files.
+## NOTE: this function is run from delve so installwatch can be invoked
+## around an execed bash shell, this is needed for installwatch to
+## stage root properly
 #---------------------------------------------------------------------
 function run_post_install() {
   debug "build_api/api2" "Starting run_post_install()"
   persistent_load &&
-  if    [  -x  $SCRIPT_DIRECTORY/POST_INSTALL  ]; then
-    . $SCRIPT_DIRECTORY/POST_INSTALL
+  if [[ $STAGED_INSTALL != off ]]
+  then
+    cd "$STAGE_DIRECTORY/"
   else
-    default_post_install
+    cd "${INSTALL_ROOT:-/}"
   fi &&
-  persistent_save &&
+  run_spell_file POST_INSTALL post_install
   unlock_resources "libgrimoire" "install"
+}
+
+#--------------------------------------------------------------------
+## Checks against STAGED_INSTALL and installs the staged spell
+## accordingly
+#--------------------------------------------------------------------
+function run_transfer() {
+  if [[ "$STAGED_INSTALL" != "off" ]]
+  then
+    run_spell_file TRANSFER transfer
+  fi
 }
 
 #---------------------------------------------------------------------
@@ -216,12 +266,7 @@ function run_post_install() {
 function run_final() {
 
   debug "build_api/api2" "Starting run_final()"
-  persistent_load &&
-  if    [  -x  $SCRIPT_DIRECTORY/FINAL  ]
-  then
-    . $SCRIPT_DIRECTORY/FINAL
-  fi &&
-  persistent_save
+  run_spell_file FINAL final
 }
 
 #---------------------------------------------------------------------
@@ -230,7 +275,7 @@ function run_final() {
 ## Used if no PRE_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function real_default_pre_build() {
+function real_default_sorcery_pre_build() {
 
   debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -241,7 +286,7 @@ function real_default_pre_build() {
 
 #---------------------------------------------------------------------
 ## @Type API
-## Used if no BUILD script is found 
+## Used if no BUILD script is found
 ## Default build is:
 ## <pre>
 ##  ./configure  --build=$BUILD        \
@@ -253,8 +298,8 @@ function real_default_pre_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_build() {
-  debug "build_api/api2" "real_default_build"
+function real_default_sorcery_build() {
+  debug "build_api/api2" "real_default_sorcery_build"
 
   OPTS="$OPTS --build=${BUILD}"
   #If these switches are used, they _may_ stop distcc and ccache from working
@@ -281,11 +326,9 @@ function real_default_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_pre_install() {
-  debug "build_api/api2" "Starting real_default_pre_install"
-  devoke_installwatch
+function real_default_sorcery_pre_install() {
+  debug "build_api/api2" "Starting real_default_sorcery_pre_install"
   prepare_install
-  invoke_installwatch
 }
 
 #---------------------------------------------------------------------
@@ -297,8 +340,8 @@ function real_default_pre_install() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_install() {
-  debug "build_api/api2" "Starting real_default_install"
+function real_default_sorcery_install() {
+  debug "build_api/api2" "Starting real_default_sorcery_install"
   make    install
 }
 
@@ -310,20 +353,25 @@ function real_default_install() {
 ##
 ## This is identical to api1's post_build
 #---------------------------------------------------------------------
-function real_default_post_install() {
+function real_default_sorcery_install_extras() {
 
-  debug "build_api/api2" "Starting real_default_post_install"
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
   install_xinetd
   install_initd
   install_pam_confs
   install_desktop_files
   gather_docs
-  devoke_installwatch
   init_post_install
-  ldconfig
+  [[ $STAGED_INSTALL == off ]] && ldconfig
   # release_saved_libraries
   cd  /
 
+}
+
+function real_default_sorcery_transfer() {
+
+  debug "build_api/api2" "Starting real_default_sorcery_post_install"
+  transfer_staged_spell
 }
 
 #---------------------------------------------------------------------

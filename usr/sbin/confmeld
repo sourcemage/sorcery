@@ -1,0 +1,335 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis merge the config files located in the config stage directory to the system.
+## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
+## Script to install staged config files.
+#---------------------------------------------------------------------
+
+#-----
+## Help... hmm... I wonder what it does...
+#-----
+function help()
+{
+  cat << EOF
+Melds the staged config files from $CONFIG_STAGE_DIRECTORY
+
+Examples:
+confmeld
+confmeld -l
+confmeld nano
+confmeld /etc/sysconfig/facilities
+
+Optional Parameters:
+-h, --help             will just print this help
+-l, --list             will just list all the spells and their staged configs
+-c, --list-configs     will just list all the staged configs
+-s, --list-spells      will just list all the spells with staged configs
+-q, --no-column        don't column the output
+-f, --force <action>   always use do <action> when merging
+
+where <action> can be one of:
+discard-new            do nothing
+discard-old            trash the old config and install over it
+use-old                leave the old config in its place and backup the new one
+use-new                backup the old config and install the new one in its place
+
+Optional arguments:
+You can invoke confmeld with a spell name or a staged config as an argument.
+Confmeld will then work only on that argument.
+
+EOF
+  exit 1
+}
+
+#--------------------------------------------------------------------
+## List all the configs in the config stage root
+##
+## @stdout a list of all configs in the config stage root
+#--------------------------------------------------------------------
+function all_config_files()
+{
+  find $CONFIG_STAGE_DIRECTORY -type f
+}
+
+#--------------------------------------------------------------------
+## List all uniq config *filenames* in the config stage directory
+##
+## @stdout a list of all uniq configs in the stage directory
+#--------------------------------------------------------------------
+function all_uniq_config_files()
+{
+  all_config_files |
+  sed "s#^$CONFIG_STAGE_DIRECTORY/[^/]*/[^/]*##" |
+  sort -u
+}
+
+#--------------------------------------------------------------------
+## list all spells that have staged configs
+##
+## @stdout list of spells that have staged configs
+#--------------------------------------------------------------------
+function all_spells_with_staged_configs()
+{
+  all_config_files |
+  sed "s#$CONFIG_STAGE_DIRECTORY/*##g" |
+  cut -s -d/ -f1 | uniq
+}
+
+#-----
+## override column so that we can pass -q to not columnate. Adapted from gaze
+#-----
+function maybe_column()  {
+  if [[ $USE_COLUMN == no ]]; then
+    cat
+  else
+    column "$@"
+  fi
+}
+
+#--------------------------------------------------------------------
+## nicely list all spells that have staged configs and exit
+##
+## @stdout list of spells that have staged configs
+#--------------------------------------------------------------------
+function list_spells_with_staged_configs()
+{
+  local spells=$(all_spells_with_staged_configs)
+
+  if [[ -n $spells ]]; then
+    message "${MESSAGE_COLOR}Spells with staged configuration files:$SPELL_COLOR"
+    echo "$spells" | maybe_column
+    message "$DEFAULT_COLOR"
+  fi
+  exit 0
+}
+
+#--------------------------------------------------------------------
+## nicely list all staged configs and exit
+##
+## @stdout list of staged configs
+#--------------------------------------------------------------------
+function list_staged_configs()
+{
+  local configs=$(all_uniq_config_files)
+
+  if [[ -n $configs ]]; then
+    message "${MESSAGE_COLOR}Staged configuration files:$FILE_COLOR"
+    echo "$configs" | maybe_column
+    message "$DEFAULT_COLOR"
+  fi
+  exit 0
+}
+
+#--------------------------------------------------------------------
+## nicely list all spells and their staged configs
+##
+## @stdout list of spells and their staged configs
+#--------------------------------------------------------------------
+function list_all()
+{
+  local spell config
+  for spell in $(all_spells_with_staged_configs); do
+    message "${SPELL_COLOR}$spell:$FILE_COLOR"
+    all_config_files |
+    sed -n "s,^$CONFIG_STAGE_DIRECTORY/$spell/[^/]*,,p" |
+    maybe_column
+    message "$DEFAULT_COLOR"
+  done
+  exit 0
+}
+
+#--------------------------------------------------------------------
+## parses the path to get specific information about the config file
+##
+## @param config file path
+## @param upvar for spell name
+## @param upvar for spell success time
+## @param upvar for actual path to file
+#--------------------------------------------------------------------
+function parse_stage_config_path()
+{
+  local file=$1
+  local __tmp __spell __sdate __path
+  __tmp=$(echo $file | sed "s#^$CONFIG_STAGE_DIRECTORY/##")
+  __spell=$(echo $__tmp | cut -d/ -f1)
+  __sdate=$(echo $__tmp | cut -d/ -f2)
+  __path=$(echo $__tmp | cut -d/ -f3-)
+  eval "$2=\"$__spell\""
+  eval "$3=\"$__sdate\""
+  eval "$4=\"$__path\""
+}
+
+#--------------------------------------------------------------------
+## Override the merging menu and always use a preset action
+##
+## @param action
+#--------------------------------------------------------------------
+function override_changed_config_menu()
+{
+
+  case $1 in
+    discard-new) DEFAULT_CHANGED_CONFIG_ACTION=3 ;;
+    discard-old) DEFAULT_CHANGED_CONFIG_ACTION=0 ;;
+        use-old) DEFAULT_CHANGED_CONFIG_ACTION=2 ;;
+        use-new) DEFAULT_CHANGED_CONFIG_ACTION=1 ;;
+              *) error_message "${PROBLEM_COLOR}Bad default merge action!$DEFAULT_COLOR"
+                 help ;;
+  esac
+  PROMPT_DELAY=0
+
+}
+
+#--------------------------------------------------------------------
+## Final check for removing empty spell directories, so the stage dir
+## is left clean
+#--------------------------------------------------------------------
+function final_cleanup()
+{
+  find $CONFIG_STAGE_DIRECTORY -mindepth 1 -maxdepth 2 -type d -empty -delete
+}
+
+#--------------------------------------------------------------------
+## merge only the passed file
+##
+## @param config
+#--------------------------------------------------------------------
+function merge_single_file()
+{
+  local file=$1 spell sdate target nice_date
+
+  parse_stage_config_path $file spell sdate target &&
+  if [[ -f $file && $target ]]
+  then
+    # make the $sdate human readable
+    # date -d can't use the whole original, so we have to do it in steps
+    nice_date=$(date -d ${sdate:0:8} "+%a %d %b %Y")
+    nice_date="$nice_date $(date -d ${sdate:8:4} "+%X %Z")"
+    message "${SPELL_COLOR}$spell$DEFAULT_COLOR cast on $nice_date has config"
+    message "${FILE_COLOR}$file$DEFAULT_COLOR"
+    message "to be merged with $FILE_COLOR/$target${DEFAULT_COLOR}\n"
+    tablet_set_spell $spell &&
+    install_config_file $file $INSTALL_ROOT/$target
+    recursive_config_stage_cleanup $file $spell
+    echo -e "\n"
+  fi
+}
+
+#--------------------------------------------------------------------
+## merge only the passed files or spells
+##
+## @param spell/config
+## @param ...
+#--------------------------------------------------------------------
+function confmeld_partial()
+{
+  local thing config configs rc=0
+
+  for thing in "$@"; do
+    if codex_does_spell_exist $thing &> /dev/null; then
+      # we got a spell
+      configs=$(find $CONFIG_STAGE_DIRECTORY/$thing -type f)
+    else
+      # we got a config or three
+      configs=$(find $CONFIG_STAGE_DIRECTORY -type f -wholename "*$thing")
+      if [[ -z $configs ]]; then
+        error_message "${PROBLEM_COLOR}No such spell or config:$DEFAULT_COLOR $thing"
+        rc=1
+        break
+      fi
+    fi
+    for config in $configs; do
+      merge_single_file "$config"
+    done
+  done
+  final_cleanup
+
+  exit $rc
+}
+
+#--------------------------------------------------------------------
+## merge all the staged configs
+#--------------------------------------------------------------------
+function confmeld_all()
+{
+  local spell
+
+  for file in $(all_config_files)
+  do
+    merge_single_file "$file"
+  done
+
+  final_cleanup
+}
+
+function process_parameters()
+{
+  local subroutine arguments
+  while [[ -n $1 ]]; do
+    if [[ ${1:0:1} == "-" ]]; then
+      case "$1" in
+                --help|-h) help ;;
+           --no-column|-q) USE_COLUMN=no ;;
+        --list-configs|-c) subroutine=list_staged_configs ;;
+         --list-spells|-s) subroutine=list_spells_with_staged_configs ;;
+                --list|-l) subroutine=list_all ;;
+               --force|-f) subroutine="override_changed_config_menu $2"
+                           shift ;;
+                        *) help ;;
+      esac
+    else
+      arguments="$1 $arguments"
+    fi
+    shift
+  done
+  $subroutine
+
+  [[ $arguments ]] && confmeld_partial $arguments
+}
+
+#--------------------------------------------------------------------
+## Main
+##
+## If there's no arguments get all the config files and start installing
+## them to the system using install_config_file
+#--------------------------------------------------------------------
+function main()
+{
+  local target spell sdate
+  local last_spell=""
+  local last_sdate=""
+
+  process_parameters "$@"
+
+  confmeld_all
+}
+
+
+. /etc/sorcery/config
+if  [  "$UID"  -gt  0  ];  then
+  echo  "Enter the root password, please."
+  exec su -c "confmeld $@" root
+else
+  STAGED_INSTALL="off"
+  main "$@"
+fi
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

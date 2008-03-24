@@ -31,11 +31,11 @@
 ## @Global GIT_TAG
 ##
 #---------------------------------------------------------------------
-function url_git_crack() {
+function url_git_http_crack() {
 
-  URL=`url_strip_prefix "$1" git`
+  URL=`url_strip_prefix "$1" git_http`
   GIT_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  GIT_ROOT=git://$GIT_ROOT
+  GIT_ROOT=http://$GIT_ROOT
   local GIT_DIRECTORY_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
   GIT_DIRECTORY=`echo $GIT_DIRECTORY_TAG | cut -d : -f2`
   local GIT_TAGNAME=`echo $GIT_DIRECTORY_TAG | cut -d : -f3`
@@ -49,7 +49,7 @@ function url_git_crack() {
 ## echoes the download handler - git
 ##
 #---------------------------------------------------------------------
-function url_git_bucketize() {
+function url_git_http_bucketize() {
   echo git
 }
 
@@ -60,9 +60,9 @@ function url_git_bucketize() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_git_verify() {
+function url_git_http_verify() {
   local  URL GIT_ROOT GIT_DIRECTORY GIT_TAG item
-  url_git_crack $1
+  url_git_http_crack $1
   for item in URL GIT_ROOT GIT_DIRECTORY GIT_TAG ; do
     if ! [[ ${!item} ]] ; then
       return 1
@@ -75,7 +75,7 @@ function url_git_verify() {
 ##
 ## Gets the hostname out of the url
 #---------------------------------------------------------------------
-function url_git_hostname() {
+function url_git_http_hostname() {
   echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
 }
 
@@ -85,11 +85,11 @@ function url_git_hostname() {
 ## Gets a netselect type output for the url
 ##
 #---------------------------------------------------------------------
-function url_git_netselect() {
+function url_git_http_netselect() {
   local tmp_hostname url_speed each
 
   for each in "$@" ; do
-    tmp_hostname=$(url_git_hostname $each)
+    tmp_hostname=$(url_git_http_hostname $each)
     # since we had to pull the url apart to give netselect
     # something it can understand we'll just pretend like
     # multiple A records wont exist for this host...

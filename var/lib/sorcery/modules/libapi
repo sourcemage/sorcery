@@ -18,69 +18,91 @@
 
 #---------------------------------------------------------------------
 # functions defined in here: (in alphabetical order)
-#    acquire_src            (libsummon)
-#    config_query           (libmisc)
-#    config_query_list      (libmisc)
-#    config_query_option    (libmisc)
-#    config_query_string    (libmisc)
-#    conflicts              (libgrimoire)  
-#    default_build          (build_api/...)   
-#    default_configure      (libdepends)
-#    default_depends        (libdepends)
-#    default_download       (libsummon)
-#    default_install        (build_api/api2)   (BUILD_API==2 only)
-#    default_post_build     (build_api/api1)   (BUILD_API==1 only)
-#    default_post_install   (build_api/api2)   (BUILD_API==2 only)
-#    default_post_remove    (libdispel)
-#    default_pre_build      (build_api/common)   
-#    default_pre_install    (build_api/api2)   (BUILD_API==2 only)
-#    default_pre_remove     (libdispel)
-#    default_prepare        (libdepends)
-#    depends                (libdepends)
-#    devoke_installwatch    (libtrack)
-#    download_src           (libsummon)
-#    force_depends          (libdepends)
-#    gather_docs            (build_api/common)
-#    get_spell_provider     (libstate)
-#    get_source_nums        (libmisc)
-#    guess_compressor       (libunpack)
-#    handle_changed_config  (libresurrect)
-#    is_depends_enabled     (libstate)
-#    installed_version      (libgrimoire)   
-#    install_config_file    (libresurrect)
-#    invoke_installwatch    (libtrack)
-#    list_add               (libmisc)
-#    list_find              (libmisc)
-#    list_remove            (libmisc)
-#    message                (libmisc)      
-#    mk_source_dir          (libgrimoire)   
-#    on_cast                (libtriggers)   
-#    on_dispel              (libtriggers)  
-#    on_pre_cast            (libtriggers)   
-#    on_pre_dispel          (libtriggers)   
-#    optional_depends       (libdepends)
-#    persistent_add         (libmisc)
-#    persistent_clear       (libmisc)
-#    persistent_load        (libmisc)
-#    persistent_remove      (libmisc)
-#    persistent_save        (libmisc)
-#    prepare_install        (libgrimoire)   
-#    provider_ok            (libstate)
-#    query                  (libmisc)       
-#    query_string           (libmisc)
-#    requires               (libdepends)
-#    rm_source_dir          (libgrimoire)
-#    sedit                  (libmisc)       
-#    spell_exiled           (libstate)
-#    spell_held             (libstate)
-#    spell_installed        (libstate)
-#    spell_ok               (libstate)
-#    track_manual           (libtrack)
-#    uncompress             (libunpack)
-#    unpack                 (libunpack) (deprecated)
-#    unpack_file            (libunpack)
-#    unpack_file_simple     (libunpack)
-#    verify_file            (libunpack)
+#    acquire_src                    (libsummon)
+#    config_query                   (libmisc)
+#    config_query_list              (libmisc)
+#    config_query_option            (libmisc)
+#    config_query_string            (libmisc)
+#    conflicts                      (libgrimoire)
+#    default_sorcery_build          (build_api/...)
+#    default_sorcery_download       (libsummon)
+#    default_sorcery_install        (build_api/api2)   (BUILD_API==2 only)
+#    default_sorcery_install_extras (build_api/api2)   (BUILD_API==2 only)
+#    default_sorcery_post_build     (build_api/api1)   (BUILD_API==1 only)
+#    default_sorcery_post_install   (build_api/api2)   (BUILD_API==2 only)
+#    default_sorcery_transfer       (build_api/api2)   (BUILD_API==2 only)
+#    default_sorcery_pre_build      (build_api/common)
+#    default_sorcery_pre_install    (build_api/api2)   (BUILD_API==2 only)
+#    depends                        (libdepends)
+#    devoke_installwatch            (libtrack)
+#    download_src                   (libsummon)
+#    force_depends                  (libdepends)
+#    gather_docs                    (build_api/common)
+#    get_spell_provider             (libstate)
+#    get_source_nums                (libmisc)
+#    guess_compressor               (libunpack)
+#    handle_changed_config          (libresurrect)
+#    is_depends_enabled             (libstate)
+#    installed_version              (libgrimoire)
+#    install_config_file            (libresurrect)
+#    invoke_installwatch            (libtrack)
+#    list_add                       (libmisc)
+#    list_find                      (libmisc)
+#    list_remove                    (libmisc)
+#    message                        (libmisc)
+#    mk_source_dir                  (libgrimoire)
+#    note_config_file               (libtrack)
+#    on_cast                        (libtriggers)
+#    on_dispel                      (libtriggers)
+#    on_pre_cast                    (libtriggers)
+#    on_pre_dispel                  (libtriggers)
+#    optional_depends               (libdepends)
+#    persistent_add                 (libmisc)
+#    persistent_clear               (libmisc)
+#    persistent_load                (libmisc)
+#    persistent_remove              (libmisc)
+#    persistent_save                (libmisc)
+#    prepare_install                (libgrimoire)
+#    provider_ok                    (libstate)
+#    query                          (libmisc)
+#    query_string                   (libmisc)
+#    runtime_depends                (libdepends)
+#    rm_source_dir                  (libgrimoire)
+#    sedit                          (libmisc)
+#    sub_depends                    (libdepends)
+#    show_depends                   (libdepends)
+#    spell_exiled                   (libstate)
+#    spell_held                     (libstate)
+#    spell_installed                (libstate)
+#    spell_ok                       (libstate)
+#    suggest_depends                (libdepends)
+#    track_manual                   (libtrack)
+#    uncompress                     (libunpack)
+#    unpack                         (libunpack) (deprecated)
+#    unpack_file                    (libunpack)
+#    unpack_file_simple             (libunpack)
+#    verify_file                    (libunpack)
+#
+# The following are implicitly defined for each spell file
+# (filename is first lowercased):
+# default_<filename>
+# default_section_<filename>
+# default_grimoire_<filename>
+# default_sorcery_<filename>
+#
+# It is supported to have a file at the spell, section, or grimoire level,
+# the more specific one overrides the less specific.
+# Depending on context default_<filename> calls one of the default
+# section, grimoire or sorcery functions. Calling it will always run the
+# next level up.
+#
+# The default_section_<filename> and default_grimoire_<filename> functions
+# first check for the filename (capitalized) in the section or grimoire.
+# If it doesn't exist, default_<filename> is called (which runs the next
+# step up).
+#
+# If the default_sorcery_<filename> function is not defined here, it is
+# simply "true".
 #
 # Read-only variable that might be of use to a spell:
 # SOURCE_CACHE, OPTS, BUILD HOST, INSTALL_ROOT
@@ -90,7 +112,7 @@
 #
 # The following are set when a spell is loaded, you may use them, but
 # not change them:
-# SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION 
+# SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION
 #
 # global sorcery variables you should never use in a spell:
 #
@@ -98,14 +120,14 @@
 #  must look at one of them, talk to your local sorcery lead about getting
 #  some sort of accessor functionality)
 #
-# TOP_LEVEL DISPLAY PATH TMP_DIR SAFE_CAST 
-# FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY 
-# CAST_PASS download_log IW_LOG SOLO QUIET INSTALL_QUEUE 
-# OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS 
-# DOT_PROGRESS VOYEUR_OVERRIDE RECONFIGURE RECAST_DOWN COMPILE RECAST_UP 
-# FORCE_DOWNLOAD SILENT FIX DEBUG SEPARATE BASE_URL 
-# CAST_HASH BACK_CAST_HASH CANNOT_CAST_HASH uncommitted_hash NEW_DEPENDS 
-# spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR 
+# TOP_LEVEL DISPLAY PATH TMP_DIR SAFE_CAST
+# FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY
+# CAST_PASS download_log IW_LOG SOLO QUIET INSTALL_QUEUE
+# OVERRIDE_CFLAGS OVERRIDE_CXXFLAGS OVERRIDE_LDFLAGS NO_OPTIMIZATION_FLAGS
+# DOT_PROGRESS VOYEUR_OVERRIDE RECONFIGURE RECAST_DOWN COMPILE RECAST_UP
+# FORCE_DOWNLOAD SILENT FIX DEBUG SEPARATE BASE_URL
+# CAST_HASH BACK_CAST_HASH CANNOT_CAST_HASH uncommitted_hash NEW_DEPENDS
+# spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR
 # BUILD_API VOYEUR_STDOUT VOYEUR_STDERR C_LOG C_FIFO INST_LOG MD5_LOG
 # INSTALLWATCHFILE CAST_EXIT_STATUS
 #
@@ -211,7 +233,7 @@ function config_query_list () {
 #---------------------------------------------------------------------
 function config_query_option () {
     debug "libapi" "config_query_option - $*"
-	 real_config_query_option "$@"
+    real_config_query_option "$@"
 }
 
 #---------------------------------------------------------------------
@@ -253,7 +275,7 @@ function conflicts () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_build> for more details.
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_build> for more details.
 ## Used if no BUILD script is found for a spell
 ## Default build for BUILD_API==1 is:
 ## <pre>
@@ -277,50 +299,26 @@ function conflicts () {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function default_build () {
-    debug "libapi" "default_build - $*"
-    real_default_build "$@"
+function default_sorcery_build () {
+    debug "libapi" "default_sorcery_build - $*"
+    real_default_sorcery_build "$@"
 }
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_default_configure> for more details.
-##
-## Default configure code, just no-op for now.
-##
-#---------------------------------------------------------------------
-function default_configure() {
-    debug "libapi" "$FUNCNAME - $*"
-    real_default_configure "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_default_depends> for more details.
-##
-## Default depends code, just no-op for now.
-##
-#---------------------------------------------------------------------
-function default_depends() {
-    debug "libapi" "$FUNCNAME - $*"
-    real_default_depends "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libsummon.html,real_default_download> for more details.
+## @See <@function var.lib.sorcery.modules.libsummon.html,real_default_sorcery_download> for more details.
 ##
 ## Default download code, downloads each SOURCE[[:digit:]]*
 ##
 #---------------------------------------------------------------------
-function default_download() {
+function default_sorcery_download() {
     debug "libapi" "$FUNCNAME - $*"
-    real_default_download "$@"
+    real_default_sorcery_download "$@"
 }
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_install> for more details.
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_install> for more details.
 ## Only defined for BUILD_API==2
 ## Used if no INSTALL script is found.
 ## Default install is:
@@ -329,65 +327,74 @@ function default_download() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function default_install () {
-    debug "libapi" "default_install - $*"
-    real_default_install "$@"
+function default_sorcery_install () {
+    debug "libapi" "default_sorcery_install - $*"
+    real_default_sorcery_install "$@"
 }
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_post_build> for more details.
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_install_extras> for more details.
+## Only defined for BUILD_API==2
+## Installs configuration files and documentation.
+#---------------------------------------------------------------------
+function default_sorcery_install_extras () {
+    debug "libapi" "default_sorcery_install_extras - $*"
+    real_default_sorcery_install_extras "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_post_build> for more details.
 ## Only defined for BUILD_API==1
 ## Installs configuration files and documentation.  Stops installwatch.
 ## Used if no POST_BUILD script is found for a spell.
-## equivalent to default_post_install in BUILD_API==2
+## equivalent to default_sorcery_post_install in BUILD_API==2
 ##
 #---------------------------------------------------------------------
-function default_post_build () {
-    debug "libapi" "default_post_build - $*"
-    real_default_post_build "$@"
+function default_sorcery_post_build () {
+    debug "libapi" "default_sorcery_post_build - $*"
+    real_default_sorcery_post_build "$@"
 }
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_post_install> for more details.
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_post_install> for more details.
 ## Only defined for BUILD_API==2
-## Installs configuration files and documentation.  Stops installwatch.
-## Used if no POST_INSTALL script is found for a spell.
-## equivalent to default_post_build in BUILD_API==1
-##
+## Puts the spell at the root of the stage root so manipulation of the
+## installed files can happen
 #---------------------------------------------------------------------
-function default_post_install () {
-    debug "libapi" "default_post_install - $*"
-    real_default_post_install "$@"
+function default_sorcery_post_install () {
+    debug "libapi" "default_sorcery_post_install - $*"
+    real_default_sorcery_post_install "$@"
 }
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libdispel.html,real_default_post_remove> for more details.
-##
-## Default post_remove code, just no-op for now.
-##
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_transfer> for more details.
+## Only defined for BUILD_API==2
+## Transfers the files from the stage area to the system. Default is
+## transfer_staged_spell
 #---------------------------------------------------------------------
-function default_post_remove() {
-    debug "libapi" "$FUNCNAME - $*"
-    real_default_post_remove "$@"
+function default_sorcery_transfer () {
+    debug "libapi" "default_sorcery_transfer - $*"
+    real_default_sorcery_transfer "$@"
 }
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_build> for more details.
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_pre_build> for more details.
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
 #---------------------------------------------------------------------
-function default_pre_build () {
-    debug "libapi" "default_pre_build - $*"
-    real_default_pre_build "$@"
-} 
+function default_sorcery_pre_build () {
+    debug "libapi" "default_sorcery_pre_build - $*"
+    real_default_sorcery_pre_build "$@"
+}
 
 #---------------------------------------------------------------------
 ## @Type API
-## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_pre_install> for more details.
+## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_default_sorcery_pre_install> for more details.
 ## Only defined for BUILD_API==2
 ## Used if no PRE_INSTALL script is found.
 ## Default pre_install is:
@@ -396,33 +403,9 @@ function default_pre_build () {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function default_pre_install () {
-    debug "libapi" "default_pre_install - $*"
-    real_default_pre_install "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libdispel.html,real_default_pre_remove> for more details.
-##
-## Default pre_remove code, just no-op for now.
-##
-#---------------------------------------------------------------------
-function default_pre_remove() {
-    debug "libapi" "$FUNCNAME - $*"
-    real_default_pre_remove "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
-## @See <@function var.lib.sorcery.modules.libdepends.html,real_default_prepare> for more details.
-##
-## Default prepare code, just no-op for now.
-##
-#---------------------------------------------------------------------
-function default_prepare() {
-    debug "libapi" "$FUNCNAME - $*"
-    real_default_prepare "$@"
+function default_sorcery_pre_install () {
+    debug "libapi" "default_sorcery_pre_install - $*"
+    real_default_sorcery_pre_install "$@"
 }
 
 #---------------------------------------------------------------------
@@ -447,6 +430,16 @@ function depends () {
 function devoke_installwatch () {
     debug "libapi" "devoke_installwatch - $*"
     real_devoke_installwatch "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtrack.html,real_devoke_stage_root> for more details.
+## Stops using installwatch
+#---------------------------------------------------------------------
+function devoke_stage_root () {
+    debug "libapi" "devoke_stage_root - $*"
+    real_devoke_stage_root "$@"
 }
 
 #---------------------------------------------------------------------
@@ -548,9 +541,9 @@ function guess_compressor () {
 
 #------------------------------------------------------------------------
 ## @Type API
-## @param from	File we might want to install
-## @param to	File to replace
-## @param savetime	Backup time if necessary
+## @param from          File we might want to install
+## @param to            File to replace
+## @param savetime      Backup time if necessary
 ##
 ## @See <@function var.lib.sorcery.modules.libresurrect.html,real_handle_changed_config> for more details.
 ##
@@ -595,9 +588,9 @@ function installed_version () {
 
 #------------------------------------------------------------------------
 ## @Type API
-## @param from	File we might want to install
-## @param to	File to replace
-## @param savetime	Backup time if necessary (optional, defaults to
+## @param from          File we might want to install
+## @param to            File to replace
+## @param savetime      Backup time if necessary (optional, defaults to
 ##                      $(date +'%Y%m%d%H%M')
 ## @See <@function var.lib.sorcery.modules.libresurrect.html,real_install_config_file> for more details.
 ## Returns the current version of the given spell
@@ -618,6 +611,16 @@ function invoke_installwatch () {
 }
 
 #---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtrack.html,real_invoke_stage_root> for more details.
+## Starts using installwatch
+#---------------------------------------------------------------------
+function invoke_stage_root () {
+    debug "libapi" "invoke_stage_root - $*"
+    real_invoke_stage_root "$@"
+}
+
+#---------------------------------------------------------------------
 ## @param return_var
 ## @param elements, ...
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_list_remove> for more details.
@@ -633,7 +636,7 @@ function invoke_installwatch () {
 #---------------------------------------------------------------------
 function list_remove () {
     debug "libapi" "list_remove - $*"
-	 real_list_remove "$@"
+    real_list_remove "$@"
 }
 
 #---------------------------------------------------------------------
@@ -664,9 +667,13 @@ function list_add () {
 ## return 0 at least one element is in list
 ## return 1 none of supplied elements is not in list
 ##
-## Finds if at least one of given elements is in the string. Warning,
-## this function takes real string, not variable name as other list_*
-## functions
+## Finds if at least one of the given elements is in the string. They
+## can be delimited by spaces, tabs or newlines. The search elements
+## must not contain any of these or they won't match. The matching is
+## exact, regular expressions and globbing patterns are not supported.
+##
+## Warning, this function takes a real string, not a variable name as
+## other list_* functions.
 ## <pre>
 ## Example:
 ##    if list_find "$MY_LIST" "--with-x"; then
@@ -695,7 +702,7 @@ function message () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param directory name 
+## @param directory name
 ## @param [size]
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_mk_source_dir> for more details.
 ## Creates a tmpfs filesystem.  By default, the size is 1GB.
@@ -713,6 +720,17 @@ function message () {
 function mk_source_dir () {
     debug "libapi" "mk_source_dir - $*"
     real_mk_source_dir "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @See <@function var.lib.sorcery.modules.libtrack.html,real_note_config_file> for more details.
+## @param spell file to check for modification
+##
+#---------------------------------------------------------------------
+function note_config_file() {
+    debug "libapi" "note_config_file - $*"
+    real_note_config_file "$@"
 }
 
 #---------------------------------------------------------------------
@@ -832,7 +850,7 @@ function persistent_clear () {
 #---------------------------------------------------------------------
 function persistent_load () {
     debug "libapi" "persistent_load - $*"
-	 real_persistent_load "$@"
+    real_persistent_load "$@"
 }
 
 #---------------------------------------------------------------------
@@ -848,7 +866,7 @@ function persistent_load () {
 #---------------------------------------------------------------------
 function persistent_remove () {
     debug "libapi" "persistent_remove - $*"
-	 real_persistent_remove "$@"
+    real_persistent_remove "$@"
 }
 
 #---------------------------------------------------------------------
@@ -876,7 +894,7 @@ function persistent_save () {
 ## variable to read
 ## returns:
 ##          1 if the var doesn't exist in the file
-##          2 if the tablet dir doesn't exist 
+##          2 if the tablet dir doesn't exist
 ##          3 if the persistent config file doesn't exist
 ##          4 if the EXPORTS file doesn't exist
 ##
@@ -917,7 +935,7 @@ function provider_ok() {
 ## @param  [directory to remove]
 ## @Globals SOURCE_DIRECTORY
 ## Removes the given directory or SOURCE_DIRECTORY if no argument is
-## given. 
+## given.
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_rm_source_dir> for more details.
 ##
 #---------------------------------------------------------------------
@@ -929,7 +947,7 @@ function rm_source_dir() {
 #---------------------------------------------------------------------
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_query> for more details.
-## @param question 
+## @param question
 ## @param default answer
 ##
 ## @return 0 on yes
@@ -937,7 +955,7 @@ function rm_source_dir() {
 ##
 ## Asks the user a yes/no question.  First argument is the question to
 ## ask, second argument is the default answer.  If a timeout occurs
-## before the question is answered, the given default answer is 
+## before the question is answered, the given default answer is
 ## applied.  Returns true or false based on the answer given.
 ##
 #---------------------------------------------------------------------
@@ -969,15 +987,29 @@ function query_string ()  {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_depends> for more details.
+## Denotes that a spell requires another spell to work.
+#---------------------------------------------------------------------
+function runtime_depends () {
+    debug "libapi" "runtime_depends - $*"
+    real_runtime_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @param sed command
 ## @param file
 ## @See <@function var.lib.sorcery.modules.libmisc.html,real_sedit> for more details.
 ##
-## First argument is a sed command.  Second argument is a file.  
-## sedit performs the sed command on the file, modifiying the 
-## original file.  For example, 
+## First argument is a sed command.  Second argument is a file.
+## sedit performs the sed command on the file, modifiying the
+## original file.  For example,
 ## <br>sedit "s/foo/bar/g" /tmp/somefile <br>
-## will replace all occurances of foo with bar in /tmp/somefile.  
+## will replace all occurances of foo with bar in /tmp/somefile.
 ## This function is often used in spells to make changes to source
 ## files before compiling.  See the sed man page for more information.
 ##
@@ -985,6 +1017,20 @@ function query_string ()  {
 function sedit () {
     debug "libapi" "sedit - $*"
     real_sedit "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell name
+## @param max depth
+## @param fast (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_show_up_depends> for more details.
+##
+## @stdout recursively prints out the spell that depend on the specified spell
+#---------------------------------------------------------------------
+function show_up_depends() {
+    debug "libapi" "spell_ok - $*"
+    real_show_up_depends "$@"
 }
 
 #---------------------------------------------------------------------
@@ -1037,6 +1083,32 @@ function spell_exiled() {
 
 #---------------------------------------------------------------------
 ## @Type API
+## @param spell providing the sub-depends
+## @param name of sub-depends
+## @See <@function var.lib.sorcery.modules.libdepends
+#---------------------------------------------------------------------
+function sub_depends() {
+    debug "libapi" "sub_depends - $*"
+    real_sub_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell/service
+## @param enabled options (optional)
+## @param disabled options (optional)
+## @param description (optional)
+## @param grimoires (optional)
+## @See <@function var.lib.sorcery.modules.libdepends.html,real_suggest_depends> for more details.
+## Denotes that a spell can use another spell for additional functionality.
+#---------------------------------------------------------------------
+function suggest_depends () {
+    debug "libapi" "suggest_depends - $*"
+    real_suggest_depends "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
 ## @param file to uncompress
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_uncompress> for more details.
 ##
@@ -1051,7 +1123,7 @@ function uncompress () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param file to unpack 
+## @param file to unpack
 ## @param md5sum
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack> for more details.
 ##
@@ -1087,7 +1159,7 @@ function unpack_file () {
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_file_simple> for more details.
 ##
 ## Interface to unpack a file without any verification.
-## 
+##
 #---------------------------------------------------------------------
 function unpack_file_simple() {
     debug "libapi" "$FUNCNAME - $*"

@@ -40,14 +40,7 @@ function summon_spell() {
     # and instead jump through hoops to get the return code correctly
     ( local rc=1
       run_details    &&
-      persistent_load &&
-      if test -x $SCRIPT_DIRECTORY/DOWNLOAD ; then
-        . $SCRIPT_DIRECTORY/DOWNLOAD
-      else
-        default_download
-      fi &&
-      persistent_save
-      # save the rc, then unlock
+      run_spell_file DOWNLOAD download
       rc=$?
 
       if [[ $rc == 0 ]]; then
@@ -85,11 +78,11 @@ function get_spell_files_and_urls() {
 
 #-------------------------------------------------------------------------
 ## @param none
-## 
+##
 ## Call acquire_src for each SOURCEx_URL
 ##
 #-------------------------------------------------------------------------
-function real_default_download() {
+function real_default_sorcery_download() {
   $STD_DEBUG
   local SOURCE_NUMBER
   for SOURCE_NUMBER in $(real_get_source_nums X); do
@@ -105,9 +98,6 @@ function real_default_download() {
 ## Acquire the source. Check locally unless options insist on not
 ## doing so.
 ##
-## Inspects $FORCE_DOWNLOAD and ${FORCE_DOWNLOAD[$srcnum]}
-## if either are set then downloading is forced, a local copy of the
-## file is ignored.
 #-------------------------------------------------------------------------
 function real_acquire_src() {
   $STD_DEBUG
@@ -115,26 +105,49 @@ function real_acquire_src() {
   local SVAR="SOURCE${DLNUM}"
   local target=${!SVAR}
 
-  
-  REASON="for spell ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
-
   # maybe we already have the file
   # but we can only use it if not FORCE_DOWNLOADing
-  if file_exists "$SOURCE_CACHE/$target " &&
-     ! [[ ${FORCE_DOWNLOAD} ]] &&
-     ! [[ ${FORCE_DOWNLOAD[${DLNUM:-1}]} ]] ; then
-    message  "${MESSAGE_COLOR}Found source file"             \
-             "${FILE_COLOR}${target}${DEFAULT_COLOR}"     \
-             "$REASON in ${FILE_COLOR}${SOURCE_CACHE}${DEFAULT_COLOR}"
-    return 0
-  fi
+  is_downloaded "$target" "$DLNUM" \
+  "for spell ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} " && return 0
+
   # else the source must be downloaded/updated
   download_src "$DLNUM"
 }
 
 #-------------------------------------------------------------------------
+## @param download target
+## @param source number
+## @return 0 if the target already exsists and FORCE_DOWNLOADing is disabled
+## @return 1 otherwise
+##
+## Checks if the download target is already downloaded,
+## Inspects $FORCE_DOWNLOAD and ${FORCE_DOWNLOAD[$srcnum]}
+## if either are set then downloading is forced, a local copy of the
+## file is ignored.
+##
+#-------------------------------------------------------------------------
+function is_downloaded() {
+  local target="$1"
+  local dlnum="${2:-1}"
+  local reason="$3"
+
+  if file_exists "$SOURCE_CACHE/$target " &&
+     ! [[ ${FORCE_DOWNLOAD} ]] &&
+     ! [[ ${FORCE_DOWNLOAD[$dlnum]} ]] ; then
+    # file_exists does a fuzzy match with gz, tgz and bz2
+    # lookup what file it actually found and use that for the message
+    local real_target=$(guess_filename $SOURCE_CACHE/$target)
+    message  "${MESSAGE_COLOR}Found source file"             \
+             "${FILE_COLOR}${real_target}${DEFAULT_COLOR}"     \
+             "${reason}in ${FILE_COLOR}${SOURCE_CACHE}${DEFAULT_COLOR}"
+    return 0
+  fi
+  return 1
+}
+
+#-------------------------------------------------------------------------
 ## @param source number or '' for the first $SOURCE
-## 
+##
 ## Expands $SOURCEx, $SOURCEx_URL[*] and $SOURCEx_HINTS
 ## then calls download_src_args with them.
 ##
@@ -231,14 +244,21 @@ function download_src_args() {
     if [[ $summon_target != $new_target ]] ; then
       mv -f $summon_target $new_target
     fi &&
-    message "Repackaging $target"
+    message "${MESSAGE_COLOR}Repackaging ${SPELL_COLOR}$target${DEFAULT_COLOR}"
     tar --remove-files -cjf $target $new_target &&
     rm -rf $new_target
   elif [[ "$summon_type" == file ]] ; then
     # there is no penalty for guessing tree when the result is a file
-
     if [[ $summon_target != $target ]] ; then
-      mv -f $summon_target $target
+      mv -f "$summon_target" "$target"
+    fi
+    local type
+    if ! source_sanity "$target" "type"; then
+      message "${PROBLEM_COLOR}Sanity check of${DEFAULT_COLOR}" \
+              "${FILE_COLOR}${target}${DEFAULT_COLOR}" \
+              "${PROBLEM_COLOR}failed:${DEFAULT_COLOR}"
+      message "$type"
+      return 1
     fi
   else
     message "${PROBLEM_COLOR}Unknown download type: \"$summon_type\""\
@@ -272,7 +292,7 @@ function download_src_sub()  {
   local _summon_target=$5
   local _summon_type=$6
 
-  { 
+  {
     [[ $guess_type == file ]] &&
     download_from_leapforward "$target" "$url_list" "$hints" \
                             "$_summon_target" "$_summon_type"
@@ -311,7 +331,7 @@ function download_from_leapforward() {
   local hints="$3"
   local _summon_target=$4
   local _summon_type=$5
-  
+
   message "${MESSAGE_COLOR}Attempting to get file from" \
           "leap-forward mirror ${DEFAULT_COLOR}${LEAPFORWARD_URL}"
   # leap forwards dont need to be expanded or sorted
@@ -350,7 +370,7 @@ function download_from_fallback() {
     idx=$[($i + $offset) % $FURLNUM]
     FALL_BACKS="$FALL_BACKS ${FALLBACK_URL_MIRROR[$idx]}/$target"
   done
-  [ -n "$FALL_BACKS" ] && 
+  [ -n "$FALL_BACKS" ] &&
   # dont order fall backs, above we use a random ordering
   url_download "$target" "$FALL_BACKS" "$hints" "$_summon_target" \
                                                 "$_summon_type"
@@ -403,6 +423,35 @@ function unpack_for_update() {
     eval "$guess_type_ref=\"file\""
   fi
   return 0
+}
+
+#---------------------------------------------------------------------
+## Perform rudimentary source sanity checks on summoned files.
+## Currently only checks that files are not zero sized or html 404 notices.
+## Some sites, notably sourceforge, break http by having missing files
+## do a 30X redirect to a 404 html file which when downloaded has a
+## 200 (OK) status. Other sites do 30X redirect to the new location of
+## the requested file, which then successfully downloads (which is
+## the correct thing to do). We catch that here rather than wait for
+## file verification to catch it.
+#---------------------------------------------------------------------
+function source_sanity() {
+  [[ "$1" ]] || return 0
+  [[ "$SUMMON_SANITY" == off ]] && return 0
+  if ! test -s "$1"; then
+    upvar "$2" "Empty"
+    return 1
+  fi
+  if [[ "$1" != "${1%.tar.bz2}" ]] ||
+     [[ "$1" != "${1%.tar.gz}" ]] ||
+     [[ "$1" != "${1%.tgz}" ]]; then
+    local _type=$(file -bi "$1")
+    if echo $_type | grep -iq "text/"; then
+      upvar "$2" "$_type"
+      return 1
+    fi
+  fi
+
 }
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify

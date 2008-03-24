@@ -33,22 +33,22 @@ Usage:          summon  [parameters] [spells]
 
 Optional Parameters:
 
---from		<directory>	Specify an alternate for $SOURCE_CACHE
-       					
+--from          <directory>     Specify an alternate for $SOURCE_CACHE
 
---url		<URL>		Specify an alternate download URL
 
--d | --download			Force download of source, regardless of
+--url           <URL>           Specify an alternate download URL
+
+-d | --download                 Force download of source, regardless of
                                  of whether it exists locally or not.
 
--g | --grimoire <grimoire>	Searches only the given grimoire when
+-g | --grimoire <grimoire>      Searches only the given grimoire when
                                  searching for spells to summon.
-				 <grimoire> can be absolute or relative to
-				 $CODEX_ROOT
-				 Note that spells or the --all parameter
-				 still needs to be specified.
+                                 <grimoire> can be absolute or relative to
+                                 $CODEX_ROOT
+                                 Note that spells or the --all parameter
+                                 still needs to be specified.
 
--p | --print	<type>		Instead of downloading, print out
+-p | --print    <type>          Instead of downloading, print out
                                  information in some form according
                                  to the value of <type> for each spell:
                                   source   - print out the filenames
@@ -63,9 +63,9 @@ Optional Parameters:
                                  file2 url2-1 url2-2 ...
                                  ...
 
---queue				Download all spells in the install queue.
---all				Download all spells in the grimoires.
-				(note: this is several gigabytes)
+--queue                         Download all spells in the install queue.
+--all                           Download all spells in the grimoires.
+                                (note: this is several gigabytes)
 EOF
 
   exit  1
@@ -91,8 +91,8 @@ fi
   -g|--grimoire) codex_set_grimoires $2;  shift 2 ;;
      -p|--print) set_print_type $2;       shift 2 ;;
         --queue) QUEUE=1;                 shift 1 ;;
-          --all) SUMMON_ALL=1;            shift 1 ;; 
-       -r|--raw) RAW=1;                   shift 1 ;; 
+          --all) SUMMON_ALL=1;            shift 1 ;;
+       -r|--raw) RAW=1;                   shift 1 ;;
               *) help;                            ;;
       esac
 
@@ -196,10 +196,12 @@ main() {
   process_parameters $*
 
   if [ -n "$RAW" ] ; then
-    local line rc
+    local line target rc
     while read line; do
       # eval is needed to preserve quoting
       eval set -a $line
+      target="${line%% *}"
+      is_downloaded "$target" && continue
       download_src_args "$@" || rc=$?
     done
     return $rc
@@ -221,7 +223,7 @@ main() {
       list_install_queue
     fi
     spells_to_get=$(< $INSTALL_QUEUE)
-  else 
+  else
     spells_to_get=`strip_parameters  $*`
   fi
 
@@ -244,10 +246,10 @@ if    [  "$UID"  ==  0  ] ; then
   cleanup_tmp_dir $TMP_DIR
   exit $rc
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
-else  
+else
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
-  su -c "$0 $PARAMS" root
+  exec su -c "summon $PARAMS" root
 fi
 
 

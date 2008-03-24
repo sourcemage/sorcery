@@ -83,11 +83,11 @@ function  media_init()  {
 #---------------------------------------------------------------------
 ##
 ## Setup sound menu from existing installed sorcery sound spells.
-## Currently no check done for installed sound schemes, just message 
-## to user. 
+## Currently no check done for installed sound schemes, just message
+## to user.
 ##
 ## Passes name of chosen scheme to the set_sound_scheme funtion.
-## 
+##
 #---------------------------------------------------------------------
 function sound_schemes_menu() {
 
@@ -116,8 +116,8 @@ function sound_schemes_menu() {
       case  $CHECK  in
         OFF)  remove_config $LOCAL_CONFIG "SOUND"
               modify_config $LOCAL_MEDIA_CONFIG "SOUND" "off"  &&
-              SOUND=off  
-              eval $DIALOG '--msgbox "Sorcery sounds have been turned off." 0 0' 
+              SOUND=off
+              eval $DIALOG '--msgbox "Sorcery sounds have been turned off." 0 0'
               ;;
         FER)  set_sound_theme ferris    ;;
         MIS)  set_sound_theme misc      ;;
@@ -132,9 +132,9 @@ function sound_schemes_menu() {
 
 
 #---------------------------------------------------------------------
-## @param sound scheme name 
+## @param sound scheme name
 ##
-## Here the passed scheme is set as default sound scheme. 
+## Here the passed scheme is set as default sound scheme.
 ## If the sound spell is not installed it will be cast for the user.
 ##
 #---------------------------------------------------------------------
@@ -146,18 +146,18 @@ function set_sound_theme()  {
   modify_config $LOCAL_MEDIA_CONFIG "SOUND" "on"          &&
   modify_config $LOCAL_MEDIA_CONFIG "SOUND_THEME" "$1"    &&
   SOUND=on                                                &&
-  SOUND_THEME=$1                          
+  SOUND_THEME=$1
 
-   
+
   if  ! spell_ok sorcery-sound-$SOUND_THEME
-  then 
+  then
     eval $DIALOG '--msgbox "Sorcery has determined that the $SOUND_THEME  \
                             theme must be installed to work. It will now  \
-                            be cast for you!" 0 0' 
+                            be cast for you!" 0 0'
     cast sorcery-sound-$SOUND_THEME
   else
     eval $DIALOG '--msgbox "The $SOUND_THEME theme is installed and ready  \
-                            for you to enjoy your new sounds!" 0 0' 
+                            for you to enjoy your new sounds!" 0 0'
   fi
 
 }

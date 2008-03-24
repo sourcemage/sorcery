@@ -4,7 +4,7 @@
 ##=head1 SYNOPSIS
 ##
 ## invoke the sorcery menuing tool for installed spells.
-## It can be called by the user or by cast 
+## It can be called by the user or by cast
 ##
 ##=head1 DESCRIPTION
 ##
@@ -12,7 +12,7 @@
 ## track of the menu items for installed spells. Displaying
 ## it's own (dialog, or Xdialog) interface, or generating
 ## entries into your favorite window managers native menuing
-## system (that part is not implemented yet). 
+## system (that part is not implemented yet).
 ##
 ##=head1 COPYRIGHT
 ##
@@ -49,7 +49,7 @@ generate    menu_type    Generates a menu (see below for menu types)
                         (Not Implemented Yet).
 
 update      [spell]      Updates the scry menu index with all spells
-                         registered to display in the menu. 
+                         registered to display in the menu.
 
 "Supported" menu types:
 
@@ -101,8 +101,8 @@ make_list()  {
 
   local section=$1
 
-  #for  line  in `grep ":$section:" $MENU_STATUS`; do  
-  function inv104()  {   
+  #for  line  in `grep ":$section:" $MENU_STATUS`; do
+  function inv104()  {
     echo "DEBUG: inside the loop line=$line" >> DEBUG
     local spell=`echo  $*  |  cut  -d  :  -f1`
     local script_directory=`codex_find_spell_by_name $spell`
@@ -115,7 +115,7 @@ make_list()  {
       echo  $VERSION
       echo \"`echo $line | cut -d : -f5`\"
       echo \"`echo $line | cut -d : -f5`\" >> DEBUG
-      #echo $line | awk -F : '{print $NF;}' 
+      #echo $line | awk -F : '{print $NF;}'
      fi
   }
   iterate "inv104" "$ENTER_IFS" `grep ":$section:" $MENU_STATUS`
@@ -127,7 +127,7 @@ process_selection()  {
 
   local section=$1
   local spell=`esc_str $2`
-  local line=`grep  "^$spell:"  $MENU_STATUS`     
+  local line=`grep  "^$spell:"  $MENU_STATUS`
   local command=`echo  $line  |  cut  -d  :  -f4`
   $command &
 
@@ -144,7 +144,7 @@ select_section() {
            --menu                            \
            ""                                \
            0 0 10                            \
-           `show_sections`                   
+           `show_sections`
 
 }
 
@@ -155,7 +155,7 @@ show_sections()  {
 
   function inv152()  {
     # Display only unique sections
-    if  !  [  `echo  $found  |  grep  "$1"`  ];  then 
+    if  !  [  `echo  $found  |  grep  "$1"`  ];  then
       found="$1 $found"
       echo  $1
       echo  "section"
@@ -177,7 +177,7 @@ update_menu_index() {
     cp $MENU_STATUS $MENU_STATUS_BACKUP
 
     local spell=$1
-    local section=`find_section  $spell` 
+    local section=`find_section  $spell`
     local script_directory=`codex_find_spell_by_name $spell`
     if  [  -x  $script_directory/DETAILS  ];  then
              . $script_directory/DETAILS  >  /dev/null
@@ -209,17 +209,17 @@ echo "DEBUG: no"
 
       done
     fi
-    
+
   else
 
     message  "${MESSAGE_COLOR}Updating menu index from installed packages...${DEFAULT_COLOR}"
     rm -f $MENU_STATUS_BACKUP
     touch $MENU_STATUS_BACKUP
-  
+
     local line
     for  line  in  `cat  $SPELL_STATUS`;  do
       local spell=`echo  $line  |  cut  -d  :  -f1`
-      local section=`find_section  $spell` 
+      local section=`find_section  $spell`
       local script_directory=`codex_find_spell_by_name $spell`
 
       if  [  -x  $script_directory/DETAILS  ];  then
@@ -251,47 +251,47 @@ generate_menus() {
   while [ -n "$1" ]; do
 
     case  $1  in
-      
+
          gnome)  generate_gnome_menu         shift 1  ;;
            kde)  generate_kde_menu           shift 1  ;;
          icewm)  generate_icewm_menu         shift 1  ;;
    windowmaker)  generate_windowmaker_menu   shift 1  ;;
       blackbox)  generate_blackbox_menu      shift 1  ;;
-      
-    esac 
+
+    esac
 
   done
-  
+
 }
 
 
-generate_gnome_menu() { 
-  echo "GNOME menus not implemented (yet)" 
+generate_gnome_menu() {
+  echo "GNOME menus not implemented (yet)"
   if  [  "$UID"  !=  0  ];  then
     MENU_DIR='/usr/share/gnome/apps'
-  else 
+  else
     MENU_DIR="$HOME/.gnome/apps"
   fi
 }
 
 
-generate_kde_menu() { 
-  echo "KDE menus not implemented (yet)" 
+generate_kde_menu() {
+  echo "KDE menus not implemented (yet)"
 }
 
 
-generate_icewm_menu() { 
-  echo "IceWM menus not implemented (yet)" 
+generate_icewm_menu() {
+  echo "IceWM menus not implemented (yet)"
 }
 
 
-generate_windowmaker_menu() { 
-  echo "WindowMaker menus not implemented (yet)" 
+generate_windowmaker_menu() {
+  echo "WindowMaker menus not implemented (yet)"
   MENU_DIR="$HOME/GNUStep/Defaults/WMRootMenu"
 }
 
-generate_blackbox_menu() { 
-  echo "Blackbox menus not implemented (yet)" 
+generate_blackbox_menu() {
+  echo "Blackbox menus not implemented (yet)"
 }
 
 
@@ -306,7 +306,7 @@ parse_params()  {
 
        update)  if  [  "$UID"  !=  0  ];  then
                   echo  "Enter the root password, please."
-                  su -c "$0 $*" root
+                  exec su -c "invoke $@" root
                 fi
                 update_menu_index $2
                 ;;

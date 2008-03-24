@@ -104,11 +104,11 @@
 ## below) will silently fail over to the next check.  The cascade order is:
 ##  GPG, HASH, IGNORE, MISSING
 ##
-## The cascade setup allows you to place a higher bit checksum earlier 
-## in the cascade and even if the binary doesn't work it will just print 
-## out an abort query which can be said no to and it will continue to 
-## fail over to the lower bit checksum that should be available in 
-## coreutils (like sha1/md5).  That's if you're not using gpg, which is 
+## The cascade setup allows you to place a higher bit checksum earlier
+## in the cascade and even if the binary doesn't work it will just print
+## out an abort query which can be said no to and it will continue to
+## fail over to the lower bit checksum that should be available in
+## coreutils (like sha1/md5).  That's if you're not using gpg, which is
 ## preferred.  If multiple hashes are included of different ciphers, the
 ## user can abort on either that go bad, so it can be considered a
 ## security increase to have more than one, but only if the harder cipher
@@ -132,7 +132,7 @@ function real_unpack_file() {
       1) return 1 ;; # verification failed
       0) uncompress_unpack ${!SVAR}; return $? ;;
   esac
-  
+
   if false; then # <------ here's the switch to disable oldworld -------
     debug "libgrimoire" "falling back to missing verification"
     unpack_missing "${!SVAR}"
@@ -185,8 +185,8 @@ function real_verify_file() {
 
 
 #---------------------------------------------------------------------
-## @param filename 
-## @param compressor 
+## @param filename
+## @param compressor
 ## @Stdout uncompressed
 ##
 ## Just uncompresses the file, but does not expand it. i.e. bunzip
@@ -211,8 +211,8 @@ function uncompress_core() {
 
 
 #---------------------------------------------------------------------
-## @param filename 
-## @param compressor 
+## @param filename
+## @param compressor
 ## @Stdout uncompressed
 ##
 ## unpack_core takes the uncompressed stream and turns it into the
@@ -226,7 +226,7 @@ function unpack_core() {
   case  "$2"  in
             bzip2|gzip|compress*|tar)
                     tar   --no-same-owner --no-same-permissions -xf \
-		          /dev/stdin 2> /dev/null  ||  cat > /dev/null ;;
+                    /dev/stdin 2> /dev/null  ||  cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
                     unzip  -q  "$1"                                    ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
@@ -282,7 +282,7 @@ function unpack_spell_required() {
   if ! spell_ok "$1" && ! smgl_which $2 x &> /dev/null; then
     query "This spell has an option to check its integrity via spell "\
 "${SPELL_COLOR}${1}${QUERY_COLOR} with the $2 command for $3, you might consider installing it. "\
-"Abort?" n && 
+"Abort?" n &&
       return 1 ||
         return 200
   else
@@ -352,7 +352,7 @@ function is_allowed_hash() {
     rc=1
   elif [[ "$VRF_ALLOW_NEW_HASHES" == "on" ]]
   then
-    message "${MESSAGE_COLOR}Allowing new hash${hash}${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Allowing new hash ${hash}${DEFAULT_COLOR}"
     if is_allowed_verf_level $HASHLEVEL ; then rc=0 ; else rc=1; fi
   else
     message "${PROBLEM_COLOR}Disallowing new hash ${hash}${DEFAULT_COLOR}"
@@ -362,12 +362,12 @@ function is_allowed_hash() {
 }
 
 #---------------------------------------------------------------------
-## @param file to unpack 
+## @param file to unpack
 ## @param gpg public key file (.gpg) ":" gpg signature file  (.asc)
 ##
-## Given a file, unpack checks the gpg signature for that file, and, if 
-## appropriate, runs the decompression program for that file, as well as 
-## untar'ing the file. Note: zip is a special case because it doesn't 
+## Given a file, unpack checks the gpg signature for that file, and, if
+## appropriate, runs the decompression program for that file, as well as
+## untar'ing the file. Note: zip is a special case because it doesn't
 ## work with streams.
 ##
 #---------------------------------------------------------------------
@@ -399,7 +399,14 @@ function unpack_gpg() {
   rc="$?"
   case "$rc" in
     0)
-      if is_allowed_hash $GPGALGO_USED $GPGLEVEL ; then rc=0 ; else rc=1 ; fi
+      local algo
+      rc=1
+      for algo in $GPGALGO_USED; do
+        if is_allowed_hash "$algo" "$GPGLEVEL"; then
+          rc=0
+          break
+        fi
+      done
       ;;
     3) message_file="Signature" ;;
     4) message_file="Source" ;;
@@ -409,10 +416,10 @@ function unpack_gpg() {
   then
       message "${PROBLEM_COLOR}AHHH!!! ${message_file} file not found${DEFAULT_COLOR}"
   fi
-  if [ "$rc" -eq 200 ]; then 
+  if [ "$rc" -eq 200 ]; then
     return 200
   fi
-  
+
   gpg_user_query $rc $SPELL spell || return 1
   return 0
 
@@ -420,12 +427,12 @@ function unpack_gpg() {
 
 
 #---------------------------------------------------------------------
-## @param file to unpack 
+## @param file to unpack
 ## @param algorithm ":" hashsum
 ##
-## Given a file, unpack checks the hash for that file, and, if 
-## appropriate, runs the decompression program for that file, as well as 
-## untar'ing the file. Note: zip is a special case because it doesn't 
+## Given a file, unpack checks the hash for that file, and, if
+## appropriate, runs the decompression program for that file, as well as
+## untar'ing the file. Note: zip is a special case because it doesn't
 ## work with streams.
 ##
 #---------------------------------------------------------------------
@@ -448,13 +455,13 @@ function unpack_hash() {
 
     if [[ "$ALGORITHM" == md5 ]] || [[ "$ALGORITHM" == sha1 ]] ; then
       unpack_spell_required coreutils "${ALGORITHM}sum" "$ALGORITHM" ||
-        return "$?" 
+        return "$?"
       HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
     else
       unpack_spell_required gnupg gpg "$ALGORITHM" || return "$?"
       if list_find "$(gpg_get_hashes)" $ALGORITHM; then
         HASH="$(gpg_hashsum "${ALGORITHM}" "$FILENAME" | cut -d' ' -f1)"
-      else 
+      else
         message "${PROBLEM_COLOR}Algorithm $ALGORITHM is not"\
                 "known!${DEFAULT_COLOR}"
         return 200
@@ -468,7 +475,8 @@ function unpack_hash() {
       error_message "$HASH (computed) != $HASHSUM (expected)!$DEFAULT_COLOR" &&
       hash_user_query 1 "$SPELL" spell || return 1
     else
-      if is_allowed_hash ${ALGORITHM} ${HLEVEL} ; then rc=0 ; else rc=1 ; fi
+      is_allowed_hash "$ALGORITHM" "$HLEVEL"
+      rc=$?
       hash_user_query $rc "$SPELL" spell || return 1
     fi
   else
@@ -479,11 +487,11 @@ function unpack_hash() {
 
 #--------------------------------------------------------------------
 ## @param return code from unpack_hash
-## @param spell name 
-## 
+## @param spell name
+##
 ## Does some basic output to tell the user what failed and how then calls
 ## unpack_file_user_query
-## Returns 0 if hash succeeded otherwise returns 1 if unpack_file_user_query 
+## Returns 0 if hash succeeded otherwise returns 1 if unpack_file_user_query
 ## fails
 ##
 #--------------------------------------------------------------------
@@ -491,7 +499,7 @@ function hash_user_query() {
   local rc=$1
   local spell=$2
   case "$rc" in
-    0) 
+    0)
       message "${MESSAGE_COLOR}hash verification succeeded${DEFAULT_COLOR}"
       ;;
     *)
@@ -505,7 +513,7 @@ function hash_user_query() {
 #--------------------------------------------------------------------
 ## @param return code from the unpack_gpg or unpack_hash
 ##
-## checks MD5SUM_DL to abort or not 
+## checks MD5SUM_DL to abort or not
 ## Returns what query returns if it's called
 ##
 #--------------------------------------------------------------------
@@ -526,12 +534,12 @@ function unpack_file_user_query() {
 }
 
 #---------------------------------------------------------------------
-## @param file to unpack 
+## @param file to unpack
 ## @param reason to ignore it, one of: volatile unversioned signature
 ##
-## Given a file, unpack checks the ignore rules for that file, and, if 
-## appropriate, runs the decompression program for that file, as well as 
-## untar'ing the file. Note: zip is a special case because it doesn't 
+## Given a file, unpack checks the ignore rules for that file, and, if
+## appropriate, runs the decompression program for that file, as well as
+## untar'ing the file. Note: zip is a special case because it doesn't
 ## work with streams.
 ##
 #---------------------------------------------------------------------
@@ -560,12 +568,12 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
 
 
 #---------------------------------------------------------------------
-## @param file to unpack 
+## @param file to unpack
 ## @param reason to ignore it, one of: volatile unversioned signature
 ##
-## Given a file, unpack checks the ignore rules for that file, and, if 
-## appropriate, runs the decompression program for that file, as well as 
-## untar'ing the file. Note: zip is a special case because it doesn't 
+## Given a file, unpack checks the ignore rules for that file, and, if
+## appropriate, runs the decompression program for that file, as well as
+## untar'ing the file. Note: zip is a special case because it doesn't
 ## work with streams.
 ##
 #---------------------------------------------------------------------
@@ -591,10 +599,10 @@ function unpack_missing() {
 
 
 #---------------------------------------------------------------------
-## @param file to unpack 
+## @param file to unpack
 ##
-## Given a file, runs the decompression program for that file, as well as 
-## untar'ing the file. 
+## Given a file, runs the decompression program for that file, as well as
+## untar'ing the file.
 ##
 #---------------------------------------------------------------------
 function uncompress_unpack() {
@@ -617,7 +625,7 @@ function uncompress_unpack() {
 }
 
 #---------------------------------------------------------------------
-## @param file to unpack 
+## @param file to unpack
 ##
 ## Interface to unpack a file without any verification.
 ##
@@ -660,7 +668,7 @@ function locate_spell_file() {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param file to unpack 
+## @param file to unpack
 ## @param md5sum
 ##
 ## Given a file, unpack runs the decompression program for that file,
@@ -748,13 +756,13 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
 
 
 #---------------------------------------------------------------------
-## @param filename 
-## @param compressor 
-## @param md5 
+## @param filename
+## @param compressor
+## @param md5
 ## @Stdout uncompressed
 ##
-## Uncompress_md5 dumps the expanded file via tee to md5_tar_check where it 
-## is gobbled up by the bitbucket.  It also dumps the main stream out to 
+## Uncompress_md5 dumps the expanded file via tee to md5_tar_check where it
+## is gobbled up by the bitbucket.  It also dumps the main stream out to
 ## stdout.
 ##
 #---------------------------------------------------------------------
@@ -762,7 +770,7 @@ function uncompress_md5() {
   debug "libgrimoire" "uncompress_md5 - $*"
 
   # This is here so Duff's super debugging info doesn't screw the next step up
-  set +x 
+  set +x
 
   # Outer subshell is necessary to redirect stderr to stdout
   (

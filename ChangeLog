@@ -1,23 +1,46 @@
 2008-03-24 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast, cleanse, alter, summon, scribe, scribbler, ...: changed $0 to
+	  respective name, so sorcery can be debugged with bashdb properly and
+	  added exec to these calls so one process is saved
 	* cast.8, cast: -B is recursive, so mention it #14371
 
-2008-03-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
-	* gaze, gaze.1: added note about gaze depends working only on enabled deps
+2008-03-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* confmeld.8: fixed title, thanks to wich
 
 2008-03-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast.8: added missing switches except the dead --url, capitalised
 	* cleanse: added "--tablet coalesce" to the help
+	* gaze, gaze.1: added note about gaze depends working only on enabled deps
+
+2008-03-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsecurity: don't use a hardcoded path in gaze_checkmd5s
+	* libresurrect: unset the var, not its contents
+	  added a commented out fix to get post-ressurect triggers working further
 
 2008-03-07 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* scribbler: fixed message when scribbling from a missing grimoire #14353
 
 2008-03-03 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cleanse: broken runtime providers don't need to be recast if switched
 	  don't display cast/dispel commands if none are needed and print a
 	  newline between each menu
+	* libstage: read the link only once when transfering links and quote them
 
 2008-02-29 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* libmisc: fixed consolidate_params so it can take "-[eEn]" as values too;
 	  before they were passed to echo and ignored, breaking dispel -e
 	* gaze: small grammar fix in gaze_show_spells_by_status
+
+2008-02-25 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdispel: remove any config stages upon dispel
+
+2008-02-23 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcast: remove the castfs log after it is copied to the system - the logs
+	  are big and can clog up /tmp (especially for tmpfs users). Previously
+	  they were deleted at the final cast TMP_DIR cleanup
+
+2008-02-20 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* common: better handling of empty config stages
 
 2008-02-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* gaze: don't falsely return 1 in gaze version
@@ -25,14 +48,46 @@
 2008-02-11 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* url, compile_config: better conditional sourcing #14304
 
+2008-02-10 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* confmeld: made the date of staging human readable
+
 2008-02-06 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* libunpack: improved the error message in unpack_hash with info which hash
 	  is which
 
+2008-02-05 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast: made the confmeld message more explicit
+	* libstage: added a staged config removal routine, mostly for leftover dirs
+	  then made it accept another argument for convenience
+	* confmeld, common: made use of that routine
+	* confmeld: simplified removal code, now things get deleted right after use
+	  fixed passing of more than one argument
+	* libstage, confmeld, common: added locking calls
+
 2008-02-04 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* confmeld: added options to just list all spells, configs or both
+	  don't output anything when listing and there is nothing to show;
+	  support passing spells or configs as arguments and only working on them
+	* delve, libtablet: added 3 missing ;; - patch from Arvid Norlander
 	* *: comment fixes for bashdoc - modified patch from Arvid Norlander
+	* config, libressurect: added a variable to hold the default answer for
+	  the config merge query
+	* confmeld: added support for forcing merges, last part of #13618
+	  add --help to --help
+	* confmeld.8: mention all the cool new features
+
+2008-02-03 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libunpack: return 1 when no algorithm is allowed
+	* cast: call clean_resources in cast_cleanup
+	* libstage: really check if it is a file in stage_install_list, so the else
+	  error catch makes sense
+	* common: stage configs only if they are not identical to any previously
+	  staged config. Now confmeld will offer only the first of the set and
+	  repeated castings won't clutter $CONFIG_STAGE_DIRECTORY
 
 2008-02-02 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libgpg, libunpack: added multisign support #13815
+	* gaze, libstate, libgrimoire: discard awk warnings
 	* gaze: import and export need root privileges #13789
 
 2008-02-01 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
@@ -46,25 +101,91 @@
 	* scribe: output errors to stderr #13738 , fixed punctuation
 
 2008-01-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* common, libtrack: preserve the old behaviour and include all logs in the
+	  md5 log (flak from #13835)
+	* confmeld: improved the output (more spacing and better messages)
+	* liburl: pass along all the arguments in url_verify
 	* url_http: pass along all the arguments in url_https_verify
 	* dl_wget: pass hints to dl_wget_set_options and use them
 	* url_http, dl_wget: support the no-check-certificate source hint #14106
 
-2008-01-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
-	* liburl: pass along all the arguments in url_verify
-
 2008-01-29 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* local/README: fixed typo
+	* confmeld, libressurect: improved the merge message for better readability
+	* libstage: don't stage excluded files in /etc as configs
+	* common, libtrack: save the md5sums of the files in the stage and not the target
+	  ones on the system, otherwise config merging breaks #13835
+
+2008-01-28 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast: suggest the user to run confmeld if there are any deferred files.
+	  fixes the second third of #13618
+	* confmeld: remove all empty dirs in the config staging area (cast is
+	  leaving them behind)
+	* common: don't save empty staged config chapters
+	* libressurect: internal_install_config_file expects a md5 log in root form
+	  fixed staged install check in internal_install_config_file !="off" also
+	  matches the empty string, which currently happens when ressurecting
+
+2008-01-27 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: fixed query_spell_status to be regression free
+	  (was breaking on "spells" with slashes in their names - in gaze)
 
 2008-01-24 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* cast: fixed typo in pre-review-queue message #14228
 
 2008-01-23 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
-	* libtrigger: fixed bug #13466 - dispel_self was dispelling the triggerer
-	* libgrimoire: use the -p option to mkdir in real_mk_source_dir #14193
+	* libtrigger: fix fallback parameter in trigger(), which was luckily not used
+	  removed a redundant check in remove_triggers if the transaction *file*
+	  was a file; if it wasn't, the code would lock the trigger list forever
+	  fixed bug #13466 - dispel_self was dispelling the triggerer
+	* dispel.8: added --total-dispel and fixed some grammar
+	* libgrimoire: fixed private_installed_version to match regex chars too
+	  use the -p option to mkdir in real_mk_source_dir #14193
+	* dispel: fixed bug #13904 - downgrading was incomplete, use ressurect
+	* libresurrect: also restore the sub_depends info, mentioned in #13904
+
+2008-01-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: moved the subshell from the callers into query_spell_status and
+	  sped it up for a tiny bit due to expensive locking
+	  locking in search_depends_status is too expensive
+	  simplified the parameter check in add_depends and moved it before the
+	  possible removal of dependency info; disabled locking
+
+2008-01-21 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* liblock: don't overwrite the lock list in lock_start_transaction #13345
+	  don't quit when removing the old lock list
+	  fixed typos in error messages
+	* libdepends: fixed a regression introduced in 2008-01-16
 
 2008-01-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* liblock: lock_start_transaction now supports returning by reference
+	  readded a local variable to store the transaction file name
+	* *: use lock_start_transaction by reference
 	* config: fixed bad SCREEN variable due to a missing $
+
+2008-01-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: added more locking calls #7917
+	* libgrimoire: 100% speedup of private_installed_version; unfortunately
+	  speeding the lookup is not enough to counteract the needed locking calls,
+	  the function would get too slow
+	* liblock: lock_resources can only work on one resource at a time, so
+	  simplify its callers for clarity and a small speedup
+	  check if the lockdir and lockfile exist before trying to create them
+	* config: changed MAX_SLEEP to 2s
+
+2008-01-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: added use of locks (when reading files) and transactions (when
+	  modifying them) to the remaining functions. Part of #7917 that
+	  hopefully fixes the annoying #13345
+	* build_api/common: accompanying changes to avoid double locking
+	* libressurect: accompanying changes to avoid double locking
+	* libsorcery: added a missin $ in pop_queue and locking to push_queue
+	  and install_queue_history
+	* libdispel: added a transaction to reap_depends
+	* lib*: removed trailing whitespace
+
+2007-12-31 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* liblock: avoid two possible tiny race conditions
 
 2007-11-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* libdepends: finally satisfactorily fixed the sorcery rebuild pausing for
@@ -77,17 +198,36 @@
 	* scribe: fixed error message when swapping nonexsistant grimoires #13253
 	* gaze: fixed matching of spell and short during gaze search #9433
 
+2007-11-21 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsummon: fail on any text/ mimetype when checking the tarball source
+	  sanity
+
 2007-11-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* excluded: removed /var/yp - the one spell that uses it, installs config
 	  files there #11831
+	* libdepends: removed extra space from the subdepends message #13992
+	* libstate: fixed strictness of subdependency matching on removal #13993
+	  removed a stray '' with no effect
+	* libtrack: disable staging when /dev/null is not a device #13315
+	* api2: improved the message when castfs fails the sanity check
+	* libstate, libtrack, url_http, url_git, url_git_http: fixed comments
+	* confmeld: added parameter parsing and enabled the display of help
+	* confmeld.8, *.8: added basic manual page (part of #13618) and references
 
 2007-10-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* libdepends: fixed some more quoting regressions since stable. Should
 	  eliminate some bad provider query defaults
 
+2007-09-11 Arwed v. Merkatz <v.merkatz@gmx.net>
+	* libmisc: support rxvt-unicode for terminal title setting
+
 2007-08-28 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* scribe: fixed a bad message when updating local grimoires
+	* libsummon: fixed the source_sanity function header
+	* gaze, gaze.1: added missing spell files to parse() and the manpage
 	* libsorcery: fixed CXXFLAGS setting in optimise() to not also include the
 	  other CFLAGS_* variables #13965
+	* gaze: also numb sub_depends when searching for dependencies
 
 2007-08-12 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* gaze: fixed bad temporary dir usage #13588
@@ -99,34 +239,251 @@
 	  fixed scribe add rm -rfing if the passed (bad) argument is a dir #13742
 
 2007-08-11 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: fixed a regression in private_add_depends;
+	  probably fixes #13735
 	* libcodex: moved the load_libcompat call before the sourcing of DETAILS in
 	  codex_set_current_spell. This way fallbacks can be used there as well,
 	  which will among other things help a bit with #13883
-	* libdepends: fixed a regression in private_add_depends;
-	  probably fixes #13735
-	* gaze: fixed gaze newer breaking on bad input #10149
-	  also made it handle (too) many logs, patch from Arwed von Merkatz #13903
 	* cleanse: fix md5sum check locale issue, patch from Thomas Orgis #13713
+	  also made it handle (too) many logs, patch from Arwed von Merkatz #13903
+	  added --logs to the man page
+	* gaze: fixed gaze newer breaking on bad input #10149
 	* libmisc: fix set_architecture not resetting the text color #13842
 	* libressurect: show unified diffs in real_handle_changed_config #13830
 
 2007-08-10 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* etc/sorcery/url: added default value for PERL_CPAN_URL #13673
+	* gaze: fixed PERL_CPAN_URL in mirrors list in gaze system-info #13553
+	  Slightly modified patches from Andraž Levstik
+	* libcodex, libsorcery: fixed cast -Z queuing up-to-date spells #13503
+	* libmisc: updated select_list documentation and renamed one variable, 
+	  so there is even less chance of a conflict
 
 2007-08-09 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* url_handlers/url_http: fix url_ftp_verify to not pass a deprecated wget
 	  option. Now it works again. #13001
 	  Also made it stricter when checking for target exsistance #13787
 
+2007-05-14 David Brown <dmlb2000@gmail.com>
+	* sorcery: added a castfs debug level option to sorcery debug dialog
+	  and fixed the text and tabs
+	* config: made the CASTFS_DEBUG_LEVEL variable able to be set from
+	  local config
+
 2007-04-18 David Kowis <dkowis@shlrm.org>
 	* gaze: Bug 13711, support force_depends in gaze dependencies.
-	  Patch from Jaka Kranjc
+	  Patch from Jaka Kranjc.
+
+2007-03-31 David Brown <dmlb2000@gmail.com>
+	* libcast: use STAGED_INSTALL to create castfs debug log instead of a 
+	  file check
+
+2007-03-02 David Brown <dmlb2000@gmail.com>
+	* build_api/api2: check to make sure castfs is there before running
+	  sanity
+
+2007-02-28 David Brown <dmlb2000@gmail.com>
+	* dl_handler/dl_git: fixed to use $target and move to the appropriate
+	  $target location
+	* libtrack: removed place where castfs sanity check was happening for a
+	  higher level location
+	* build_api/api2: put the castfs sanity check at a higher level, fixes
+	  (bug #13480)
+
+2007-02-27 David Brown <dmlb2000@gmail.com>
+	* libtrack: added sanity check function after castfs starts (bug 13480)
+
+2007-02-27 David Brown <dmlb2000@gmail.com>
+	* run_compiler: added a little self check so if DISTCC_DIR isn't set
+	  it will succeed by checking / and not try to mkdir ''
+
+2007-02-26 Andraž "ruskie" Levstik <ruskie@mages.ath.cx>
+	* gaze: added PERL_URL from mirrors list to print in system-info
+
+2007-02-26 Andrew Stitt <astitt@sourcemage.org>
+	* config: turn VIEW_REPORTS off by default, bug 13445
+
+2007-02-24 David Brown <dmlb2000@gmail.com>
+	* cast: added and export DISTCC_DIR before run_build_spell
+	* compile_config: removed DISTCC_DIR
+	* run_compiler: check to make sure DISTCC_DIR exists then make it if not
+
+2007-02-19 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: select_list update documentation and mangle variable
+	  names, bug 13458
+
+2007-02-19 Andrew Stitt <astitt@sourcemage.org>
+	* libsummon, summon: fix bug 13412, summon --raw should work
+	  with other summon facilities (force-download, source cache check).
+	  Patch from Jaka Kranjc, modified for style/compatibility.
+
+2007-02-19 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: fix bug 13356, improve performance of
+	  list_find. Slightly modified patch from Jaka Kranjc.
+
+2007-01-20 Paul Mahon <pmahon@sourcemage.org>
+	*libmisc: redirect some errors to stderr for bug 13380
+
+2007-01-01 David Brown <dmlb2000@gmail.com>
+	* delve: empty install root since that's handled by transfer stage
+	* libstage: forgot a prepended INSTALL_ROOT on directory
+	* config: added INSTALL_ROOT'ed local config area to ignore list
+
+2006-12-23 David Brown <dmlb2000@gmail.com>
+	* libtrack: track_manual needs to work when staged install is enabled
+	* build_api/api2: STAGED_INSTALL variable should be exported so delve
+	  will have that variable set properly during INSTALL
+
+2006-12-21 David Brown <dmlb2000@gmail.com>
+	* libsorcery: filter/filter_in removed debugging and tabs from
+	  previous commit (stupid me)
+
+2006-12-17 David Brown <dmlb2000@gmail.com>
+	* libsorcery: filter/filter_in removed /dev/null entry from both functions
+
+2006-12-03 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/common: gather_docs delineates between files and
+	  directories. Now *rc matches config files, but not directories
+	  (ie src). Bug 13283.
+
+2006-12-02 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery: fix filter() to use a temp file
+	* libsorcery: ldconfig is pointless when staging
+
+2006-11-30 David Brown <dmlb2000@gmail.com>
+	* libtrack: forgot to run stage root files list through exclude filter
+	* libtrack: is_castfs_installed quieted all the errors and output
+	  messages saying if it's enabled or disabled
+	* build_api/api2: need to set STAGED_INSTALL if its not already set
+	* delve: set STAGED_INSTALL if its not already set
+
+2006-11-30 Andrew Stitt <astitt@sourcemage.org>
+	* cleanse: fix typo, missing ;;
+
+2006-11-29 David Brown <dmlb2000@gmail.com>
+	* etc/sorcery/compile_config: set DISTCC_DIR env-var
+	* etc/sorcery/config: remove installwatch stuff added castfs stuff
+	* confmeld: fixed parsing of the path to generate the correct data
+	* delve: added transfer and install extras as stages also added
+	  chroot checks since delve calls itself during the install stage.
+	  stage install is now called transfer so lots of one liners for that
+	  also swapped out installwatch checks for castfs checks
+	* var/lib/sorcery/build/run_compiler: added export of distcc dir
+	* build_api/api2: swapped out installwatch stuff for castfs stuff,
+	  stuff includes checks and logfile variables. Also added the install
+	  extras and transfer stages to the build process, this includes the
+	  default sorcery functions and making the run functions
+	* build_api/common: added an old.libraries hack for when we remove
+	  important libraries we save them first then library and run paths
+	  to find them again. This is here for similar reasons as the old
+	  binaries hack above it.
+	* libapi: added the new stages for install extras and transfer. Also
+	  modified the comment so it reflects the changes made.
+	* libcast: swapped out installwatch log for castfs log creation
+	* libgrimoire: added some recursive umount checks for deaddir in 
+	  rm_source_dir so we don't remove system stuff if there's a bind
+	* libsorcery: added !filter syntax for spell filters. The !filter
+	  takes presidence over the filter.
+	* libspell: added install extras and transfer magic to make sure
+	  sorcery calls the new spell files if they exist
+	* libstage: swap out installwatch for castfs, this includes changing
+	  out invoke devoke and prepare stage root and installwatch functions.
+	  Also the installwatch check is now castfs check. The install log is
+	  now created from a find of the stage root location instead of parsing
+	  installwatch logs.
+
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* scribe: check for tar failure from unpacking, fixes bug 12387
+
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: fix bug 11865, ignore stored sub-depends if the
+	  requesting spell has already been processed.
+
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* cleanse: add runtime/suggest support to prune, bug 13250
+
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* cleanse: add runtime/suggest support to delint, bug 13246
+
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* libinitd: fix bug 12958, improper use of INSTALL_ROOT.
+
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* libsummon: fix bug with file verification by using file -bi
+	  to get cleaner mime-like file-type descriptions. Bug 13254,
+	  patch from Jaka Kranjc.
 
 2006-11-25 Andrew Stitt <astitt@sourcemage.org>
 	* cabal: apply patch from Dave Josephsen, bug 11708
+	
+2006-11-25 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: lock the persistent file on load and save it with
+	  a transaction to prevent corruption from ctrl-c. Bug 13228
+	
+2006-11-17 Andrew Stitt <astitt@sourcemage.org>
+	* libtrack, libapi: add a routine to record modified config files,
+	  this is an alternative to running install_config_files
 
-2006-08-18 Andrew Stitt <astitt@sourcemage.org>
-	* libstate, libapi: add is_depends_enabled, bug 12949
+2006-11-14 Andrew Stitt <astitt@sourcemage.org>
+	* protected: protect /etc/sysconfig/facilities to smooth over
+	  the bumps from bug 13123.
+
+2006-11-14 Andrew Stitt <astitt@sourcemage.org>
+	* libtrack: add initialization function so modified files list
+	  is always known rather than being created on-demand.
+	* cast: initialize libtrack. This fixes bug 13123.
+
+2006-11-02 Andrew Stitt <astitt@sourcemage.org>
+	* libsummon: fix bug 13173, add check for empty files in summon
+	  sanity checker
+
+2006-11-02 Andrew Stitt <astitt@sourcemage.org>
+	* etc/sorcery/config: single quote DOCS to prevent premature
+	  glob expansion
+	* build_api/common: fix bug 12869, exclude executables from
+	  gathered docs. Also did some much needed code cleanup.
+
+2006-10-31 Andrew Stitt <astitt@sourcemage.org>
+	* etc/sorcery/config: remove sorcery path for archspecs
+
+2006-09-29 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: properly rename default_sorcery_trigger_check
+	  to real_default_sorcery_trigger_check
+
+2006-09-25 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: add standard spell paths to gaze dependencies environment
+	  bug 12966
+
+2006-09-25 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: run show_up_depends with verbose parameter (bug 13092)
+	* libdepends: print all edges in verbose mode, andendum to bug 13092
+
+2006-08-28 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: rename default_trigger_check to
+	  default_sorcery_trigger_check, bug 13026.
+
+2006-08-28 Andrew Stitt <astitt@sourcemage.org>
+	* etc/sorcery/mirorr/PERL_CPAN: add new mirror list
+	* sorcery: add new mirror list to dialog
+
+2006-08-21 Andrew Stitt <astitt@sourcemage.org>
+	* libspell: propagate return code properly
+
+2006-08-20 Andrew Stitt <astitt@sourcemage.org>
+	* libspell: new library for all spell execution (except DETAILS
+	  for now). Handles inheritence scheme and creates function stubs
+	  automatically for every file. Fixes bug 10914.
+	* build_api/api1, build_api/api2, libcast, libdepends, libdispel,
+	  libsummon, libtriggers: remove old file execution code,
+	  and use run_spell_file
+	* libapi: update documentation, add blurb about default_*_<filename>
+	  functions. Remove no-op stubs since they exist for everything
+	  implicitly. Change default_<filename> functions to
+	  default_sorcery_<filename> to remove confusion.
+
+2006-08-19 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: raise an error if a spell or provider name contains
+	  a space
 
 2006-08-13 Paul Mahon <pmahon@sourcemage.org>
 	* cast: shorten screen names (fixes bug #12133)
@@ -137,19 +494,198 @@
 2006-08-06 Andrew Stitt <astitt@sourcemage.org>
 	* mirrors/KDE: fix typo in poland mirror
 
+2006-08-05 David Brown <dmlb2000@gmail.com>
+	* cleanse.8: added --nofix and --nofix_quick descriptions.
+
 2006-07-29 Andrew Stitt <astitt@sourcemage.org>
-	* libdepends: integrate fix for bug 12233, spells with regexps
-	  in names do not always become the default provider
+	* libdepends: fix bug 12862, change default behavior of show_up_depends
 
 2006-07-29 Andrew Stitt <astitt@sourcemage.org>
 	* libstate: fix bug 12904, get_depends_options is broken with
 	  spellnames containing regexp characters. Patch from Jaka Kranjc
 
-2006-06-23 Andrew Stitt <astitt@sourcemage.org>
-	* libtrack: add code so sorcery works with installwatch 7
+2006-07-24 David Brown <dmlb2000@gmail.com>
+	* libstage: added config var for the debug level
+	* config: added the installwatch debug level variable and a comment for
+	  valid values.
 
-2006-06-08 Andrew Stitt <astitt@sourcemage.org>
-	* libtrack: suppress mkdir errors
+2006-07-23 David Brown <dmlb2000@gmail.com>
+	* libstage: added fifo permission preservation and output
+
+2006-07-23 David Brown <dmlb2000@gmail.com>
+	* libstage: added output of owner and group to making files in the
+	  system also added a readlink call to the output of symlink also
+	  added chown of fifo's blocks and directories (fixes bug #12821)
+
+2006-07-15 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: show help when unknown option encountered, bug 12847
+
+2006-07-15 Andrew Stitt <astitt@sourcemage.org>
+	* archspecs: remove, users should get them from smgl-archspecs now
+
+2006-07-10 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/common: export a hidden variable to delve
+	* delve: check for hidden variable and assume that we're running
+	  inside cast has already provided certain things to us already (OPTS)
+	  fixes bugs 12818 and 12805
+
+2006-07-03 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/common: only append to PATH if the saved binaries dir exists
+
+2006-07-03 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: add uninstalled basesystem depends info to system-info
+	* libdepends: expand compute_installed_*_depends to allow status
+	  based selection
+
+2006-07-01 David Brown <dmlb2000@gmail.com>
+	* libsorcery: fixed query from previous commit to include a check for
+	  cleanse as well
+
+2006-07-01 David Brown <dmlb2000@gmail.com>
+	* libsorcery: added query to update_sorcery_scripts to check return
+	  value from cast and ask user if they want to continue
+
+2006-07-01 David Brown <dmlb2000@gmail.com>
+	* convert: fixed whitespace removed tabs
+	* etc/sorcery/config: fixed whitespace removed tabs
+	* alter: fixed whitespace removed tabs
+	* cast: fixed whitespace removed tabs
+	* cleanse: fixed whitespace removed tabs
+	* dispel: fixed whitespace removed tabs
+	* gaze: fixed whitespace removed tabs
+	* scribbler: fixed whitespace removed tabs
+	* scribe: fixed whitespace removed tabs
+	* sorcery: fixed whitespace removed tabs
+	* summon: fixed whitespace removed tabs
+	* build_api/common: fixed whitespace removed tabs
+	* libapi: fixed whitespace removed tabs
+	* libcast: fixed whitespace removed tabs
+	* libcodex: fixed whitespace removed tabs
+	* libdepends: fixed whitespace removed tabs
+	* libdispel: fixed whitespace removed tabs
+	* libdownload: fixed whitespace removed tabs
+	* libhash: fixed whitespace removed tabs
+	* liblock: fixed whitespace removed tabs
+	* libmisc: fixed whitespace removed tabs
+	* libresurrect: fixed whitespace removed tabs
+	* libscreen: fixed whitespace removed tabs
+	* libsecurity: fixed whitespace removed tabs
+	* libsorcery: fixed whitespace removed tabs
+	* libstage: fixed whitespace removed tabs
+	* libtablet: fixed whitespace removed tabs
+	* libtrack: fixed whitespace removed tabs
+	* libunpack: fixed whitespace removed tabs
+	* liburl: fixed whitespace removed tabs
+
+2006-07-01 David Brown <dmlb2000@gmail.com>
+	* libsorcery: update_install_queue added progress bar so we have
+	  some idea of how long it takes to queue up spells
+
+2006-07-01 David Brown <dmlb2000@gmail.com>
+	* delve: moved making stage root directory to inside the 
+	  STAGED_INSTALL check not needed anymore since installwatch
+	  doesn't need stage_root before it's invoked
+
+2006-06-26 David Brown <dmlb2000@gmail.com>
+	* libstage: added functions for installing block character
+	  and fifos instead of moving them we make new ones in the
+		system
+
+2006-06-26 David Brown <dmlb2000@gmail.com>
+	* libstage: added function for pipes using mv instead of cp
+
+2006-06-26 Andrew Stitt <astitt@sourcemage.org>
+	* cast: spelling fixes for bug 11853
+	* cast, gaze, cast.1, gaze.1, libsorcery: remove pam stuff
+	* dispel: fix bug 12638, fix wording for recasting without
+	  missing optionals
+	* gaze: fix bug 12664, make gaze dependencies handle -sub syntax
+	* gaze: fix bug 12667, use xargs in case there are too many install logs
+	* libcodex: fix bug 12669, handle the case where no parameters
+	  or empty parameters are passed to codex_does_spell_exist
+	* gaze: fix bug 12670, gaze patchlevels couldn't handle uninstalled
+	  spells, patch from Jaka Kranjc.
+	* gaze: fix bug 12671, typo in gaze patchlevels
+
+2006-06-25 David Brown <dmlb2000@gmail.com>
+	* build_api/api1: removed calls to prepare and destroy stage
+	  root since we patched install watch they aren't needed
+	* build_api/api2: comment also not relevent for the above
+	  reasons
+
+2006-06-25 David Brown <dmlb2000@gmail.com>
+	* build_api/api2: moved prepare_stage_root to inside staged
+	  install check (bug #12759)
+
+2006-06-25 David Brown <dmlb2000@gmail.com>
+	* libcast: added output to display creation of installwatch
+	  debug log
+
+2006-06-24 Andrew Stitt <astitt@sourcemage.org>
+	* libstage: correct path for LD_LIBRARY_PATH setting
+
+2006-06-23 David Brown <dmlb2000@gmail.com>
+	* libstage: added, contains stage root handling functions
+	* confmeld: added to handle staged config files and merge them
+	  back to the system
+	* libapi: added devoke_stage_root function so spells can turn
+	  staging off if they like
+	* build_api/api1: do minimal setup to work with installwatch7
+	* libcast: store installwatch debug file with compile logs
+	* libcodex: add path to staging directory
+	* libgcc2,libmisc: generalize path modification routine
+	* grimoire.5: added information about the current working dir
+	  for each stage in the build process
+	* etc/sorcery/config: added installwatch directories to ignore
+	* libresurrect: make install_config_files always cp if doing a 
+	  staged install (sorcery does this for all config files now)
+	* cast: exported compile log so delve can use it
+	* delve: modified so cast can call delve for the install and
+	  post install stages, adding compile log setting from the 
+	  environment, not failing if source directory isn't there, 
+	  adding stage_install stage to delve, adding mechanism to cd
+	  between build, pre_install, install stages, and creating stage
+	  directory for install stage
+	* build_api/api2: exported appropriate vars so delve can use
+	  them, added calls to delve for install and post install 
+	  stages also added prepare and destroy stage root calls, 
+	  added cd calls for each stage of build process
+	* build_api/common: added save_binaries call here, added dirty
+	  hack to fix the path after the subshell so save_binaries will
+	  work, moved the current config stage directory to a similar 
+	  dir path of the track directory, added destroying stage root
+	  to spell success and to spell failure
+	* libtrack: added invoke, devoke, prepare and destroy stage 
+	  root functions, added the appropriate new environmental vars
+	  to the invoke and devoke installwatch functions, added some
+	  cleanup code to the parse iwlog to remove double slashes at
+	  the root of the path
+	* libsorcery: save_binaries function to provide easier transition
+	  between staging spells then installing them to the system
+
+2006-06-23 David Brown <dmlb2000@gmail.com>
+	* url_git_http: added to handle http urls
+	* url_git: added to handle branches
+
+2006-06-23 David Brown <dmlb2000@gmail.com>
+	* KERNEL: got rid of all the bogus mirrors and ran it through sort
+	  and uniq
+
+2006-06-07 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: replace show_depends with show_up_depends (maybe
+	  we'll have a show_down_depends). Use fast implementation from
+	  fast_up_depends as it is more correct.
+	* gaze: fix bug 10297, and remove fast_up_depends since it is
+	  now the main implementation.
+	* libapi: expose show_up_depends as the spell api for gaze depends
+	  functionality.
+
+2006-06-03 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: fix bug 12603, optional depends on a provider does not
+	  properly remember defaults of none.
+
+2006-05-28 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: add patchlevels subcommand, bug 11858
 
 2006-05-28 Andrew Stitt <astitt@sourcemage.org>
 	* cast: factor cast --queue code out of argument parsing, fixed
@@ -158,25 +694,91 @@
 2006-05-28 Andrew Stitt <astitt@sourcemage.org>
 	* libcast: fix bug 11902, conflicts are broken for multi-spell conflicts
 
+2006-05-28 Andrew Stitt <astitt@sourcemage.org>
+	* cast, sorcery, man8/cast.8, libcast, libsorcery: add cppflags option,
+	  bug 12327, patch from Thomas Orgis.
+
+2006-05-28 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: workaround bug in bash 3.0-16, syntax for
+	  intialization of local arrays is broken.
+
+2006-05-28 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: add system-info command, bug 11864, patch supplied
+	  by Andraž Levstik. Additionally modified to print basesystem
+	  depends and changed SMGL_COMPAT_ARCHS printing to be more robust.
+
+2006-05-28 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: fix bug 10459, enhance gaze maintainer, apply patch from
+	  Jaka Kranjc
+
 2006-05-23 Andrew Stitt <astitt@sourcemage.org>
 	* build: update to work with git
 
-2006-03-26 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: default to no fuzzy extension matching, bug 10761
+2006-05-12 Andrew Stitt <astitt@sourcemage.org>
+	* libunpack: change parameters passed to tar, bug 11413
 
 2006-05-12 Andrew Stitt <astitt@sourcemage.org>
-	* libunpack: change parameters passed to tar, bug 11413, pull 
-	* libunpack: pull change from David Brown: added
-	  --no-same-permissions to tar to fix permissions problems when
-	  untaring files with og+w
+	* sorcery: remove extra comma, bug 11767
+
+2006-05-11 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: fix typo
+
+2006-05-09 Andrew Stitt <astitt@sourcemage.org>
+	* cast: add -g parameter to allow custom grimoire selection and ordering
+	* cast: remove --fix and --nofix (been deprecated for several releases)
+
+2006-05-09 Andrew Stitt <astitt@sourcemage.org>
+	* libapi: add runtime and suggest_depends, bugs 10110 and 10790.
+	  Remove altruistic_sub_depends stub.
+	* dispel: add improved messages to handle new dependency states
+	* libdepends: Add new frontend routines for runtime/suggest
+	  dependencies. Factor most common message calls into a
+	  subroutine. Add controls for compute_install_depends functions
+	  to work on either true dependencies as well as the full set.
+	  Generalized the way UP_DEPENDS works because runtime/suggest depends
+	  need it as well.
+	* libstate: Add new dependency states to sanity check
+	* cast: update to use generalized bonus spell mechanism
+	* gaze: add function stubs for runtime/suggest dependencies
+
+2006-05-03 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: fix bug 10465, gaze allows grimoire selection
+	* libresurrect: fix bug 10528, install_config_files marks files
+	  as new or old, patch from Jaka Kranjc.
 
 2006-05-01 Andrew Stitt <astitt@sourcemage.org>
 	* libdepends: fix search for default provider
+
+2006-04-23 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery: fix bug 8070, add pager timeout for changelog viewing
+	* config: add a pager timeout, and use less -F instead of -E,
+	  see if people like -F better than -E.
+
+2006-04-23 Andrew Stitt <astitt@sourcemage.org>
+	* libsummon: fix bug 9415, do some sanity checking in summon
+
+2006-04-23 Andrew Stitt <astitt@sourcemage.org>
+	* dl_handlers/dl_svn: Do no interactive prompting
 
 2006-04-21 Andrew Stitt <astitt@sourcemage.org>
 	* libsummon: fix bug 11372, bad spells can make us unlock the wrong
 	  resource, causing subsequent summons to hang. Also fix return code
 	  propagation.
+
+2006-04-14 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: add forkless basename and dirname functions using
+	  bash variable expansions.
+	* libhash: add lookup routine that returns by reference
+	* libcodex: add routines to setup in-memory cache lookup hash, and
+	  factor out code to setup spell paths from spell loading functions
+	* libtablet: fix bug 9386, optimize tablet_import_repair_files,
+	  also tie up loose ends with cleanse related functions
+	* cleanse: update parameters to tablet_cleanse_chapter
+	
+2006-04-13 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery: consolidate history functions, bug 10282
+	  modified patch from Jaka Kranjc. Also added a long overdue full
+	  explaination changelog parsing awk script.
 
 2006-04-12 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: fix bug 10144, fix viewing of install queue, patch from
@@ -196,21 +798,49 @@
 	* libtablet: allow special keyword 'all' to unconditionally
 	  update a file in the tablet, bug 10869
 
-2006-04-04 Andrew Stitt <astitt@sourcemage.org>
-	* build: exclude .bzr metadata
+2006-04-05 Andrew Stitt <astitt@sourcemage.org>
+	* gaze: backquoted $level in gaze usage message
+	* gaze: added support for viewing {,PRE_}SUB_DEPENDS file
+	  (from Jaka Kranjc)
 
 2006-04-04 Andrew Stitt <astitt@sourcemage.org>
-	* libunpack: move verification code out of unpack_file and into
-	  new verify_file function. Removed un-used inner loop.
-	* libapi: add entry point for verify_file. Fixes bug 10684.
+	* libmisc: fix select_list default value selection, bug 10538
+	* cleanse, libcast, libgpg: update to slightly modified select_list api
 
 2006-04-04 Andrew Stitt <astitt@sourcemage.org>
 	* libmisc: fix bug 10357, add extra check for a file incase theres
 	  a directory named make.
 
+2006-04-03 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: fix bug 10588, fix provider selection on timeout
+	* url_handlers/url_svn_https: add https handler for svn, bug 10370
+
+2006-04-02 Andrew Stitt <astitt@sourcemage.org>
+	* build: fill in the version value on devel sorcery
+
+2006-04-02 Andrew Stitt <astitt@sourcemage.org>
+	* dl_handlers/dl_svn: fix bug 10183, allow for username/password to be
+	  passed on the command line
+
+2006-04-02 Andrew Stitt <astitt@sourcemage.org>
+	* build: exclude .bzr metadata
+
+2006-03-26 Andrew Stitt <astitt@sourcemage.org>
+	* libsorcery: default to no fuzzy extension matching, bug 10761
+
+2006-03-25 David Brown <dmlb2000@gmail.com>
+	* config: changed name TRACKED to GAZE_ALIEN_PATHS so it's a little
+	  less ambiguous
+	* gaze: only other place the TRACKED var was used...
+
 2006-03-25 Andrew Stitt <astitt@sourcemage.org>
 	* libunpack: check for spell or actual command before assuming
 	  verification cannot be done.
+
+2006-03-25 Andrew Stitt <astitt@sourcemage.org>
+	* libunpack: move verification code out of unpack_file and into
+	  new verify_file function. Removed un-used inner loop.
+	* libapi: add entry point for verify_file. Fixes bug 10684.
 
 2006-03-25 Andrew Stitt <astitt@sourcemage.org>
 	* libsorcery: remove LC_ALL hack
@@ -231,9 +861,6 @@
 2006-03-20 Andrew Stitt <astitt@sourcemage.org>
 	* sorcery: fix bug 10693, correct dialog message, patch from
 	  Jeremy Blosser.
-
-2006-03-20 Andrew Stitt <astitt@sourcemage.org>
-	* dispel: fix issues with failure codes in dispel+depends
 
 2006-03-20 Andrew Stitt <astitt@sourcemage.org>
 	* build_api/common, cast: move pop_install_queue out of cast
@@ -258,6 +885,13 @@
 	* config/url: add fallback mirror from David Kowis
 
 2006-03-12 Andrew Stitt <astitt@sourcemage.org>
+	* scribe: add command for keyword index creation
+	* man8/scribe.8: add info about reindex-keyword
+	* libcodex: add function to recreate keyword index, remove dead
+	  code for keyword lookups
+	* config: add variable for name of keyword index file
+
+2006-03-12 Andrew Stitt <astitt@sourcemage.org>
 	* libapi: add examples on how to use force_depends
 
 2006-03-07 Andrew Stitt <astitt@sourcemage.org>
@@ -266,6 +900,7 @@
 2006-03-06 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: renice gaze, bug 10629
 	* libdepends, libapi: add force_depends, bug 10565
+	* dispel: fix issues with failure codes in dispel+depends
 	* man8/dispel.8, dispel: fix description of exile parameter
 
 2006-03-01 Andrew Stitt <astitt@sourcemage.org>
@@ -279,6 +914,11 @@
 
 2006-02-25 Andrew Stitt <astitt@sourcemage.org>
 	* libdepengine: ensure triggers force recompile, bug 10406
+
+2006-02-24 David Brown <dmlb2000@gmail.com>
+	* libsummon: fixed repackaging message to show color
+	* libunpack: fixed output of new hash allowed to have a space so it
+	  looks nicer
 
 2006-02-23 Andrew Stitt <astitt@sourcemage.org>
 	* libmisc: fix find version parsing to catch '4.1' as well as 4.1.x.
@@ -298,8 +938,24 @@
 	* libcast: add function for loading libcompat, bug 10423
 	* libcodex: load libcompat in all normal spell environments
 
+2006-02-05 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: simplify sub-depends pre-processing, require that
+	  spells always specify a PRE_SUB_DEPENDS file rather than jumping
+	  through hoops to avoid needing one.
+	* libdispel: simplify when sub-depends are cleaned up
+	* cleanse: incorporate sub-depends simplifications
+
+2006-01-26 David Brown <dmlb2000@gmail.com>
+	* dl_git: added git download handler
+	* url_git: added git url handler
+	* libsummon: added git to the list of trees (needs to be fixed)
+
 2006-01-26 Andrew Stitt <astitt@sourcemage.org>
 	* dispel.8: update info for how to unexile something.
+
+2006-01-22 Andrew Stitt <astitt@sourcemage.org>
+	* libmisc: fix query_string (and subsequently config_query_string)
+	  to not timeout if the user starts typing, bug 7858.
 
 2006-01-21 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: Fix bug 10358, set the pager to 'cat' when -q is
@@ -312,18 +968,39 @@
 	  Jaka Kranjc.
 
 2006-01-18 Andrew Stitt <astitt@sourcemage.org>
-	* gaze: fix bug 10415, add a trap for pipes so bash complains less
-	  about them when they break
+	* cleanse: fix bug 10411, cleanse --delint error with sub-depends
 
 2006-01-18 Andrew Stitt <astitt@sourcemage.org>
-	* cast: integ change from devel to fix --deps, need to recompute closure
+	* gaze: fix bug 10415, add a trap for pipes so bash complains less
+	  about them when they break
 
 2006-01-18 Andrew Stitt <astitt@sourcemage.org>
 	* libcodex: fix bug 10350
 
 2006-01-11 Andrew Stitt <astitt@sourcemage.org>
+	* libcast: fix check for whether or not per spell cflags is enabled
+
+2006-01-11 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: remove gaze service (bug 10259).
 	* man1/gaze.1: remove gaze service (bug 10259).
+
+2006-01-11 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/api1, build_api/api2: fix bug 8463, build system selection.
+	  All phases in the build pipeline can be declared by specifying
+	  <FILENAME>_CMD in DETAILS.
+
+2006-01-11 Andrew Stitt <astitt@sourcemage.org>
+	* etc/sorcery/config: Add default value for per-spell-cflags (bug 7730).
+	* sorcery: Add per-spell-cflags to feature menu.
+	* libcast: Add function to present user with menu for cflags.
+	* libdepends: Call menu for cflags.
+	* libsorcery: Add user specified flags to $*FLAGS variables.
+
+2006-01-09 Andrew Stitt <astitt@sourcemage.org>
+	* libapi: Add api for altruistic sub-depends
+	* libdepends: Add code to make altruistic sub-depends work
+	* cleanse, libdispel: Add special case for empty requester due
+	  to altruistic sub-depends
 
 2006-01-09 Andrew Stitt <astitt@sourcemage.org>
 	* dl_handlers/dl_file: use generic url_crack not url_file_crack
@@ -334,8 +1011,22 @@
 	* gaze: update help info for gaze section, bug 10141.
 
 2006-01-03 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: change version stream for cleanup marker since we
-	  forgot about it in 1.13.
+	* libsorcery: Remove dead code for saving glibc and 'glibc-custom'
+	  libraries, bug 10261.
+
+2006-01-03 Andrew Stitt <astitt@sourcemage.org>
+	* libtrack: improve safe directory infrastructure, reseed $RANDOM
+	  with the current nanoseconds to help avoid collisions. $RANDOM
+	  and pipes are not interacting very randomly in bash 3.1.
+
+2006-01-03 Andrew Stitt <astitt@sourcemage.org>
+	* libtablet: add some shortcuts to skip intensive tablet searching
+	  when a parent function already knows the information
+	* libsorcery: properly handle missing tablets
+	* build_api/common: setup shortcut variables for libtablet, this
+	  is needed because during install log creation, tablet accessors
+	  are run and will perform sanity checks on the tablet, which fail,
+	  because the install log doesnt exist yet.
 
 2006-01-03 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: fix bugs 10258, make gaze history and gaze HISTORY 
@@ -345,9 +1036,17 @@
 	* gaze.1: fix bug 10305, fix description of gaze compile in the manual, 
 	  patch from Jaka Kranjc.
 
+2006-01-03 Andrew Stitt <astitt@sourcemage.org>
+	* cast: fix --deps, need to recompute closure
+
 2006-01-02 Andrew Stitt <astitt@sourcemage.org>
 	* etc/sorcery/config: specifically disable aliases before doing
 	  anything, aliases seem to be cropping up in strange places.
+
+2005-12-17 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: add support for PRE_SUB_DEPENDS file, bug 10199
+	* libstate: make add_depends better at making subsequent
+	  dependency requests override previous ones, bug 10185
 
 2005-12-17 Andrew Stitt <astitt@sourcemage.org>
 	* dispel: fix bug 10189, dispel with dependency options didn't
@@ -360,6 +1059,9 @@
 	  specified, spells or --all still needs to be specified, bug 10228.
 
 2005-12-11 Andrew Stitt <astitt@sourcemage.org>
+	* build_api/common: Remove uncomitted sub-depends files after cast
+
+2005-12-11 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: fix search so it can use terms that contain spaces, bug 10139.
 	* gaze: fix pager support bug 10188, patch from Jaka Kranjc.
 	* gaze: add gaze UP_TRIGGER support.
@@ -367,6 +1069,32 @@
 2005-12-10 Andrew Stitt <astitt@sourcemage.org>
 	* etc/sorcery/url: Remove unc sourceforge mirror, fix spacing and
 	  FURLNUM variable.
+
+2005-12-08 Andrew Stitt <astitt@sourcemage.org>
+	* libdepengine: updates to make code more readable, fix spelling and
+	  a bug uncovered by a review of the unit tests
+
+2005-12-08 Andrew Stitt <astitt@sourcemage.org>
+	* libdepends: fix typo that caused sub-depends to be ignored in
+	  some cases
+
+2005-12-06 Karsten Behrmann <BearPerson@sourcemage.org>
+	* libmisc: fix upvar to work nicely when passed content containing
+	  special variables
+
+2005-12-05 Andrew Stitt <astitt@sourcemage.org>
+	* Fixes bug 6811 for sub-depends support.
+	* etc/sorcery/state: Add line for sub-depends table.
+	* cast: load variable with provided sub-depends.
+	* cleanse: add code to clean up sub-depends table.
+	* build_api/common: Commit provided sub-depends to table.
+	* libapi: Add entries for sub_depends and is_depends_enabled functions
+	* libdepends: add code to process sub-depends
+	* libdispel: remove sub-depends when both spells are removed
+	* libstate: Add functions to interface with the sub-depends
+	  table, also adjusted accessors for regular depends where they
+	  were insufficient
+	* libtablet: Add routines to populate and access sub-depends info.
 
 2005-11-30 Andrew Stitt <astitt@sourcemage.org>
 	* libdepengine: fix bug 10159, dpgn_cast_spell_front can return
@@ -390,6 +1118,10 @@
 2005-11-28 Andrew Stitt <astitt@sourcemage.org>
 	* gaze: fix bug 10140, gaze -q search was broken
 
+2005-11-26 David Brown <dmlb2000@gmail.com>
+	* libunpack: added --no-same-permissions to tar to fix permissions
+	  problems when untaring files with og+w
+
 2005-11-26 Andrew Stitt <astitt@sourcemage.org>
 	* liburl: fix bug 10121, url ranking was broken, specifically timeouts
 	  could get larger than bash's max array size, causing an error
@@ -398,13 +1130,29 @@
 2005-11-26 Andrew Stitt <astitt@sourcemage.org>
 	* libmedia: fix menu nit, bug 10104
 	* libdispel: remove atypical files on dispel, bug 10030
-	* etc/sorcery/config: add VERIFIED_UPSTREAM_HASH verification level,
+	* etc/sorceryconfig: add VERIFIED_UPSTREAM_HASH verification level,
 	  bug 10122
 	* man8/sorcery.8: fix sorcery system-update description, bug 10136
 
 2005-11-25 Andrew Stitt <astitt@sourcemage.org>
 	* etc/sorcery/url: remove mirror.isurf.ca, adam has disappeared
 	  with no indication he is going to re-populate it.
+
+2005-11-23 Andrew Stitt <astitt@sourcemage.org>
+	* liburl: fix url_crack to pass "$@" not just $1
+
+2005-11-22 Andrew Stitt <astitt@sourcemage.org>
+	* dl_handlers/dl_svn: echo the command being used, do not assume http
+	  is the protocol, instead let the url handler fill it in while
+	  cracking the url.
+	* url_handlers/url_svn: use true svn:// urls by default rather than
+	  assuming http://. If the hint "old_svn_compat" is specified
+	  use old behavior of inserting http://. All svn based spells
+	  in test grimoire already do this.
+	* url_handlers/url_svn_http, url_handlers/url_svn_ssh:
+	  add handlers for svn+http and svn+ssh, these are trivially
+	  similar to url_svn, common code used where possible.
+	* libsummon: include svn_ssh and svn_http as tree downloads
 
 2005-11-22 Andrew Stitt <astitt@sourcemage.org>
 	* mirrors/SOURCEFORGE: remove belnet and unc mirrors since they
@@ -415,7 +1163,7 @@
 	  sort|uniq
 
 2005-11-17 Andrew Stitt <astitt@sourcemage.org>
-	* libdepends: add code that was overlooked for bug 7488,
+	* libdepends: add code that wasnt overlooked for bug 7488,
 	  moves previous persistent file to an abandoned directory which is
 	  later used by config_query_* functions
 
@@ -427,6 +1175,8 @@
 	  in dependency queries, bug 10073
 	* scribbler: fix bug 10056, missing backquote on a message,
 	  patch from Eric Sandall.
+	* libsummon: fix bug 10041, print out the file that was actually
+	  found during acquire_src, not the file that was requested.
 	* libmisc, libdepends: factor out common code from select_list and
 	  select_provider, use a hash instead of an array in select_list to
 	  fix bug 9836.
@@ -459,6 +1209,17 @@
 	  not needed
 
 2005-10-24 Andrew Stitt <astitt@sourcemage.org>
+	* cast: Add parameters for lazy updates and recast optional
+	  features (bugs 9171 and 9040)
+	* libdispel, dispel: Implement "--total-dispel" feature (bug 8465)
+	* libdepends: Add functions for lazy updates and recast optional
+	  features
+	* libmisc: Add upvar function since this is happening a lot
+	* libsorcery: Factor our code for when spells need updates, bug 9171. 
+	* libstate: Add function for searching spell status. Check for
+	  config file before trying to write to it, bug 8848
+
+2005-10-24 Andrew Stitt <astitt@sourcemage.org>
 	* libmisc: add find backwards compatibility
 
 2005-10-24 David Brown <dmlb2000@gmail.com>
@@ -477,6 +1238,10 @@
 	  branch on cleanse --sweep.
 
 2005-10-14 Andrew Stitt <astitt@sourcemage.org>
+	* dl_wget: remove spurious declaration of WGET_OPTIONS that
+	  munged all the options previous set
+
+2005-10-14 Andrew Stitt <astitt@sourcemage.org>
 	* libsorcery, sorcery: remove static flag altogether, people can now
 	  use the custom optimization flags menu for such things.
 	  Suggesting static through the pre-baked options is an
@@ -484,10 +1249,6 @@
 
 2005-10-14 Andrew Stitt <astitt@sourcemage.org>
 	* sorcery: change help for static option so that it includes warning.
-
-2005-10-14 Andrew Stitt <astitt@sourcemage.org>
-	* dl_wget: remove spurious declaration of WGET_OPTIONS that
-	  munged all the options previous set
 
 2005-10-02 Andrew Stitt <astitt@sourcemage.org>
 	* libdepends: fix case where upward depends is done on a provider
@@ -511,735 +1272,4 @@
 	  fallback to old checkout tarball if scm update fails (bug 9846)
 
 2005-09-24 Andrew Stitt <astitt@sourcemage.org>
-	* libtriggers: check for triggers file before trying to look at it
-	* libdepends: Add message for up_triggers (bug 9827)
-
-2005-09-22 Andrew Stitt <astitt@sourcemage.org>
-	* gaze: add a --fast parameter to gaze depends to make it run quicker
-	* man1/gaze.1: update documentation for gaze depends
-	* libdepends: silence touch command
-
-2005-09-22 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: fix path to ChangeLog, bug 9787
-	* liburl: fix bug 9789, preserve spell defined order of urls
-	  also change the maximum number of urls to 10, 20 seems excessive
-	* url_handlers/url_http: Dont include "Custom" url in url expansion
-
-2005-09-22 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: add functionality to look in abandoned persistency dir for
-	  old answers after a cast -r. (bug 7488)
-	* etc/sorcery/state: add an entry for the abandoned persistency dir
-	* build_api/common: expunge stale abandoned persistency data on
-	  successful cast.
-
-2005-09-22 David Brown <dmlb2000@gmail.com>
-	* libapi: added persistent_read function see header for description
-	* libmisc: added real_persistent_read function bug #8539
-	* libtablet: added tablet_get_persistent_config as part of bug #8539
-	  returns the absolute path to the spell persistent config file
-	  removed the tablet_find_spell_file no one uses it.
-
-2005-09-19 Andrew Stitt <astitt@sourcemage.org>
-	* libcrossinstall: Update file header.
-	* libmisc: Add some missing function headers. Remove unused
-	  parent_PIDs function, found no trace of usage as far back as 1.8.
-	* libtrack: Add missing function header.
-	* libdepends: Remove unused satisfy_depends function.
-
-2005-09-19 Eric Sandall <eric@sandall.us>
-	* sorcery: Removed work marker
-
-2005-09-19 Andrew Stitt <astitt@sourcemage.org>
-	* delve: fix usage message
-
-2005-09-17 Andrew Stitt <astitt@sourcemage.org>
-	* cast: make cast -B work again
-
-2005-09-10 Andrew Stitt <astitt@sourcemage.org>
-	* gaze: add --no-optionals flag to gaze dependencies (bug 9708)
-	* man1/gaze.1: updated documentation to mention -c and
-	  --no-optionals flag to gaze dependencies
-
-2005-09-10 Andrew Stitt <astitt@sourcemage.org>
-	* dl_wget: remove file before trying to download it (bug 9749)
-
-2005-09-10 Andrew Stitt <astitt@sourcemage.org>
-	* scribe: fix bug 8220, verify rsync tree downloads. Factored
-	  common code out of scribe_add_worker and scribe_do_update,
-	  merged result together to reduce redundant redundancy :-).
-	* libgpg: Add routines for downloading manifest and manifest
-	  signature, then verifying tree based on manifest.
-	* etc/sorcery/url: add more variables for rsync and manifest urls
-	* config: add a variable for the manifest algorithm
-	* dl_rsync: fix progress/spinner issues
-	* man8/scribe.8: document scribe add from rsync bug 8609
-	* scribe: Added messages for what the official grimoire urls are
-	  (bug 9701).
-
-2005-09-10 Andrew Stitt <astitt@sourcemage.org>
-	* libgpg: replace call to which with call to smgl_which (bug 9752)
-	* build_api/common: use $INSTALL_ROOT in install_pam_confs (bug 9750)
-
-2005-09-10 Andrew Stitt <astitt@sourcemage.org>
-	* libgpg: add some new functions for hashes
-	* libunpack: use gpg for higher hashes instead of hashsum
-	* sorcery: factor code for getting current hash algorithms into
-	  libgpg and call the new function.
-
-2005-09-09 Andrew Stitt <astitt@sourcemage.org>
-	* cast: remove some code left-over from a previous attempt at
-	  triggers and was accidentally commited (oops, brown-bag time).
-
-2005-09-08 Andrew Stitt <astitt@sourcemage.org>
-	* config: add default values for init/xinetd queries
-	* sorcery: add yet another menu, users can set the default values
-	  of init.d and xinetd service installation (bug 8532)
-	* libcast: integrate menu selectable defaults with init/xinetd queries
-
-2005-09-07 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: make cleanse --sweep use edit_file() instead of $EDITOR
-
-2005-09-05 Andrew Stitt <astitt@sourcemage.org>
-	* cast: make -d imply -c, bug 9624
-
-2005-09-05 Andrew Stitt <astitt@sourcemage.org>
-	* libdepends: add some more debugging info to
-	  private_common_depends, add another output message for when an
-	  optional depends exists, but is disabled
-
-2005-09-05 David Brown <dmlb2000@gmail.com>
-	* libsorcery: changed out hard coded run compiler dir for an env var
-	* compile_config: added RUN_COMPILER_DIR for where the run_compiler
-	  script is located
-
-2005-09-05 David Brown <dmlb2000@gmail.com>
-	* libunpack: added function comment headers (sucky ones probably) and 
-	  removed tabs for 8 spaces removed redundant else statement in 
-	  is_allowed_hash
-	* sorcery: removed tabs for 8 spaces
-	* libgpg: removed tabs for 8 spaces
-
-2005-09-04 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet: add quotes on iterate calls, bug 9707
-
-2005-09-04 David Brown <dmlb2000@gmail.com>
-	* config: added allow new hashes
-	* sorcery: added option for allowing new hashes
-	* libunpack: added unpack_file_user_query, added hash_user_query to call
-	  unpack_file_user_query
-	* libgpg: modified gpg_user_query to call unpack_file_user_query on a
-	  spell and reverted gpg_verify_signature to set the envar $4
-
-2005-09-03 Andrew Stitt <astitt@sourcemage.org>
-	* protected: avoid a rare race by protecting wget, its in basesystem
-	  so it ought not be removed anyway. This can be taken out if/when
-	  the download code and cast wget agree to lock wget.
-
-2005-09-03 Andrew Stitt <astitt@sourcemage.org>
-	* config: remove PROTECT_SORCERY flag, it actually isnt needed,
-	  it already gets set where appropriate.
-	* libapi: add up_triggers to be used in experimental UP_TRIGGERS file
-	* libdepends, libdepengine: Fix up support for run_script trigger
-	* libdepends: add support for UP_TRIGGERS file
-	* libhash: Add support for fields with spaces in their names
-	  make hash_get echo with quotes, this keeps newlines from getting
-	  reparsed as spaces
-	* libtriggers: add a function to get the informative data from a
-	  run_script trigger.
-
-2005-09-03 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: remove cache_env and restore_env. they are unused
-
-2005-09-02 David Brown <dmlb2000@gmail.com>
-	* libunpack: added some extra checks and messages for checking gpg
-	  keys and added the integrety checking levels (bug #9515)
-	* sorcery: added the menus for bug #9515 
-	* libgpg: added the spell switch for $3 and made it act like hash
-	  failure
-
-2005-08-31 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: don't complain about sorcery var's during
-	  persistent_load bug 9416. fix apparently incomplete on/off
-	  switch for sorcery var complaining
-
-2005-08-31 Andrew Stitt <astitt@sourcemage.org>
-	* libdepengine: Addition of new library, this module handles
-	  walking the merged dependency and trigger tree, it replaces make.
-	* cast: remove make specific code.
-	* build_api/common: remove run_triggers function, put it in libtriggers
-	* libapi, libmisc, cast: remove RM_AT_END, its obsolesced by $TMP_DIR
-	* libdepends: add support for importing trigger information
-	  during dependency resolution.
-	* libcast: dont remove download log and download completion
-	  sentinal, otherwise if a spell is cast twice from a
-	  depends/trigger cycle it will hang forever.
-	* libhash: add support for hashing keys with colons.
-	* libtriggers: Break trigger execution out into another
-	  function. Add function to get triggerees.
-
-2005-08-30 David Brown <dmlb2000@gmail.com>
-	* etc/sorcery/config: added enumeration for spells to use
-	* usr/sbin/sorcery: made dialogs work
-
-2005-08-29 Andrew Stitt <astitt@sourcemage.org>
-	* libgpg: fix use of list_find
-
-2005-08-28 David Brown <dmlb2000@gmail.com>
-	* libgpg: gpg_user_query fixed grimoire checking to be a little easier
-	  to add/remove gpg signed grimoires
-	* config: added GPG_GRIMOIRE_LIST with a default set of gpg signed
-	  grimoires
-
-2005-08-28 David Brown <dmlb2000@gmail.com>
-	* etc/sorcery/config: added GPG_VERIFY_SPELL_LEVEL default to level 0
-	  and added GPG_ALLOWED_HASHES sentinal value is "" same as allow all
-	  and added GPG_MAX_LEVEL so we can add more by changing the config
-	* var/lib/sorcery/libgpg: removed message from gpg_verify_signature
-	  it now outputs the algorithm used to create the gpg signature
-	* var/lib/sorcery/libunpack: added path message from libgpg to here made
-	  variables local and added a few preliminary vars for use later
-	* usr/sbin/sorcery: added some of the initial menu stuff
-
-2005-08-26 Eric Sandall <eric@sandall.us>
-	* usr/sbin/gaze: Have gaze pick the first file returned by ./find for
-	  `gaze voyeur` (Bug #9632)
-
-2005-08-26 David Brown <dmlb2000@gmail.com>
-	* libunpack: bug 9625 changed cut to just pull the second field not
-	  everything after and including the second field
-
-2005-08-26 Andrew Stitt <astitt@sourcemage.org>
-	* cast: get rid of notorious '60' file
-
-2005-08-25 Andrew Stitt <astitt@sourcemage.org>
-	* libunpack: yse SOURCEn_GPG[m] instead of SOURCEn_GPGm
-	  remove useless eval
-
-2005-08-25 David Brown <dmlb2000@gmail.com>
-	* libunpack: added comment in real_unpack_file about SOURCEn_*m vs.
-	  SOURCEn_*[m] confusion might end up ripping this out because of that
-
-2005-08-24 Andrew Stitt <astitt@sourcemage.org>
-	* scribe: add local rc to scribe_do_update, bug 9555
-	* delve: fix bug 9566, any non-zero return value is failure
-
-2005-08-22 Andrew Stitt <astitt@sourcemage.org>
-	* libdispel: handle case of removing a spell that no longer
-	  exists, bug 9462
-	* libinitd: mkdir /etc/sysconfig before trying to use stuff in
-	  it, bug 9509.
-
-2005-08-14 David Brown <dmlb2000@gmail.com>
-	* var/lib/sorcery/modules/libapi: removed requires deprecated for good
-
-2005-08-14 Karsten Behrmann <BearPerson@sourcemage.org>
-	* cast, man8/cast.8: updated docs for --deps
-
-2005-07-30 Andrew Stitt <astitt@sourcemage.org>
-	* liburl: some performance adjustments for bug 9391, made
-	  url_expand_urls work more effectively, enhanced url_get_prefix
-	  to use bash only per suggestion from David Brown. Shorten the
-	  list of urls to a max of 20 so as to not totally slow down
-	  subsequent code.
-	* url_default: slightly faster default validation and cracking
-	  routines. Avoid forking where possible.
-
-2005-07-30 Andrew Stitt <astitt@sourcemage.org>
-	* This change includes updates to the downloading code, it resolves bugs
-	  8209, 8150, 8993. It also makes several other enhancements
-	  more feasable and removes a number of layering issues.
-	* libapi: Add acquire_src and download_src for download
-	* libgpg: Minor updates for new api
-	* liblock: Add a simple counter api
-	* libmisc: Add function to get the SOURCE suffixes for a spell,
-	  add a function see if a command is a function
-	* libsorcery: Minor updates for new api, remove INSTALL_ROOT
-	  from update code
-	* libsummon: Call new downloading api, deal with packaging and
-	  repackaging of cvs/svn/etc. checkouts.
-	* libunpack: Add a function for simple unpacking
-	* liburl: Update for new downloading scheme
-	* url_handlers/*: Update to new scheme, code for downloading
-	  branched to download handlers, update to new api set, add
-	  url_default to provide overridable defaults. Code for unpacking
-	  and repackaging of tarballs branched over to libsummon.
-	* modules/dl_handlers/*: All downloading code from url_handlers
-	  branched here.
-	* libdownload: Repurposed as a frontend for download handlers,
-	  now run by liburl
-	* url_handlers/url_tla, url_handlers/url_smgl_tla: delete,
-	  branch, using new url prefix for smgl's custom tla url scheme
-	  so as not to conflict with future tla:// urls.
-	* cast: api update call summon_spell instead of summon_spells
-	* gaze: Updates for new grimoire files
-	* scribe: Update for new api, add code for handling rsync/tree
-	  type adds/updates
-	* summon: Updates for new api, move summon_spells here, fix raw
-	  mode to use new functions.
-	* uninstall: Simple nitpick updates
-	* etc/sorcery/url: Move hardcoded internet interfaces list and
-	  pon/poff calls into overridable variables here. Add an obvious
-	  way to switch over to grimoires from rsync.
-
-2005-07-30 Paul Mahon <pmahon@sourcemage.org>
-	* libmisc, libsorcery: Create variable to hold generic compatable
-	  architectures (bug 9078)
-
-2005-07-24 Andrew Stitt <astitt@sourcemage.org>
-	* mirrors/APACHE: remove dead mirror, bug 9337
-	* solo: delete, all solo spells have their own SOLO file, bug 9110
-	* cast: dont grep solo file if it does not exist
-
-2005-07-23 Andrew Stitt <astitt@sourcemage.org>
-	* libcast: start handling 'default providers' again in the init system
-	  add warnings about ESSENTIAL and RECOMMENDED init scripts
-	* libinitd: update default provider query to work on
-	  a (persistent) variable not in the $SPELL_CONFIG, check for
-	  modified sysconfig file, remove code for enforcing ESSENTIAL
-	  init scripts, that is handled in libcast
-	* libresurrect: fix several bugs: Don't remove the log files,
-	  they're still needed for config file checking and reaping old
-	  files. Fix bugs with removing leftover config files.
-	* libtrack: Add a way to check and mark files as modified.
-
-2005-07-21 Paul Mahon <pmahon@sourcemage.org>
-	* api1, api2: Check that SCREEN==on before doing screen stuff (bug 9302)
-	* cast: Make sure screen message is only printed once (bug 9293)
-
-2005-07-19 Andrew Stitt <astitt@sourcemage.org>
-	* libcodex: Add an additional variable for GRIMOIRE_NAME since
-	  basename $GRIMOIRE isn't always the grimoire name.
-	* gaze: use GRIMOIRE_NAME where appropriate instead of basename
-	  $GRIMOIRE
-
-2005-07-18 Maurizio Boriani <baux@sourcemage.org>
-	* url_tla: Fix minor grep bug over archive name and cosmetic clean up.
-
-2005-07-18 Andrew Stitt <astitt@sourcemage.org>
-	* libunpack: propagate return code properly if verification fails
-
-2005-07-16 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet: add new accessor functions for grimoire and section filters
-	* libsorcery: expand filter_generic to look at grimoire and
-	  section filters
-	* libresurrect: fix to use new tablet api
-
-2005-07-16 Maurizio Boriani <baux@sourcemage.org>
-	* url_tla: Fix tla binary exist test and test if tla archive
-	  is already registered before doing so.
-
-2005-07-16 Paul Mahon <pmahon@sourcemage.org>
-	* libscreen, config, cast,sorcery: Addition of screen lib and
-	  integration of screen into cast
-
-2005-07-09 Karsten Behrmann <BearPerson@sourcemage.org>
-	* url_http: Carry wget exit status past variable assignment
-
-2005-07-09 Andrew Stitt <astitt@sourcemage.org>
-	* libunpack: GRIMOIRE_DIRECTORY -> GRIMOIRE,bug 9191, thanks dmlb2000.
-
-2005-07-07 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: set SCRIPT_DIRECTORY in codex_set_current_spell_quick
-
-2005-07-02 Paul Mahon <pmahon@sourcemage.org>
-	* libmisc: addition of define_function
-	* gaze: fix bug 9150, redefine functions that should be used in DEPENDS
-
-2005-06-27 David Brown <dmlb2000@excite.com>
-	* libunpack: line 142 removed extra quotes around the $GPGNUM
-
-2005-06-04 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: update documentation for real_query(), bug 8931
-	  used patch from Ondra Tomecka.
-
-2005-06-04 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery, man/man8/sorcery.8: finish documentation for bug 8322
-	  use patch from Ondra Tomecka.
-
-2005-06-04 Andrew Stitt <astitt@sourcemage.org>
-	* cleanse: make cleanse --prune use cast -c instead of regular cast
-	  bug 9035
-
-2005-06-04 Andrew Stitt <astitt@sourcemage.org>
-	* dispel: fix dispel_children to properly pass back dispelled children
-	  bug 9044
-
-2005-06-01 Andrew Stitt <astitt@sourcemage.org>
-	* libdepends: fix show_depends to call iterate properly
-
-2005-05-30 Andrew Stitt <astitt@sourcemage.org>
-	* libresurrect: fix an issue caused when resurrecting something
-	  with symlinks to a directory.
-
-2005-05-30 Andrew Stitt <astitt@sourcemage.org>
-	* /etc/sorcery/config: add default values for dependency following
-	  defaults.
-	* install: remove improperly installed sorcery manuals in /usr/man/
-	* dispel: add dependenc following support, fixes bugs 5259 and 5634.
-	* sorcery: add call to menu for user dependency following defaults
-	* man8/dispel.8: update with info on dependency following
-	* libdispel: Add dependency following default menus, a few minor
-	  updates to dispel_spell
-	* libmisc: Use regular grep, not grep -E in list_find, -E makes
-	  it too hard to put spells (things with + characters in the name)
-	  in lists, unit tests pass.
-	* libstate: Dont esc_str depends values in remove_depends_status
-	  since I think they aren't needed, unit tests pass.
-
-2005-05-30 Paul Mahon <pmahon@sourcemage.org>
-	* gaze: add compact mode to prevent loops
-
-2005-05-29 Seth Woolley <seth@tautology.org>
-	* libinitd: be sure to track unmodified init.d installs and when
-	  /etc/sysconfig/init doesn't exist, use a sane value of
-	  RUNLEVELS_DIR.
-
-2005-05-27 Andrew Stitt <astitt@sourcemage.org>
-	* libstate: Fix bug 8990, get_spell_provider doesnt always work.
-
-2005-05-23 Andrew Stitt <astitt@sourcemage.org>
-	* libhash: fix variable name typo in hash_reset
-
-2005-05-23 Andrew Stitt <astitt@sourcemage.org>
-	* scribe: keep track of return code in scribe update, bug 8859
-
-2005-05-23 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: make smgl_which slightly more robust
-
-2005-05-23 Andrew Stitt <astitt@sourcemage.org>
-	* libmedia, libsorcery: Yet more fixups for menu help items
-	  (bug 8959/8610)
-
-2005-05-15 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery: fix custom optimization flags menu to show values
-	  like it used to, bug 8891.
-
-2005-05-10 Andrew Stitt <astitt@sourcemage.org>
-	* libresurrect: fix bug 8813, thanks Eric Sandall.
-
-2005-05-06 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: fix invoke_build_dir, a missing $ made it such that
-	  ccache wouldnt get used unless one used distcc simultaneously.
-
-2005-05-02 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery: accept 'sorcery help' as a way to request help, most
-	  other commands dont have preceeding --'s so this may make more
-	  sense to some. Bug 8786, thanks for the patch Ondra Tomecka.
-	* man8/sorcery.8: update manual with 'sorcery help'
-
-2005-05-02 Andrew Stitt <astitt@sourcemage.org>
-	* cast: dont use -s in pass_four as per comments in bug 8761
-	* etc/sorcery/config: unset MAKEFLAGS so values of -s etc dont
-	  get inherited.
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: send messages from mk_tmp_dirs to stderr
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet, libsorcery: use SECURITY_PATCH instead of
-	  SECURITY_PATCHLEVEL, de-cripple the tablet creation portion
-	  of this enhancement, this concludes the sorcery portion of
-	  bug 8379.
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery: fix bug 8322, modifications of the install queue from
-	  the command line, thanks Ondra Tomecka.
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* cast: use -s when calling make to supress unneeded messages, bug 8761
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery: make 'sorcery version' also work like sorcery
-	  --version, bug 8777.
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* cast: --cflags, --cxxflags, --ldflags, and --no-opts imply -c,
-	  bug 8739.
-
-2005-05-01 Andrew Stitt <astitt@sourcemage.org>
-	* install: install man pages to /usr/share/doc instead of /usr/doc
-	* libsorcery: run uninstall and the install log exist
-	* uninstall: fix some problems with removing the install log before
-	  the script is done with it
-
-2005-04-30 Andrew Stitt <astitt@sourcemage.org>
-	* etc/sorcery/config: unset MAKELEVEL to fix an issue with
-	  multiply nested triggers, bug 8756
-
-2005-04-30 Andrew Stitt <astitt@sourcemage.org>
-	* cast: bandaid cast --queue code to work now that we pass "$@" around
-
-2005-04-29 Andrew Stitt <astitt@sourcemage.org>
-	* alter, cast, cleanse, delve, dispel, invoke, scribbler, scribe,
-	  sorcery, summon: Pass "$@" around to preserve parameter grouping
-	  also call a new routine that backquotes things, this helps get
-	  parameters through the su process from an unprivaledged user, bug 8738
-	* libmisc: add function to consolidate parameters
-
-2005-04-28 Andrew Stitt <astitt@sourcemage.org>
-	* summon: fix poor wording in summon --help, thanks Geoffrey
-	  Derber for pointing this out.
-
-2005-04-27 Andrew Stitt <astitt@sourcemage.org>
-	* libunpack: fix bug 8732, check for file existence while unpacking
-
-2005-04-27 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet: add some code for new PATCHLEVEL and to be named
-	  SECURITY_PATCHLEVEL concepts, actual storage of security
-	  patchlevel wont be done until the name is finalized
-	* libsorcery: add some code to look at PATCHLEVEL (formerly
-	  known as UPDATED) and SECURITY_PATCHLEVEL in the regular sorcery
-	  queue code, add another similar function to find just security
-	  updates (bug 8379 and 8736)
-	* sorcery: add a new sub-command queue-security for bug 8379
-	* man8/sorcery.8: update manual to include info on queue-security
-	  sub-command
-
-2005-04-27 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet: fix typo in repair updated, also do some sanity
-	  checking in the other repair routines
-
-2005-04-26 Andrew Stitt <astitt@sourcemage.org>
-	* scribbler: moved code into functions and modernize calls
-	  also always copy the spell and replicate the grimoire and
-	  section files so the spell can be self contained and inherit
-	  code properly (bug 8430)
-	* libcodex: add special case for scribbled spells in
-	  codex_set_current_spell and codex_set_current_spell_quick
-
-2005-04-26 Paul Mahon <pmahon@sourcemage.org>
-	* run_compiler: Minor fix so the script path isn't assimed to be first
-
-2005-04-25 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: enhance generate_keep_list to only look at files
-	  related to installed spells.
-	* cleanse: add cleanse --sweep_all (bug 8663).
-	* man/man8/cleanse.8: add entry for --sweep_all.
-
-2005-04-25 Andrew Stitt <astitt@sourcemage.org>
-	* libdispel: load the spell from the codex if the tablet isnt
-	  found, bug 8728
-
-2005-04-23 Andrew Stitt <astitt@sourcemage.org>
-	* libdownload: add line for ath wireless interfaces, bug 8634.
-	* libdownload: make the error when unable to get online more
-	  friendly, bug 8656.
-	* libmisc: add a simple implementation of which for our needs
-	  and since which is (correctly) not in basesystem, also add a
-	  wrapper to find make for us.
-	* cast, cleanse, gaze, libgrimoire: find the real path to make when
-	  we dont want to call the function make(), bug 8642.
-
-2005-04-21 Andrew Stitt <astitt@sourcemage.org>
-	* libcrossinstall: fix bug 8647, use safe values for *_ROOT
-	  menus since if the user tries hard enough while hitting cancel
-	  they could get funny results.
-	* alter, dispel, build_api/common, libresurrect, libsorcery,
-	  dispel, libdispel: Update cache tarball naming to use HOST
-	  not BUILD, this was only noticable on cross-compiling. This is bug
-	  8648, thanks Benoit!
-
-2005-04-20 Andrew Stitt <astitt@sourcemage.org>
-	* libdepends: use a consistent sentence structure between the
-	  four depends permutations (bug 8613), also fix a bug where the
-	  description was ignored for non-optional depends on a provider.
-
-2005-04-20 Andrew Stitt <astitt@sourcemage.org>
-	* install: forcibly remove install.log (thereby avoiding a warning
-	  from rm about it not being there) and add the install.log to
-	  itself so its not alien.
-
-2005-04-19 Andrew Stitt <astitt@sourcemage.org>
-	* install: generate a special install.log file used to track
-	  sorcery's own files. This file is always the same name regardless
-	  of sorcery branch so its easy to find.
-	* gaze: use the new sorcery install log to make sure gaze alien doesnt
-	  show sorcery as alien (bug 8381)
-	* uninstall: trivial new uninstall script (bug 8596)
-	* libsorcery: fix typo in libsorcery when sorcery update
-	  fails to download (bug 8628)
-
-2005-04-17 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet: dont make the tablet state dir if it doesnt exist
-	  it just makes it tracked for no reason
-	* libresurrect: fix bug 8620, the wrong path for the tablet was used
-	  if STATE_ROOT was not "". Also fix an issue with symlinks
-	  to directories.
-
-2005-04-17 Paul Mahon <pmahon@sourcemage.org>
-	* libdepends: function would block if depends or state files
-	  didn't exist
-
-2005-04-16 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery, libcrossinstall: define dialog vars local so they
-	  dont stomp on each other (bug 8610)
-
-2005-04-16 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: fix broken filter_in to work like filter when
-	  generating the RIDLIST and there are multiple filters (bug 8608)
-
-2005-04-15 Andrew Stitt <astitt@sourcemage.org>
-	* libresurrect: mkdir -p $BUILD_DIRECTORY in case we're
-	  resurrecting into an install_root (bug 8601)
-	* cast: remove a harmless syntax error with the summon phase
-	  during resurrect
-	* libmisc: only complain about strange /tmp/sorcery dir if it
-	  actually exists, it doesnt on new systems or those with tmpfs
-	  /tmp after reboot (bug 8599)
-
-2005-04-13 Andrew Stitt <astitt@sourcemage.org>
-	* libmisc: add a chmod a-s for the first level of temporary
-	  dirs in mk_tmp_dirs, this works around an iso bug introduced
-	  in 0.9.4-test3
-
-2005-04-12 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: fix some issues with optimize finding archspecs
-
-2005-04-11 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: expect there to be more than one archspec, use
-	  head -n 1 on find output
-	* sorcery: enahnce menu to expect multiple instances of an archspec
-	* etc/sorcery/config: archspecs can also be found in
-	  /usr/share/archspecs from the smgl-archspecs spell
-
-2005-04-11 Andrew Stitt <astitt@sourcemage.org>
-	* libtrack: qualify INSTALL_ROOT and STATE_ROOT with / before
-	  cding there
-	* delve: cd to / before running spell success like cast does
-
-2005-04-09 Arjan Bouter <abouter@sourcemage.org>
-	* libresurrect: fixed the arguments test in real_install_config_file
-
-2005-04-08 Andrew Stitt <astitt@sourcemage.org>
-	* sorcery: add -f to rm command for replacing the restore script
-
-2005-04-08 Andrew Stitt <astitt@sourcemage.org>
-	* build_api/common: rm_source_dir before making cache archive (bug 8249)
-	* etc/sorcery/config: add a SORCERY_PATH variable that people can
-	  override if necessary, defaults to /usr/sbin (where sorcery
-	  is installed). Fixes bug 8200.
-
-2005-04-06 Seth Woolley <seth@tautology.org>
-	* libunpack: correct locate_spell_file logic for secure mode.
-	  Thanks to David Michael Leo Brown, Jr. of linux-new fame.
-
-2005-04-06 Andrew Stitt <astitt@sourcemage.org>
-	* libsorcery: fix 'bug' 8567, remove spaces from CFLAGS,
-	  et. al. variables for broken configure scripts.
-
-2005-04-05 Seth Woolley <seth@tautology.org>
-	* libunpack: libunpack code cleanups, more refactors, and a
-	  single conditional statement to change between old and new
-	  world, and all old world code isolated ready for deletion.
-	* libunpack: slightly different auditing api and the addition of
-	  multiple GPG or HASH support per source file (so you can have,
-	  say sha1 and md5 at the same time), also added checks for the
-	  spell needed to support higher bit hashes, with an advisory if
-	  it's not installed (so people can rank high bit hashes even
-	  though it isn't in basesystem and it will gracefully failover
-	  to lower bit-depths).
-	* libunpack: IGNORE and MISSING support. MISSING will mostly be
-	  for a future auditing script as unpack_missing should never be
-	  activated in a real spell. IGNORE supports volatile,
-	  unversioned, and signature modes that let the user know why it
-	  is being ignored, and signatures are also silently skipped since
-	  they are not unpacked at all.
-	* libapi: some api removals and one addition for easier patching
-	  where checks are needed (uncompress/guess_compressor pair)
-
-2005-04-05 Andrew Stitt <astitt@sourcemage.org>
-	* libtriggers: apply patch from Thomas Houssin to fix a bug
-	  introduced by my change yesterday. The function now uses
-	  iterate. Ive made some additional fixups to the code, namely
-	  using spaces instead of tabs for indenting and making the query
-	  more colorful.
-
-2005-04-04 Andrew Stitt <astitt@sourcemage.org>
-	* libtriggers: fix run_script trigger action (bug 8557)
-
-2005-04-04 Andrew Stitt <astitt@sourcemage.org>
-	* cleanse: pass the backup dir in --tablet_spell
-
-2005-04-04 Seth Woolley <seth@tautology.org>
-	* libgrimoire,libunpack: split out unpack stuff into new lib,
-	  then order it semantically by common/oldworld/newworld.
-	* libunpack: add more documentation.
-	* libapi: change references for the refactor.
-
-2005-04-04 Seth Woolley <seth@tautology.org>
-	* libgrimoire: correct documentation to be easier on the gurus
-
-2005-04-04 Paul Mahon <pmhon@sourcemage.org>
-	* libdepends: locate typo fixed
-
-2005-04-04 Seth Woolley <seth@tautology.org>
-	* build_api/api[12]: use unpack_file instead of unpack
-	* libgrimoire: spell gpg checking.  See format in unpack_file
-	* libapi: some new api additions from libgrimoire
-
-2005-04-04 Andrew Stitt <astitt@sourcemage.org>
-	* build_api/api[12]: use >> instead of > for process substitution,
-	  this fixes super-debug log truncation (bug 7903)
-	* url_http: make wget log all its output to stdout
-	* cast: make summon_spells not redirect stderr, another thing
-	  that breaks super-debug
-
-2005-04-03 Andrew Stitt <astitt@sourcemage.org>
-	* cast: fix bug where if a spell is being resurrected and its
-	  source is being summoned the summon code can finish after the
-	  resurrect code and get an error
-
-2005-04-03 Andrew Stitt <astitt@sourcemage.org>
-	* cast: add a -b parameter to enable an option that forces all
-	  spells to implicitly depends on basesystem
-	* libdepends: if FORCE_BASESYSTEM_DEPENDS is on then all spells
-	  (except basesystem and its depends) implicitly depend on basesystem
-	* etc/sorcery/config: add FORCE_BASESYSTEM_DEPENDS (default off)
-	* sorcery: greatly simplify rebuild by using libstate a routine
-	  call cast with -b to ensure a reasonable ordering of basesystem
-	  spells first (fixes bug 7762)
-
-2005-04-01 Andrew Stitt <astitt@sourcemage.org>
-	* libcast: break the FUNCTIONS file loading into a seperate function
-	* libdispel: load the FUNCTIONS library (fix bug 8452)
-
-2005-04-01 Andrew Stitt <astitt@sourcemage.org>
-	* libtablet: add functions to import REPAIR files into the tablet
-	  make this also happen from the regular tablet cleanse path (bug 8494)
-	* scribe: add call to run tablet-wide REPAIR file import after a
-	  scribe update
-	* cleanse: add option to cleanse just one spell's tablet
-	* man/man8/cleanse.8: update man page to have information about
-	  --tablet_spell option
-
-2005-03-26 Andrew Stitt <astitt@sourcemage.org>
-	* archspecs/ia32/intel/pentium3m: Add new archspec fixes bug 8504
-	* archspecs/ia32/intel/pentium4m: Add code to work with gcc 3.3
-
-2005-03-18 Andrew Stitt <astitt@sourcemage.org>
-	* libresurrect: fix bug 8441, 'test -f' returns true, by adding
-	  quotes around the optional md5sum log it becomes 'test -f ""'
-	  which returns false as I had thought 'test -f' would do.
-
-2005-03-17 Andrew Stitt <astitt@sourcemage.org>
-	* libresurrect: specifically find spell specific configs file rather
-	  than use filter_configs due to our weird environment, also
-	  quote a number of filenames that were left unquoted.
-	* libsorcery: redirect tablet functions in filter_generic to
-	  /dev/null and make them conditional on each other
-	* libtablet: preserve the value of TABLET_PATH, whatever it
-	  might be in tablet_set_spell
-
-2005-03-17 Andrew Stitt <astitt@sourcemage.org>
-	* libresurrect: fix resurrect of a config file (bugs 8439 8438)
-	* libtablet: make a less restrictive routine to dig up the tablet
-	  for a resurrect sandbox which obviously wont be self-referential
-	  or installed.
-	* libsorcery: fix the way spell specific filters are searched for
-	* libdispel: fix bug with POST_REMOVE and the tablet, the tablet
-	  gets removed before post_remove is called, postpone tablet
-	  removal until after post_remove is run. Also fix some problems
-	  with file name adjustment.
-
-2005-03-16 Andrew Stitt <astitt@sourcemage.org>
-	* Start 1.13 development stream.
+	* Start 1.14 development stream.

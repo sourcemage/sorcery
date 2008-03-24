@@ -16,9 +16,10 @@ shopt -u expand_aliases
                 SOUND=${SOUND:=off}
               SUSTAIN=${SUSTAIN:=on}
                 TMPFS=${TMPFS:=off}
-         VIEW_REPORTS=${VIEW_REPORTS:=on}
+         VIEW_REPORTS=${VIEW_REPORTS:=off}
                VOYEUR=${VOYEUR:=on}
          PROMPT_DELAY=${PROMPT_DELAY:=150}
+        PAGER_TIMEOUT=${PAGER_TIMEOUT:=150}
            MAX_CABALS=${MAX_CABALS:=16}
            NET_SELECT=${NET_SELECT:=off}
             MD5SUM_DL=${MD5SUM_DL:=ask_risky}
@@ -26,6 +27,7 @@ shopt -u expand_aliases
           COMPRESSBIN=${COMPRESSBIN:=bzip2}
             EXTENSION=${EXTENSION:=.bz2}
        SET_TERM_TITLE=${SET_TERM_TITLE:=off}
+     PER_SPELL_CFLAGS=${PER_SPELL_CFLAGS:=off}
     STRICT_SCM_UPDATE=${STRICT_SCM_UPDATE:=off}
                  NICE=${NICE:=+10}
                 UMASK=${UMASK:=0022}
@@ -51,7 +53,7 @@ FORCE_BASESYSTEM_DEPENDS=${FORCE_BASESYSTEM_DEPENDS:-off}
                     # -X: dont do screen init and deinit, gaze install
                     # of a small spell is effectively useless otherwise as the
                     # screen is cleared afterwards.
-                PAGER=${PAGER:=less -R -E -X -f}
+                PAGER=${PAGER:=less -R -F -X -f}
              FILEPROG=${FILEPROG:=file}
            DIALOGPROG=${DIALOGPROG:=dialog}
 
@@ -115,7 +117,7 @@ GRIMOIRE_MANIFEST_ALGORITHM=sha1
   SGL_LIBRARY_MODULES=${SGL_LIBRARY}/modules
            # system archspecs are still considered part of sorcery
            # and are deliberatly not in INSTALL_ROOT
-           ARCH_SPECS="/usr/share/archspecs ${SGL_LIBRARY}/archspecs"
+           ARCH_SPECS="/usr/share/archspecs"
              EXCLUDED=${SGL_LIBRARY}/excluded
                 CODEX=${SGL_LIBRARY}/codex
             PROTECTED=${SGL_LIBRARY}/protected
@@ -128,14 +130,17 @@ GRIMOIRE_MANIFEST_ALGORITHM=sha1
 
          SPELL_INDEX_FILE=codex.index
        PROVIDE_INDEX_FILE=provides.index
+       KEYWORD_INDEX_FILE=keyword.index
 
              LOCK_DIR=/tmp/liblock-$UID
      LOCK_TRANSACTIONS="$LOCK_DIR/liblock.locklist"
-            MAX_SLEEP=5
+            MAX_SLEEP=3
 
    TABLET_MAX_VERSION=1
 
          SOURCE_CACHE=${SOURCE_CACHE:=/var/spool/sorcery}
+
+DEFAULT_CHANGED_CONFIG_ACTION=${DEFAULT_CHANGED_CONFIG_ACTION:-2}
 
               # SECURITY NOTE: any script running as root must pick a
               # more secure location for temp files that is not accessable
@@ -147,8 +152,9 @@ GRIMOIRE_MANIFEST_ALGORITHM=sha1
 
                SCREEN=${SCREEN:-off}
 
-              TRACKED="/bin /boot /etc /lib /sbin /usr /var"
-                 DOCS="README* FAQ* CHAN* doc* DOC* conf SETUP LICENSE COPYING NEWS"
+              GAZE_ALIEN_PATHS="/bin /boot /etc /lib /sbin /usr /var"
+                 DOCS='README* FAQ* CHAN* DOC* SETUP LICENSE COPYING NEWS *rc'
+                 DOC_DIRS='doc* conf'
 PROGRESS_SPINNER_CHARS='-\|/'
 
         WHITESPACE_IFS=$' \t\n'
@@ -170,6 +176,14 @@ PROGRESS_SPINNER_CHARS='-\|/'
 
       BUILD_DIRECTORY=${INSTALL_ROOT}/usr/src
    DOCUMENT_DIRECTORY=${INSTALL_ROOT}/usr/share/doc
+CONFIG_STAGE_DIRECTORY=${STATE_ROOT}/var/state/sorcery/staged_configs
+
+      # this is passed directly to installwatch so it can't contain
+      # shell expansions or regex's
+CASTFS_UNSTAGED_PATHS="/dev /proc /tmp /var/tmp /sys ${BUILD_DIRECTORY} ${SGL_LIBRARY} ${INSTALL_ROOT}/${SGL_LIBRARY} ${SOURCE_CACHE} ${CONFIG_CACHE} ${INSTALL_ROOT}/${CONFIG_CACHE} ${STATE_DIRECTORY} ${LOG_DIRECTORY}"
+# this value is a mask bits set mean output is done for that particular 
+# component of castfs
+CASTFS_DEBUG_LEVEL=${CASTFS_DEBUG_LEVEL:=255}
 
 # this makes appending the sorcery path idempotent
 [ -z ${PATH##*$SORCERY_PATH*} ] || export PATH="$PATH:$SORCERY_PATH"

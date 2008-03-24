@@ -17,7 +17,7 @@
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param directory name 
+## @param directory name
 ## @param [size]
 ## Creates a tmpfs filesystem.  By default, the size is 1GB.
 ## The caller may optionally supply a size argument.
@@ -71,7 +71,19 @@ function real_rm_source_dir() {
 
     pushd $BUILD_DIRECTORY 2>&1  >  /dev/null
 
-    umount  -l  $DEAD_DIR  2>  /dev/null
+
+    # make sure nothing recursive is mounted under deaddir
+    mount |
+    while read line
+    do
+      local mount=$(echo $line | cut -d' ' -f1)
+      local mountloc=$(echo $line | cut -d' ' -f3)
+      if echo $mountloc | grep -q "^$DEAD_DIR"
+      then
+        debug "libgrimoire" "Unmounting $mount on $mountloc"
+        umount -l $mountloc 2> /dev/null
+      fi
+    done
 
     # We don't really want to use "rm -rf", but if not using tmpfs,
     # we have to. So we move the old dir to a known place before
@@ -150,10 +162,10 @@ function make() {
 
 #---------------------------------------------------------------------
 ## Install files in a spells "desktop" subdirectory for .desktop
-## @param Spell 
+## @param Spell
 ## @Stdout file name
 #---------------------------------------------------------------------
-function install_desktop_files() { 
+function install_desktop_files() {
   debug "libgrimoire" "Running install_desktop_files() on $SPELL"
   local each file
   local target_dir="/usr/share/applications"
@@ -174,7 +186,7 @@ function install_desktop_files() {
 #---------------------------------------------------------------------
 ## @Type API
 ## @param spell
-## 
+##
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
@@ -192,7 +204,7 @@ function real_installed_version()  {
 ##
 #---------------------------------------------------------------------
 function private_installed_version()  {
-  grep "^$1:"  $SPELL_STATUS  |  cut  -d : -f4  |  head  -n 1
+  awk -F: -v spell="$1" '{ if(spell == $1) {print $4; exit}}' $SPELL_STATUS 2>/dev/null
 }
 
 #---------------------------------------------------------------------

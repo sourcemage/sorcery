@@ -65,7 +65,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
       cat $output
       return $rc
     fi
-    algo=$(grep 'digest algorithm' $output | awk '{ print $NF }' | tr A-Z a-z)
+    algo=$(awk '/digest algorithm/ { print tolower($NF) }' $output | sort -u)
     rm $output &>/dev/null
   fi
   [ ! -z "$4" ] && eval "$4=\"$algo\""
@@ -239,7 +239,7 @@ function gpg_verify_common() {
   local SOURCE=$(basename $FILENAME)
 
   local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
-  pushd $TMP_DIR &>/dev/null || 
+  pushd $TMP_DIR &>/dev/null ||
   { message "Failed to cd to $TMP_DIR!!"; return 2;}
   if test -z "$SIGNATURE" ; then
     local SIG_URL=$SOURCE_URL/$SIG_FILE
@@ -408,7 +408,7 @@ function grimoire_tree_user_query() {
           "${DEFAULT_COLOR}${PROBLEM_COLOR}failed!"
   message "What would you like to do?${DEFAULT_COLOR}"
   local choice
-  select_list choice 0 "set aside" "remove" "ignore"
+  select_list choice "" "set aside" "remove" "ignore"
   case "$choice" in
     "set aside") local tgt=$grimoire_name.$(date +%Y%m%d%H%M).corrupt
                  message "moving grimoire to $tgt"
@@ -421,7 +421,7 @@ function grimoire_tree_user_query() {
   esac
   return 1
 }
- 
+
 #---------------------------------------------------------------------
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by

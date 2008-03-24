@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------
 ##
 ## @scribe
-## 
+##
 ## @Synopsis scribe handles adding/updating/reindexing/etc. of grimoires
 ##
 ## @Copyright Original version Copywright 2002 by Ryan Abrams
@@ -26,22 +26,26 @@ and the spells in your grimoires.
 Invoke scribe with the desired command followed by the target.
 Note that most options can be called with the beginning of the command.
 
-Command		Arguments	Description
-add		grimoire [from source]	Adds a new grimoire
-				 (optionally from a different URL)
-remove		grimoire	Removes a grimoire
-update		[grimoire]	Updates a grimoire or all grimoires
+Command          Arguments       Description
+add              grimoire [from source]  Adds a new grimoire
+                                 (optionally from a different URL)
+remove           grimoire        Removes a grimoire
+update          [grimoire]       Updates a grimoire or all grimoires
 
-fix		grimoire	Attempts to fix metadata for grimoire
-reindex		[grimoire]	Recreates the list of spells
-index				Prints list of grimoires
+fix              grimoire        Attempts to fix metadata for grimoire
+reindex         [grimoire]       Recreates the list of spells
+reindex-keyword [grimoire]       Recreates keyword listing
+                                 (official grimoires should come with
+                                 a keyword listing already)
 
-set		grim1 grim2	puts grim1 before grim2
-swap		grim1 grim2 	Swaps two grimoires
+index                            Prints list of grimoires
 
-localize	grimoire	Makes a grimoire local
-				 (so scribe won't try to update it)
-unlocalize	grimoire	Makes a grimoire nonlocal
+set              grim1 grim2     puts grim1 before grim2
+swap             grim1 grim2     Swaps two grimoires
+
+localize         grimoire        Makes a grimoire local
+                                 (so scribe won't try to update it)
+unlocalize       grimoire         Makes a grimoire nonlocal
 
 
 Grimoire tarballs are located at $CODEX_TARBALL_URL
@@ -69,16 +73,19 @@ function unpackage_grimoire_tarball() {
   local tarball=$1
   local grimoire=$2
   local grim_name=$3
-  #untar the new grimoire update and remove zip
-  bzcat $tarball| tar -x  1>/dev/null 2>&1
-  #check for a successful unzip
-  if ! [ -d $grimoire ]; then
-    #uh oh! bad unzip.
-    error_message "ERROR: Grimoire tarball for $grim_name not" \
-            "formated correctly!."
+  #untar the new grimoire tarball
+  if tar -xjf $tarball 1>/dev/null 2>&1; then
+    # ensure the grimoire unpacked where it was expected to
+    if ! [ -d $grimoire ]; then
+      error_message "ERROR: Grimoire tarball for $grim_name not" \
+                    "formatted correctly!"
+      return 1
+    fi
+    return 0
+  else
+    error_message "ERROR: Grimoire tarball for $grim_name did not unpack properly!"
     return 1
-  fi 
-  return 0
+  fi
 }
 
 #---------------------------------------------------------------------
@@ -175,7 +182,7 @@ function scribe_add() {
     scribe_add_update_worker "$grimoire" "$from" add
   done
 }
-  
+
 #---------------------------------------------------------------------
 ## scribe_add_worker
 ##
@@ -298,8 +305,8 @@ function scribe_add_update_worker() {
   popd &>/dev/null
 
   #success! create a GRIMOIRE file that stores where it was downloaded from
-  echo "FROM_URL=$from" > $grimoire/GRIMOIRE && 
-  chmod +x $grimoire/GRIMOIRE && 
+  echo "FROM_URL=$from" > $grimoire/GRIMOIRE &&
+  chmod +x $grimoire/GRIMOIRE &&
 
   if [[ $add_or_update == add ]] ; then
     codex_add_grimoire $grimoire 0 &&
@@ -393,7 +400,7 @@ function scribe_fix_metadata() {
 #---------------------------------------------------------------------
 function scribe_index() {
   local idx grimoire
-  
+
   echo ""
   echo "Codex Listing"
   echo "-------------"
@@ -475,6 +482,35 @@ function scribe_reindex() {
 }
 
 #---------------------------------------------------------------------
+## scribe_reindex_keyword
+##
+## Recreate the keyword index, this is slow in comparison to
+## normal reindexing.
+##
+## @param grimoire names, if none all grimoires
+##
+#---------------------------------------------------------------------
+function scribe_reindex_keyword() {
+  local paths=""
+  local grimoire grimoires grim
+  if [[ "$@" ]] ; then
+    grimoires="$@"
+  else
+    grimoires=`codex_get_all_grimoires`
+  fi
+
+  for grim in $grimoires; do
+    if ! grimoire=$(codex_find_grimoire $grim) ; then
+      error_message "Grimoire $grim not found!"
+      return 1
+    fi
+    message -n "Reindexing keywords for $grim ..."
+    codex_create_keyword_cache "$grimoire"
+  done
+  message "done."
+}
+
+#---------------------------------------------------------------------
 ## scribe_remove
 ##
 ## remove a grimoire from the codex
@@ -537,7 +573,7 @@ function scribe_set(){
     let idx2-- # grim1 is before grim2, by removing grim1, the position
                # decrease by 1
   fi
-  
+
   message "Setting $grim1 before $grim2"
   codex_remove_grimoire $grimoire1
   codex_add_grimoire $grimoire1 $idx2
@@ -587,21 +623,21 @@ function scribe_update() {
     while [ -n "$1" ] ; do
       grim="$1"
       if ! grimoire=$(codex_find_grimoire $grim) ; then
-        error_message "Grimoire $grim not found"
+        error_message "Grimoire $grim not found!"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         let rc++
         continue
       fi
 
       if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grim; then
-        error_message "$grim has invalid metadata. Not Updating"
+        error_message "$grim has invalid metadata. Not Updating!"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         let rc++
         continue
       fi
 
       if codex_is_local $grimoire; then
-        error_message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is being marked" \
+        error_message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is marked" \
                 "as local. Won't update.${DEFAULT_COLOR}"
         if [[ "$2" == "from" ]] ; then shift 3 ; else  shift 1 ; fi
         continue
@@ -627,12 +663,12 @@ function scribe_update() {
       grim=$(basename $grimoire)
       if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grimoire; then
         #no metadata found. dont auto-update
-        error_message "$grim has invalid metadata. Not Updating"
+        error_message "$grim has invalid metadata. Not Updating!"
         continue
       fi
 
       if codex_is_local $grimoire; then
-        error_message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is being marked as local. Won't update.${DEFAULT_COLOR}"
+        error_message "${SPELL_COLOR}$grim${MESSAGE_COLOR} is marked as local. Won't update.${DEFAULT_COLOR}"
         continue
       fi
 
@@ -677,6 +713,7 @@ function find_function()  {
                       f|fi|fix) FUNCTION="fix" ;;
            i|in|ind|inde|index) FUNCTION="index";;
           l|loc|local|localize) FUNCTION="localize";;
+               reindex-keyword) FUNCTION="reindex-keyword";;
       rei|reind|reinde|reindex) FUNCTION="reindex";;
       rm|rem|remo|remov|remove) FUNCTION="remove" ;;
                         se|set) FUNCTION="set";;
@@ -708,6 +745,7 @@ function main() {
          index) scribe_index $@ ;;
       localize) scribe_localize $@ ;;
        reindex) scribe_reindex $@ ;;
+reindex-keyword) scribe_reindex_keyword $@ ;;
         remove) scribe_remove $@ ;;
            set) scribe_set $@ ;;
           swap) scribe_swap $@ ;;
@@ -733,10 +771,10 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then
   help
 elif [[ $1 == index ]] ; then
   scribe_index # this requires no access privaledges so special case it
-else  
+else
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
-  su -c "$0 $PARAMS" root
+  exec su -c "scribe $PARAMS" root
 fi
 
 #---------------------------------------------------------------------

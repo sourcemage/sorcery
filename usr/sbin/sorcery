@@ -32,27 +32,27 @@ Usage:          sorcery [parameters]
 
 Optional Parameters:
 
--h  |  --help  |  help	Display this help screen
+-h  |  --help  |  help  Display this help screen
 
--s  |  system-update	Perform a system update (updates sorcery, grimoire,
-			  and spells).
-			  [ scribe update, sorcery queue, cast --queue ]
--u  |  update		Update the sorcery scripts only.
--g  |  upgrade		Do not update grimoire, just any spells that need to
-			  be upgraded.  [ sorcery queue, cast --queue ]
+-s  |  system-update    Perform a system update (updates sorcery, grimoire,
+                          and spells).
+                          [ scribe update, sorcery queue, cast --queue ]
+-u  |  update           Update the sorcery scripts only.
+-g  |  upgrade          Do not update grimoire, just any spells that need to
+                          be upgraded.  [ sorcery queue, cast --queue ]
 
--r  |  rebuild		rebuild all spells
+-r  |  rebuild          rebuild all spells
 
--q  |  queue		Compare installed grimoire to installed spells,
-			  generate queue of spells needing to be updated.
-       queue-security	Same as queue, but only for spells that need
-			  updating due to security fixes.
+-q  |  queue            Compare installed grimoire to installed spells,
+                          generate queue of spells needing to be updated.
+       queue-security   Same as queue, but only for spells that need
+                          updating due to security fixes.
 
-review-queue		Review the install queue for each spell's history 
-			  since each was last installed.
+review-queue            Review the install queue for each spell's history
+                          since each was last installed.
 
-add-queue <spell|s>	Add spell(s) to install queue
-remove-queue <spell|s>	Remove spell(s) from install queue
+add-queue <spell|s>     Add spell(s) to install queue
+remove-queue <spell|s>  Remove spell(s) from install queue
 
 hold   <spell|s>   Sets spells' status to held.
 unhold <spell|s>   Sets spells' status to installed.
@@ -61,26 +61,26 @@ exile   <spell|s>   Sets spells' status to exiled.
 unexile <spell|s>   Removes spells' exiled status (to not installed at all).
 
 
-default add spell_1 spell_2 on/off	If "spell_1" optionally depends
-					on "spell_2" the default answer
-					is on/off.
+default add spell_1 spell_2 on/off      If "spell_1" optionally depends
+                                        on "spell_2" the default answer
+                                        is on/off.
 
-default add "" spell on/off	If anything optionally depends on "spell" the
-				default answer is on/off.
+default add "" spell on/off     If anything optionally depends on "spell" the
+                                default answer is on/off.
 
-default add spell "" on/off	If "spell" optionally depends on anything
-				the default answer is on/off.
+default add spell "" on/off     If "spell" optionally depends on anything
+                                the default answer is on/off.
 
-default add spell PROVIDER on/off	"Spell" is the provder for
-					PROVIDER bydefault, in the
-					case of optional_depends, if
-					on/off is off, none is chosen
-					by default instead.
+default add spell PROVIDER on/off       "Spell" is the provider for
+                                        PROVIDER by default, in the
+                                        case of optional_depends, if
+                                        on/off is off, none is chosen
+                                        by default instead.
 
 default remove [spell|""] [spell|PROVIDER|""] Remove entry from defaults
 default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
 
--v  | --version		Print the sorcery version
+-v  | --version                 Print the sorcery version
 
 EOF
 
@@ -117,6 +117,7 @@ mirror_menu()  {
   local L_HELP="Select mirror for downloading kernel related sources."
   local N_HELP="Select mirror for downloading GNOME sources."
   local G_HELP="Select mirror for downloading GNU sources."
+  local P_HELP="Select mirror for downloading PERL-CPAN sources"
   local S_HELP="Select mirror for downloading Sorcery itself"
   local SF_HELP="Select mirror for downloading Sourceforge"
   local X_HELP="Select mirror for downloading XFree86 related sources."
@@ -136,8 +137,9 @@ mirror_menu()  {
                       "KERNEL"      ""  "$L_HELP"  \
                       "GNOME"       ""  "$N_HELP"  \
                       "GNU"         ""  "$G_HELP"  \
-		      "SOURCEFORGE" "" "$SF_HELP"  \
-		      "SORCERY"     ""  "$S_HELP"  \
+                      "PERL_CPAN"   ""  "$P_HELP"  \
+                      "SOURCEFORGE" "" "$SF_HELP"  \
+                      "SORCERY"     ""  "$S_HELP"  \
                       "XFREE86"     ""  "$X_HELP"'`
   do
 
@@ -148,6 +150,7 @@ mirror_menu()  {
       KERNEL)       MIRROR="      KERNEL_URL"  ;;
       GNOME)        MIRROR="       GNOME_URL"  ;;
       GNU)          MIRROR="         GNU_URL"  ;;
+      PERL_CPAN)    MIRROR="   PERL_CPAN_URL"  ;;
       SORCERY)      MIRROR="     SORCERY_URL"  ;;
       SOURCEFORGE)  MIRROR=" SOURCEFORGE_URL"  ;;
       XFREE86)      MIRROR="     XFREE86_URL"  ;;
@@ -172,7 +175,7 @@ mirror_menu()  {
 }
 
 
-show_spells()	{ (
+show_spells()  { (
 
   local  SECTION=`codex_find_section_by_name $1`
   local  SPELLS=`codex_get_spells_in_section  $SECTION`
@@ -266,7 +269,7 @@ add_pkgs()  { (
 ) }
 
 
-show_file()	{
+show_file() {
 
   if  [  -f  $1  ];  then
 
@@ -327,7 +330,7 @@ show_installed_spells()  {
 }
 
 
-remove_pkgs()	{
+remove_pkgs() {
 
   while
 
@@ -390,8 +393,8 @@ update_pkgs() {
 if [[ \$1 == "autoupdate" ]]; then
     message  "${MESSAGE_COLOR}"
     message  "Interrupting while upgrading the sorcery scripts may"
-    message  "cause the sorcery scripts to be lost.  If the sorcery,"
-    message  "scripts are lost, Source Mage can be restored by"
+    message  "cause the sorcery scripts to be lost.  If the sorcery"
+    message  "scripts are lost, they can be restored by"
     message  "running the following script:"
     message  "${FILE_COLOR}"
     message  "            bash ${RESTORE_SCRIPT}"
@@ -733,7 +736,7 @@ architecture_menu() {
       hash_put archspec_hash $specname $SPECFILE
     fi
   done
-  
+
   # now that there archspecs have been found, build the dialog list
   for specname in $(hash_get_table_fields archspec_hash|sort); do
     CPUNAME=""
@@ -765,7 +768,7 @@ architecture_menu() {
                               --menu                     \
                               "$ARCH_HELP"               \
                                0 0 0                     \
-			       '$LIST              `; then
+                              '$LIST              `; then
 
     # remove spurious ""
     NEW_ARCH=`echo "${NEW_ARCH}" | sed -e 's/^"//' -e 's/"$//'`
@@ -829,7 +832,8 @@ custom_optimization_menu() {
                              17 50 9 \
                              CFLAGS "$CUSTOM_CFLAGS" \
                              CXXFLAGS "$CUSTOM_CXXFLAGS" \
-                             LDFLAGS "$CUSTOM_LDFLAGS"'`)
+                             LDFLAGS "$CUSTOM_LDFLAGS" \
+                             CPPFLAGS "$CUSTOM_CPPFLAGS"'`)
     rc=$?
     [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
     set ${RESULTS[*]}
@@ -838,15 +842,17 @@ custom_optimization_menu() {
     case "$KEY" in
       CFLAGS) CUSTOM_CFLAGS="$@"  ;;
       CXXFLAGS) CUSTOM_CXXFLAGS="$@" ;;
+      CPPFLAGS) CUSTOM_CPPFLAGS="$@" ;;
       LDFLAGS) CUSTOM_LDFLAGS="$@" ;;
     esac
   done
-  
+
   # only commit values if user selected "OK"
   if [ $rc == 0 ] ; then
     modify_local_config CUSTOM_CFLAGS "$CUSTOM_CFLAGS"
     modify_local_config CUSTOM_CXXFLAGS "$CUSTOM_CXXFLAGS"
     modify_local_config CUSTOM_LDFLAGS "$CUSTOM_LDFLAGS"
+    modify_local_config CUSTOM_CPPFLAGS "$CUSTOM_CPPFLAGS"
   fi
 }
 
@@ -919,18 +925,18 @@ I off . . . . . - . - . . - . . . - .
   local IGNORE_HELP="Ignore (do not check) integrity of downloads. DANGEROUS!"
 
   if  INT_DL_CHECK=`eval $DIALOG '  --title  "$INT_DL_TITLE"        \
-   			     --no-cancel                            \
-			     --ok-label    "Commit"                 \
-			     --item-help                            \
-			     --menu                                 \
-			     "$INT_DL_HELP"                         \
-			     0 0 0                                  \
-	"P"  "Abort unpack paranoid"             "$ABORT_ALL_HELP"  \
-	"A"  "Abort unpack but ask on ignore"    "$ABORT_HELP"      \
-	"B"  "Ask (default abort)"               "$ABORT_ASK_HELP"  \
-	"U"  "Ask (default abort save ignore)"   "$ABORT_IGN_HELP"  \
-	"G"  "Ask (default ignore)"              "$IGNORE_ASK_HELP" \
-	"I"  "Ignore (do not check)"             "$IGNORE_HELP"'`
+                                    --no-cancel                     \
+                                    --ok-label    "Commit"          \
+                                    --item-help                     \
+                                    --menu                          \
+                                    "$INT_DL_HELP"                  \
+                                    0 0 0                           \
+        "P"  "Abort unpack paranoid"             "$ABORT_ALL_HELP"  \
+        "A"  "Abort unpack but ask on ignore"    "$ABORT_HELP"      \
+        "B"  "Ask (default abort)"               "$ABORT_ASK_HELP"  \
+        "U"  "Ask (default abort save ignore)"   "$ABORT_IGN_HELP"  \
+        "G"  "Ask (default ignore)"              "$IGNORE_ASK_HELP" \
+        "I"  "Ignore (do not check)"             "$IGNORE_HELP"'`
   then
     case $INT_DL_CHECK in
       P) modify_local_config "MD5SUM_DL" "abort_all" ;;
@@ -1145,7 +1151,7 @@ integrity_menu()  {
 
   while  INT_CHECKS=`eval $DIALOG '  --title  "$INT_TITLE"     \
                            --cancel-label  "Exit"              \
-			   --ok-label      "Select"            \
+                           --ok-label      "Select"            \
                            --item-help                         \
                            --menu                              \
                            "$INT_HELP"                         \
@@ -1188,7 +1194,7 @@ function service_defaults() {
   local INSTALL_XINETD_HELP="Install xinetd scripts by default?"
   local ENABLE_XINETD_HELP="If an xinetd script is being installed, also enable it by default?"
   local INIT_VS_XINETD="If both xinetd or init.d scripts exist, prefer xinetd over init.d?"
-  
+
   local MENU_TITLE="Init.d/Xinetd Default Answer Selection Menu"
   local MENU_INFO="Choose your defaults\nPer spell answers are remembered on recasts"
   local RESULT RESULTS TMP i
@@ -1472,6 +1478,7 @@ sorcery_devel_settings()   {
 
   local D_HELP="Set the debugging file for normal debugging."
   local S_HELP="Turn on Super Debug. You probably don't want to do this."
+  local C_HELP="Change this to 0 to remove castfs debugging."
 
   while
 
@@ -1484,7 +1491,8 @@ sorcery_devel_settings()   {
             ""                      \
             0 0 0                    \
             "D"  "Debug file"        "$D_HELP"  \
-            "S"  "Super debugging toggle"  "$S_HELP"'`
+            "S"  "Super debugging toggle"  "$S_HELP" \
+            "C"  "Castfs debuging level"  "$C_HELP"'`
   do
 
     case $COMMAND in
@@ -1495,7 +1503,10 @@ sorcery_devel_settings()   {
     S) TEXT="Note: You don't want to do this probably. Don't forget to 2>/root/debug.out.\nDo you want super debugging on?"
         TOGGLE=`eval $DIALOG --yesno \"$TEXT\" 0 0` &&
         ( modify_local_config "SUPER_DEBUG" "on" ; modify_local_config "set" "-x" "command" ) ||
-      ( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
+        ( modify_local_config "SUPER_DEBUG" ""   ; modify_local_config "set" "+x" "command" ) ;;
+	C) TEXT="Note: This is a numeric value that represents a mask to castfs, 0 means no debugging, 1 means file system debugging, 2 is lower level debugging, 3 means both. All other values are currently undefined."
+        LEVEL=`eval $DIALOG --ok-label "Commit" --inputbox \"$TEXT\" 0 0 \"$CASTFS_DEBUG_LEVEL\"` &&
+        modify_local_config "CASTFS_DEBUG_LEVEL" "$LEVEL" ;;
 
   esac
 
@@ -1528,6 +1539,7 @@ feature_menu()  {
   local ST_HELP="Set xterm title/screen window title on cast?"
   local UF_HELP="Ensure a sane environment before sorcery update"
   local SCR_HELP="Toggle usage of screen in cast"
+  local PSC_HELP="Ask for custom cflags for each spell"
 
        ARCHIVE=${ARCHIVE:=on}
        AUTOFIX=${AUTOFIX:=on}
@@ -1550,6 +1562,7 @@ STORE_CONF_LOG=${STORE_CONF_LOG:-off}
  CROSS_INSTALL=${CROSS_INSTALL:=off}
 SET_TERM_TITLE=${SET_TERM_TITLE:=off}
         SCREEN=${SCREEN:-off}
+PER_SPELL_CFLAGS=${PER_SPELL_CFLAGS:-off}
 
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
@@ -1578,9 +1591,10 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
       "CLEAN_SOURCE"   "Toggle"  "$CLEAN_SOURCE"   "$CS_HELP"  \
       "CROSS_INSTALL"  "Toggle"  "$CROSS_INSTALL"  "$CI_HELP"  \
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"  \
-      "SCREEN"         "Toggle"  "$SCREEN"         "$SCR_HELP"'`
+      "SCREEN"         "Toggle"  "$SCREEN"         "$SCR_HELP" \
+      "PER_SPELL_CFLAGS" "Toggle" "$PER_SPELL_CFLAGS" "$PSC_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE COLOR GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN PER_SPELL_CFLAGS)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1610,11 +1624,12 @@ SET_TERM_TITLE=${SET_TERM_TITLE:=off}
        CROSS_INSTALL)  CROSS_INSTALL=on  ;;
       SET_TERM_TITLE) SET_TERM_TITLE=on  ;;
               SCREEN)         SCREEN=on  ;;
+    PER_SPELL_CFLAGS) PER_SPELL_CFLAGS=on ;;
       esac
 
     done
 
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN PER_SPELL_CFLAGS)
     for i in ${TEMP[*]} ; do
       modify_local_config "$i" "${!i}"
     done
@@ -1915,7 +1930,7 @@ sorcery_remove_defaults () {
 ## cli function
 #---------------------------------------------------------------------
 sorcery_queue_add() {
-  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  lock_start_transaction "$INSTALL_QUEUE" tINSTALL_QUEUE
   for SPELL in "$@"; do
     grep -qE "^$SPELL\$" "$tINSTALL_QUEUE" || echo "$SPELL" >> "$tINSTALL_QUEUE"
   done
@@ -1930,7 +1945,7 @@ sorcery_queue_add() {
 ## cli function
 #---------------------------------------------------------------------
 sorcery_queue_remove() {
-  tINSTALL_QUEUE=`lock_start_transaction "$INSTALL_QUEUE"`
+  lock_start_transaction "$INSTALL_QUEUE" tINSTALL_QUEUE
   for SPELL in "$@"; do
     if grep -qE "^$SPELL\$" "$tINSTALL_QUEUE"; then
       grep -vE "^$SPELL\$" "$tINSTALL_QUEUE" > "$TMP_DIR/tmp_queue"
@@ -1986,7 +2001,7 @@ if  [  "$UID"  ==  0  ];  then
   cleanup_tmp_dir $TMP_DIR
   exit $rc
 else
-  if [[ $1 == -h ]] || [[ $1 == --help ]] || [[ $1 == help ]]; then 
+  if [[ $1 == -h ]] || [[ $1 == --help ]] || [[ $1 == help ]]; then
     help
   else
     if [[ $1 == -v ]] || [[ $1 == --version ]] || [[ $1 == version ]]; then
@@ -1994,7 +2009,7 @@ else
     else
       echo  "Enter the root password, please."
       PARAMS=$(consolidate_params "$@")
-      su -c "$0 $PARAMS" root
+      exec su -c "sorcery $PARAMS" root
     fi
   fi
 fi

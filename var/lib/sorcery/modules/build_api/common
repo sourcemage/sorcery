@@ -68,9 +68,9 @@ function run_config_loc () {
       fi
 
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
-	F_TMP=$TMP_DIR/cast.$$.configure
+        F_TMP=$TMP_DIR/cast.$$.configure
         rm -f $F_TMP
-				
+
         if [ -x ./configure ]; then
           ./configure --help > $F_TMP
         elif [ -x ./src/configure ]; then
@@ -118,7 +118,6 @@ function real_prepare_install() { (
   message  "${MESSAGE_COLOR}Preparing to install"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
-  devoke_installwatch
   lock_resources "libgrimoire" "install"
 
     if  spell_installed  $SPELL   ||
@@ -127,10 +126,36 @@ function real_prepare_install() { (
 
       trap  "spell_recover"  SIGINT
       save_libraries
+      save_binaries
       dispel  --notriggers --nosustain  $SPELL
 
     fi
-) }
+) &&
+save_bin_lib_paths
+}
+
+#--------------------------------------------------------------------
+##
+## append old libraries and binaries to the appropriate environmental
+## variables so that they can be found by sorcery if they get
+## dispelled
+##
+#--------------------------------------------------------------------
+function save_bin_lib_paths()
+{
+  # TODO this is a dirty hack we need to remove it
+  if test -d "$SOURCE_DIRECTORY/old.binaries" ; then
+    for dir in $( find "$SOURCE_DIRECTORY/old.binaries" -type d); do
+      export PATH="$dir:$PATH"
+    done
+  fi
+  if test -d "$SOURCE_DIRECTORY/old.libraries" ; then
+    for dir in $( find "$SOURCE_DIRECTORY/old.libraries" -type d); do
+      export LD_LIBRARY_PATH="$dir:$LD_LIBRARY_PATH"
+      export LD_RUN_PATH="$dir:$LD_RUN_PATH"
+    done
+  fi
+}
 
 #---------------------------------------------------------------------
 ##
@@ -138,30 +163,36 @@ function real_prepare_install() { (
 ## them as part of the spell
 ##
 #---------------------------------------------------------------------
-function real_gather_docs()  {
+function real_gather_docs()  { (
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
     debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
 
-    DOC_DIR=$DOCUMENT_DIRECTORY/$SPELL
-    mkdir  -p  $DOC_DIR
+    DEST_DIR=$DOCUMENT_DIRECTORY/$SPELL
+    mkdir  -p  $DEST_DIR
 
-    for i in ${DOCS[@]}
-    do
-      cp -r $SOURCE_DIRECTORY/${i} $DOC_DIR 2>/dev/null
+    cd $SOURCE_DIRECTORY
+    shopt -s nullglob
+    for i in ${DOCS}; do
+      if test -f "$i"; then
+        file -bi $i|grep -q ^application && continue
+        cp $SOURCE_DIRECTORY/${i} $DEST_DIR 2>/dev/null
+      fi
     done
 
-    # what is this here for and why isn't it part of the standard DOCS
-    # variable?
-    cp $SOURCE_DIRECTORY/*rc $DOC_DIR 2>/dev/null
+    for i in ${DOC_DIRS}; do
+      if test -d "$i"; then
+        cp -r $SOURCE_DIRECTORY/${i} $DEST_DIR 2>/dev/null
+      fi
+    done
 
     # making installed docs readable for all users.
-    chmod -fR a+r $DOC_DIR
+    chmod -fR a+r $DEST_DIR
 
   fi
 
-}
+) }
 
 
 #---------------------------------------------------------------------
@@ -213,10 +244,13 @@ function run_spell_success() {
 
     # update depends info
     debug "build_api/common" "Merging depends info"
-    local t_DEPENDS_STATUS=$(lock_start_transaction $DEPENDS_STATUS)
+
     # none of the old values are valid, only the new, uncommitted values are
-    remove_depends_status $t_DEPENDS_STATUS $SPELL
-    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    remove_depends_status $DEPENDS_STATUS $SPELL
+    local spell_depends spell_sub_depends spell_rsub_depends
+    local t_DEPENDS_STATUS
+    lock_start_transaction "$DEPENDS_STATUS" t_DEPENDS_STATUS
+    get_uncommitted_depends_file $SPELL spell_depends
     if [ -e "$spell_depends" ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
@@ -227,6 +261,18 @@ function run_spell_success() {
     test -e "$ABANDONED_DEPENDS/$SPELL" &&
     rm -f $ABANDONED_DEPENDS/$SPELL &>/dev/null
 
+    # none of the old values are valid, only the new, uncommitted values are
+    remove_sub_depends $SUB_DEPENDS_STATUS "" "$SPELL"
+    local spell_sub_depends
+    local t_SUB_DEPENDS_STATUS
+    lock_start_transaction "$SUB_DEPENDS_STATUS" t_SUB_DEPENDS_STATUS
+    get_uncommitted_sub_depends_file $SPELL spell_sub_depends
+    if [ -e "$spell_sub_depends" ] ; then
+      cat  $spell_sub_depends >> $t_SUB_DEPENDS_STATUS
+    fi
+    lock_commit_transaction $SUB_DEPENDS_STATUS
+    get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
+
     # compile log
     create_compile_log
     view_compile_log
@@ -236,11 +282,42 @@ function run_spell_success() {
       message "failed to make a tablet directory: $tablet_dir" \
               "this may be a bug"
       unset tablet_dir
+      local TABLET_IGNORE=yes
     else
       message  "${MESSAGE_COLOR}Creating tablet in directory"        \
                "${FILE_COLOR}${tablet_dir}${DEFAULT_COLOR}"
       tablet_install_spell_files $tablet_dir
+      local TABLET_SPELL_DIR=$tablet_dir spell_config_stage
+      spell_config_stage=$CONFIG_STAGE_DIRECTORY/$SPELL
+      lock_file "$spell_config_stage"
+      if [[ $STAGED_INSTALL != "off" && -d $spell_config_stage/current ]]
+      then
+        rmdir $spell_config_stage/current $spell_config_stage 2>/dev/null
+        if [[ -d $spell_config_stage/current ]]
+        then
+          # check if a config we staged was already staged and if so, remove it.
+          # this way users don't have to merge the same old default config again
+          # and again if they cast a spell multiple times
+          local deferred_file file quasi_basename
+          find $spell_config_stage/current -type f |
+          while read deferred_file; do
+            quasi_basename=$(sed "s,$spell_config_stage/current/,," <<< "$deferred_file")
+            find $spell_config_stage -wholename $spell_config_stage/current \
+                 -prune -o -type f -wholename "*/$quasi_basename" -print |
+            while read file; do
+              if cmp -s $deferred_file $file; then
+                recursive_config_stage_cleanup $deferred_file $SPELL
+                continue 2
+              fi &>/dev/null
+            done
+          done
 
+          [[ -d $spell_config_stage/current ]] &&
+          mv $spell_config_stage/current \
+             $spell_config_stage/$(basename $tablet_dir)
+        fi
+      fi
+      unlock_file "$spell_config_stage"
       # this data is now doubly stale, remove it
       rm  -f $ABANDONED_PERSIST/$SPELL.p
     fi
@@ -252,6 +329,16 @@ function run_spell_success() {
     # reformatted to "log" format (see log_adjuster in libtrack for details)
     # but basically replacing INSTALL_ROOT with TRACK_ROOT
     create_install_log $IW_LOG $TMP_INST_LOG
+    if [[ $STAGED_INSTALL == on ]]; then
+      # save the md5sums of the files in the stage and not the target
+      # ones on the system, otherwise config merging breaks #13835
+      # for this we need an "install" log of what is in the stage
+      local STAGE_INST_LOG="$TMP_DIR/$SPELL-$VERSION.stage.install"
+      create_stage_install_log $TMP_INST_LOG $STAGE_INST_LOG
+      if [[ $tablet_dir ]] ; then
+        find $tablet_dir >> $STAGE_INST_LOG
+      fi
+    fi
     if [[ $tablet_dir ]] ; then
       find $tablet_dir >> $TMP_INST_LOG
     fi
@@ -260,11 +347,20 @@ function run_spell_success() {
     # md5sum log
     message  "${MESSAGE_COLOR}Creating MD5 log"        \
              "${FILE_COLOR}${MD5_LOG}${DEFAULT_COLOR}"
-    create_md5list $TMP_INST_LOG $TMP_MD5_LOG
+    if [[ $STAGED_INSTALL == on ]]; then
+      create_md5list $STAGE_INST_LOG $TMP_MD5_LOG
+      sed -i "s#${STAGE_DIRECTORY}/TRANSL##g" $TMP_MD5_LOG
+    else
+      create_md5list $TMP_INST_LOG $TMP_MD5_LOG
+    fi
     log_adjuster $TMP_MD5_LOG $MD5_LOG root log md5_log_filter
 
     # do this before cache archive creation (bug 8249)
     rm_source_dir
+    if [[ $STAGED_INSTALL != off ]]
+    then
+      destroy_stage_root
+    fi
 
     # cache archive
 
@@ -274,7 +370,8 @@ function run_spell_success() {
     create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
-    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG $spell_depends
+    rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG "$STAGE_INST_LOG" \
+           "$spell_sub_depends" "$spell_rsub_depends" "$spell_depends"
 }
 
 #---------------------------------------------------------------------
@@ -298,7 +395,8 @@ function run_spell_failure() {
 
     # put the answers somewhere where they can still be used later
     mkdir -p $ABANDONED_DEPENDS
-    local spell_depends=$(hash_get uncommitted_hash $SPELL)
+    local spell_depends
+    get_uncommitted_depends_file $SPELL spell_depends
     [ -e "$spell_depends" ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL
 
     # This may have been locked if there was a failure during the install
@@ -309,6 +407,18 @@ function run_spell_failure() {
 
     rm -f $IW_LOG $C_LOG
 
-    [[  $CLEAN_SOURCE == on ]] && rm_source_dir
+    local spell_sub_depends spell_rsub_depends
+    get_uncommitted_sub_depends_file $SPELL spell_sub_depends
+    get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
+    rm -f "$spell_sub_depends" "$spell_rsub_depends"
+
+    if [[  $CLEAN_SOURCE == on ]]
+    then
+      rm_source_dir
+      if [[ $STAGED_INSTALL != off ]]
+      then
+        destroy_stage_root
+      fi
+    fi
     CAST_EXIT_STATUS=1
 }

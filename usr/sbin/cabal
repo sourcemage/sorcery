@@ -18,7 +18,7 @@ function read_cabal_names()  {
   mkdir  -p  $CABAL_DIRECTORY
 
  [  -f  $CABAL_NAMES  ] || return
-        
+
 
   eval `awk '{ print "CABALS[" NR-1 "]=\"" $0 "\""; }' "$CABAL_NAMES"`
 
@@ -45,7 +45,7 @@ function write_cabal_names()  {
 #---------------------
 function print_cabal_names()  {
 
-eval ${DIALOG}  '--textbox  ${CABAL_NAMES}  0  0' 
+eval ${DIALOG}  '--textbox  ${CABAL_NAMES}  0  0'
 
 #for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
 #    echo  "${CABALS[$COUNT]}"
@@ -272,7 +272,7 @@ function cabal_key_menu()  {
 
   while
 
-      HELP="Generate, distribute, and revoke ssh2 keys to cabal computers to 
+      HELP="Generate, distribute, and revoke ssh2 keys to cabal computers to
 enable root login without password prompts"
     G_HELP="Create 2048 bit ssh2 dsa public/private keys for a cabal."
     D_HELP="Install the public key on all computer members of cabal."
@@ -396,7 +396,7 @@ function cabal_copy()  {
 
   case  $ORDER  in
     C)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
+        while  read  BOX;  do
           scp  -i  $CABAL_KEYS/$CABAL    \
                -r  $SOURCE               \
                root@${BOX}:$DESTINATION  \
@@ -404,7 +404,7 @@ function cabal_copy()  {
         done
         ;;
     S)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
+        while  read  BOX;  do
           scp  -i  $CABAL_KEYS/$CABAL    \
                -r  $SOURCE               \
                root@${BOX}:$DESTINATION
@@ -431,7 +431,7 @@ function cabal_execute()  {
 
   case  $ORDER  in
     C)  cat  $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
+        while  read  BOX;  do
           echo "execing box $BOX" && ssh  -n -i  $CABAL_KEYS/$CABAL  \
                    root@${BOX}         \
                    "$COMMAND"          \
@@ -440,7 +440,7 @@ function cabal_execute()  {
         ;;
 
     S)  cat $CABAL_DIRECTORY/$CABAL  |
-        while  read  BOX;  do  
+        while  read  BOX;  do
           echo "execing box $BOX" && ssh -n -i  $CABAL_KEYS/$CABAL  \
                    root@${BOX}         \
                    "$COMMAND"
@@ -474,7 +474,7 @@ function cabal_enchantment_menu()  {
       HELP=""
     C_HELP="Copy files and directories to cabals via scp"
     E_HELP="Execute commands on cabals"
-    S_HELP="Show the output of previously execute concurrent commands and 
+    S_HELP="Show the output of previously execute concurrent commands and
 copies"
      TITLE="Enchantment Menu"
 
@@ -558,7 +558,7 @@ function show_file()     {
 if [ -n "${PAGER}" ]
 then
   PAGER=`which less`
-fi  
+fi
 
 DIALOG="${DIALOGPROG} --stdout"
 

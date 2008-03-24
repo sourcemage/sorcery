@@ -98,9 +98,7 @@ function run_conflicts() {
 
   if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
     local CONFLICTS=$(
-        persistent_load
-        . $SCRIPT_DIRECTORY/CONFLICTS
-        persistent_save
+        run_spell_file CONFLICTS conflicts
     )
 
     local tmp to_dispel=""
@@ -132,6 +130,41 @@ function run_conflicts() {
 
 }
 
+function query_custom_cflags() {
+  if [[ $PER_SPELL_CFLAGS == on ]]; then
+    query "Would you like to set custom optimizations for this spell?" n ||
+      return 0
+
+    persistent_add USER_SPELL_CFLAGS
+    persistent_add USER_SPELL_CXXFLAGS
+    persistent_add USER_SPELL_LDFLAGS
+    persistent_add USER_SPELL_CPPFLAGS
+    local RESULTS KEY rc
+    while true ; do
+      # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
+      # the ( ) interprits as an array, then using the magic power of set we
+      # get to use shift and $@ to get things done
+      RESULTS=(`eval dialog --stdout ' --extra-label Adjust --inputmenu \
+                              "Custom Optimizations Menu" \
+                               17 50 9 \
+                               CFLAGS "$USER_SPELL_CFLAGS" \
+                               CXXFLAGS "$USER_SPELL_CXXFLAGS" \
+                               LDFLAGS "$USER_SPELL_LDFLAGS"' \
+                               CPPFLAGS "$USER_SPELL_CPPFLAGS"`)
+      rc=$?
+      [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
+      set ${RESULTS[*]}
+      KEY=$2
+      shift 2
+      case "$KEY" in
+        CFLAGS) USER_SPELL_CFLAGS="$@"  ;;
+        CXXFLAGS) USER_SPELL_CXXFLAGS="$@" ;;
+        LDFLAGS) USER_SPELL_LDFLAGS="$@" ;;
+        CPPFLAGS) USER_SPELL_CPPFLAGS="$@" ;;
+      esac
+    done
+  fi
+}
 
 #---------------------------------------------------------------------
 ## Asks the user about init and xinetd services
@@ -139,7 +172,7 @@ function run_conflicts() {
 ## expcetd $SCRIPT_DIRECTORY to be setable, any file one level deep in
 ## $SCRIPT_DIRECTORY/xinetd.d or $SCRIPT_DIRECTORY/init.d is assumed to be
 ## a service
-## 
+##
 ## the following persistent variables may be set:
 ## XINETD_ENABLED XINETD_DISABLED
 ## INIT_ENABLED INIT_DISABLED
@@ -153,7 +186,7 @@ function run_conflicts() {
 function query_services() {
   local XINETD_SCRIPTS
   local INIT_SCRIPTS
-  local btmp xtmp itmp 
+  local btmp xtmp itmp
   local tmp retvar
   local XINETD INIT BOTH found
   local new_init_provides
@@ -369,15 +402,15 @@ function dual_service_query() {
   elif list_find $service $IN ; then
     init_default=n
   fi
-  
+
   if [[ $init_default == y ]] && [[ $xinetd_default == y ]] ; then
-    default=3
+    default=both
   elif [[ $xinetd_default == y ]] ; then
-    default=2
+    default=xinetd
   elif [[ $init_default == y ]] ; then
-    default=1
+    default=init
   else
-    default=0
+    default=neither
   fi
   select_list $returnvar $default neither init xinetd both
 }
@@ -493,7 +526,7 @@ function install_xinetd_sub() {
      ! grep -v disable $inst_file|diff - $file &>/dev/null ; then
     message "${QUERY_COLOR}$inst_file differs from the default $file," \
             "what would you like to do?${DEFAULT_COLOR}"
-    select_list choice 0 "ignore" "overwrite" "overwrite/backup"
+    select_list choice "ignore" "ignore" "overwrite" "overwrite/backup"
     case $choice in
       "overwrite/backup")
         local backup=$inst_file.$(date +'%Y%m%d%H%M')
@@ -568,7 +601,7 @@ function acquire_cast_lock() {
           "Solo${DEFAULT_COLOR} ${MESSAGE_COLOR}casts to complete..." \
           "${DEFAULT_COLOR}"
   lock_resources "solo" "cast"
-  if test -f $SOLO && grep -q "^$SPELL$" $SOLO || 
+  if test -f $SOLO && grep -q "^$SPELL$" $SOLO ||
      [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
     message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}" \
@@ -602,6 +635,18 @@ function create_compile_log()  {
     cp  $C_LOG  $COMPILE_LOGS/$SPELL-$VERSION
   else
     $COMPRESSBIN  -f  <  $C_LOG  >  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
+  fi
+  if [[ $STAGED_INSTALL == on ]] ; then
+    message  "${MESSAGE_COLOR}Creating castfs debug log"                \
+             "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.castfs.dbglog$EXTENSION"  \
+             "${DEFAULT_COLOR}"
+    if [ -z "$EXTENSION" ]
+    then
+      cp $CASTFS_DBGLOG $COMPILE_LOGS/$SPELL-$VERSION.castfs.dbglog
+    else
+      $COMPRESSBIN -f < $CASTFS_DBGLOG > $COMPILE_LOGS/$SPELL-$VERSION.castfs.dbglog$EXTENSION
+    fi
+    rm -f $CASTFS_DBGLOG
   fi
 }
 
@@ -667,8 +712,8 @@ function show_downloading()  {
   debug "cast" "Started show_downloading() on $SPELL from $download_log"
 
   # poke around waiting for downloading to start
-  while ! ( [[ $download_log ]] && 
-            [  -e "$download_log"  ] ) 
+  while ! ( [[ $download_log ]] &&
+            [  -e "$download_log"  ] )
   do
     sleep 1
   done
@@ -678,14 +723,14 @@ function show_downloading()  {
     show_download_progress $download_log
     sleep 1
   done
-  
+
   show_download_progress $download_log
   debug "libcast" "Out of show_downloading"
 }
 
 #---------------------------------------------------------------------
 ## Gets the filename of the download log file
-## @param Spell 
+## @param Spell
 ## @Stdout file name
 #---------------------------------------------------------------------
 function get_spell_dl_log() {

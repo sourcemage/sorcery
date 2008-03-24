@@ -1,0 +1,76 @@
+.TH CONFMELD 8 "February 2008" "Source Mage GNU Linux" "System Administration"
+.SH NAME
+confmeld \- merges staged configuration files into the system
+.SH SYNOPSIS
+.B confmeld
+[options] [arguments] ...
+.PP
+.B confmeld
+[listing-options]
+.SH "EXAMPLE"
+To merge everything type:
+.IP
+.B confmeld
+.PP
+To list everything type:
+.IP
+.B confmeld -l
+.PP
+To bruteforce an update of nano and /etc/sysconfig/facilities type:
+.IP
+.B confmeld -f discard-old nano /etc/sysconfig/facilities
+.PP
+.SH "DESCRIPTION" 
+.B confmeld
+is part of the
+.B sorcery
+source-code package management suite. It is a command-line tool
+for the (semi)automatical merging of staged configuration files. Spells will not
+install newer versions during cast, but stage them in 
+.I /var/state/sorcery/staged_configs\fR.\fP 
+
+At the end, confmeld will resolve the simple upgrade cases and ask  
+for the rest. The user will have the choice to either leave the old file intact
+or install the new one over. Two similar choices will additionally backup the
+respective file.
+
+To facilitate the decision, confmeld can also show the difference between the 
+two files (an unified diff).
+
+.SH "OPTIONS"
+.SS "-h, --help"
+outputs short help
+.SS "-l, --list"
+lists all the spells and their staged configs
+.SS "-c, --list-configs"
+lists all the staged configs
+.SS "-s, --list-spells"
+lists all the spells with staged configs
+.SS "-q, --no-column"
+turns off columnized output
+.SS "-f, --force" <action>
+always uses <action> when merging, where <action> can be one of:
+.TP
+.SS discard-new
+does nothing, just discards the new config
+.TP
+.SS discard-old
+trashes the old config and installs the new one in its place
+.TP
+.SS use-old
+leaves the old config in its place and backups the new one to $old_config.$date.new
+.TP
+.SS use-new
+backups the old config to $old_config.$date.old and installs the new one in its place
+.PP
+.SH "AUTHOR"
+Original version by Jaka Kranjc.
+.PP
+Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
+.SH "REPORTING BUGS"
+Report bugs to bugzilla <http://bugs.sourcemage.org>
+.SH "SEE ALSO"
+alter(8), cast(8), cleanse(8), dispel(8), gaze(1), grimoire(5),
+scribbler(8), scribe(8), sorcery_config(8), sorcery(8)
+.SH "WARRANTY"
+This is free software with ABSOLUTELY NO WARRANTY

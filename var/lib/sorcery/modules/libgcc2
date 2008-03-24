@@ -1,7 +1,7 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-## @Synopsis Set of functions for dealing with the problem (hopefully a 
+## @Synopsis Set of functions for dealing with the problem (hopefully a
 ## @Synopsis temporary problem) of having to use both the gcc2 and gcc3
 ## @Synopsis compilers.
 ##
@@ -12,13 +12,13 @@
 ## - The gcc spell will have gcc2 as a dependency.
 ## - Spells that will only compile with gcc3 will have a USEGCC2 file
 ##   in the spell directory.
-## - Sorcery will test for the existance of the USEGCC2 flag in a 
+## - Sorcery will test for the existance of the USEGCC2 flag in a
 ##   spell's directory.  If it's there, it will alter the environment
 ##   so that gcc2 is used for building the spell.
 ## </pre>
 ##
-## @Implementation These functions were added to allow the use of both the gcc2 and 
-## @Implementation gcc3 compiler at the same time within sorcery.  The code can be 
+## @Implementation These functions were added to allow the use of both the gcc2 and
+## @Implementation gcc3 compiler at the same time within sorcery.  The code can be
 ## @Implementation removed once only one compiler is supported.
 ##
 ##
@@ -49,23 +49,6 @@ function use_gcc2()  {
 
 }
 
-
-#---------------------------------------------------------------------
-## @param new path to add
-## @param old path
-## @Stdout new path
-## Echos the old path with new path prepended, separated with a ':'
-#---------------------------------------------------------------------
-function gcc2_prepend_path()  {
-
-  if    test  -z  $2
-  then  echo $1
-  else  echo $1:$2
-  fi
-
-}
-
-
 #---------------------------------------------------------------------
 ## @param path
 ##
@@ -75,10 +58,10 @@ function gcc2_prepend_path()  {
 #---------------------------------------------------------------------
 function gcc2_add_paths()  {
 
-  export  PATH=$(  gcc2_prepend_path  $1/bin  $PATH  )
-  export  LD_LIBRARY_PATH=$(  gcc2_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
-  export  LD_RUN_PATH=$(  gcc2_prepend_path  $1/lib  $LD_RUN_PATH  )
-  export  INFOPATH=$(  gcc2_prepend_path  $1/info  $INFOPATH  )
+  export  PATH=$(  envar_prepend_path  $1/bin  $PATH  )
+  export  LD_LIBRARY_PATH=$(  envar_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
+  export  LD_RUN_PATH=$(  envar_prepend_path  $1/lib  $LD_RUN_PATH  )
+  export  INFOPATH=$(  envar_prepend_path  $1/info  $INFOPATH  )
   export  CPPFLAGS="-I $1/include  $CPPFLAGS"
 
 }
@@ -87,7 +70,7 @@ function gcc2_add_paths()  {
 #---------------------------------------------------------------------
 ##
 ## Determines if gcc2 should be used for a spell.  If so, it alters
-## the environment so that gcc2 is used for compilation.  
+## the environment so that gcc2 is used for compilation.
 ##
 #---------------------------------------------------------------------
 function invoke_gcc2()  {

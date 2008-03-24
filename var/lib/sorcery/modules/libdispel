@@ -41,7 +41,9 @@ function reap_config_files()  {
   local FILE
   while  read  FILE;  do
     [[ $FILE ]] || continue
-    if grep -q "$(md5sum "$FILE" )" "$MD5S"; then
+    if [[ $TOTAL_DISPEL ]] ; then
+      rm -f "$FILE"
+    elif grep -q "$(md5sum "$FILE" )" "$MD5S"; then
       debug libdispel "$FILE is a config file that hasnt changed, removing..."
       rm -f "$FILE"
     else
@@ -73,19 +75,33 @@ function reap_modified_file()  {
 }
 
 #---------------------------------------------------------------------
+## Removes spell config stages if there are any
+#---------------------------------------------------------------------
+function reap_spell_config_stage()  {
+  lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
+  # it's locked - we also don't have to care about the unlikely "current" stage
+  rm -fr "$CONFIG_STAGE_DIRECTORY/$SPELL"
+  unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
+}
+
+#---------------------------------------------------------------------
 ## Removes depends entries for what the spell depends on
 #---------------------------------------------------------------------
 function reap_depends()  {
   # save the old depends data as abandoned stuff so its seen later on
   # recasts as the default
   mkdir -p $ABANDONED_DEPENDS
-  search_depends_status $DEPENDS_STATUS $SPELL > $ABANDONED_DEPENDS/$SPELL
+  local t_file
+  lock_start_transaction "$ABANDONED_DEPENDS/$SPELL" t_file
+  search_depends_status $DEPENDS_STATUS $SPELL > $t_file
+  lock_commit_transaction "$ABANDONED_DEPENDS/$SPELL"
 
   # This conditional is here because the iso team wants to be able to
   # save dependencies after dispel (bug 8109), average users are expected
   # to always run this code to remove old depends.
   if [[ $NO_REAP_DEPENDS != "on" ]] ; then
     remove_depends_status $DEPENDS_STATUS $SPELL
+    remove_sub_depends "$SUB_DEPENDS_STATUS" "$SPELL" ".*"
   fi
 }
 
@@ -270,20 +286,9 @@ function load_spell()  {
 function pre_remove() {
   local rc=0
   if  [[ $SCRIPT_DIRECTORY ]] ; then
-    persistent_load &&
-    if test  -x  $SCRIPT_DIRECTORY/PRE_REMOVE ; then
-      . $SCRIPT_DIRECTORY/PRE_REMOVE
-    else
-      default_pre_remove
-    fi
-    rc=$?
-    persistent_save
+    run_spell_file PRE_REMOVE pre_remove
   fi
   return $rc
-}
-
-function real_default_pre_remove() {
-  :
 }
 
 #-----
@@ -292,23 +297,10 @@ function real_default_pre_remove() {
 function post_remove() {
   local rc=0
   if  [[ $SCRIPT_DIRECTORY ]] ; then
-    persistent_load &&
-    if test  -x  $SCRIPT_DIRECTORY/POST_REMOVE ; then
-      . $SCRIPT_DIRECTORY/POST_REMOVE
-    else
-      default_post_remove
-    fi
-    rc=$?
-    persistent_save
+    run_spell_file POST_REMOVE post_remove
   fi
   return $rc
 }
-
-function real_default_post_remove() {
-  :
-}
-
-
 
 #---------------------------------------------------------------------
 ## Dispel a spell
@@ -341,6 +333,7 @@ function dispel_spell() {
       reaper  $INST_LOG  $MD5_LOG &&
       post_remove                 &&
       reap_state_files $INST_LOG  &&
+      reap_spell_config_stage     &&
       remove_spell  $SPELL        &&
       { [[ $TRIGGER == off ]] || trigger "dispel";} &&
       remove_triggers $SPELL      &&
@@ -360,7 +353,7 @@ function dispel_spell() {
 }
 
 #---------------------------------------------------------------------
-## @param	default value
+## @param    default value
 ## Set one of always, ask_yes, ask_no, and ignore to on based
 ## on the value of default, leave the remaining as off.
 #---------------------------------------------------------------------
@@ -380,9 +373,9 @@ function dispel_depends_value_to_items() {
 
 
 #---------------------------------------------------------------------
-## @param	Title of the menu
-## @param	Name of the parameter being set
-## @param	Default value of the parameter being set
+## @param    Title of the menu
+## @param    Name of the parameter being set
+## @param    Default value of the parameter being set
 ##
 ## Present a radiolist menu with the quad-options for one of various
 ## dependency following options.
