@@ -399,7 +399,7 @@ function scribe_fix_metadata() {
 ##
 #---------------------------------------------------------------------
 function scribe_index() {
-  local idx grimoire
+  local idx grimoire grimoire_name
 
   echo ""
   echo "Codex Listing"
@@ -409,7 +409,13 @@ function scribe_index() {
   #for each grimoire
   let idx=0
   for grimoire in $(codex_get_all_grimoires); do
-    echo " [$idx] : `basename "$grimoire"` : $grimoire"
+    smgl_basename "$grimoire" grimoire_name
+    echo -n " [$idx] : $grimoire_name : $grimoire"
+    if [[ -f $grimoire/VERSION ]]; then
+      echo " : $(head -c 16 $grimoire/VERSION | head -n 1)"
+    else
+      echo
+    fi
     let idx+=1
   done
   echo ""
