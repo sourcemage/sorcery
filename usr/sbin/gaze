@@ -1571,9 +1571,9 @@ function gaze_show_size () {
            message "No install log for $spell ($file)"
            continue
         fi
-        for each in $(<$file); do
-          test -f $each && echo $each
-        done | xargs du -b |
+        while read each; do
+          test -f "$each" && echo $each
+        done < $file | xargs du -b |
             awk '{ x += $1 }
                 END { print "'$spell' -> " x " bytes ("int(x/1024+0.5)" K, "int(x/1024/1024+0.5)" M) in " NR " files." }'
     done
