@@ -374,6 +374,7 @@ function prune_depends()
         exit 1
         ;;
     esac
+    echo
     shift 4
   done
   
@@ -386,9 +387,16 @@ function prune_depends()
     [ -s $TMP_DIR/prune.cast ] && 
       cast -c $( sort $TMP_DIR/prune.cast | uniq )
   else
+    local prune_dispel prune_cast t
+    prune_dispel=$(sort -u $TMP_DIR/prune.dispel 2>/dev/null)
+    prune_cast=$(sort -u $TMP_DIR/prune.cast 2>/dev/null)
+    if [[ -z $prune_dispel$prune_cast ]]; then
+      message "Pruning done."
+      return 0
+    fi
     t=$(date +%Y%m%d%s)
-    echo dispel $( sort $TMP_DIR/prune.dispel 2>/dev/null  | uniq ) > $BACKUPDIR/prune.$t
-    echo cast -c $( sort $TMP_DIR/prune.cast 2>/dev/null | uniq ) >> $BACKUPDIR/prune.$t
+    echo dispel $prune_dispel > $BACKUPDIR/prune.$t
+    echo cast -c $prune_cast >> $BACKUPDIR/prune.$t
     cat $BACKUPDIR/prune.$t
     message "For future reference, lines are stored in $BACKUPDIR/prune.$t"
   fi
