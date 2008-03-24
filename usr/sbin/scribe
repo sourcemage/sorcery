@@ -155,9 +155,17 @@ function scribe_add() {
       continue
     fi
 
+    local grim_name="$grimoire"
     # derive a full grimoire name
     grimoire=$(codex_canonicalize_grimoire_name $grimoire)
-    message "Adding grimoire $grim_name to $grim_dir from $from"
+    local grim_dir
+    smgl_dirname "$grimoire" grim_dir
+
+    if [[ -z $from ]]; then
+      message "Adding grimoire $grim_name to $grim_dir"
+    else
+      message "Adding grimoire $grim_name to $grim_dir from $from"
+    fi
     scribe_add_update_worker "$grimoire" "$from" add
   done
 }
