@@ -35,7 +35,7 @@
 #--------------------
 function usage()
 {
-  local s=$(basename $0)
+  local s="cleanse"
 cat << EOF
 Invoke $s with one of the arguments below.
 
@@ -1047,7 +1047,7 @@ if [ $UID -eq 0 ] ; then
   # Make sure root is running this
   if [ $# -eq 0 ] ; then
     # IF there are no args, assume the full treatment is desired
-    exec $0 --packages --delint --logs --prune doit --tablet --sweep --fix
+    exec cleanse --packages --delint --logs --prune doit --tablet --sweep --fix
   fi
 
   mk_tmp_dirs backup /tmp/cleanse
@@ -1071,5 +1071,5 @@ else
   message "You must be root to run this command."
   message "Switching to root user..."
   PARAMS=$(consolidate_params "$@")
-  exec su -c "$0 $PARAMS" root
+  exec su -c "cleanse $PARAMS" root
 fi

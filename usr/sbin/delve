@@ -443,7 +443,7 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 elif  [  "$UID"  -gt  0  ];  then
   echo  "Enter the root password, please."
   PARAMS=$(consolidate_params "$@")
-  su -c "$0 $PARAMS" root
+  exec su -c "delve $PARAMS" root
 else
   # Make a nice dir structure to put stuff in, this exits if it fails
   mk_tmp_dirs delve
