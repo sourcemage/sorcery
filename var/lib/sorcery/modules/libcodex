@@ -62,6 +62,7 @@
 #---------------------------------------------------------------------
 ## @param grimoire
 ## @param lookup (optional)
+## @param variable to set (optional)
 ## @return 0 if grimoire can be canonicalized
 ##
 ## Outputs a grimoire in canonical form (full path)
@@ -74,14 +75,28 @@ function codex_canonicalize_grimoire_name() {
   local grimoire=$1
   if [ "${grimoire:0:1}" == "/" ] ; then
     # already a full path
-    echo $1
+    if [[ -z $3 ]]; then
+      echo $grimoire
+    else
+      eval "$3=\"\$grimoire\""
+    fi
     return 0
   fi
 
   if [ "$2" == "lookup" ] ; then
-    codex_find_grimoire $1
+    if [[ -z $3 ]]; then
+      codex_find_grimoire $grimoire
+    else
+      local grim idx
+      codex_find_grimoire $grimoire grim idx
+      eval "$3=\"\$grim\""
+    fi
   else
-    echo "$CODEX_ROOT/$grimoire"
+    if [[ -z $3 ]]; then
+      echo "$CODEX_ROOT/$grimoire"
+    else
+      eval "$3=\"\$CODEX_ROOT/\$grimoire\""
+    fi
   fi
   # do nothing and preserve return code
 }
@@ -96,7 +111,8 @@ function codex_is_canonicalized() {
 
 #---------------------------------------------------------------------
 ## @param grimoire name, or path to one
-## @param variable name, is set to the index number
+## @param variable name, is set to the matching grimoire (optional)
+## @param variable name, is set to the matching grimoire's index (optional)
 ## @Stdout the grimoire's path
 ## @return 0 there is a grimoire
 ## @return 1 there is no grimoire
@@ -318,7 +334,7 @@ function codex_set_grimoires() {
   local NEW_GRIMOIRE
   local GRIMOIRE_COUNT=0
   for NEW_GRIMOIRE in "$@";  do
-    NEW_GRIMOIRE=$(codex_canonicalize_grimoire_name $NEW_GRIMOIRE lookup) &&
+    codex_canonicalize_grimoire_name $NEW_GRIMOIRE lookup NEW_GRIMOIRE &&
     test -d $NEW_GRIMOIRE ||
     { message "WARNING $NEW_GRIMOIRE does not exist!! skipping..."
       continue
@@ -351,6 +367,7 @@ function codex_get_all_grimoires() {
 
 #---------------------------------------------------------------------
 ## @param section
+## @param variable to set (optional)
 ## @return 0 if section is found
 ## @return 1 if section is not found
 ##
@@ -367,7 +384,11 @@ function codex_find_section_by_name() {
   for GRIMOIRE in `codex_get_all_grimoires`; do
     if [ -d "$GRIMOIRE/$SECTION_NAME" ] ; then
       debug "libcodex" "codex_find_section_by_name() - found section $GRIMOIRE/$SECTION_NAME"
-      echo "$GRIMOIRE/$SECTION_NAME"
+      if [[ -z $2 ]]; then
+        echo "$GRIMOIRE/$SECTION_NAME"
+      else
+        eval "$2=\"\$GRIMOIRE/\$SECTION_NAME\""
+      fi
       return 0
     fi
   done
@@ -503,8 +524,8 @@ function codex_find_spell_by_name() {
 function codex_get_spells_in_section() {
   debug "libcodex" "codex_get_spells_in_section - $*"
   codex_is_canonicalized $1 || return 1
-  local section=`basename $1`
-  local index="`dirname $1`/$SPELL_INDEX_FILE"
+  local section="$(smgl_basename $1)"
+  local index="$(smgl_dirname $1)/$SPELL_INDEX_FILE"
   if ! test -r $index || ! test -s $index; then
     message "${PROBLEM_COLOR}${section:-<null>} is not a section directory!${DEFAULT_COLOR}"
       return 1
@@ -881,7 +902,7 @@ function codex_find_spell_or_section_by_name()  {
     CODEX_FOUND_SECTION=""
     CODEX_FOUND_SPELL=""
 
-    CODEX_FOUND_SECTION=`codex_find_section_by_name $SPELL_OR_SECTION`
+    codex_find_section_by_name $SPELL_OR_SECTION CODEX_FOUND_SECTION
     [  -n  "$CODEX_FOUND_SECTION"  ]  &&  return
 
     CODEX_FOUND_SPELL=`codex_find_spell_by_name $SPELL_OR_SECTION`
