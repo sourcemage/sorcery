@@ -578,14 +578,16 @@ function older()  {
 }
 
 #-----
-## Find all install logs that mention the given string
+## Find all install logs that mention the given string,
+## discarding hits that match state files
 ## @param Search string
 ## @Stdout grep results
 #-----
 function show_from()  {
 
-  cd  $INSTALL_LOGS
-  grep  "`esc_str $1`$"  *
+  cd $INSTALL_LOGS
+  find . -printf "%f\n" | xargs grep "`esc_str $1`$" |
+  seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
 
 }
 
