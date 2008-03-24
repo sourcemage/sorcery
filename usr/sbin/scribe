@@ -210,7 +210,10 @@ function scribe_add_update_worker() {
   if  [ -z "$from" ];  then
     #from is empty - use the default
     prefix=$(url_get_prefix $CODEX_URL)
-    if list_find "rsync svn cvs smgl_tla dir git" $prefix ; then
+
+    local tree_prefixes="rsync svn svn_http svn_https svn_ssh cvs smgl_tla"
+    tree_prefixes="$tree_prefixes dir git git_http"
+    if list_find "$tree_prefixes" "$prefix"; then
       grim_target=$grim_name
     else
       grim_target="$grim_name.tar.bz2"
