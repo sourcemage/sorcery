@@ -1638,14 +1638,7 @@ function set_compression_type() {
 ##
 #---------------------------------------------------------------------
 function filename_indicates_compression()  {
-  local FILENAME=`echo "file$1" | sed 's/^.*\.gz$//'  \
-                                | sed 's/^.*\.tgz$//' \
-                                | sed 's/^.*\.bz2$//' \
-                                | sed 's/^.*\.zip$//' \
-                                | sed 's/^.*\.Z$//'   \
-                                | sed 's/^.*\.rpm$//' \
-                                | sed 's/^.*\.bz2$//'`
-  [  -z  "$FILENAME"  ]
+  grep -qE "^.*\.(gz|tgz|bz2|zip|Z|rpm)$" <<< "$1"
 }
 
 
