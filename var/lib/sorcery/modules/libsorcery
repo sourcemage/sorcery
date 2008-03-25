@@ -432,14 +432,12 @@ function find_section()  {
 ## a directory (and not a symbolic link to a directory).
 #---------------------------------------------------------------------
 function directories() {
-
-  while  read       ITEM;  do
-    if  [     -d  "$ITEM"  ]   &&
-        !  [  -h  "$ITEM"  ];  then
-      echo        "$ITEM"
+  local item
+  while read item; do
+    if [[ -d $item ]] && ! [[ -h $item ]]; then
+      echo "$item"
     fi
   done
-
 }
 
 
@@ -451,15 +449,12 @@ function directories() {
 ##
 #---------------------------------------------------------------------
 function files()  {
-
-  while  read       ITEM;   do
-
-    if  [     -f  "$ITEM"  ]   &&
-        !  [  -h  "$ITEM"  ];  then
-      echo "$ITEM"
+  local item
+  while read item; do
+    if [[ -f $item ]] && ! [[ -h $item ]]; then
+      echo "$item"
     fi
   done
-
 }
 
 
@@ -471,13 +466,12 @@ function files()  {
 ##
 #---------------------------------------------------------------------
 function symlinks()  {
-
-  while  read    ITEM;   do
-    if  [  -h  "$ITEM"  ];  then
-      echo     "$ITEM"
+  local item
+  while read item; do
+    if [[ -h $item ]]; then
+      echo "$item"
     fi
   done
-
 }
 
 
