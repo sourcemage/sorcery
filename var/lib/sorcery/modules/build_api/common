@@ -204,14 +204,14 @@ function install_pam_confs()  {
 
   debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
 
-  if  [  -d  "$SCRIPT_DIRECTORY/pam.d"  ];  then
-    cd       "$SCRIPT_DIRECTORY/pam.d"
+  if [[ -d $SCRIPT_DIRECTORY/pam.d ]]; then
+    cd "$SCRIPT_DIRECTORY/pam.d"
 
-    mkdir  -p  $INSTALL_ROOT/etc/pam.d
-    local FILE
-    for  FILE  in  `ls`;  do
-      if  !  [  -f  $INSTALL_ROOT/etc/pam.d/$FILE  ];  then
-        cp  $FILE   $INSTALL_ROOT/etc/pam.d
+    mkdir -p "$INSTALL_ROOT/etc/pam.d"
+    local file
+    for file in *; do
+      if ! [[ -f $INSTALL_ROOT/etc/pam.d/$file ]]; then
+        cp "$file" "$INSTALL_ROOT/etc/pam.d"
       fi
     done
 
