@@ -36,8 +36,8 @@ function gaze_checkmd5 () {
   fi
   tMD5=${MD5[$MD5num]}
 
-  GRIMOIRE=`echo $i | sed -e 's/\/[^\/]*\/[^\/]*\/DETAILS//' -e 's/\/.*\///'`
-  SECTION=`echo $i | sed -e 's/\/[^\/]*\/DETAILS//' -e 's/\/.*\///'`
+  GRIMOIRE=$(echo $i | sed -e 's/\/[^\/]*\/[^\/]*\/DETAILS//' -e 's/\/.*\///')
+  SECTION=$(echo $i | sed -e 's/\/[^\/]*\/DETAILS//' -e 's/\/.*\///')
   if test "$SECTION" == "$SPELL" || test "$SECTION" == "DETAILS"
   then
     echo -en "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} "
@@ -53,12 +53,12 @@ function gaze_checkmd5 () {
       APPEND=
     else
       OLDESTSOURCE="$SOURCE"
-      OLDSOURCE="`echo $SOURCE | sed -e 's/\./\\\./g'`"
-      SOURCE="`echo $SOURCE | sed -e 's/\.[bt].*/\./'`"
-      SOURCE="`ls $SOURCE_CACHE/$SOURCE* 2> /dev/null | cut -d'/' -f 5 | head -n 1`"
+      OLDSOURCE="$(echo $SOURCE | sed -e 's/\./\\\./g')"
+      SOURCE="$(echo $SOURCE | sed -e 's/\.[bt].*/\./')"
+      SOURCE="$(ls $SOURCE_CACHE/$SOURCE* 2> /dev/null | cut -d'/' -f 5 | head -n 1)"
       if [ "$SOURCE" ]
       then
-        if [ -z "`echo ${SOURCE#$OLDSOURCE.} | egrep '^[0-9]{14}$'`" ]
+        if [[ -z $(echo ${SOURCE#$OLDSOURCE.} | egrep '^[0-9]{14}$') ]]
         then
           APPEND="FUZZ s/$OLDSOURCE/$SOURCE/ "
         else
@@ -72,12 +72,12 @@ function gaze_checkmd5 () {
     fi
     if test -z "$PRECACHEDF"
     then
-      if test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'gzip'   &&
-         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'bzip2'  &&
-         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'compress'"'"'d' &&
-         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'Zip'  &&
-         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'RPM'  &&
-         test `guess_compressor $SOURCE_CACHE/$SOURCE` != 'tar'
+      if test $(guess_compressor $SOURCE_CACHE/$SOURCE) != 'gzip'   &&
+         test $(guess_compressor $SOURCE_CACHE/$SOURCE) != 'bzip2'  &&
+         test $(guess_compressor $SOURCE_CACHE/$SOURCE) != 'compress'"'"'d' &&
+         test $(guess_compressor $SOURCE_CACHE/$SOURCE) != 'Zip'  &&
+         test $(guess_compressor $SOURCE_CACHE/$SOURCE) != 'RPM'  &&
+         test $(guess_compressor $SOURCE_CACHE/$SOURCE) != 'tar'
       then
         fMD5=`cat $SOURCE_CACHE/$SOURCE 2> /dev/null | md5sum | cut -d' ' -f1 | head -n 1`
       else

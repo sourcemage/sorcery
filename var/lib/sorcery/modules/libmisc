@@ -30,7 +30,7 @@ function explode()
     local result=${l%%$2*}
     l=${l#"$result"}
     l=${l#$2}
-    eval "$3[$i]=\"$result\""
+    eval "$3[$i]=\"\$result\""
     ((i++))
   done
   # this adds an empty array element at the end if the line ended in $2
@@ -160,7 +160,7 @@ function real_query_string () {
 
     [ -z "$RESPONSE" ] && RETURN=1 && RESPONSE="$3"
 
-    eval $1=\"${RESPONSE}\"
+    eval $1=\"\${RESPONSE}\"
     return $RETURN
 }
 
@@ -260,15 +260,15 @@ debug "libmisc" "progress_bar - $*"
 
   # Can't make a bar because there's no total, or the length isn't
   #  long enough, or if there is no length
-  if [ $# -lt 2 ] || [ $len -lt 8 ] ; then
+  if [[ $# -lt 2 ]] || [[ $len -lt 8 ]]; then
     message -n "."
     return 0
   fi
 
-  if [ $1 -lt 1 ] || [ $2 -lt 1 ] ; then return 1 ; fi
+  if [[ $1 -lt 1 ]] || [[ $2 -lt 1 ]]; then return 1; fi
 
   percent=$((100*$1/$2))
-  percent=`printf "%.0f" $percent`
+  percent=$(printf "%.0f" $percent)
 
   if [[ $LAST_PERCENT == $percent ]] ; then
     progress_spinner
@@ -380,12 +380,11 @@ function esc_str()
 
   local OUT
   if [[ $* == .* ]] ; then
-    OUT="$1"
+    echo "$1"
   else
-    OUT=`echo "$@" | sed -e 's:\.:\\\.:'g \
-                         -e 's:\*:\\\*:'g`
+    echo "$@" | sed -e 's:\.:\\\.:'g \
+                    -e 's:\*:\\\*:'g
   fi
-  echo "$OUT"
 
 }
 
@@ -459,7 +458,7 @@ function iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
 #  debug "libmisc" "iterate - $@"
 
-  [ $# -lt 2 ] && return 2
+  [[ $# -lt 2 ]] && return 2
 
   local oldIFS="$IFS"
   local token
@@ -471,14 +470,14 @@ function iterate()
     for token in $* ; do
       IFS="$oldIFS"
 
-      eval "$func \"$token\""
+      eval "$func \"\$token\""
       [[ $BREAK ]] && break
 
     done
     IFS="$oldIFS"
   else
     while read -r -d "$2" token ; do
-      eval "$func \"$token\""
+      eval "$func \"\$token\""
       [[ $BREAK ]] && break
     done
 #   debug "leftover token: $token"
@@ -547,10 +546,10 @@ function select_list_sub() {
     message -n "$msgstr"
     read   -t  $PROMPT_DELAY  -n  1  _answer
     [[ "$_answer" ]] || _answer=$_default
-    _result="$(hash_get $hashname $_answer)"
+    hash_get_ref $hashname $_answer _result
   done
   echo
-  eval $returnvar=\"$_result\"
+  eval $returnvar=\"\$_result\"
 }
 
 #---------------------------------------------------------------------
@@ -562,7 +561,7 @@ function select_list_sub() {
 #---------------------------------------------------------------------
 function set_term_title()
 {
-    if [ "$SET_TERM_TITLE" != "on" ]; then return; fi
+    if [[ $SET_TERM_TITLE != on ]]; then return; fi
     case $TERM in
         xterm*|rxvt*)  echo -ne "\e]0;$@\007"
                        ;;
@@ -612,7 +611,7 @@ function real_list_add () {
   for i in $@; do
     local found=0
     function list_add_sub() {
-      if [ "$i" == "$1" ]; then
+      if [[ $i == $1 ]]; then
         found=1
       fi
     }
@@ -725,10 +724,10 @@ function real_persistent_load () {
     local PERSISTENT_LOADING=yes
     local PERSISTENT_FILE=${1:-$SPELL_CONFIG.p}
     lock_file "$PERSISTENT_FILE"
-    if [ -f "$PERSISTENT_FILE" ]; then
+    if [[ -f $PERSISTENT_FILE ]]; then
         . "$PERSISTENT_FILE"
         local line
-        persistent_add `while read line; do echo ${line%%=*}; done < "$PERSISTENT_FILE"`
+        persistent_add $(while read line; do echo ${line%%=*}; done < "$PERSISTENT_FILE")
     fi
     unlock_file "$PERSISTENT_FILE"
 }
@@ -1065,7 +1064,7 @@ function get_spell_files() {
 #---------------------------------------------------------------------
 function misc_is_function()  {
   local  FUNCTION_NAME=$1
-  [  "`type -t $FUNCTION_NAME`"  =  "function"  ]
+  [[ "$(type -t $FUNCTION_NAME)" == "function" ]]
 }
 
 
@@ -1137,7 +1136,7 @@ function mk_tmp_dirs() {
   fi
 
 
-  if [ -e $FULL_DIR ] ; then
+  if [[ -e $FULL_DIR ]]; then
     message "Looks like you had an old $SCRIPT_NAME on PID $$. Cleaning it out..." >&2
     rm -rf $FULL_DIR
   fi

@@ -186,7 +186,9 @@ function run_our_sub_depends() {
 
     # if the requester has been processed skip any sub-depends its
     # previous instance requested, bug 11865
-    [[ $(hash_get "depends_looked_at" "$requester") == done ]] && continue
+    local hash_depends_looked_at
+    hash_get_ref "depends_looked_at" "$requester" hash_depends_looked_at
+    [[ $hash_depends_looked_at == done ]] && continue
 
     process_sub_depends "$requester" "$sub_dependee" "$sub_depends" || return 1
   done
@@ -207,13 +209,15 @@ function run_other_sub_depends() {
   $STD_DEBUG
   local this_spell=$1
   local SPELL sub_dependee sub_depends pair
+  local sub_dependee_looked_at
   # do all sub-depends from sub_dep_f_hash (things we request)
   for pair in $(hash_get sub_dep_f_hash $this_spell) ; do
     # FIXME, do this one spell at a time, rather than in whatever order we
     # see them it will reduce the number of run_details
     sub_dependee=${pair%:*}
     sub_depends=${pair#*:}
-    if [[ $(hash_get depends_looked_at $sub_dependee) == done ]] ; then
+    hash_get_ref depends_looked_at $sub_dependee sub_dependee_looked_at
+    if [[ $sub_dependee_looked_at == done ]]; then
       # load the spell and clear out any special variables
       SPELL=$sub_dependee
       run_details
@@ -251,7 +255,8 @@ function process_sub_depends() {
       local rc=0
 
       local THIS_SUB_DEPENDS=$sub_depends
-      local PROCESSED_SUB_DEPENDS=$(hash_get processed_sub_depends $sub_dependee)
+      local PROCESSED_SUB_DEPENDS
+      hash_get_ref processed_sub_depends $sub_dependee PROCESSED_SUB_DEPENDS
       run_spell_file SUB_DEPENDS sub_depends || return 1
       hash_append processed_sub_depends $sub_dependee $sub_depends
     else
@@ -399,7 +404,7 @@ function compute_uninstalled_depends()
   # would have to be specified all the time.
 
   for (( _idx=0 ; _idx<${#spells[*]} ; _idx++ )) ; do
-    if [[ ! `hash_get depends_looked_at ${spells[$_idx]}` ]]; then
+    if [[ ! $(hash_get depends_looked_at ${spells[$_idx]}) ]]; then
       if ! private_run_depends ${spells[$_idx]} ; then
         # i dont know if this will work, but it will have to suffice
         private_remove_dependees ${spells[$_idx]}
@@ -1377,7 +1382,8 @@ function real_sub_depends() {
 #---------------------------------------------------------------------
 function real_force_depends() {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
-  local check=$(hash_get "depends_looked_at" "$1")
+  local check
+  hash_get_ref "depends_looked_at" "$1" check
 
   message "${SPELL}" "is forcing a recast of" "${1}"
 

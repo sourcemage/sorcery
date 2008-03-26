@@ -167,7 +167,7 @@ clean_resources()
     while read file; do
       debug "clean_resources" "removing forgotten lock ${file}"
       rm -f "${file}" 2>/dev/null &&
-      rmdir `dirname "${file}"` 2>/dev/null
+      rmdir $(smgl_dirname "${file}") 2>/dev/null
     done
   fi
 }
@@ -191,7 +191,7 @@ global_clean_resources()
       if [ ! -d "${file}" ]; then
           debug "global_clean_resources" "removing stale lock ${file}"
           rm -f "${file}" 2>/dev/null &&
-          rmdir `dirname "${file}"` 2>/dev/null
+          rmdir $(smgl_dirname "${file}") 2>/dev/null
       fi
     done
   fi
@@ -257,7 +257,7 @@ function lock_start_transaction()
     lock_file $LOCK_TRANSACTIONS
     [ -s $LOCK_TRANSACTIONS ] || echo "0:::" > $LOCK_TRANSACTIONS
 
-    NUMTRANS=`tail -n 1 $LOCK_TRANSACTIONS | cut -d : -f 1`
+    NUMTRANS=$(tail -n 1 $LOCK_TRANSACTIONS | cut -d : -f 1)
     NUMTRANS=${NUMTRANS:-1} # TODO: check if this should fallback to 0
 
     let NUMTRANS++
@@ -345,10 +345,10 @@ function lock_kill_transaction()
 
   lock_file $LOCK_TRANSACTIONS
   for i in $* ; do
-    TMP_FILE=$(grep `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS | cut -d : -f 1)
+    TMP_FILE=$(grep $(esc_str ".*:$i:$$") $LOCK_TRANSACTIONS | cut -d : -f 1)
     unlock_file $i
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.1
-    grep -v `esc_str ".*:$i:$$"` $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
+    grep -v $(esc_str ".*:$i:$$") $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
   done
   unlock_file $LOCK_TRANSACTIONS
 }
