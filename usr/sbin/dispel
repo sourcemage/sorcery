@@ -527,9 +527,10 @@ function dispel_depends_engine() {
     local borkers
     # for all borked spells either recast, dispel, or ignore
     for parent in $(hash_get_table_fields BORKED_PARENTS) ; do
-      message "$parent is borked because of $(hash_get BORKED_PARENTS $parent)"
+      hash_get_ref BORKED_PARENTS $parent borkers
+      message "$parent is borked because of $borkers"
       local recastable=yes
-      borkers=$(hash_get BORKED_PARENTS $parent)
+
       local non_optional_borkers suggested_borkers runtime_borkers type
       # if any of the removed children are required depends of the current
       # spell, the spell is not recastable
@@ -584,7 +585,7 @@ function dispel_depends_engine() {
         elif dispel_parent_query "Dispel $parent?" \
                                  "$DISPEL_PARENT_DEFAULT" ; then
 
-          foo=$(hash_get down_deps $parent)
+          hash_get_ref down_deps $parent foo
           list_remove foo $borkers
           hash_put down_deps $parent $foo
 
@@ -598,7 +599,7 @@ function dispel_depends_engine() {
         if dispel_parent_query "Dispel $parent?" \
                                "$DISPEL_PARENT_DEFAULT"; then
 
-          foo=$(hash_get down_deps $parent)
+          hash_get_ref down_deps $parent foo
           list_remove foo $borkers
           hash_put down_deps $parent $foo
 

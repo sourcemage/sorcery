@@ -237,7 +237,9 @@ function remove_depends_status()
 #---------------------------------------------------------------------
 function get_uncommitted_depends_file() {
     local SPELL=$1
-    local temp_spell_depends=$(hash_get "uncommitted_hash" $SPELL)
+    local temp_spell_depends
+    hash_get_ref "uncommitted_hash" $SPELL temp_spell_depends
+
     if ! [[ $temp_spell_depends ]] ; then
       temp_spell_depends="$UNCOMMITTED_DEPENDS/$SPELL"
       hash_put "uncommitted_hash" "$SPELL" "$temp_spell_depends"
@@ -702,7 +704,7 @@ function real_get_spell_provider() {
   if [[ $3 ]] ; then
     dep_status=$DEPENDS_STATUS
   else
-    dep_status=$(hash_get uncommitted_hash $1)
+    hash_get_ref uncommitted_hash $1 dep_status
     [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
   fi
   search_depends_status_exact $dep_status "$1" ".*($2)" \
@@ -723,7 +725,7 @@ function real_is_depends_enabled() {
   if [[ $3 ]] ; then
     dep_status=$DEPENDS_STATUS
   else
-    dep_status=$(hash_get uncommitted_hash $1)
+    hash_get_ref uncommitted_hash $1 dep_status
     [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
   fi
   [[ -n $(search_depends_status_simple $dep_status "$1" "$2" 'on' ) ]]
