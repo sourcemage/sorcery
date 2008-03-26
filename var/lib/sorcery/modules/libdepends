@@ -1176,7 +1176,7 @@ function work_optional_depends_spell()
   # check the install queue
   if [[ ! $default ]]; then
     debug "libdepends" "Checking in queue"
-    echo " ${spells[@]} " | grep -q " $1 " && default=on
+    real_list_find "${spells[@]}" "$1" && default=on
   fi
 
   # check if installed/held
@@ -1482,7 +1482,7 @@ function private_add_depends()
   # force implied basesystem dependency in the depends tree
   if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
      [[ $SPELL != basesystem ]] &&
-     ! echo "$base_deps"|grep -x -q "$SPELL"; then
+     ! real_list_find "$base_deps" "$SPELL"; then
     hash_append "$CAST_HASH" "$SPELL" "basesystem"
     hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
   fi
