@@ -522,7 +522,7 @@ function private_should_cast()
   # order is important here...
   if ! codex_does_spell_exist $1; then
     return 1
-  elif echo "$PRETEND_NOT_INSTALLED" | grep -q " $1 " ; then
+  elif real_list_find "$PRETEND_NOT_INSTALLED" $1 ; then
     # always look at stuff on the command line unless its exiled
     return 0
   # from here on the spell was not on the command line...
@@ -532,14 +532,14 @@ function private_should_cast()
   elif [[ "$RECAST_DOWN" ]] ; then
     # user gave -R so recast...
     return 0
-  elif echo "${UP_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$1" ; then
+  elif real_list_find "${UP_DEPENDS[*]}" $1; then
     # if someone has determined this is an upward depend (-B)
     return 0
-  elif echo "${TRIGGEREES[*]}"| tr " " "\n" | grep -x -q "$1" ; then
+  elif real_list_find "${TRIGGEREES[*]}" $1; then
     # if its being triggered we need to look at it, despite its
     # installed status
     return 0
-  elif echo "${FORCE_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$1" ; then
+  elif real_list_find "${FORCE_DEPENDS[*]}" $1; then
     return 0
   elif [[ "$(hash_get sub_depends_process $1)" != "" ]] ; then
     return 0
