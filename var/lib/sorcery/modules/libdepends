@@ -1349,12 +1349,12 @@ function real_sub_depends() {
 
   # if didnt return above, then we know the sub-depends is not on the system
   # so the spell must be (re)cast, check to see if we're allowed to do that
-  if ! echo "$PRETEND_NOT_INSTALLED" | grep -x -q "$1"  &&
+  if ! real_list_find "$PRETEND_NOT_INSTALLED" $sub_dependee &&
      spell_held $sub_dependee; then
     # spell is held and not explicitly requested, so we cant recast the
     # spell with the sub-depends requested
     message "${PROBLEM_COLOR}Sub-depends requested on" \
-            "a held spell${DEFAULT_COLOR}"
+            "a held spell: $SPELL_COLOR$sub_dependee$DEFAULT_COLOR"
     return 1
   fi
 
