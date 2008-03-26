@@ -492,7 +492,7 @@ function private_run_depends()
     # no point in keeping the file around if its empty...
     test -s $spell_depends || rm -f $spell_depends $spell_sub_depends
 
-    if echo "${RUNTIME_DEPENDS[*]}"| tr " " "\n" | grep -x -q "$SPELL" ; then
+    if real_list_find "${RUNTIME_DEPENDS[*]}" "$SPELL"; then
       local k=${#BONUS_SPELLS[@]}
       BONUS_SPELLS[$k]=$SPELL
     fi
