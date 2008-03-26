@@ -790,8 +790,8 @@ function cleanse_fix_ldd_check()  { (
 
   local tmp
   for each in $($REAL_MAKE -s -f $MAKEFILE $1 2>/dev/null); do
-    tmp=$(hash_get ldd_hash $each)
-    [[ $tmp ]] && LD_LIBRARY_PATH="$(hash_get ldd_hash $each):${LD_LIBRARY_PATH}"
+    hash_get_ref ldd_hash $each tmp
+    [[ $tmp ]] && LD_LIBRARY_PATH="$tmp:${LD_LIBRARY_PATH}"
   done
 
   local TMP_I_LOG=$TMP_DIR/${SPELL}/install.log
@@ -802,7 +802,7 @@ function cleanse_fix_ldd_check()  { (
 
   local count size
   let count=0
-  local size=$(wc -l $TMP_I_LOG | awk '{print $1;}')
+  local size=$(wc -l < $TMP_I_LOG)
   export LD_LIBRARY_PATH
   while read LINE; do
 
