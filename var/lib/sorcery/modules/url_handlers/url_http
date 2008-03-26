@@ -96,7 +96,7 @@ function url_ftp_verify() {
     local  DIRECTORY=`dirname $URL`
     local  OUTPUT=`wget --passive-ftp -t 1 -T 30 -O - --spider -S "$DIRECTORY/" 2>&1`
 
-    if  echo  $OUTPUT  |  grep  -q  " $FILENAME ";  then
+    if real_list_find "$OUTPUT" "$FILENAME";  then
       rm  -f  .listing
     else
       echo  $OUTPUT  |  sed  's/LIST.*//g'
