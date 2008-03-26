@@ -416,9 +416,9 @@ function consolidate_params() {
 ##
 #---------------------------------------------------------------------
 function get_basenames() {
-  local DIRECTORY=''
-  while read DIRECTORY; do
-    basename "$DIRECTORY"
+  local directory
+  while read directory; do
+    smgl_basename "$directory"
   done
 }
 
@@ -431,9 +431,9 @@ function get_basenames() {
 ##
 #---------------------------------------------------------------------
 function get_dirnames() {
-  local PATH_NAME=''
-  while read PATH_NAME; do
-    dirname "$PATH_NAME"
+  local path_name
+  while read path_name; do
+    smgl_dirname "$path_name"
   done
 }
 
@@ -1084,7 +1084,7 @@ function remove_files_and_dirs() {
     # remove possibly empty directories, rmdir WILL have error output
     # because some directories wont be empty for one of many reasons,
     # this is OKAY
-    cat $1|dirnames|while read dir; do
+    cat $1|get_dirnames|while read dir; do
       until [[ $dir == ${2:-/} ]] ; do
         rmdir $dir &>/dev/null || break
         dir=$(dirname $dir)
