@@ -740,7 +740,7 @@ architecture_menu() {
   # now that there archspecs have been found, build the dialog list
   for specname in $(hash_get_table_fields archspec_hash|sort); do
     CPUNAME=""
-    SPECFILE=$(hash_get archspec_hash $specname) &&
+    hash_get_ref archspec_hash $specname SPECFILE &&
     debug  "sorcery" "architecture_menu() - $specname found at $SPECFILE"
     CPUNAME=$( .  $SPECFILE  &&  echo $CPUNAME )  &&
     LIST="$LIST $specname  \"$CPUNAME\"    \"$CPUNAME\""

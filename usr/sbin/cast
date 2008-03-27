@@ -338,7 +338,9 @@ function pass_one()  {
     local dep_spell
     SPELLS=$(
       for spell in $SPELLS; do
-        for dep_spell in $(hash_get to_cast $spell); do
+        local dep_spells
+        hash_get_ref to_cast $spell dep_spells
+        for dep_spell in $dep_spells; do
           spell_ok $dep_spell || echo $dep_spell
         done
       done|sort -u)
@@ -351,9 +353,7 @@ function pass_one()  {
         hash_put looked_at "${spells[$i]}" done
         if ! spell_ok ${spells[$i]}; then
           hash_put deps_only ${spells[$i]} done
-          new_spells=$(for each in $(hash_get to_cast "${spells[$i]}"); do
-            echo $each
-          done)
+          hash_get_ref to_cast "${spells[$i]}" new_spells
         fi
         spells=( ${spells[@]} $new_spells )
         unset new_spells
@@ -378,7 +378,9 @@ function pass_one()  {
 
   # have new depends overwrite existing ones
   for i in $SPELLS_TO_CAST; do
-    hash_put dep_f_hash $i "$(hash_get to_cast $i)"
+    local dependencies
+    hash_get_ref to_cast $i dependencies
+    hash_put dep_f_hash $i "$dependencies"
   done
 
   debug "cast" "pass_one, done with SPELLS=$SPELLS"

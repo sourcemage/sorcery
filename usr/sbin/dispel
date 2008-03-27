@@ -314,20 +314,25 @@ function dispel_children() {
   local our_children
   for spell in $spells; do
     # this assumes list_add remains idempotent, which it is
-    list_add our_children $(hash_get down_deps $spell)
+    local dependencies
+    hash_get_ref down_deps $spell dependencies
+    list_add our_children $dependencies
   done
   debug "children of $1 -> $our_children"
 
-  local is_orphan
+  local is_orphan is_gone
   local orphan_list non_orphan_list
   for child in $our_children; do
-    if [[ $(hash_get ALL_DISPELS $child) == "yes" ]] ; then
+    hash_get_ref ALL_DISPELS $child is_gone
+    if [[ $is_gone == yes ]]; then
       debug "someone depends on $child but it was already removed"
       continue
     fi
     # determine if this child is becomming an orphan or not
     is_orphan="yes"
-    for parent in $(hash_get up_deps $child); do
+    local parents
+    hash_get_ref up_deps $child parents
+    for parent in $parents; do
       if ! list_find "$spells" "$parent"; then
         is_orphan=no
         break
@@ -342,9 +347,9 @@ function dispel_children() {
 
   local removed_children
   for child in $orphan_list; do
-    debug dispel "looking at $child:"
-    debug dispel "parents: $(hash_get up_deps $child)"
-    debug "children: $(hash_get down_deps $child)"
+    debug dispel "looking at orphan $child:"
+    #debug dispel "parents: $(hash_get up_deps $child)"
+    #debug "children: $(hash_get down_deps $child)"
     if dispel_child_query "$child" "is an orphan" \
                           "Would you like to dispel it" \
                           "${ORPHAN_DEFAULT}" ; then
@@ -353,9 +358,9 @@ function dispel_children() {
     fi
   done
   for child in $non_orphan_list; do
-    debug "looking at $child:"
-    debug "parents: $(hash_get up_deps $child)"
-    debug "children: $(hash_get down_deps $child)"
+    debug "looking at non-orphan $child:"
+    #debug "parents: $(hash_get up_deps $child)"
+    #debug "children: $(hash_get down_deps $child)"
     if dispel_child_query "$child" "is not an orphan" \
                           "Would you like to dispel it" \
                           "${NONORPHAN_DEFAULT}" ; then
@@ -444,8 +449,10 @@ function remove_from_dep_trees() {
   local down_dep_hash=$2
   local up_dep_hash=$3
   local foo
-  for child in $(hash_get $down_dep_hash $spell); do
-    foo=" $(hash_get $up_dep_hash $child) "
+  local children
+  hash_get_ref $down_dep_hash $spell children
+  for child in $children; do
+    hash_get_ref $up_dep_hash $child foo
     list_remove foo $spell
     hash_put $up_dep_hash $child "$foo"
   done
@@ -466,9 +473,10 @@ function remove_from_dep_trees() {
 function get_borked_parents() {
   local spell=$1
   local up_dep_hash=$2
-  local parent
+  local parent parents
   # get the spells that depend on us
-  for parent in $(hash_get $up_dep_hash $spell); do
+  hash_get_ref $up_dep_hash $spell parents
+  for parent in $parents; do
     debug dispel "hash_append $3 $parent $spell"
     hash_append $3 $parent $spell
   done

@@ -399,12 +399,14 @@ function compute_uninstalled_depends()
   PRETEND_NOT_INSTALLED=" $@ "
 
   local _idx
+  local looked_at
 
   # All specified spells are assumed to be not installed, or else -c and -r
   # would have to be specified all the time.
 
   for (( _idx=0 ; _idx<${#spells[*]} ; _idx++ )) ; do
-    if [[ ! $(hash_get depends_looked_at ${spells[$_idx]}) ]]; then
+    hash_get_ref depends_looked_at ${spells[$_idx]} looked_at
+    if [[ ! $looked_at ]]; then
       if ! private_run_depends ${spells[$_idx]} ; then
         # i dont know if this will work, but it will have to suffice
         private_remove_dependees ${spells[$_idx]}
@@ -1588,11 +1590,13 @@ function real_show_up_depends()
     local MAX_DEPTH=$2
     local type=$3
     function show_up_depends_sub() {
-        local each
+        local each dependencies checked
         let i++
         [[ $MAX_DEPTH ]] && [[ $i -gt $MAX_DEPTH ]] && return
-        for each in $(hash_get foo $1); do
-            if ! [[ $(hash_get done $each) ]] ; then
+        hash_get_ref foo $1 dependencies
+        for each in $dependencies; do
+            hash_get_ref done $each checked
+            if ! [[ $checked ]] ; then
                 hash_put done $each done
                 echo $each:$1
                 show_up_depends_sub $each

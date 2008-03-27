@@ -895,11 +895,13 @@ function gaze_activate_voyeur()  {
 ## Show spells that have no other spell depending on them
 #-----
 function show_orphans()  {
+  local spell each
   compute_reverse_installed_depends my_hash
   for each in $(get_all_spells_with_status 'installed';get_all_spells_with_status 'held'); do
-  if [[ ! $(hash_get my_hash $each) ]] ; then
-    echo "$each"
-  fi
+    hash_get_ref my_hash $each spell
+    if [[ ! $spell ]]; then
+      echo "$each"
+    fi
   done|sort
 }
 
