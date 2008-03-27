@@ -60,7 +60,7 @@ EOF
   create_install_log $IW_LOG $INST_LOG
   [ -n "$MD5_DATA" ] && echo "$MD5_DATA" | cut -c35- |
     exists | grep -v "^$LOG_DIRECTORY" > "$TMP_LOG.2" &&
-    cat "$TMP_LOG.2" "$INST_LOG" | sort | uniq > "$TMP_LOG.3" ||
+    cat "$TMP_LOG.2" "$INST_LOG" | sort -u > "$TMP_LOG.3" ||
     cp "$INST_LOG" "$TMP_LOG.3"
   rm "$TMP_LOG.2" 2> /dev/null
   mv "$TMP_LOG.3" "$INST_LOG"
@@ -115,9 +115,9 @@ function alter_md5_mend() {
 
   if [ -n "$RESULTS" ]; then
     TOTAL="$(echo "$RESULTS" | wc -l)"
-    SPELLS="$(echo "$RESULTS" | cut -d' ' -f1 | sort | uniq)"
+    SPELLS="$(echo "$RESULTS" | cut -d' ' -f1 | sort -u)"
     TOTSP="$(echo "$SPELLS" | wc -l)"
-    FILES="$(echo "$RESULTS" | cut -d' ' -f2 | sort | uniq)"
+    FILES="$(echo "$RESULTS" | cut -d' ' -f2 | sort -u)"
     if [ "$ARCHIVE" != "off" ]; then
       STORE=$STORE_BASE/$SPELL-$VERSION.$$
       mkdir -p "$STORE"
@@ -225,7 +225,7 @@ function alter_gather_bins() {
     done |
     grep -v '/src/\|/lib/modules\|/root/\|/home/' |
     sed -e 's/[^/]*$//' | uniq |
-    sort | uniq > /etc/prelink.conf
+    sort -u > /etc/prelink.conf
   fi
 
 }
@@ -239,7 +239,7 @@ function alter_pre_link() {
   alter_alter -n smgl-prelink '
     /usr/sbin/prelink -v '"$ARGS"' | tee $TMP_DIR/prelink.$$.output
     grep "Prelinking\\|Linking" $TMP_DIR/prelink.$$.output |cut -d" " -f2 |
-    sort | uniq |
+    sort -u |
     while read PRELINKED; do
        touch "$PRELINKED"
     done

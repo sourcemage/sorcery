@@ -1376,7 +1376,7 @@ function generate_keep_list()  {
     {
       get_all_spells_with_status installed
       get_all_spells_with_status held
-    } | sort | uniq | while read spell ; do
+    } | sort -u | while read spell ; do
       codex_find_spell_by_name $spell
     done
   else
@@ -1429,7 +1429,7 @@ function prune()  {
                  print $0;
                }
              }
-           }' $SOURCE_KEEP - |sort|uniq > $SOURCE_RM
+           }' $SOURCE_KEEP - |sort -u > $SOURCE_RM
   if test -s $SOURCE_RM ; then
     NUM_NO_KEEP=$(cat $SOURCE_RM|wc -l)
 
@@ -1455,7 +1455,7 @@ function prune()  {
                  print $0;
                }
              }
-           }' $CACHE_KEEP - |sort|uniq > $CACHE_RM
+           }' $CACHE_KEEP - |sort -u > $CACHE_RM
   if test -s $CACHE_RM ; then
     NUM_NO_KEEP=$( cat $CACHE_RM | wc -l )
     message "There are $NUM_NO_KEEP files that can be removed"
@@ -1555,7 +1555,7 @@ function find_providers()  {
     for GRIMOIRE in $(codex_get_all_grimoires);  do
       gawk '/^'"$feature"'[[:blank:]]/ { print $2 }' \
         "$GRIMOIRE/$PROVIDE_INDEX_FILE"
-    done | get_basenames|sort|uniq)
+    done | get_basenames|sort -u)
 
   # filter out providers we dont want, so far this is:
   # a) do not provide something in the first grimoire they are found in

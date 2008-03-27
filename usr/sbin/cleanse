@@ -571,13 +571,13 @@ function cleanse_fix()
   if [[ $PASSED ]] ; then
     message "${MESSAGE_COLOR}The following spells passed the" \
             "check:${SPELL_COLOR}"
-    echo "$PASSED"|sort|uniq|column
+    echo "$PASSED"|sort -u|column
     message "${DEFAULT_COLOR}"
   fi
   if [[ $FIXED ]] ; then
     message "${MESSAGE_COLOR}The following spells were broken and" \
             "fixed:${QUERY_COLOR}"
-    echo "$FIXED"|sort|uniq|column
+    echo "$FIXED"|sort -u|column
     message "${DEFAULT_COLOR}"
   fi
   if [[ $HOPELESS ]] ; then
@@ -588,7 +588,7 @@ function cleanse_fix()
       message "${MESSAGE_COLOR}The following spells were broken and" \
               "could not be fixed:${PROBLEM_COLOR}"
     fi
-    echo "$HOPELESS"|sort|uniq|column
+    echo "$HOPELESS"|sort -u|column
     message "${DEFAULT_COLOR}"
     return 1
   fi
@@ -757,7 +757,7 @@ function cleanse_fix_init_ldd_check()  {
   done
   for SPELL in $* ; do
     I_LOG=$INSTALL_LOGS/$SPELL-$(private_installed_version  $SPELL)
-    hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort|uniq|tr '\n' :)"
+    hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort -u|tr '\n' :)"
     progress_bar $count $size 50
     let count++
   done

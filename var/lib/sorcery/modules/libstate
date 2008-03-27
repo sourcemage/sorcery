@@ -683,7 +683,7 @@ function real_spell_ok() {
 #---------------------------------------------------------------------
 function real_provider_ok() {
   for spell in $(search_depends_status_exact $DEPENDS_STATUS '.*' ".*($1)" \
-                 'on' '.*'  '.*' |cut -f2 -d:|cut -f1 -d\(|sort|uniq); do
+                 'on' '.*'  '.*' |cut -f2 -d:|cut -f1 -d\(|sort -u); do
     spell_ok $spell && return 0
   done
   return 1
@@ -708,7 +708,7 @@ function real_get_spell_provider() {
     [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
   fi
   search_depends_status_exact $dep_status "$1" ".*($2)" \
-                 'on' '.*'  '.*' '.*' |cut -f2 -d:|cut -f1 -d\(|sort|uniq
+                 'on' '.*'  '.*' '.*' |cut -f2 -d:|cut -f1 -d\(|sort -u
 }
 
 #---------------------------------------------------------------------
