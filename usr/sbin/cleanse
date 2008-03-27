@@ -402,9 +402,9 @@ function prune_depends()
   # put the spells in two files for later perusal
   if [[ $action ]] ; then
     [ -s $TMP_DIR/prune.dispel ] &&
-      dispel $( sort $TMP_DIR/prune.dispel | uniq )
+      dispel $(sort -u $TMP_DIR/prune.dispel)
     [ -s $TMP_DIR/prune.cast ] &&
-      cast -c $( sort $TMP_DIR/prune.cast | uniq )
+      cast -c $(sort -u $TMP_DIR/prune.cast)
   else
     local prune_dispel prune_cast t
     prune_dispel=$(sort -u $TMP_DIR/prune.dispel 2>/dev/null)
@@ -1011,7 +1011,7 @@ function cleanse_fix_md5sum_check() {
       echo $LINE >> $tfile
       # remove duplicates
       cp $tfile $TMP_DIR/$SPELL.possessed.$$
-      sort $TMP_DIR/$SPELL.possessed.$$|uniq > $tfile
+      sort -u $TMP_DIR/$SPELL.possessed.$$ > $tfile
       rm  $TMP_DIR/$SPELL.possessed.$$
       lock_commit_transaction $possessed
 
