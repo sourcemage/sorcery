@@ -150,6 +150,15 @@ function verify_grimoire_tree() {
     return 253
   fi
 
+  if ! list_find "$GPG_GRIMOIRE_LIST" $grimoire_name &> /dev/null; then
+    message "${MESSAGE_COLOR}The grimoire (tree)" \
+            "${SPELL_COLOR}$grimoire_name" \
+            "${MESSAGE_COLOR}is not an official grimoire and for such" \
+            "${PROBLEM_COLOR}there is no verification method!$DEFAULT_COLOR"
+    query "Continue anyway?" y
+    return $?
+  fi
+
   local gpg_pub_key=$(gpg_get_grimoire_key $grimoire_name)
   if test -z $gpg_pub_key && test -f $gpg_pub_key ; then
     message "No keyring found! (maybe you need to cast sorcery-pubkeys?)"
