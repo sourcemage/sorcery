@@ -341,14 +341,15 @@ function lock_commit_transaction()
 function lock_kill_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
-  local TMP_FILE
+  local TMP_FILE string
 
   lock_file $LOCK_TRANSACTIONS
   for i in $* ; do
-    TMP_FILE=$(grep $(esc_str ".*:$i:$$") $LOCK_TRANSACTIONS | cut -d : -f 1)
+    esc_str ".*:$i:$$" string
+    TMP_FILE=$(grep "$string" $LOCK_TRANSACTIONS | cut -d : -f 1)
     unlock_file $i
     cp $LOCK_TRANSACTIONS $LOCK_TRANSACTIONS.1
-    grep -v $(esc_str ".*:$i:$$") $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
+    grep -v "$string" $LOCK_TRANSACTIONS.1 >$LOCK_TRANSACTIONS
   done
   unlock_file $LOCK_TRANSACTIONS
 }
