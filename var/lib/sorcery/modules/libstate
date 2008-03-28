@@ -78,7 +78,8 @@ function search_depends_status_exact()
   shift
 
   local a1 a2 a3 a4 a5 a6
-  a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"` ; a4=`esc_str "$4"`; a5=`esc_str "$5"`; a6=`esc_str "$6"`
+  esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
+  esc_str "$4" a4; esc_str "$5" a5; esc_str "$6" a6
   debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 
   lock_file "$depends_status"
@@ -113,9 +114,9 @@ function search_depends_status_simple()
     shift
 
     local a1 a2 a3 a4 a5 a6
-    a1=`esc_str "$1"` ; a2=`esc_str "$2"`
+    esc_str "$1" a1; esc_str "$2" a2
     a3=${3:-.*} ; a4=${4:-.*}
-    a5=`esc_str "$5"`; a6=`esc_str "$6"`
+    esc_str "$5" a5; esc_str "$6" a6
     a5=${5:-.*} ; a6=${6:-.*}
 
     lock_file "$depends_status"
@@ -177,7 +178,8 @@ function get_depends_options()
     return
   }
 
-  local START="$(esc_str $1)"
+  local START
+  esc_str "$1" START
   debug "libstate" "get_depends_options() - START=$START"
   lock_file "$depends_status"
   awk -F ':' -v start=$START "{ if (\$1 == start) if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status 2> /dev/null
@@ -209,12 +211,12 @@ function remove_depends_status()
     # look like regexps, 5 and 6 might like funny too
     # contrast 3 and 4 which are "on", "off", "required" or "optional"
     # if they are regexps its probably desired so dont escape those
-    a1=`esc_str "$1"`; a2=`esc_str "$2"`
+    esc_str "$1" a1; esc_str "$2" a2
     a1=${a1:-.*}; a2=${a2:-.*}
 
     a3=${3:-.*} ; a4=${4:-.*}
 
-    a5=`esc_str "$5"`; a6=`esc_str "$6"`
+    esc_str "$5" a5; esc_str "$6" a6
     a5=${a5:-.*}; a6=${a6:-.*}
     [[ "$a5" == "[none]" ]] && a5="\\[none\\]"
 
@@ -327,7 +329,7 @@ function search_sub_depends() {
   local file=$1
   shift
   local a1 a2 a3
-  a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
+  esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
   a1=${a1:-.*}
   a2=${a2:-.*}
   a3=${a3:-.*}
@@ -353,7 +355,7 @@ function remove_sub_depends() {
   test -f $file || return
 
   local a1 a2 a3
-  a1=`esc_str "$1"`; a2=`esc_str "$2"`; a3=`esc_str "$3"`
+  esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
   a1=${a1:-.*}; a2=${a2:-.*}; a3=${a3:-.*}
 
   local t_file
@@ -443,7 +445,7 @@ function remove_default_depends() {
         test -e $file || return
 
         local a1 a2 a3
-        a1=`esc_str $1` ; a2=`esc_str $2` ; a3=`esc_str $3`
+        esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
 
         a3=${a3:-.*}
 
@@ -470,7 +472,7 @@ function search_default_depends() {
         [[ -s $default_depends ]] || return
 
         local a1 a2 a3
-        a1=`esc_str "$1"` ; a2=`esc_str "$2"` ; a3=`esc_str "$3"`
+        esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
         a3=${a3:-.*}
 
         debug "libstate" "search_default_depends: [$a1:$a2:$a3]"

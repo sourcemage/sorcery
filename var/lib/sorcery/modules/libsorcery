@@ -656,9 +656,10 @@ function dirnames()  {
 #---------------------------------------------------------------------
 function pop_queue() {  (
 
-  local ITEM=`esc_str $2`
+  local ITEM
   local exit_code=0
 
+  esc_str "$2" ITEM
   lock_start_transaction "$1" tQUEUE_FILE
   if  !  [  -f  "$1"  ];  then
     exit_code=1
@@ -670,7 +671,7 @@ function pop_queue() {  (
     if  [  -z  "$FOUND"  ];  then
       exit_code=1
     else
-      FOUND=`esc_str $FOUND`
+      esc_str "$FOUND" FOUND
       grep  -v  "^$FOUND$"  $1 > $tQUEUE_FILE
       echo  $FOUND
     fi

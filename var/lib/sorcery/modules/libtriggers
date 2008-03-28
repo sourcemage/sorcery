@@ -57,7 +57,7 @@ function trigger ()
 
   local spell TRIGGER action
   action=$1
-  spell=`esc_str ${SPELL:-$2}`
+  esc_str "${SPELL:-$2}" spell
 
   [ -f $TRIGGER_LIST ] || return 0
   iterate do_trigger $'\n' "`grep "^[^:]*:$spell:on_$action" $TRIGGER_LIST`"
