@@ -58,6 +58,8 @@ sum            [spell]          Prints checksums.
 md5sum         [spell]          Prints md5sums.
 size            spell           Prints total size of all files installed
                                  by this spell
+size            -all            Prints total size of all spells, as well
+                                 as size of the largest spell
 export                          Makes snapshot of box's configuration.
 import          snapshot        Restores snapshot.
 
@@ -1629,6 +1631,45 @@ function gaze_show_dependencies() {
 
 #-----
 ##
+## Display the size all installed spell use and the largest among them
+##
+#-----
+function gaze_show_size_all () {
+  local each date status version install_log
+  local current_spell=0 current_size=0 current_info
+  local max_size=0 max_spell total_size=0 total_files=0
+  local installed_spells=$(all_spell_status | sed -n '/:exiled:/! s,:, ,gp')
+  local spell_count=$(wc -l <<< "$installed_spells")
+
+  echo "This will take a while and cause lots of disk I/O..."
+  while read each date status version; do
+    let current_spell++
+    install_log="$INSTALL_LOGS/$each-$version"
+    current_info=$(
+      while read entry; do
+        test -f "$entry" && echo "'$entry'"
+      done < $install_log | xargs du -b -c | awk 'END {print $1,NR-1}'
+    )
+    current_info=( $current_info )
+    current_size=${current_info[0]}
+    if [[ $current_size -gt $max_size ]]; then
+      max_size=$current_size
+      max_spell=$each
+    fi
+    let total_size+=$current_size
+    let total_files+=${current_info[1]}
+    progress_bar $current_spell $spell_count
+  done <<< "$installed_spells"
+  clear_line
+  echo $spell_count $total_size $total_files | awk \
+    'END { print $1" spells -> "$2" bytes ("int($2/1024+0.5)" K, "int($2/1024/1024+0.5)" M, "int($2/1024/1024/1024+0.5)" G) in "$3" files." }'
+  echo
+  echo "Largest spell:"
+  gaze_show_size $max_spell
+}
+
+#-----
+##
 ## Display the space an installed spell uses
 ## @param Spell
 ## @param ...
@@ -1636,6 +1677,16 @@ function gaze_show_dependencies() {
 #-----
 function gaze_show_size () {
     local spell each
+
+    if [[ $1 == "-all" ]]; then
+        if [[ $# == 1 ]]; then
+            gaze_show_size_all
+        else
+            help
+        fi
+        exit 0
+    fi
+
     for spell in "$@"; do
         if ! spell_ok $spell ; then
           message "$spell is not installed"
