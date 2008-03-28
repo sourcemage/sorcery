@@ -79,26 +79,6 @@ function url_git_local_hostname() {
 }
 
 #---------------------------------------------------------------------
-##=item url_git_local_netselect <url>
-##
-## Gets a netselect type output for the url
-##
-#---------------------------------------------------------------------
-function url_git_local_netselect() {
-  local tmp_hostname url_speed each
-
-  for each in "$@" ; do
-    tmp_hostname=$(url_git_local_hostname $each)
-    # since we had to pull the url apart to give netselect
-    # something it can understand we'll just pretend like
-    # multiple A records wont exist for this host...
-    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
-    [[ -n $url_speed ]] && echo "$url_speed $each"
-  done
-}
-
-
-#---------------------------------------------------------------------
 ##=back
 ##
 ##=head1 LICENSE
