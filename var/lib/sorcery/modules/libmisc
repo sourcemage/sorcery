@@ -367,6 +367,7 @@ function edit_file()  {
 
 #---------------------------------------------------------------------
 ## @param string
+## @param (optional) upvar
 ## @Stdout escaped string
 ##
 ## Adds escape sequences to strings for special characters.
@@ -377,15 +378,21 @@ function edit_file()  {
 #---------------------------------------------------------------------
 function esc_str()
 {
-
-  local OUT
-  if [[ $* == ".*" ]] ; then
-    echo "$1"
+  if [[ $1 == ".*" ]]; then
+    if [[ -z $2 ]]; then
+      echo "$1"
+    else
+      upvar $2 "$1"
+    fi
   else
-    echo "$@" | sed -e 's:\.:\\\.:'g \
-                    -e 's:\*:\\\*:'g
+    local escaped="${1//./\.}"
+    escaped="${escaped//\*/\*}"
+    if [[ -z $2 ]]; then
+      echo "$escaped"
+    else
+      upvar $2 "$escaped"
+    fi
   fi
-
 }
 
 
