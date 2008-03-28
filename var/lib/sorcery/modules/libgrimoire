@@ -62,23 +62,20 @@ function real_mk_source_dir() {
 #---------------------------------------------------------------------
 function real_rm_source_dir() {
 
-  DEAD_DIR=$1
-  DEAD_DIR=${DEAD_DIR:-$SOURCE_DIRECTORY}
+  local dead_dir="${1:-$SOURCE_DIRECTORY}"
 
-  debug  "libgrimoire" "Running rm_source_dir() on $DEAD_DIR"
+  debug "libgrimoire" "Running rm_source_dir() on $dead_dir"
 
-  if  [  -n  "$DEAD_DIR"  ] &&  [  -d  "$DEAD_DIR"  ];  then
+  if [[ -n $dead_dir ]] && [[ -d $dead_dir ]]; then
 
     pushd $BUILD_DIRECTORY 2>&1  >  /dev/null
 
-
     # make sure nothing recursive is mounted under deaddir
+    local mount on mountloc rest
     mount |
-    while read line
+    while read mount on mountloc rest
     do
-      local mount=$(echo $line | cut -d' ' -f1)
-      local mountloc=$(echo $line | cut -d' ' -f3)
-      if echo $mountloc | grep -q "^$DEAD_DIR"
+      if echo $mountloc | grep -q "^$dead_dir"
       then
         debug "libgrimoire" "Unmounting $mount on $mountloc"
         umount -l $mountloc 2> /dev/null
@@ -89,10 +86,10 @@ function real_rm_source_dir() {
     # we have to. So we move the old dir to a known place before
     # running rm. This prevents accidental damage that could be
     # caused by
-    # a) $DEAD_DIR being an empty string
-    # b) $DEAD_DIR being set to "/" (or anything above /usr/src)
-    # c) $DEAD_DIR containing metacharacters (like newline)
-    mv  "$DEAD_DIR"  "$INSTALL_ROOT/usr/src/deaddir"  &&
+    # a) $dead_dir being an empty string
+    # b) $dead_dir being set to "/" (or anything above /usr/src)
+    # c) $dead_dir containing metacharacters (like newline)
+    mv  "$dead_dir"  "$INSTALL_ROOT/usr/src/deaddir"  &&
     rm  -rf          "$INSTALL_ROOT/usr/src/deaddir"  2>  /dev/null
 
     popd  2>&1  >  /dev/null
