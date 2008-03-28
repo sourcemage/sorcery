@@ -144,11 +144,15 @@ function search_depends_status()
   local depends_status=$1
   shift
 
+  local spell
+  esc_str "$1" spell
 #  lock_file "$depends_status"
   if [[ -z $2 ]]; then
-    grep "^`esc_str "$1"`:" "$depends_status"
+    grep "^$spell:" "$depends_status"
   else
-    grep "^`esc_str "$1"`:`esc_str "$2"`:" "$depends_status"
+    local depends
+    esc_str "$2" depends
+    grep "^$spell:$depends:" "$depends_status"
   fi
 #  unlock_file "$depends_status"
 }
@@ -594,11 +598,15 @@ function search_spell_status() {
   local spell_status=$1
   shift
 
+  local spell
+  esc_str "$1" spell
   lock_file "$spell_status"
   if [[ -z $2 ]]; then
-    grep "^`esc_str "$1"`:" $spell_status
+    grep "^$spell:" $spell_status
   else
-    grep "^`esc_str "$1:$2"`:" $spell_status
+    local version
+    esc_str "$2" version
+    grep "^$spell:$version:" $spell_status
   fi
   unlock_file "$spell_status"
 }
