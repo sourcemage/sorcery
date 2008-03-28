@@ -674,28 +674,25 @@ function report_install()  {
 }
 
 #---------------------------------------------------------------------
-## LC means "line count" why not just type line_count?
 ## @TODO This function is dumb. It should be fixed.
 ## @param download log file name
 #---------------------------------------------------------------------
 function show_download_progress()  {
   [[ $SCREEN_NAME ]] && return
   local download_log=$1
-  if  [  -e  "$download_log"   ]   &&
-      [  -z  "$SILENT"  ];  then
 
-    LC_OLD=${LC_OLD:-0}
+  if [[ -e $download_log ]] && [[ -z $SILENT ]]; then
+    local line_count
+    line_count_old=${line_count_old:-0}
 
-    LC=`cat  $download_log  2>/dev/null  |  wc  -l  |  tr  -d ' '`
+    line_count=$(wc -l < $download_log)
 
-    if  [  "$LC"  !=  "$LC_OLD"  ];  then
-      let LC_OLD++
-      sed  -n ${LC_OLD},${LC}p  $download_log
-      LC_OLD=$LC
+    if [[ $line_count != $line_count_old ]]; then
+      let line_count_old++
+      sed -n ${line_count_old},${line_count}p $download_log
+      line_count_old=$line_count
     fi
-
   fi
-
 }
 
 #---------------------------------------------------------------------
@@ -709,6 +706,7 @@ function show_downloading()  {
 
   local SPELL=$1
   local download_log=$(get_spell_dl_log $SPELL)
+  local line_count_old
   debug "cast" "Started show_downloading() on $SPELL from $download_log"
 
   # poke around waiting for downloading to start
