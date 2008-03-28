@@ -120,7 +120,7 @@ function run_build_spell() {
 function run_pre_build() {
 
   debug "build_api/api2" "run_pre_build()"
-  message  "${MESSAGE_COLOR}Building"  \
+  message  "${MESSAGE_COLOR}Preparing" \
            "${SPELL_COLOR}${SPELL}"    \
            "${DEFAULT_COLOR}"
 
@@ -144,6 +144,9 @@ function run_build()  {
 
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+  message  "${MESSAGE_COLOR}Building"  \
+           "${SPELL_COLOR}${SPELL}"    \
+           "${DEFAULT_COLOR}"
 
   if [  -d  "$SOURCE_DIRECTORY"  ] ; then
     cd "$SOURCE_DIRECTORY"
@@ -201,6 +204,18 @@ function run_pre_install() {
 #---------------------------------------------------------------------
 function run_install() {
   debug "build_api/api2" "Starting run_install()"
+
+  if [[ $STAGED_INSTALL == on ]]; then
+    message "${MESSAGE_COLOR}Installing"     \
+            "${SPELL_COLOR}${SPELL}"         \
+            "${MESSAGE_COLOR}into the stage" \
+            "${DEFAULT_COLOR}"
+  else
+    message "${MESSAGE_COLOR}Installing" \
+            "${SPELL_COLOR}${SPELL}"     \
+            "${DEFAULT_COLOR}"
+  fi
+
   if [ -f $S_PWD ] ; then
     cd "`cat $S_PWD`"
   elif [ -d $SOURCE_DIRECTORY ] ; then
@@ -213,7 +228,7 @@ function run_install() {
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
-             "! Problem Detected !"  \
+             "Problem Detected!"     \
              "${DEFAULT_COLOR}"
     false
   fi
