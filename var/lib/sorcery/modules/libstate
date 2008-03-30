@@ -9,7 +9,7 @@
 
 #---------------------------------------------------------------------
 ##
-## Adds a dependency to the a depends database file.  Returns 1 is the
+## Adds a dependency to the a depends database file.  Returns 1 if the
 ## 3rd or 4th fields are not valid.
 ##
 ## @param  Depends status file
@@ -78,8 +78,15 @@ function search_depends_status_exact()
   shift
 
   local a1 a2 a3 a4 a5 a6
-  esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
+  esc_str "$1" a1; esc_str "$3" a3
   esc_str "$4" a4; esc_str "$5" a5; esc_str "$6" a6
+  # ugly, but needed for get_spell_provider and real_provider_ok
+  if [[ ${2:0:2} == ".*" ]]; then
+     esc_str "${2:2}" a2
+     a2=".*$a2"
+  else
+     esc_str "$2" a2
+  fi
   debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 
   lock_file "$depends_status"
