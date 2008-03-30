@@ -322,6 +322,21 @@ function run_spell_success() {
       rm  -f $ABANDONED_PERSIST/$SPELL.p
     fi
 
+    # when delving late stages the installwatch log may not exist
+    if [[ $STAGED_INSTALL == off ]] && [[ ! -e $IW_LOG ]]; then
+      message "${PROBLEM_COLOR}The installwatch log does not exist!"
+      message "Skipping the creation of the cache archive, the install and md5 log!" \
+              "$DEFAULT_COLOR"
+
+      rm_source_dir
+      if [[ $STAGED_INSTALL != off ]]
+      then
+        destroy_stage_root
+      fi
+      rm -f "$C_LOG" "$spell_sub_depends" "$spell_rsub_depends" "$spell_depends"
+      return
+    fi
+
     # install log
     message  "${MESSAGE_COLOR}Creating install log" \
              "${FILE_COLOR}${INST_LOG}${DEFAULT_COLOR}"
