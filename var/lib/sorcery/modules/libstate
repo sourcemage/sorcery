@@ -80,13 +80,7 @@ function search_depends_status_exact()
   local a1 a2 a3 a4 a5 a6
   esc_str "$1" a1; esc_str "$3" a3
   esc_str "$4" a4; esc_str "$5" a5; esc_str "$6" a6
-  # ugly, but needed for get_spell_provider and real_provider_ok
-  if [[ ${2:0:2} == ".*" ]]; then
-     esc_str "${2:2}" a2
-     a2=".*$a2"
-  else
-     esc_str "$2" a2
-  fi
+  esc_provider_str "$2" a2
   debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
 
   lock_file "$depends_status"
@@ -121,7 +115,7 @@ function search_depends_status_simple()
     shift
 
     local a1 a2 a3 a4 a5 a6
-    esc_str "$1" a1; esc_str "$2" a2
+    esc_str "$1" a1; esc_provider_str "$2" a2
     a3=${3:-.*} ; a4=${4:-.*}
     esc_str "$5" a5; esc_str "$6" a6
     a5=${5:-.*} ; a6=${6:-.*}
@@ -158,7 +152,7 @@ function search_depends_status()
     grep "^$spell:" "$depends_status"
   else
     local depends
-    esc_str "$2" depends
+    esc_provider_str "$2" depends
     grep "^$spell:$depends:" "$depends_status"
   fi
 #  unlock_file "$depends_status"

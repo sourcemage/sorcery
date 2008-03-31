@@ -395,6 +395,28 @@ function esc_str()
   fi
 }
 
+#---------------------------------------------------------------------
+## @param string
+## @param upvar
+##
+## esc_str with a minor modification used for escaping provider
+## queries, where only the provider name needs to be escaped.
+## Does NOT escape strings matching "\.\*(.*".
+##
+#---------------------------------------------------------------------
+function esc_provider_str()
+{
+  local _escaped
+  # the pattern is intentionally not quoted, so glob matching occurs
+  if [[ $1 == .\*\(* ]]; then
+    esc_str "${1:2}" _escaped
+    _escaped=".*$_escaped"
+  else
+    _escaped="${1//./\.}"
+    _escaped="${_escaped//\*/\*}"
+  fi
+  upvar $2 "$_escaped"
+}
 
 #---------------------------------------------------------------------
 ## Properly quotes and backquotes parameters so they can be passed
