@@ -232,6 +232,30 @@ function remove_depends_status()
 }
 
 #---------------------------------------------------------------------
+## Toggle optional and suggested dependencies on/off
+##
+## @param depends file
+## @param spell
+## @param dependency
+##
+#---------------------------------------------------------------------
+function toggle_depends_status() {
+  local depends_status=$1
+  shift
+
+  local spell dependency
+  esc_str "$1" spell; esc_str "$2" dependency
+
+  local t_status
+  lock_start_transaction "$depends_status" t_status
+  awk -F ':' -v OFS=':' \
+    '/^'$spell:$dependency'(\([^:]*\))?:(on|off):(optional|suggest):/ \
+      { if ($3 == "on") $3 = "off"; else $3 = "on"; }
+    { print; }' $depends_status > $t_status
+  lock_commit_transaction "$depends_status"
+}
+
+#---------------------------------------------------------------------
 ## Sets up the uncommitted depends file. If the name isn't
 ## found in the hash table create it. If the file already exists
 ## move it to the abandoned depends directory and start with a new one.
