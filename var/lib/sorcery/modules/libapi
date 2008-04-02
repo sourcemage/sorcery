@@ -435,7 +435,7 @@ function devoke_installwatch () {
 #---------------------------------------------------------------------
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libtrack.html,real_devoke_stage_root> for more details.
-## Stops using installwatch
+## Stops using stage root
 #---------------------------------------------------------------------
 function devoke_stage_root () {
     debug "libapi" "devoke_stage_root - $*"
@@ -613,7 +613,7 @@ function invoke_installwatch () {
 #---------------------------------------------------------------------
 ## @Type API
 ## @See <@function var.lib.sorcery.modules.libtrack.html,real_invoke_stage_root> for more details.
-## Starts using installwatch
+## Starts using stage root
 #---------------------------------------------------------------------
 function invoke_stage_root () {
     debug "libapi" "invoke_stage_root - $*"
@@ -909,8 +909,8 @@ function persistent_read () {
 ## @See <@function var.lib.sorcery.modules.libgrimoire.html,real_prepare_install> for more details.
 ## Prepares to install the spell.  Writes the boost lock file.  If the
 ## spell is installed already, the libraries are saved with
-## save_libraries() and the spell is dispelled.  Usually called from
-## the BUILD sript of a spell.
+## save_libraries(), the binaries with save_binaries() and the spell is
+## dispelled.  Usually called from the BUILD script of a spell.
 ##
 #---------------------------------------------------------------------
 function prepare_install () {
@@ -1131,6 +1131,8 @@ function uncompress () {
 ## as well as untar'ing the file if appropriate and if the MD5
 ## matches.
 ## Note: zip is a special case because it doesn't work with streams.
+## Note: This function is deprecated and kept for spells that still
+##       use the old verification methods (MD5[0]=).
 ##
 #---------------------------------------------------------------------
 function unpack () {
@@ -1144,8 +1146,100 @@ function unpack () {
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_file> for more details.
 ##
 ## unpack_file takes the SOURCE suffix and figures out if it is supposed
-## to md5 or gpg/hash check it -- then it does its dirty work and runs
-## unpack, unpack_gpg, or unpack_hash depending upon the circumstances.
+## to hash or gpg check it -- then it does its dirty work and runs unpack_hash
+## or unpack_gpg depending upon the circumstances.  That's the only argument it
+## takes and needs: '' '2' '3', etc.  It is run in default_pre_build for the
+## null argument only.  Custom unpacking still requires a custom PRE_BUILD.
+##
+## valid formats: vendor-provided gpg, guru-provided gpg, any
+## hash-algorithm provided by gpg (currently md5, sha1, sha256, sha384,
+## sha512, ripemd160
+##
+##           SOURCE=blah
+##          SOURCE2=blah.asc
+##       SOURCE_URL=http://blah.com/$SOURCE
+##      SOURCE2_URL=http://blah.com/$SOURCE2
+##       SOURCE_GPG=blah.gpg:$SOURCE2:UPSTREAM_KEY
+##   SOURCE2_IGNORE=signature # for auditing purposes
+##
+##           SOURCE=blah
+##       SOURCE_URL=http://blah.com/$SOURCE
+##       SOURCE_GPG=swoolley.gpg:$SOURCE.asc:WORKS_FOR_ME
+##
+##           SOURCE=blah
+##       SOURCE_URL=http://blah.com/$SOURCE
+##           MD5[0]=d41d8cd98f00b204e9800998ecf8427e
+##
+##           SOURCE=blah
+##       SOURCE_URL=http://blah.com/$SOURCE
+##       SOURCE_HASH=md5:d41d8cd98f00b204e9800998ecf8427e:WORKS_FOR_ME
+##
+## In GPG mode:
+##   Validates the verification level (the third parameter) and the
+##   hash algorithm against user defined lists.
+##   It finds the public key and signature using locate_spell_file,
+##   Then it validates it at the beginning.
+##   see unpack_gpg()
+##
+## In HASH mode:
+##   Validates the verification level (the third parameter) and the
+##   hash algorithm against user defined lists.
+##   It uses gpg to calculate the hash value except for md5 and sha1, which
+##   coreutils provides.
+##   see unpack_hash()
+##
+## In IGNORE mode:
+##   It checks for the following text:
+##     volatile (for cvs/svn/any-other-scm)
+##     unversioned (the source file changes frequently, but not a direct scm)
+##     signature (for gnupg signatures)
+##   as reasons for ignoring the source code validation.  Signatures
+##   are silently ignored.  Everything else respects MD5SUM_DL.
+##   see unpack_ignore
+##
+## Otherwise, it falls back to MISSING mode, see unpack_missing
+## (or for now)
+## Otherwise, it falls back to old uncompressed md5sum check with MD5[n].
+##   see real_unpack()
+##
+## The default verification level is "WORKS_FOR_ME"
+##
+## Verification levels are, these indicate how much effort was put into
+## validating the integrity of the source from the upstream vendor.
+##   WORKS_FOR_ME No verification was done.
+##   UPSTREAM_HASH Checked the upstream hash file
+##   UPSTREAM_KEY Checked upstream (gpg) key, signature matched, but the
+##                key was not validated
+##   ESTABLISHED_UPSTREAM_KEY Upstream key was not validated against
+##                            multiple independent sources, but has been
+##                            in use for several years
+##   VERIFIED_UPSTREAM_KEY Upstream key id was verified against multiple
+##                         independent sources.
+##   ID_CHECK_UPSTREAM_KEY Key was verified in person with a photo id check.
+##
+## Also if you want to include more than one signature, hash, etc, just put
+## a 2, 3, 4, etc on the end of the variable like so:
+##   SOURCE2_HASH2=...
+##
+## For cascading, currently it will still ask abort questions: a no abort
+## will make it fail over all cascades; a yes abort will have it skip to
+## the next cascades.  Missing binaries or other failures like that (error 200
+## below) will silently fail over to the next check.  The cascade order is:
+##  GPG, HASH, IGNORE, MISSING
+##
+## The cascade setup allows you to place a higher bit checksum earlier
+## in the cascade and even if the binary doesn't work it will just print
+## out an abort query which can be said no to and it will continue to
+## fail over to the lower bit checksum that should be available in
+## coreutils (like sha1/md5).  That's if you're not using gpg, which is
+## preferred.  If multiple hashes are included of different ciphers, the
+## user can abort on either that go bad, so it can be considered a
+## security increase to have more than one, but only if the harder cipher
+## is first in the cascade order, as the first successful hash match will
+## go ahead and prompt an untarball.  It may change later, but for now we
+## think the first successful match skipping the rest is least intrusive, and
+## I'd need to add an interface element to let the user choose to run all
+## checks on a single source.
 ##
 #---------------------------------------------------------------------
 function unpack_file () {
