@@ -249,9 +249,40 @@ function toggle_depends_status() {
   local t_status
   lock_start_transaction "$depends_status" t_status
   awk -F ':' -v OFS=':' \
-    '/^'$spell:$dependency'(\([^:]*\))?:(on|off):(optional|suggest):/ \
+    '/^'$spell:$dependency':(on|off):(optional|suggest):/ \
       { if ($3 == "on") $3 = "off"; else $3 = "on"; }
     { print; }' $depends_status > $t_status
+  lock_commit_transaction "$depends_status"
+}
+
+#---------------------------------------------------------------------
+## Changes the $spell's provider of $feature to a $new one. Can also
+## toggle it to be enabled or disabled.
+##
+## @param depends file
+## @param spell
+## @param new provider
+## @param feature
+## @param on/off
+##
+#---------------------------------------------------------------------
+function change_spell_provider() {
+  local depends_status=$1
+  shift
+
+  local spell new_provider feature enabled
+  esc_str "$1" spell
+  esc_str "$2" new_provider
+  esc_str "$3" feature
+  enabled=$4
+
+  local t_status
+  lock_start_transaction "$depends_status" t_status
+  if [[ -z $enabled ]]; then
+    sed -i "s/^$spell:[^:]*($feature):/$spell:$new_provider($feature):/" $t_status
+  else
+    sed -i "s/^$spell:[^:]*($feature):[^:]*:/$spell:$new_provider($feature):$enabled:/" $t_status
+  fi
   lock_commit_transaction "$depends_status"
 }
 

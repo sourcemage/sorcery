@@ -709,6 +709,34 @@ function codex_set_current_spell_by_name()  {
   [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  $SPELL_NAME
 }
 
+#---------------------------------------------------------------------
+## @param spell name
+## Returns the features a spell is a provider off.
+## Example, firefox: GECKO, GRAPHICAL-WEB-BROWSER, WEB-BROWSER,
+##                   NS-PLUGIN-COMPATIBLE
+##
+#---------------------------------------------------------------------
+function codex_find_spell_provides() {
+  local spell="$1"
+  local feature grimoire
+  local features=$(
+    for grimoire in $(codex_get_all_grimoires);  do
+      gawk '/\/'$spell'$/ { print $1 }' \
+        "$grimoire/$PROVIDE_INDEX_FILE"
+    done | sort -u)
+
+  # filter out providers we dont want, so far this is:
+  # a) spells that do not provide something in the first grimoire they are
+  # found in (see note in find_providers)
+  local spell_path=$(codex_find_spell_by_name $spell)
+  smgl_dirname $(smgl_dirname $spell_path) grimoire
+  for feature in $features; do
+    # ensure the first place we look for the spell is a provider
+    grep -q "^$feature $spell_path$" $grimoire/$PROVIDE_INDEX_FILE &&
+      echo $feature
+  done
+}
+
 
 ##############################CACHE FUNCTIONS#########################
 #---------------------------------------------------------------------

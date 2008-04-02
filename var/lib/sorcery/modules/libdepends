@@ -581,9 +581,28 @@ function private_upward_depends() {
   fi
 }
 
+# shared code for both loops in private_recast_optionals
+private_recast_optionals_sub() {
+  local spell="$1"
+  local message="$2"
+
+  enabled=""
+  message "$message"
+  if [[ $RECAST_OPTIONALS == always ]]; then
+    enabled=yes
+  else
+    local default=n
+    [[ $RECAST_OPTIONALS == ask-yes ]] && default=y
+    if query "Recast $spell with the dependency enabled?" $default; then
+      enabled=yes
+    fi
+  fi
+}
+
 #---------------------------------------------------------------------
 ## Find spells that optionally depended on the current spell but had the
 ## dependency disabled, ask if the user wants to recast the spell.
+## Also finds disabled features that the current spell is a provider of.
 #---------------------------------------------------------------------
 function private_recast_optionals() {
   if [[ $RECAST_OPTIONALS ]] && [[ $RECAST_OPTIONALS != ignore ]] ; then
@@ -591,28 +610,42 @@ function private_recast_optionals() {
     let j=${#NEW_UP_DEPENDS[*]}
     for spell in $(search_depends_status_exact $DEPENDS_STATUS \
                  '.*' "$1\(([^:]*)\)\?" off optional '.*' '.*'|cut -f1 -d:); do
-
-      enabled=""
-      message "$spell" "has a disabled optional dependency on" "$1"
-      if [[ $RECAST_OPTIONALS == always ]] ; then
-        enabled=yes
-      else
-        local default=n
-        [[ $RECAST_OPTIONALS == ask-yes ]] && default=y
-        if query "Recast $spell with dependency enabled?" $default ; then
-          enabled=yes
-        fi
-      fi
+      private_recast_optionals_sub $spell \
+        "$spell has a disabled optional dependency on $1"
       if [[ $enabled ]] ; then
         NEW_UP_DEPENDS[$j]=$spell
         let j++
         # toggle the dependency, so the user doesn't get requeried
-        toggle_depends_status $DEPENDS_STATUS $spell $1
+        toggle_depends_status $DEPENDS_STATUS $spell "$1(\([^:]*\))?"
+        spells=( ${spells[*]} $spell )
+      fi
+    done
+
+    # also check for disabled features that $1 is a provider of
+    local features feature_regex
+    # get the features and build a regex for quicker lookup
+    features=$(codex_find_spell_provides $1)
+    for feature in $features; do
+      feature_regex="$feature\|$feature_regex"
+    done
+    feature_regex=${feature_regex%\\|}
+    for spell in $(search_depends_status_exact $DEPENDS_STATUS \
+                '.*' "($feature_regex)" off optional '.*' '.*'|cut -f1 -d:|sort -u); do
+      private_recast_optionals_sub $spell \
+        "$spell has a disabled optional dependency on $1 as a provider"
+      if [[ $enabled ]] ; then
+        NEW_UP_DEPENDS[$j]=$spell
+        let j++
+        # toggle all the features that $1 provides and set $1 as their provider
+
+for feature in $features; do
+  change_spell_provider $DEPENDS_STATUS $spell "$1" "$feature" "on"
+done
+
         spells=( ${spells[*]} $spell )
       fi
     done
   fi
-
 }
 
 ###################BEGIN CALLBACKS FROM OUTSIDE#######################
