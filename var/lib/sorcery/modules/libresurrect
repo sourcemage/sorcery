@@ -12,19 +12,15 @@
 
 #---------------------------------------------------------------------
 ## @param spellname
-## determines if a particular version of a spell can be cast
-## test -f $INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar.bz2
+## determines if a particular version of a spell can be resurrected
 #---------------------------------------------------------------------
 function can_resurrect()  {
   debug "libresurrect" "can_resurrect - $*"
   local SPELL=$1
   local VERSION=$2
 
-  # FIXME accept files of other extensions
-  local file=$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar$EXTENSION &&
-  test -f $file &&
-  echo $file &&
-  debug "libresurrect" "I am able to resurrect." &&
+  find_cache "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" || return 1
+  debug "libresurrect" "I am able to resurrect."
   return 0
 }
 
@@ -119,13 +115,7 @@ function resurrect()  { (
   # note: tarballs are cached relative to $INSTALL_ROOT and $STATE_ROOT
   # eg, with no special prefix, however install logs are relative to
   # track_root and state root (isnt this fun?)
-
-  # FIXME get a generic routine to unpack this stuff
-  if  [  -n  "$EXTENSION"  ];  then
-    $COMPRESSBIN   -cd   $CACHE_COMP  |  tar  -x  1>/dev/null  2>&1
-  else
-    tar  -xf  $CACHE_COMP  1>/dev/null  2>&1
-  fi || {
+  uncompress_unpack_cache $CACHE_COMP || {
     message "Failed to unpack $CACHE_COMP"
     resurrect_fail
     return 1

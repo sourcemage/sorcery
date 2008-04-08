@@ -31,7 +31,7 @@ EOF
   MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
   C_LOG=$TMP_DIR/$SPELL-$VERSION.compile.log
   C_LOG_COMP=$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
-  CACHE=$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar
+  construct_cache_name "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE
   CACHE_COMP=${CACHE}${EXTENSION}
   rm -f  "$C_LOG" 2> /dev/null
   touch  "$C_LOG"
@@ -136,13 +136,16 @@ function alter_md5_mend() {
         sed -e 's/.*/\\:&: d/' |
         sed -i -f - "$MD5SUM_LOGS/$SPVER"
         if [ "$ARCHIVE" != "off" ]; then
-          if [ "$COMPRESSBIN" == "tar" ]; then
+          local cache
+          find_cache "$INSTALL_CACHE/$SPVER-" cache
+          local compressor=$(guess_compressor "$cache")
+          if [[ $compressor == tar ]]; then
             echo "$SPFLS" |
-              tar -f $INSTALL_CACHE/$SPVER-*.tar \
+              tar -f $cache \
               -kx -T /dev/stdin -C "$STORE" 2> /dev/null
           else
             echo "$SPFLS" |
-              tar --"$COMPRESSBIN" -f $INSTALL_CACHE/$SPVER-*.tar$EXTENSION \
+              tar --use-compress-program $compressor -f $cache \
               -kx -T /dev/stdin -C "$STORE" 2> /dev/null
           fi
         fi
@@ -162,7 +165,7 @@ function alter_md5_mend() {
       echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL-$VERSION-backup.md5"
       find * > "$INST_LOG"
       create_md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
-      CACHE="$INSTALL_CACHE/$SPELL-$VERSION-$HOST.tar"
+      construct_cache_name "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE
       CACHE_COMP="${CACHE}${EXTENSION}"
       # No install log nor compile cache needed or wanted since we are
       # only doing md5sum deletions from other spells, the undeleted

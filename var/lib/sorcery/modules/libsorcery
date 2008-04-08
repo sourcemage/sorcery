@@ -373,7 +373,6 @@ function release_saved_libraries()  {
 #---------------------------------------------------------------------
 ##
 ## Recovers from a CTRL-C while casting a spell
-## FIXME: this should be a resurrect
 ##
 #---------------------------------------------------------------------
 function spell_recover()  {
@@ -381,36 +380,16 @@ function spell_recover()  {
   debug  "libsorcery" "Running spell_recover()"
 
   message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL}" \
-           "${MESSAGE_COLOR} and recovering${DEFAULT_COLOR}"
+           "${MESSAGE_COLOR}and recovering...${DEFAULT_COLOR}"
 
-  CURRENT_VERSION=$(installed_version  $SPELL)
-  CACHE_COMP="$INSTALL_CACHE/$SPELL-$CURRENT_VERSION-$HOST.tar$EXTENSION"
-  CONTINUE=false
-
-  if    [  !      -f  $CACHE_COMP   ];  then
-    false
-  elif  [         -n  "$EXTENSION"  ];  then
-    CONTINUE=true
-  elif  $COMPRESSBIN  -tf  $CACHE_COMP
-  then
-    CONTINUE=true
-  fi
-
-  if  $CONTINUE
-  then
-
-    if  [  -n  "$EXTENSION"  ];  then
-      $COMPRESSBIN  -cd  $CACHE_COMP  |  tar  -Pkx  2>/dev/null
-    else
-      tar  -Pkxf  $CACHE_COMP  2>/dev/null
-    fi
-    add_spell  $SPELL  installed  $CURRENT_VERSION
-  else
-    false
-  fi
+  unlock_resources "libgrimoire" "install"
+  unlock_resources "cast" "$SPELL"
+  unlock_resources "solo" "cast"
+  local current_version=$(installed_version $SPELL)
+  SUCCESS_LIST=/dev/null
+  resurrect $SPELL $current_version
 
   exit  130
-
 }
 
 
@@ -1575,12 +1554,18 @@ function set_compression_type() {
 
       B)  modify_local_config "COMPRESSBIN" "bzip2"  &&
           COMPRESSBIN="bzip2"                        &&
-          modify_local_config "EXTENSION" ".bz2"     ;;
+          modify_local_config "EXTENSION" ".bz2"     &&
+          ARCHIVEBIN="tar"                           &&
+          modify_local_config "ARCHIVEBIN" "tar"     ;;
       G)  modify_local_config "COMPRESSBIN" "gzip"   &&
           COMPRESSBIN="gzip"                         &&
-          modify_local_config "EXTENSION" ".gz"      ;;
-      T)  modify_local_config "COMPRESSBIN" "tar"    &&
-          COMPRESSBIN="tar"                          &&
+          modify_local_config "EXTENSION" ".gz"      &&
+          ARCHIVEBIN="tar"                           &&
+          modify_local_config "ARCHIVEBIN" "tar"     ;;
+      T)  modify_local_config "ARCHIVEBIN" "tar"     &&
+          ARCHIVEBIN="tar"                           &&
+          modify_local_config "COMPRESSBIN" ""       &&
+          COMPRESSBIN=""                             &&
           modify_local_config "EXTENSION" ""         ;;
 
     esac

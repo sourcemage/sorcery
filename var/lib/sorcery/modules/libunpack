@@ -595,31 +595,50 @@ function unpack_missing() {
 
 }
 
+#---------------------------------------------------------------------
+## @param file to unpack
+##
+## Given a cache file, runs the decompression and the unarchival
+## program on it. A wrapper around uncompress_unpack
+##
+#---------------------------------------------------------------------
+function uncompress_unpack_cache() {
+  uncompress_unpack "$1" root "cache" silent
+}
 
 #---------------------------------------------------------------------
 ## @param file to unpack
+## @param (optional) dirname of the file (default: $SOURCE_CACHE)
+##                   'root' if you already have an absolute path
+## @param (optional) type (default: source)
+## @param (optional) if 'silent' doesn't print the messages (default off)
 ##
 ## Given a file, runs the decompression program for that file, as well as
 ## untar'ing the file.
 ##
 #---------------------------------------------------------------------
 function uncompress_unpack() {
-  debug "libgrimoire" "Running uncompress_unpack() on $1"
+  debug "libgrimoire" "Running uncompress_unpack() on $@"
 
-  FILENAME="$(   guess_filename   "$SOURCE_CACHE/$1" )" &&
-  COMPRESSOR="$( guess_compressor "$FILENAME"        )"
+  local basedir
+  [[ $2 == root ]] || basedir=$SOURCE_CACHE
+  local filename=$(guess_filename "$basedir/$1") &&
+  local compressor=$(guess_compressor "$filename")
+  local type=${3:-source}
 
-  message "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"   \
-          "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
-          "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  if [[ $4 != silent ]]; then
+    message "${MESSAGE_COLOR}Unpacking $type file ${SPELL_COLOR}${1}"   \
+            "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
+            "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  fi
 
-  if [[ ! $FILENAME ]] || ! test -f "$FILENAME" ; then
-    message "${PROBLEM_COLOR}Source file not found.${DEFAULT_COLOR}"
+  if [[ ! -f $filename ]]; then
+    error_message "$PROBLEM_COLOR$type file not found!$DEFAULT_COLOR"
     return 1
   fi
 
-  uncompress_core "$FILENAME" "$COMPRESSOR" |
-      unpack_core "$FILENAME" "$COMPRESSOR"
+  uncompress_core "$filename" "$compressor" |
+      unpack_core "$filename" "$compressor"
 }
 
 #---------------------------------------------------------------------

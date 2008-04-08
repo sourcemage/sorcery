@@ -333,13 +333,61 @@ function check_if_modified() {
   fi
 }
 
+#---------------------------------------------------------------------
+## Constructs the to-be cache name depending on the ARCHIVEBIN
+## @param archive name
+## @param upvar
+#---------------------------------------------------------------------
+function construct_cache_name() {
+  local name=$1
+  if [[ -n $ARCHIVEBIN ]]; then
+    # just use the bin, currently there is no need for another extension
+    name="$name.$ARCHIVEBIN"
+  fi
+  upvar $2 "$name"
+}
+
+#---------------------------------------------------------------------
+## Given a filename, will return the actual filename if a similar
+## filename with a different extension exists. A more thorough version
+## of guess_filename used for finding caches
+## @param archive name (can be right trimmed, globbing will be done)
+## @param upvar (optional)
+#---------------------------------------------------------------------
+function find_cache() {
+  debug "libtrack" "$FUNCNAME $@"
+  local filename=$1
+  local real_name
+
+  if [[ -f  $filename ]]; then
+    real_name=$filename
+  else
+    # use the first if more were found
+    local basename
+    smgl_basename "$filename" basename
+    read real_name < <(find $INSTALL_CACHE -type f -name "$basename*")
+  fi
+  [[ -z $real_name ]] && return 1
+  debug "libtrack" "$FUNCNAME found $real_name"
+
+  if [[ -z $2 ]]; then
+    echo $real_name
+  else
+    upvar $2 "$real_name"
+  fi
+  return 0
+}
 
 #---------------------------------------------------------------------
 ##
 ## Creates a bzip/gzip'ed tar file containing an archived backup of
-## file specified on standard input into $CACHE_COMP
-## @stdin files, one per line, to put into the archive
-## @param directory input files are relative to install root for regular files state root for state files
+## file specified on standard input into the target dir.
+##
+## Input files are relative to install root for regular files and
+## state root for state files
+## @param files, one per line, to put into the archive
+## @param archive name
+## @param compressed archive name
 ##
 #---------------------------------------------------------------------
 function create_cache_archive()  {
@@ -361,20 +409,27 @@ function create_cache_archive()  {
   local TMP_MDATA=$TMP_DIR/foo.mdata
   seperate_state_files $input $TMP_DATA $TMP_MDATA
 
-  pushd $STATE_ROOT/ &>/dev/null
-  install_log_filter $STATE_ROOT "." < $TMP_MDATA |
-  tar --no-recursion -cPf "$CACHE" -T -
-  popd &>/dev/null
+  case "$ARCHIVEBIN" in
+    tar)
+      pushd $STATE_ROOT/ &>/dev/null
+      install_log_filter $STATE_ROOT "." < $TMP_MDATA |
+      tar --no-recursion -cPf "$CACHE" -T -
+      popd &>/dev/null
 
-  pushd $INSTALL_ROOT/ &>/dev/null
-  install_log_filter $INSTALL_ROOT "." < $TMP_DATA |
-  tar --no-recursion -rPf "$CACHE" -T -
+      pushd $INSTALL_ROOT/ &>/dev/null
+      install_log_filter $INSTALL_ROOT "." < $TMP_DATA |
+      tar --no-recursion -rPf "$CACHE" -T -
+      popd &>/dev/null
+      ;;
+  esac
   rm $TMP_DATA $TMP_MDATA
-  popd &>/dev/null
-  if  [  "$COMPRESSBIN" != "tar"  ]; then
-    $COMPRESSBIN -c $CACHE > $CACHE_COMP
-    rm $CACHE
-  fi
+
+  case "$COMPRESSBIN" in
+    gzip|bzip2)
+      $COMPRESSBIN -c $CACHE > $CACHE_COMP
+      rm $CACHE
+      ;;
+  esac
 }
 
 #---------------------------------------------------------------------
