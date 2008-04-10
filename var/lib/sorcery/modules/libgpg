@@ -104,11 +104,11 @@ function gpg_get_grimoire_key() {
 ## Verify a grimoire tarball's gpg signature
 ## @param file on local disk to verify
 ## @param url from which to get the signature
-## @param (optional) grimoire branch, if derive it from the filename with ${SOURCE%%*.}
+## @param (optional) grimoire branch, if empty derive it from the filename with ${SOURCE%%.*}
 ## @param (optional) signature file, if empty download $SOURCE.$GPG_SIG_EXT from $2
 ## @return 0 on success, non-zero on failure:
 ## @return 1 verification failed
-## @return 2 verification is disabled
+## @return 201 verification is disabled
 ## @return 254 no keyring found
 ## @return 255 could not download signature
 ## @return anything else see gpg_verify_signature
@@ -256,7 +256,7 @@ function gpg_verify_common() {
     url_download "$SIG_FILE" "$SIG_URL" "file" gpg_target gpg_type &&
     [[ $gpg_type == file ]] ||
     {
-      message "Failed to get gpg signature! verification is impossible"
+      message "Failed to get gpg signature! verification is impossible!"
       return 255
     }
     [[ "$gpg_target" != $SIG_FILE ]] && mv "$gpg_target" "$SIG_FILE"

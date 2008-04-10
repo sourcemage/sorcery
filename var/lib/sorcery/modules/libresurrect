@@ -198,10 +198,11 @@ function resurrect()  { (
     SPELL_CONFIG_FILTER=$SCRIPT_DIRECTORY/configs
     SECTION_CONFIG_FILTER=$SECTION_DIRECTORY/configs
     GRIMOIRE_CONFIG_FILTER=$GRIMOIRE/configs
-    # loading the spell may give us a different version which we dont want
   fi
   local CONFIG_FILTERS="$GRIMOIRE_CONFIG_FILTER $SECTION_CONFIG_FILTER $SPELL_CONFIG_FILTER"
-  VERSION=${VERSION:-TMP_VERSION}
+  # loading the spell may give us a different version which we dont want
+  # TODO: check if the below line should be inversed wrt the previous comment
+  VERSION=${VERSION:-$TMP_VERSION}
 
   # 6) find the cache's install log and divide it up every way imaginable
   if ! [[ $OLD_TABLET_DIR ]] ; then
@@ -213,7 +214,7 @@ function resurrect()  { (
   else
     local NEW_INSTALL_LOG=${INSTALL_LOGS#$STATE_ROOT/}/$SPELL-$VERSION
     test -f $NEW_INSTALL_LOG || {
-      message "No install log found in unpacked cache, expected $INSTALL_LOG"
+      message "No install log found in unpacked cache, expected $NEW_INSTALL_LOG"
       resurrect_fail
       return 1
     }
