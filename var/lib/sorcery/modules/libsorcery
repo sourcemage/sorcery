@@ -1146,14 +1146,14 @@ function fix_installed_spells()  {
 ##
 #---------------------------------------------------------------------
 function log_list()  {
-
-  for  LINE  in  `all_spell_status`;  do
-    SPELL=`echo  $LINE  |  cut  -d  :  -f1`
-      VER=`echo  $LINE  |  cut  -d  :  -f4`
-    echo  "$SPELL-$VER"
-    echo  "$SPELL-$VER$EXTENSION"
-  done
-
+  local spell version
+  while read spell version; do
+    # the install and md5sum logs are not compressed
+    echo "$spell-$version"
+    # the compile log usually is compressed
+    # FIXME $EXTENSION may be the wrong one if the user changed it
+    echo "$spell-$version$EXTENSION"
+  done < <(all_spell_status | cut -d: -f1,4 --output-delimiter=" ")
 }
 
 
