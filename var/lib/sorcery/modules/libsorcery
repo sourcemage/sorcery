@@ -817,6 +817,7 @@ function list_install_queue() {
   if  [  -f  $INSTALL_QUEUE  ];  then
     lock_file $INSTALL_QUEUE
 
+    echo
     message -n "The following spells will be updated:"
     message "${SPELL_COLOR}"
     cat  $INSTALL_QUEUE | column
@@ -838,7 +839,7 @@ function list_install_queue() {
 
 #---------------------------------------------------------------------
 ## Frontend routine to encapsulate whether or not a spell needs updating
-##
+## Used by lazy dependency resolution
 #---------------------------------------------------------------------
 function does_spell_need_update() {
   local line curr_updated curr_version status
@@ -849,6 +850,7 @@ function does_spell_need_update() {
     line=$(search_spell_status $SPELL_STATUS $spell)
     codex_set_current_spell_by_name  $spell
     explode "$line" ":" "info"
+    VERBOSE_QUEUING=on # safe override since we're in a subshell
     does_spell_need_update_sub "$spell" "${info[3]}" "${info[1]}" /dev/null
   )
 }
@@ -863,7 +865,12 @@ function does_spell_need_update_sub() {
   local curr_version=$2
   local curr_updated=$3
   local tmp_queue=$4
+  local message="$SPELL_COLOR$spell$DEFAULT_COLOR:"
   if  [[ $VERSION != $curr_version ]] ; then
+    if [[ $VERBOSE_QUEUING == on ]]; then
+      clear_line
+      message "$message New version ($VERSION)."
+    fi
     echo $spell >> $tmp_queue
     return 0
   else
@@ -875,13 +882,21 @@ function does_spell_need_update_sub() {
       tablet_get_patchlevel $page_dir curr_patchlevel
       tablet_get_security_patch $page_dir curr_sec_patch
     fi
-    if (( "${PATCHLEVEL:-0}" >  "$curr_patchlevel" )) ||
-       # the following is subject to change
-       (( "${SECURITY_PATCH:-0}" >  "$curr_sec_patch" )) ||
-       (( "${UPDATED:-0}" >  "${curr_updated:-0}" )) ; then
-      echo $spell >> $tmp_queue
-      return 0
+    if (( "${SECURITY_PATCH:-0}" > "$curr_sec_patch" )); then
+      message="$message Security update."
+    elif (( "${PATCHLEVEL:-0}" > "$curr_patchlevel" )); then
+      message="$message Spell update."
+    elif (( "${UPDATED:-0}" > "${curr_updated:-0}" )); then
+      message="$message UPDATED changed."
+    else
+      return 1
     fi
+    if [[ $VERBOSE_QUEUING == on ]]; then
+      clear_line
+      message "$message"
+    fi
+    echo $spell >> $tmp_queue
+    return 0
   fi
   return 1
 }
@@ -899,7 +914,7 @@ function update_install_queue()  {
   local tmp_queue=$TMP_DIR/install_queue
   touch $tmp_queue
 
-  message  "${CHECK_COLOR}Generating list of spells to update... ${DEFAULT_COLOR} "
+  message  "${CHECK_COLOR}Generating the list of spells to update... ${DEFAULT_COLOR} "
   count=0
   size=$(all_spell_status | wc -l)
   for  line  in  `all_spell_status`;  do
@@ -934,7 +949,7 @@ function update_security_install_queue()  {
   local tmp_queue=$TMP_DIR/install_queue
   touch $tmp_queue
 
-  message  "${CHECK_COLOR}Generating list of spells to update for" \
+  message  "${CHECK_COLOR}Generating the list of spells to update for" \
            "security reasons... ${DEFAULT_COLOR} "
   for  line  in  `all_spell_status`;  do
     #0=spell, 1=date, 2=status, 3=version
