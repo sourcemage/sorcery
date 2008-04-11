@@ -201,8 +201,10 @@ function resurrect()  { (
   fi
   local CONFIG_FILTERS="$GRIMOIRE_CONFIG_FILTER $SECTION_CONFIG_FILTER $SPELL_CONFIG_FILTER"
   # loading the spell may give us a different version which we dont want
-  # TODO: check if the below line should be inversed wrt the previous comment
-  VERSION=${VERSION:-$TMP_VERSION}
+  if [[ $VERSION != $TMP_VERSION ]]; then
+    debug "libresurrect" "restoring VERSION from $VERSION to $TMP_VERSION"
+  fi
+  VERSION=$TMP_VERSION
 
   # 6) find the cache's install log and divide it up every way imaginable
   if ! [[ $OLD_TABLET_DIR ]] ; then
