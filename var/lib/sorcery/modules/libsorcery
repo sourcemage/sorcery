@@ -1187,20 +1187,19 @@ function clean_logs()  {
 ## Updates the activity log.
 ##
 #---------------------------------------------------------------------
-function activity_log()  { (
+function activity_log() {
+  local date command spell version outcome info
 
   lock_file $ACTIVITY_LOG
-
-     DATE=`date  -u  +%Y%m%d:%H%M\(%z\)`
-  COMMAND=$1
-    SPELL=$2
-  VERSION=$3
-  OUTCOME=$4
-     INFO=$5
-
-  echo  -e "$DATE\t$COMMAND\t$SPELL\t$VERSION\t$OUTCOME\t$INFO"  >> $ACTIVITY_LOG
+     date=$(date -u +%Y%m%d:%H%M\(%z\))
+  command=$1
+    spell=$2
+  version=$3
+  outcome=$4
+     info=$5
+  echo -e "$date\t$command\t$spell\t$version\t$outcome\t$info" >> $ACTIVITY_LOG
   unlock_file $ACTIVITY_LOG
-) }
+}
 
 
 #---------------------------------------------------------------------
