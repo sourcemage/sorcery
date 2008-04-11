@@ -37,6 +37,7 @@ reindex         [grimoire]       Recreates the list of spells
 reindex-keyword [grimoire]       Recreates keyword listing
                                  (official grimoires should come with
                                  a keyword listing already)
+reindex-version [grimoire]       Recreates the version listing
 
 index                            Prints list of grimoires
 
@@ -517,6 +518,33 @@ function scribe_reindex_keyword() {
 }
 
 #---------------------------------------------------------------------
+## scribe_reindex_version
+##
+## Recreate the version index
+##
+## @param grimoire names, if none all grimoires
+##
+#---------------------------------------------------------------------
+function scribe_reindex_version() {
+  local paths=""
+  local grimoire grimoires grim
+  if [[ $@ ]] ; then
+    grimoires="$@"
+  else
+    grimoires=$(codex_get_all_grimoires)
+  fi
+
+  for grim in $grimoires; do
+    if ! grimoire=$(codex_find_grimoire $grim) ; then
+      error_message "Grimoire $grim not found!"
+      return 1
+    fi
+    message -n "Reindexing versions for $grim ..."
+    codex_create_version_cache "$grimoire"
+  done
+  message "done."
+}
+#---------------------------------------------------------------------
 ## scribe_remove
 ##
 ## remove a grimoire from the codex
@@ -720,6 +748,7 @@ function find_function()  {
            i|in|ind|inde|index) FUNCTION="index";;
           l|loc|local|localize) FUNCTION="localize";;
                reindex-keyword) FUNCTION="reindex-keyword";;
+               reindex-version) FUNCTION="reindex-version";;
       rei|reind|reinde|reindex) FUNCTION="reindex";;
       rm|rem|remo|remov|remove) FUNCTION="remove" ;;
                         se|set) FUNCTION="set";;
@@ -752,6 +781,7 @@ function main() {
       localize) scribe_localize $@ ;;
        reindex) scribe_reindex $@ ;;
 reindex-keyword) scribe_reindex_keyword $@ ;;
+reindex-version) scribe_reindex_version $@ ;;
         remove) scribe_remove $@ ;;
            set) scribe_set $@ ;;
           swap) scribe_swap $@ ;;

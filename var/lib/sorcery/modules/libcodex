@@ -957,6 +957,24 @@ function codex_create_keyword_cache () { (
 ) }
 
 #---------------------------------------------------------------------
+## @param grimoire-path
+## Creates the version index, which additionally includes the other
+## queuing factors - patchlevels and UPDATED.
+##
+## Multiversioned spells will have only one, random entry. Persistent
+## variables are ignored.
+#---------------------------------------------------------------------
+function codex_create_version_cache () { (
+    grimoire="$1"
+
+    for file in $(codex_find_in_grimoire "$grimoire" DETAILS); do
+      unset SPELL VERSION PATCHLEVEL SECURITY_PATCH UPDATED
+      source "${file%DETAILS}"
+      echo "$SPELL $VERSION ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
+    done | sort > $grimoire/$VERSION_INDEX_FILE
+) }
+
+#---------------------------------------------------------------------
 ## @param servicename
 ## @return 0 if service exists
 ## @return 1 otherwise
