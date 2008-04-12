@@ -597,9 +597,11 @@ function private_recast_optionals() {
         fi
       fi
       if [[ $enabled ]] ; then
-        NEW_UP_DEPENDS[$j]=$each
+        NEW_UP_DEPENDS[$j]=$spell
         let j++
-        remove_depends_status $DEPENDS_STATUS $each "${1}\(([^:]*)\)\?"
+        # toggle the dependency, so the user doesn't get requeried
+        toggle_depends_status $DEPENDS_STATUS $spell $1
+        spells=( ${spells[*]} $spell )
       fi
     done
   fi
