@@ -1169,10 +1169,12 @@ function log_list()  {
   local spell version
   while read spell version; do
     # the install and md5sum logs are not compressed
-    echo "$spell-$version"
-    # the compile log usually is compressed
+    echo "$INSTALL_LOGS/$spell-$version"
+    echo "$MD5SUM_LOGS/$spell-$version"
+    # the compile and castfs log usually are compressed
     # FIXME $EXTENSION may be the wrong one if the user changed it
-    echo "$spell-$version$EXTENSION"
+    echo "$COMPILE_LOGS/$spell-$version$EXTENSION"
+    echo "$COMPILE_LOGS/$spell-$version.castfs.dbglog$EXTENSION"
   done < <(all_spell_status | cut -d: -f1,4 --output-delimiter=" ")
 }
 
@@ -1183,35 +1185,22 @@ function log_list()  {
 ##
 #---------------------------------------------------------------------
 function clean_logs()  {
-
-  message "${CHECK_COLOR}Cleaning log files... ${DEFAULT_COLOR} "
-
   debug  "libsorcery" "Running clean_logs()"
+  local file
 
-  LOGS=`log_list`
+  message "${CHECK_COLOR}Cleaning log files...$DEFAULT_COLOR"
 
-  for  FILE  in  `ls  $INSTALL_LOGS`;  do
-    if  !  echo  -e  "$LOGS"  |  grep  -q  "^$FILE$";  then
-      message  "Removing stale log  :  $INSTALL_LOGS/$FILE "
-      rm                               $INSTALL_LOGS/$FILE
-    fi
-  done
-
-  for  FILE  in  `ls  $COMPILE_LOGS`;  do
-    if  !  echo  -e  "$LOGS"  |  grep  -q  "^$FILE$";  then
-      message  "Removing stale log  :  $COMPILE_LOGS/$FILE "
-      rm                               $COMPILE_LOGS/$FILE
-    fi
-  done
-
-  for  FILE  in  `ls  $MD5SUM_LOGS`;  do
-    if  !  echo  -e  "$LOGS"  |  grep  -q  "^$FILE$";  then
-      message  "Removing stale log  :  $MD5SUM_LOGS/$FILE "
-      rm                               $MD5SUM_LOGS/$FILE
-    fi
+  {
+    # don't try to delete logs of installed spells, as they may not exist
+    # tee duplicates the output, so uniq will filter them out
+    log_list | tee /dev/stdout
+    find $INSTALL_LOGS $MD5SUM_LOGS $COMPILE_LOGS -type f
+  } | sort | uniq -u |
+  while read file; do
+    message "Removing stale log: $file"
+    rm "$file"
   done
 }
-
 
 #---------------------------------------------------------------------
 ##
