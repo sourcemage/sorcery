@@ -130,7 +130,16 @@ function gpg_verify_grimoire() {
 
   local SOURCE=$(basename $FILENAME)
 
-  test -z $BRANCH && BRANCH=${SOURCE%%.*}
+  if [[ -z $BRANCH ]]; then
+    # deduce the name of the branch from the tarball (stable-rc-0.19.tar.bg2)
+    # asumes double extension (like .tar.gz)
+    # asumes no numbers preceded by a dash in the name
+    # asumes dash as the delimiter between the name and the optional version
+    # asumes version starts with a number
+    BRANCH=${SOURCE%.*}
+    BRANCH=${BRANCH%.*}
+    BRANCH=${BRANCH%-[0-9]*}
+  fi
 
   local gpg_pub_key=$(gpg_get_grimoire_key $BRANCH)
   if test -z $gpg_pub_key && test -f $gpg_pub_key ; then
