@@ -612,6 +612,22 @@ function resurrect_success() {
   # add packages line
   add_spell "$SPELL" "installed" "$VERSION"
 
+  tablet_check_version_cache "$VERSION_STATUS" &&
+  (
+    if tablet_find_spell_dir $SPELL tablet_page && [[ $new_tablet ]]; then
+      tablet_get_patchlevel $page_dir PATCHLEVEL
+      tablet_get_security_patch $page_dir SECURITY_PATCH
+      tablet_get_updated $page_dir UPDATED
+    else
+      # we don't have a good tablet, so we don't know what we just resurrected
+      # insert dummy values
+      UPDATED=0
+      PATCHLEVEL=0
+      SECURITY_PATCH=0
+    fi
+    add_version_cache "$VERSION_STATUS" "$SPELL" "$VERSION" "$PATCHLEVEL" "$SECURITY_PATCH" "$UPDATED"
+  )
+
   pop_install_queue "$SPELL"
   echo $SPELL >> $SUCCESS_LIST
 
