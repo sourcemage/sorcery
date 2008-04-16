@@ -225,8 +225,12 @@ function unpack_core() {
 
   case  "$2"  in
             bzip2|gzip|compress*|tar)
-                    tar   --no-same-owner --no-same-permissions -xf \
-                    /dev/stdin 2> /dev/null  ||  cat > /dev/null ;;
+                    if real_list_find "$3" same-permissions; then
+                      tar -xf /dev/stdin 2> /dev/null
+                    else
+                      tar --no-same-owner --no-same-permissions -xf \
+                      /dev/stdin 2> /dev/null
+                    fi || cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
                     unzip  -q  "$1"                                    ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
@@ -603,7 +607,7 @@ function unpack_missing() {
 ##
 #---------------------------------------------------------------------
 function uncompress_unpack_cache() {
-  uncompress_unpack "$1" root "cache" silent
+  uncompress_unpack "$1" root cache same-permissions
 }
 
 #---------------------------------------------------------------------
@@ -611,7 +615,7 @@ function uncompress_unpack_cache() {
 ## @param (optional) dirname of the file (default: $SOURCE_CACHE)
 ##                   'root' if you already have an absolute path
 ## @param (optional) type (default: source)
-## @param (optional) if 'silent' doesn't print the messages (default off)
+## @param (optional) hints - used for passing hints to unpack/uncompress
 ##
 ## Given a file, runs the decompression program for that file, as well as
 ## untar'ing the file.
@@ -625,8 +629,9 @@ function uncompress_unpack() {
   local filename=$(guess_filename "$basedir/$1") &&
   local compressor=$(guess_compressor "$filename")
   local type=${3:-source}
+  local hints="$4"
 
-  if [[ $4 != silent ]]; then
+  if [[ $type != cache ]]; then
     message "${MESSAGE_COLOR}Unpacking $type file ${SPELL_COLOR}${1}"   \
             "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
             "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
@@ -637,8 +642,8 @@ function uncompress_unpack() {
     return 1
   fi
 
-  uncompress_core "$filename" "$compressor" |
-      unpack_core "$filename" "$compressor"
+  uncompress_core "$filename" "$compressor" "$hints" |
+      unpack_core "$filename" "$compressor" "$hints"
 }
 
 #---------------------------------------------------------------------
