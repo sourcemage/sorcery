@@ -961,19 +961,20 @@ function codex_create_keyword_cache () { (
 ## Creates the version index, which additionally includes the other
 ## queuing factors - patchlevels and UPDATED.
 ##
-## Multiversioned spells will have only one, random entry. Persistent
+## Multiversioned spells will have no entry. Persistent
 ## variables are ignored.
 #---------------------------------------------------------------------
 function codex_create_version_cache () { (
   grimoire="$1"
 
   for file in $(codex_find_in_grimoire "$grimoire" DETAILS); do
+    codex_get_spell_paths ${file%/DETAILS}
     source "$file" &> /dev/null
     if [[ $(grep -c "^[[:space:]]*VERSION=" "$file") == 1 ]]; then
       echo "$SPELL ${VERSION:-0} ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
     else
-      # multiversioned or unusually formatted spell
-      echo "$SPELL - - - -"
+      # multiversioned or unusually formatted spell - ignore them
+      :
     fi
     unset SPELL VERSION PATCHLEVEL SECURITY_PATCH UPDATED
   done | sort > $grimoire/$VERSION_INDEX_FILE
