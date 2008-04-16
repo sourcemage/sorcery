@@ -686,6 +686,49 @@ function tablet_check_repair_file() {
   fi
 }
 
+#---------------------------------------------------------------------
+## Creates a version cache like the one of scribe reindex-version, but
+## from the data found in the tablet
+##
+## @param file that will hold the cache
+#---------------------------------------------------------------------
+function tablet_create_version_cache() {
+  [[ -f $1 ]] && return 0
+  local file=$1
+  local page_dir
+  local spell version patchlevel security_patch updated
+
+  for spell in $(get_all_spells_with_status installed); do
+    if tablet_find_spell_dir $spell page_dir; then
+      tablet_get_version $page_dir version
+      tablet_get_patchlevel $page_dir patchlevel
+      tablet_get_security_patch $page_dir security_patch
+      tablet_get_updated $page_dir updated
+      echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
+    else
+      error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
+                    "please run cleanse --tablet and retry.$DEFAULT_COLOR"
+      return 1
+    fi
+  done | sort > $file
+}
+
+#---------------------------------------------------------------------
+## Checks for existance and on failure creates the tablet version cache
+##
+## @param cache file (usually $VERSION_STATUS)
+#---------------------------------------------------------------------
+function tablet_check_version_cache() {
+  [[ -z $1 ]] && return 1
+  local file=$1
+
+  if [[ ! -f $file ]]; then
+    message "${MESSAGE_COLOR}Creating the tablet version cache, this" \
+            "can take a while ...$DEFAULT_COLOR"
+    tablet_create_version_cache "$file"
+  fi
+}
+
 ############################ cleanse functions ########################
 
 #---------------------------------------------------------------------
