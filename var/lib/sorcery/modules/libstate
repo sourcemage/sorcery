@@ -594,6 +594,42 @@ function search_default_provider() {
 }
 
 #---------------------------------------------------------------------
+## @param cache file
+## @param spell name
+##
+## Removes the spell info from the passed file ($VERSION_STATUS)
+##
+#---------------------------------------------------------------------
+function remove_version_cache()  {
+  local file=$1
+  lock_start_transaction "$file" t_file
+  sed -i "/^$2 /d" $t_file
+  lock_commit_transaction $file
+}
+
+#---------------------------------------------------------------------
+## @param cache file
+## @param spell name
+## @param version
+## @param patchlevel
+## @param security patch
+## @param updated
+##
+## Given a spell and the factors that affect queuing, this function
+## adds the info to the passed file (usually $VERSION_STATUS)
+##
+#---------------------------------------------------------------------
+function add_version_cache()  {
+  local file=$1
+  shift
+  remove_version_cache "$file" $1
+
+  lock_start_transaction "$file" t_file
+  echo "$1 ${2:-0} ${3:-0} ${4:-0} ${5:-0}" >> $t_file
+  lock_commit_transaction $file
+}
+
+#---------------------------------------------------------------------
 ##
 ## Adds an entry to the SPELL_STATUS file
 ##
