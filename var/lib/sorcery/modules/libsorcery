@@ -916,36 +916,44 @@ function update_install_queue()  {
   touch $tmp_queue
 
   message  "${CHECK_COLOR}Generating the list of spells to update... ${DEFAULT_COLOR} "
-  if [[ $VERBOSE_QUEUING == on ]]; then
-    count=0
-    size=$(all_spell_status | wc -l)
-    for  line  in  `all_spell_status`;  do
-      progress_bar $count $size 50
-      #0=spell, 1=date, 2=status, 3=version
-      explode "$line" ":" "info"
-      spell=${info[0]}
-      curr_updated=${info[1]}
-      status=${info[2]}
-      curr_version=${info[3]}
-
-      ( # do this in a subshell in case a spell mis-behaves and exits we
-        # still want queueing to work
-        if  [[  "$status"  ==  "installed"  ]] &&
-          codex_set_current_spell_by_name  $spell;  then
-          does_spell_need_update_sub "$spell" "$curr_version" \
-                                    "$curr_updated" "$tmp_queue"
-        fi
-      )
-    let count++
-    done
-    clear_line
-  else
     tablet_check_version_cache $VERSION_STATUS || return 1
     local grimoire
     for grimoire in $(codex_get_all_grimoires); do
       cat $grimoire/$VERSION_INDEX_FILE 2>/dev/null
     done |
-    awk -v i=$VERSION_STATUS '{
+    awk -v i=$VERSION_STATUS -v verbose=$VERBOSE_QUEUING '
+      # decide what to print - just the spell or also the reasons
+      function needs_update(                reasons, diff) {
+        if (verbose == "on") {
+          # check SECURITY_PATCH first since it is the most important
+          diff = factor[4] - $4
+          if (diff > 0) {
+            if (diff > 1) {
+              reasons = reasons "Security update (" diff " times!)."
+            } else {
+              reasons = reasons "Security update."
+            }
+          }
+          if ($2 != factor[2]) {
+            reasons = reasons " New version (" factor[2] ")."
+          }
+          if ($3 < factor[3] ) {
+            reasons = reasons " Spell update."
+          }
+          if ($5 < factor[5]) {
+            reasons = reasons " UPDATED changed."
+          }
+          if (reasons != "") {
+            print $1, reasons
+          }
+        } else {
+          if ($2 != factor[2] || $3 < factor[3] || $4 < factor[4] || $5 < factor[5]) {
+            print $1
+          }
+        }
+      }
+
+      {
         if ( ! ($1 in map)) {
           map[$1]=$0;
         }
@@ -955,15 +963,20 @@ function update_install_queue()  {
         while (getline < i) {
           if ($1 in map) {
             split(map[$1], factor);
-            if ($2 != factor[2] || $3 < factor[3] || $4 < factor[4] || $5 < factor[5]) {
-              print $1;
-            }
+            needs_update();
           } else {
             # multiversioned spell - do it the old way
             print $1 > "/dev/stderr";
           }
         }
       } ' > $tmp_queue 2> $recheck_queue
+    if [[ $VERBOSE_QUEUING == on ]]; then
+      local spell message
+      while read spell message; do
+        message "$SPELL_COLOR$spell$DEFAULT_COLOR: $message"
+      done < $tmp_queue
+      sed -i 's,^\(\S*\)\s.*$,\1,' $tmp_queue
+    fi
     if [[ -s $recheck_queue ]]; then
       (
         while read spell; do
@@ -977,7 +990,6 @@ function update_install_queue()  {
       )
       rm $recheck_queue
     fi
-  fi
   lock_file $INSTALL_QUEUE
   rm  -f  $INSTALL_QUEUE
   sort -u $tmp_queue > $INSTALL_QUEUE
