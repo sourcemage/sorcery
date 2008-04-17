@@ -814,26 +814,25 @@ function optimize()  {
 ##
 #---------------------------------------------------------------------
 function list_install_queue() {
-  if  [  -f  $INSTALL_QUEUE  ];  then
+  if [[ -f $INSTALL_QUEUE ]]; then
     lock_file $INSTALL_QUEUE
 
     echo
     message -n "The following spells will be updated:"
     message "${SPELL_COLOR}"
-    cat  $INSTALL_QUEUE | column
+    column  $INSTALL_QUEUE
     message "${DEFAULT_COLOR}"
 
-    if    query  "Do you wish to edit $FILE_COLOR$INSTALL_QUEUE ${DEFAULT_COLOR}?" n
-    then  edit_file  $INSTALL_QUEUE
-    fi
+    query "Do you wish to edit$FILE_COLOR $INSTALL_QUEUE $DEFAULT_COLOR?" n &&
+    edit_file $INSTALL_QUEUE
 
-    if  [  -n  "`cat  $INSTALL_QUEUE`"  ];  then
-      SPELLS=`cat $INSTALL_QUEUE`
+    if [[ -s $INSTALL_QUEUE ]]; then
+      SPELLS=$(< $INSTALL_QUEUE)
     fi
 
     unlock_file $INSTALL_QUEUE
   else
-    message "${MESSAGE_COLOR}No spells listed in queue.${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}No spells listed in the queue.$DEFAULT_COLOR"
   fi
 }
 
