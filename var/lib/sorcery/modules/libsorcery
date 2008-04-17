@@ -969,8 +969,12 @@ function update_install_queue()  {
           }
         }
       } ' > $tmp_queue 2> $recheck_queue
+    local spell
+    for spell in $(get_all_spells_with_status held); do
+      sed -i "/^$spell /d" $tmp_queue $recheck_queue
+    done
     if [[ $VERBOSE_QUEUING == on ]]; then
-      local spell message
+      local message
       while read spell message; do
         message "$SPELL_COLOR$spell$DEFAULT_COLOR: $message"
       done < $tmp_queue
