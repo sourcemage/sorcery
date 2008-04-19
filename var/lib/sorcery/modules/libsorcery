@@ -346,12 +346,9 @@ function save_binaries()  {
 
   unlock_file $SAVED
 
-  for dir in $( find $OLD_BINS )
+  for dir in $(find $OLD_BINS -type d)
   do
-    if [[ -d $dir ]]
-    then
-      export PATH=$( envar_prepend_path "$dir" "$PATH" )
-    fi
+    export PATH=$(envar_prepend_path "$dir" "$PATH")
   done
 }
 
