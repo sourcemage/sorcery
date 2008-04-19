@@ -1541,29 +1541,6 @@ feature_menu()  {
   local SCR_HELP="Toggle usage of screen in cast"
   local PSC_HELP="Ask for custom cflags for each spell"
 
-       ARCHIVE=${ARCHIVE:=on}
-       AUTOFIX=${AUTOFIX:=on}
-     UPDATEFIX=${UPDATEFIX:=off}
-     AUTOPRUNE=${AUTOPRUNE:=off}
-        CCACHE=${CCACHE:=off}
-         COLOR=${COLOR:=on}
-    CONFIG_LOC=${CONFIG_LOC:=on}
-   GATHER_DOCS=${GATHER_DOCS:=on}
-  MAIL_REPORTS=${MAIL_REPORTS:=off}
-         TMPFS=${TMPFS:=on}
-  VIEW_REPORTS=${VIEW_REPORTS:=off}
-      PRESERVE=${PRESERVE:=on}
-       SUSTAIN=${SUSTAIN:on}
-        VOYEUR=${VOYEUR:=on}
-          REAP=${REAP:=on}
-STORE_CONF_LOG=${STORE_CONF_LOG:-off}
-    NET_SELECT=${NET_SELECT:=off}
-  CLEAN_SOURCE=${CLEAN_SOURCE:=off}
- CROSS_INSTALL=${CROSS_INSTALL:=off}
-SET_TERM_TITLE=${SET_TERM_TITLE:=off}
-        SCREEN=${SCREEN:-off}
-PER_SPELL_CFLAGS=${PER_SPELL_CFLAGS:-off}
-
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
                         --no-cancel             \
                         --item-help             \
@@ -1599,43 +1576,17 @@ PER_SPELL_CFLAGS=${PER_SPELL_CFLAGS:-off}
       eval $i=off
     done
 
-    for  TOGGLE  in  $TOGGLES;  do
-
-      case  $TOGGLE  in
-
-             ARCHIVE)        ARCHIVE=on  ;;
-             AUTOFIX)        AUTOFIX=on  ;;
-           UPDATEFIX)      UPDATEFIX=on  ;;
-           AUTOPRUNE)      AUTOPRUNE=on  ;;
-              CCACHE)         CCACHE=on  ;;
-               COLOR)          COLOR=on  ;;
-          CONFIG_LOC)     CONFIG_LOC=on  ;;
-         GATHER_DOCS)    GATHER_DOCS=on  ;;
-        MAIL_REPORTS)   MAIL_REPORTS=on  ;;
-            PRESERVE)       PRESERVE=on  ;;
-             SUSTAIN)        SUSTAIN=on  ;;
-               TMPFS)          TMPFS=on  ;;
-        VIEW_REPORTS)   VIEW_REPORTS=on  ;;
-              VOYEUR)         VOYEUR=on  ;;
-                REAP)           REAP=on  ;;
-      STORE_CONF_LOG) STORE_CONF_LOG=on  ;;
-          NET_SELECT)     NET_SELECT=on  ;;
-        CLEAN_SOURCE)   CLEAN_SOURCE=on  ;;
-       CROSS_INSTALL)  CROSS_INSTALL=on  ;;
-      SET_TERM_TITLE) SET_TERM_TITLE=on  ;;
-              SCREEN)         SCREEN=on  ;;
-    PER_SPELL_CFLAGS) PER_SPELL_CFLAGS=on ;;
-      esac
-
+    for TOGGLE in $TOGGLES; do
+      eval $TOGGLE=on
     done
 
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE GATHER_DOCS MAIL_REPORTS VIEW_REPORTS PRESERVE SUSTAIN TMPFS VOYEUR REAP STORE_CONF_LOG NET_SELECT CONFIG_LOC CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN PER_SPELL_CFLAGS)
     for i in ${TEMP[*]} ; do
-      modify_local_config "$i" "${!i}"
+      case $i in
+        CCACHE) modify_config $LOCAL_COMPILE_CONFIG CCACHE $CCACHE ;;
+         COLOR) modify_local_config "color" "$COLOR" "command" ;;
+             *) modify_local_config "$i" "${!i}" ;;
+      esac
     done
-
-    modify_local_config "color" "$COLOR" "command"
-    modify_config $LOCAL_COMPILE_CONFIG CCACHE $CCACHE
   fi
 
 }
