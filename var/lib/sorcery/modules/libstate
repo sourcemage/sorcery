@@ -1041,12 +1041,12 @@ function modify_config()  {
   else separator="=" ; fi
 
   if ! test -f $FILE; then
-    if ! test -d $(dirname $FILE); then
-      if test -e $(dirname $FILE); then
-        message "Trying to modify $FILE, but $(dirname $FILE) is not a directory"
+    if ! test -d $(smgl_dirname $FILE); then
+      if test -e $(smgl_dirname $FILE); then
+        message "Trying to modify $FILE, but $(smgl_dirname $FILE) is not a directory"
         return 1
       fi
-      mkdir -p $(dirname $FILE)
+      mkdir -p $(smgl_dirname $FILE)
     fi &&
     touch $FILE || {
       message "Failed to create $FILE"

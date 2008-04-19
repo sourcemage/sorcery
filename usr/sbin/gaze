@@ -300,7 +300,7 @@ function gaze_catalog()  {
   [[ $GAZE_VERBOSE != 0 ]] && echo  "Sorcery Grimoire for `date  -u`"
 
   if [ $grimoire ]; then
-        echo "Grimoire: " $(basename $grimoire)
+        echo "Grimoire: " $(smgl_basename $grimoire)
   else
         echo "Grimoires: " $(codex_get_all_grimoires | get_basenames)
   fi
@@ -311,14 +311,14 @@ function gaze_catalog()  {
     if [[ $GAZE_VERBOSE != 0 ]]; then
       echo
       echo  "-------------------------------------------------"
-      echo  "SECTION: $(  basename  $SECTION  )"
+      echo  "SECTION: $(  smgl_basename  $SECTION  )"
       echo  "-------------------------------------------------"
     else
       echo
-      echo  "SECTION: $(  basename  $SECTION  )"
+      echo  "SECTION: $(  smgl_basename  $SECTION  )"
     fi
     for  spell  in  `codex_get_spells_in_section $SECTION`;  do
-      echo `basename $spell` #keeps head from breaking pipes
+      smgl_basename $spell
       ((  COUNT++  ))
     done
   done
@@ -428,7 +428,7 @@ function gaze_catalog_html()  {
   echo "<h1>$(date -u)</h1>"
 
   if [ $grimoire ]; then
-        echo  "<h1>Grimoire: " $(basename $grimoire)"</h1>"
+        echo  "<h1>Grimoire: " $(smgl_basename $grimoire)"</h1>"
   else
         echo  "<h1>Grimoires: " $(codex_get_all_grimoires | get_basenames)"</h1>"
   fi
@@ -449,7 +449,7 @@ function gaze_catalog_html()  {
   for  SECTION  in  `codex_get_all_sections $grimoire`;  do
     echo  "<tr>"
     echo  "<th colspan=\"${COLS}\">"
-    echo  "<h2>$( basename  $SECTION )</h2>"
+    echo  "<h2>$( smgl_basename  $SECTION )</h2>"
     echo  "</th></tr>"
     for  SPELL  in  `codex_get_spells_in_section  $SECTION`;  do
       (
@@ -726,7 +726,7 @@ function real_short_search() {
     grep_find_grimoire $grimoire "DETAILS" "SHORT=.*${pattern}"
                         ); do
 
-                spellname=$(basename $(dirname $spell))
+                smgl_basename "$(smgl_dirname $spell)" spellname
                 if [[ $GAZE_VERBOSE == 0 ]]; then
                     echo $spellname
                 else
@@ -780,10 +780,10 @@ function real_long_search()  {
 
       if [[ ${SEARCH_RESULTS} ]]; then
         if [[ $GAZE_VERBOSE == 0 ]]; then
-          basename $(dirname $file)
+          smgl_basename $(smgl_dirname $file)
         else
           clear_line
-          echo "$pattern ->  $(basename $(dirname $file) ) ${SEARCH_RESULTS}"
+          echo "$pattern ->  $(smgl_basename $(smgl_dirname $file) ) ${SEARCH_RESULTS}"
         fi
       fi
     done
@@ -1156,7 +1156,7 @@ function gaze_show_versions()  {
       fi
 
     else
-      echo "$(basename $GRIMOIRE)|-|-|-|-"
+      echo "$(smgl_basename $GRIMOIRE)|-|-|-|-"
     fi
   done
 
@@ -1212,7 +1212,7 @@ function gaze_show_patchlevels()  {
       fi
 
     else
-      echo "$(basename $GRIMOIRE)|-|-|-|-|-"
+      echo "$(smgl_basename $GRIMOIRE)|-|-|-|-|-"
     fi
   done
 
@@ -1852,7 +1852,7 @@ function gaze_system_info()
   let idx=0
   for grimoire in $(codex_get_all_grimoires)
   do
-    message "${QUERY_COLOR} [$idx]: $(basename "$grimoire"):${DEFAULT_COLOR}" \
+    message "${QUERY_COLOR} [$idx]: $(smgl_basename "$grimoire"):${DEFAULT_COLOR}" \
             "${MESSAGE_COLOR}$grimoire${DEFAULT_COLOR}"
     let idx+=1
   done

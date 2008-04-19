@@ -51,7 +51,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
             "should be done for you on a system update.${DEFAULT_COLOR}"
     return 200
   else
-    local output=$TMP_DIR/$(basename $file).gpgout
+    local output=$TMP_DIR/$(smgl_basename $file).gpgout
     gpg --no-default-keyring  \
                --always-trust        \
                --keyring $keyring    \
@@ -128,7 +128,8 @@ function gpg_verify_grimoire() {
   local BRANCH=$3
   local SIGNATURE=$4
 
-  local SOURCE=$(basename $FILENAME)
+  local SOURCE
+  smgl_basename "$FILENAME" SOURCE
 
   if [[ -z $BRANCH ]]; then
     # deduce the name of the branch from the tarball (stable-rc-0.19.tar.bg2)
@@ -254,7 +255,8 @@ function gpg_verify_common() {
   local KEYRING=$3
   local REASON=$4
   local SIGNATURE=$5
-  local SOURCE=$(basename $FILENAME)
+  local SOURCE
+  smgl_basename "$FILENAME" SOURCE
 
   local SIG_FILE=${SOURCE}.${GPG_SIG_EXT}
   pushd $TMP_DIR &>/dev/null ||
@@ -363,7 +365,8 @@ function verify_against_manifest() {
   local manifest=$2
   local algorithm=$3
   local ignore=$4
-  local base=$(basename $dir)
+  local base
+  smgl_basename "$dir" base
   local real_list=$TMP_DIR/$base
   local missing=$TMP_DIR/missing.$base
   local rc=0

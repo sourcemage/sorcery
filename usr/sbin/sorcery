@@ -182,7 +182,7 @@ show_spells()  { (
 
   for  SPELL  in  $SPELLS;  do
 
-    SPELLNAME=$( basename  $SPELL )
+    smgl_basename $SPELL $SPELLNAME
     if  !  spell_installed  $SPELLNAME  &&
         !  spell_held       $SPELLNAME  &&
         !  spell_exiled     $SPELLNAME
@@ -553,7 +553,7 @@ process_section()  {
 
   for  SPELL  in  $SPELLS;  do
 
-    LINE=$( basename  $SPELL )
+    smgl_basename "$SPELL" LINE
     if  echo  -e  "$KEEP_LIST"  |
         grep  -q  "^$LINE\$"
     then  push_install_queue  $LINE
@@ -732,7 +732,7 @@ architecture_menu() {
   # ones found later
   for  SPECFILE  in  $(find  $ARCH_SPECS  -not  -name '*~'|tac); do
     if  test -x  "$SPECFILE"   && grep  -q  "CPUNAME"  $SPECFILE; then
-      specname=$(basename $SPECFILE)
+      smgl_basename "$SPECFILE" specname
       hash_put archspec_hash $specname $SPECFILE
     fi
   done

@@ -213,8 +213,9 @@ function scribe_add_update_worker() {
     fi
   fi
 
-  local grim_dir=$(dirname $grimoire)
-  local grim_name=$(basename $grimoire)
+  local grim_dir grim_name grim_target
+  smgl_dirname "$grimoire" grim_dir
+  smgl_basename "$grimoire" grim_name
   pushd $grim_dir &> /dev/null
 
   # get the url, if one was specified sanity check it
@@ -224,7 +225,7 @@ function scribe_add_update_worker() {
       error_message  "Error: $from is not a recognized url. Using the default."
       from=""
     else
-      grim_target=$(basename $from)
+      smgl_basename "$from" grim_target
     fi
   fi
 
@@ -277,9 +278,9 @@ function scribe_add_update_worker() {
   local rc
   if [[ "$scribe_type" == file ]] ; then
 
-    gpg_verify_grimoire $PWD/$scribe_target $(dirname $from)
+    gpg_verify_grimoire $PWD/$scribe_target $(smgl_dirname $from)
     rc=$?
-    gpg_user_query $rc $(basename $from) grimoire || return 1
+    gpg_user_query $rc $(smgl_basename $from) grimoire || return 1
 
     [[ $add_or_update == update ]] && mv $grim_name temp_$grim_name.old
 
@@ -378,7 +379,7 @@ function scribe_fix_metadata() {
     error_message "Grimoire $1 not found, this may be a sorcery bug..."
     return 1
   fi
-  grimoire_name=$(basename $1)
+  smgl_basename "$1" grimoire_name
 
   if query "Repair Grimoire:$1's Metadata?" n || [ "$2" == "1" ] ; then
     message "Enter url to pull grimoire from"
@@ -696,7 +697,7 @@ function scribe_update() {
   else
     #for each grimoire
     for grimoire in $(codex_get_all_grimoires); do
-      grim=$(basename $grimoire)
+      smgl_basename "$grimoire" grim
       if ! [ -e $grimoire/GRIMOIRE ] && ! scribe_fix_metadata $grimoire; then
         #no metadata found. dont auto-update
         error_message "$grim has invalid metadata. Not Updating!"

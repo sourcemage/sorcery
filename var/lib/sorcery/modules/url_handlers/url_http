@@ -92,8 +92,10 @@ function url_ftp_verify() {
   local  URL=$1
 
   if  [  -n  "$URL"  ];  then
-    local  FILENAME=`basename $URL`
-    local  DIRECTORY=`dirname $URL`
+    local  FILENAME
+    local  DIRECTORY
+    smgl_basename $URL FILENAME
+    smgl_dirname $URL DIRECTORY
     local  OUTPUT=`wget --passive-ftp -t 1 -T 30 -O - --spider -S "$DIRECTORY/" 2>&1`
 
     if real_list_find "$OUTPUT" "$FILENAME";  then

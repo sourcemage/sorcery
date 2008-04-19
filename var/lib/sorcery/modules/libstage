@@ -75,11 +75,11 @@ function stage_install_directory()
   local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/${DIR}")
   local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/${DIR}")
   local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/${DIR}")
-  if [[ ! -d $(dirname "${INSTALL_ROOT}/$DIR") ]]
+  if [[ ! -d $(smgl_dirname "${INSTALL_ROOT}/$DIR") ]]
   then
     # this shouldn't happen but just in case
-    message "${PROBLEM_COLOR}Ah, not preserving permissions making $(dirname $DIR)${DEFAULT_COLOR}" &&
-    mkdir -p $(dirname "${INSTALL_ROOT}/$DIR")
+    message "${PROBLEM_COLOR}Ah, not preserving permissions making $(smgl_dirname $DIR)${DEFAULT_COLOR}" &&
+    mkdir -p $(smgl_dirname "${INSTALL_ROOT}/$DIR")
   fi &&
   message "${FILE_COLOR}$PERMISSION $OWNER:$GROUP $DIR${DEFAULT_COLOR}" &&
   if [[ -d "${INSTALL_ROOT}/$DIR" ]]
@@ -106,7 +106,7 @@ function stage_install_file()
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
         message "${MESSAGE_COLOR}Staging config to $CONFIG_STAGE_DIRECTORY${DEFAULT_COLOR}"
-        mkdir -p "$(dirname $SAVE)" &&
+        mkdir -p "$(smgl_dirname $SAVE)" &&
         cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$SAVE"
       else
         cp -dp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE"
@@ -129,7 +129,7 @@ function stage_install_symlink()
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
         touch "${INSTALL_ROOT}/$FILE" &&
-        mkdir -p $(dirname $SAVE) &&
+        mkdir -p $(smgl_dirname $SAVE) &&
         ln -sfn "$LINK" "${INSTALL_ROOT}/$SAVE"
       else
         ln -sfn "$LINK" "${INSTALL_ROOT}/$FILE"
@@ -154,7 +154,7 @@ function stage_install_fifo()
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
         touch "${INSTALL_ROOT}/$FILE" &&
-        mkdir -p $(dirname $SAVE) &&
+        mkdir -p $(smgl_dirname $SAVE) &&
         mkfifo "${INSTALL_ROOT}/$SAVE" &&
         chmod $PERMISSION "${INSTALL_ROOT}/$SAVE" &&
         chown $OWNER:$GROUP "${INSTALL_ROOT}/$SAVE"
@@ -188,7 +188,7 @@ function stage_install_char_block()
       if [[ -e "${INSTALL_ROOT}/$FILE" ]]
       then
         touch "${INSTALL_ROOT}/$FILE" &&
-        mkdir -p $(dirname $SAVE) &&
+        mkdir -p $(smgl_dirname $SAVE) &&
         mknod -m "${PERMISSION}" "${INSTALL_ROOT}/$SAVE" "${TYPE}" "${MAJOR}" "${MINOR}" &&
         chown $OWNER:$GROUP "${INSTALL_ROOT}/$SAVE"
       else
@@ -230,7 +230,7 @@ function stage_install_list()
     stage_install_directory "$@"
   else
     message "${PROBLEM_COLOR}Oh, God I don't know what to do..."
-    message "${FILE_COLOR}$(dirname ${1})${PROBLEM_COLOR}"
+    message "${FILE_COLOR}$(smgl_dirname ${1})${PROBLEM_COLOR}"
     message "is some other kind of a file and not a directory${DEFAULT_COLOR}"
   fi
 }

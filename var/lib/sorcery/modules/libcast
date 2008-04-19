@@ -202,10 +202,13 @@ function query_services() {
   local new_init_inst new_init_ninst new_init_enab new_init_disab
   local new_xinetd_inst new_xinetd_ninst new_xinetd_enab new_xinetd_disab
 
+  local xtmp_base itmp_base
   for xtmp in $XINETD_SCRIPTS; do
+    smgl_basename $xtmp xtmp_base
     for itmp in $INIT_SCRIPTS; do
-      if [[ $(basename $xtmp) == $(basename $itmp) ]] ; then
-        list_add BOTH $(basename $itmp)
+      smgl_basename $itmp itmp_base
+      if [[ $xtmp_base == $itmp_base ]] ; then
+        list_add BOTH $itmp_base
         found=1
         break
       fi
@@ -213,7 +216,7 @@ function query_services() {
   done
 
   for tmp in $INIT_SCRIPTS; do
-    tmp=$(basename $tmp)
+    smgl_basename "$tmp" tmp
     list_find $tmp $BOTH || list_add INIT $tmp
     # if the script is ESSENTIAL or RECOMMENDED default to yes unless
     # the user previously said no
@@ -227,7 +230,7 @@ function query_services() {
   done
 
   for tmp in $XINETD_SCRIPTS; do
-    tmp=$(basename $tmp)
+    smgl_basename "$tmp" tmp
     list_find $tmp $BOTH || list_add XINETD $tmp
   done
 
@@ -513,7 +516,8 @@ function install_xinetd() {
 #---------------------------------------------------------------------
 function install_xinetd_sub() {
   local file=$1
-  local bfile=$(basename $1)
+  local bfile
+  smgl_basename "$1" bfile
   local state=$2
   local install_dir=$3
   local tmp_file=$TMP_DIR/$bfile

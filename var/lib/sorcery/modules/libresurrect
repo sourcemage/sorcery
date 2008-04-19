@@ -439,7 +439,7 @@ function internal_install_config_file() {
   # if its a symlink, just copy, someday maybe we should figure
   # out where it points to and so something, but thats too annoying
   if test -h "$from" ; then
-    mkdir -p "$(dirname "$to")" &&
+    mkdir -p "$(smgl_dirname "$to")" &&
     cp -pv --no-dereference "$from" "$to"
     return $?
   fi
@@ -447,7 +447,7 @@ function internal_install_config_file() {
   # if the file does not exist, or stage root is invoked
   if ! test -e "$to" || [[ $STAGED_INSTALL == on ]] ; then
     # copy the new one in (plus leading directories)
-    mkdir -p "$(dirname "$to")" &&
+    mkdir -p "$(smgl_dirname "$to")" &&
     cp -pv "$from" "$to"
 
   # to get here the file must exist
@@ -476,7 +476,7 @@ function internal_install_config_file() {
       real_handle_changed_config "$from" "$to" $savetime
     else
       # replace the file
-      mkdir -p "$(dirname "$to")" &&
+      mkdir -p "$(smgl_dirname "$to")" &&
       cp -pv "$from" "$to"
     fi
   fi
@@ -558,7 +558,7 @@ function resurrect_success() {
   # 14) copy compile log
   # this file is not regenerated unlike its friends install and md5sum
   local OLD_COMPILE_LOG=$(find .${COMPILE_LOGS#$INSTALL_ROOT}/ -maxdepth 1 -type f|head -n 1)
-  local COMPILE_LOG="$COMPILE_LOGS/$(basename "$OLD_COMPILE_LOG")"
+  local COMPILE_LOG="$COMPILE_LOGS/$(smgl_basename "$OLD_COMPILE_LOG")"
   # also relative to STATE_ROOT
   cp "$OLD_COMPILE_LOG" "$COMPILE_LOG"
 

@@ -786,7 +786,7 @@ function find_providers()  {
   for provider in $providers; do
     if ! spell_exiled $provider; then
       spell_path=$(codex_find_spell_by_name $provider)
-      GRIMOIRE=$(dirname $( dirname $spell_path))
+      smgl_dirname "$(smgl_dirname $spell_path)" GRIMOIRE
       # ensure the first place we look for the spell is a provider
       grep -q "^$feature $spell_path$" $GRIMOIRE/$PROVIDE_INDEX_FILE &&
         echo $provider
@@ -933,7 +933,7 @@ function codex_list_provides () {
     grimoire=$1
 
     for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
-        spell=$(dirname $file)
+        smgl_dirname "$file" spell
         for provides in $(gawk '{if (/provides/) { print $2 }
                                  else { print $1 }}' $file); do
             echo "$provides $spell"

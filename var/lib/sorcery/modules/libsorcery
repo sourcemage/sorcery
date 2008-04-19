@@ -277,16 +277,12 @@ function save_libraries()  {
          grep  -q   "shared object"
     then
       if  [  -h  $LINE  ];  then
-        DEST=$(  basename  $(  ls   -la  "$LINE"  |
-                               cut  -d  '>'  -f2  |
-                               cut  -c  2-
-                            )
-              )
-        ln  -sf  $DEST  $OLD_LIBS/`basename  $LINE`
+        local DEST=$(readlink "$LINE")
+        ln -sf "$DEST" $OLD_LIBS/$(smgl_basename "$LINE")
       else
         cp  $LINE  $OLD_LIBS
       fi
-      echo       $OLD_LIBS/`basename  $LINE`  >>  $SAVED
+      echo       $OLD_LIBS/$(smgl_basename "$LINE")  >>  $SAVED
     fi
 
 
@@ -336,10 +332,10 @@ function save_binaries()  {
     then
       if  [  -h  $LINE  ];  then
         DEST=$( readlink "$LINE" )
-        mkdir -p $( dirname $OLD_BINS/$LINE )
+        mkdir -p $( smgl_dirname $OLD_BINS/$LINE )
         ln  -sf  $DEST  $OLD_BINS/$LINE
       else
-        mkdir -p $( dirname $OLD_BINS/$LINE )
+        mkdir -p $( smgl_dirname $OLD_BINS/$LINE )
         cp  $LINE  $OLD_BINS/$LINE
       fi
       echo       $OLD_BINS/$LINE >> $SAVED
