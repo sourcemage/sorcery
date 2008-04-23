@@ -982,16 +982,21 @@ function set_unheld () {
 
 
 #---------------------------------------------------------------------
-## @param status
+## @param status (installed, held, exiled or ok[for the first two])
 ## @Stdout spells
 ## returns all spells that are in that status
 ##
 #---------------------------------------------------------------------
 function get_all_spells_with_status () {
-    lock_file $SPELL_STATUS
-    gawk -F: 'BEGIN { status="'$1'" }
+  local status=$1
+  lock_file $SPELL_STATUS
+  if [[ $status != ok ]]; then
+    gawk -F: 'BEGIN { status="'$status'" }
               ($3 == status) { print $1 }' $SPELL_STATUS
-    unlock_file $SPELL_STATUS
+  else
+    awk -F: '{ if ($3 == "installed" || $3 == "held") print $1 }' $SPELL_STATUS
+  fi
+  unlock_file $SPELL_STATUS
 }
 
 
