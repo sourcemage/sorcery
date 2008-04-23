@@ -1419,10 +1419,9 @@ function generate_keep_list()  {
   local cache_keep=$2
   local type=$3
   if [[ $type == installed_only ]] ; then
-    {
-      get_all_spells_with_status installed
-      get_all_spells_with_status held
-    } | sort -u | while read spell ; do
+    get_all_spells_with_status ok |
+    sort -u |
+    while read spell; do
       codex_find_spell_by_name $spell
     done
   else
