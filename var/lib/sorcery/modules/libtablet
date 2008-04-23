@@ -724,6 +724,13 @@ function tablet_check_version_cache() {
   [[ -z $1 ]] && return 1
   local file=$1
 
+  if [[ $file == $VERSION_STATUS ]] &&
+     [[ $(wc -l < $file) != $(get_all_spells_with_status ok | wc -l) ]]; then
+    error_message "${PROBLEM_COLOR}The tablet version cache is damaged, removing it!"
+    error_message "$DEFAULT_COLOR"
+    rm "$file"
+  fi
+
   if [[ ! -f $file ]]; then
     message "${MESSAGE_COLOR}Creating the tablet version cache, this" \
             "can take a while ...$DEFAULT_COLOR"
