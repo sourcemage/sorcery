@@ -238,6 +238,12 @@ function run_spell_success() {
 
     sound  SUCCESS
 
+    tablet_check_version_cache "$VERSION_STATUS" &&
+    (
+      codex_set_current_spell_by_name $SPELL
+      add_version_cache "$VERSION_STATUS" "$SPELL" "$VERSION" "$PATCHLEVEL" "$SECURITY_PATCH" "$UPDATED"
+    )
+
     # announce to everyone the spell succeeded
     activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
     add_spell $SPELL installed $VERSION
@@ -246,12 +252,6 @@ function run_spell_success() {
 
     # update depends info
     debug "build_api/common" "Merging depends info"
-
-    tablet_check_version_cache "$VERSION_STATUS" &&
-    (
-      codex_set_current_spell_by_name $SPELL
-      add_version_cache "$VERSION_STATUS" "$SPELL" "$VERSION" "$PATCHLEVEL" "$SECURITY_PATCH" "$UPDATED"
-    )
 
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $DEPENDS_STATUS $SPELL

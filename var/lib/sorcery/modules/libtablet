@@ -698,7 +698,7 @@ function tablet_create_version_cache() {
   local page_dir
   local spell version patchlevel security_patch updated
 
-  for spell in $(get_all_spells_with_status installed; get_all_spells_with_status held); do
+  for spell in $(get_all_spells_with_status ok); do
     if tablet_find_spell_dir $spell page_dir; then
       tablet_get_version $page_dir version
       tablet_get_patchlevel $page_dir patchlevel
@@ -707,7 +707,9 @@ function tablet_create_version_cache() {
       echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
     else
       error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
-                    "please run cleanse --tablet and retry.$DEFAULT_COLOR"
+                    "please run cleanse --tablet and retry. If some spells" \
+                    "have unfixable tablet pages, recast them.$DEFAULT_COLOR"
+      rm $file
       return 1
     fi
   done | sort > $file
@@ -721,6 +723,13 @@ function tablet_create_version_cache() {
 function tablet_check_version_cache() {
   [[ -z $1 ]] && return 1
   local file=$1
+
+  if [[ $file == $VERSION_STATUS ]] &&
+     [[ $(wc -l < $file) != $(get_all_spells_with_status ok | wc -l) ]]; then
+    error_message "${PROBLEM_COLOR}The tablet version cache is damaged, removing it!"
+    error_message "$DEFAULT_COLOR"
+    rm "$file"
+  fi
 
   if [[ ! -f $file ]]; then
     message "${MESSAGE_COLOR}Creating the tablet version cache, this" \
