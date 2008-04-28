@@ -609,9 +609,6 @@ function resurrect_success() {
   create_md5list $TMP_INSTALL_LOG /dev/stdout |
   log_adjuster /dev/stdin $MD5_LOG root log md5_log_filter
 
-  # add packages line
-  add_spell "$SPELL" "installed" "$VERSION"
-
   tablet_check_version_cache "$VERSION_STATUS" &&
   (
     if tablet_find_spell_dir $SPELL page_dir && [[ $new_tablet ]]; then
@@ -627,6 +624,9 @@ function resurrect_success() {
     fi
     add_version_cache "$VERSION_STATUS" "$SPELL" "$VERSION" "$PATCHLEVEL" "$SECURITY_PATCH" "$UPDATED"
   )
+
+  # add packages line
+  add_spell "$SPELL" "installed" "$VERSION"
 
   pop_install_queue "$SPELL"
   echo $SPELL >> $SUCCESS_LIST
