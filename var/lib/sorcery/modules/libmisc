@@ -1445,25 +1445,37 @@ function awkuniq() {
 ## Dirname written in bash, optionally uses an upvar (making it forkless).
 #---------------------------------------------------------------------
 function smgl_dirname() {
-  local __dir=() __dirname i
-  explode "$1" / __dir
+  local __dir=() __dirname i __last_dir
 
-  [[ ${1:0:1} != / ]] && __dirname="."
+  # Pull of any trailing /'s, there could be more than/one///
+  __dirname=$1
+  while [[ $__dirname != $__last_dir ]]; do
+    __last_dir=$__dirname
+    __dirname=${__dirname%/}
+  done
+  if [[ -z $__dirname ]]; then
+    __dirname=/
+  fi
 
-  for (( i=0; i < ${#__dir[@]}; i++ )); do
-    if [[ -n ${__dir[$i]} ]]; then
-      __dirname="$__dirname/${__dir[$i]}"
-    fi
+  explode "$__dirname" / __dir
+  [[ ${__dirname:0:1} == / ]] && unset __dirname || __dirname="."
+  for (( i=0; i < ${#__dir[@]}-1; i++ )); do
+    __dirname="$__dirname/${__dir[$i]}"
+  done
+
+  # Pull of any trailing /'s
+  while [[ $__dirname != $__last_dir ]]; do
+    __last_dir=$__dirname
+    __dirname=${__dirname%/}
   done
   if [[ -z $__dirname ]]; then
     __dirname=/
   else
-    __dirname="${__dirname%/*}"
-    if [[ -z $__dirname ]]; then
-      __dirname=/
-    else
+    if [[ ${__dirname:0:2} == // ]]; then
+      __dirname="${__dirname:1}"
+    elif [[ ${__dirname:0:2} == ./ ]]; then
       # usually not strictly necessary, but let's be conformant with dirname
-      [[ ${__dirname:0:2} == ./ ]] && __dirname="${__dirname:2}"
+      __dirname="${__dirname:2}"
     fi
   fi
 
