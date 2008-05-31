@@ -908,6 +908,7 @@ function update_install_queue()  {
   touch $tmp_queue
 
   message  "${CHECK_COLOR}Generating the list of spells to update... ${DEFAULT_COLOR} "
+  if [[ -z $OLD_QUEUING_METHOD ]]; then
     tablet_check_version_cache $VERSION_STATUS || return 1
     local grimoire
     for grimoire in $(codex_get_all_grimoires); do
@@ -973,24 +974,27 @@ function update_install_queue()  {
       done < $tmp_queue
       sed -i 's,^\(\S*\)\s.*$,\1,' $tmp_queue
     fi
-    if [[ -s $recheck_queue ]]; then
-      (
-        count=0
-        size=$(wc -l < $recheck_queue)
-        while read spell; do
-            progress_bar $count $size 50
-            explode "$(search_spell_status $SPELL_STATUS "$spell")" ":" "info"
-            curr_updated=${info[1]}
-            curr_version=${info[3]}
-            codex_set_current_spell_by_name $spell &&
-            does_spell_need_update_sub "$spell" "$curr_version" \
-                                      "$curr_updated" "$tmp_queue"
-            let count++
-        done < $recheck_queue
-        clear_line
-      )
-      rm $recheck_queue
-    fi
+  else # use the old slow method
+    get_all_spells_with_status ok > $recheck_queue
+  fi
+  if [[ -s $recheck_queue ]]; then
+    (
+      count=0
+      size=$(wc -l < $recheck_queue)
+      while read spell; do
+          progress_bar $count $size 50
+          explode "$(search_spell_status $SPELL_STATUS "$spell")" ":" "info"
+          curr_updated=${info[1]}
+          curr_version=${info[3]}
+          codex_set_current_spell_by_name $spell &&
+          does_spell_need_update_sub "$spell" "$curr_version" \
+                                    "$curr_updated" "$tmp_queue"
+          let count++
+      done < $recheck_queue
+      clear_line
+    )
+    rm $recheck_queue
+  fi
   lock_file $INSTALL_QUEUE
   rm  -f  $INSTALL_QUEUE
   sort -u $tmp_queue > $INSTALL_QUEUE
