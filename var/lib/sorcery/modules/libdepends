@@ -952,10 +952,22 @@ function work_depends_provider()
   fi
 
   # check if theres a provider already installed
+  # if there are multiple, try to select the previously used one
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      spell_ok $tmp && default=$tmp && break
+      spell_ok $tmp && real_list_add choices $tmp
     done
+    if [[ $choices == ${choices##* } ]]; then
+      default=$choices
+    else
+      explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
+      local old_provider=${status[1]%(*} # Name of spell which provides $1
+      if real_list_find "$choices" $old_provider; then
+        default=$old_provider
+      else
+        default=${choices%% *}
+      fi
+    fi
   fi
 
   select_provider "provider" "$default" 0 $CANDIDATES
@@ -1003,7 +1015,7 @@ function work_optional_depends_provider()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
-  local default tmp installed=no
+  local default tmp choices installed=no
   local status=()
 
   local failure_ok=$1
@@ -1061,8 +1073,13 @@ function work_optional_depends_provider()
         # if the user said "on" use the default rather than none
         # unless theres something wrong with the provider they chose
         # in which case fall back to none
-        [[ $tmp ]] && real_list_find "$CANDIDATES" "$tmp" &&
-        default=$tmp || default=none
+        if [[ $tmp ]] && real_list_find "$CANDIDATES" "$tmp"; then
+          default=$tmp
+        else
+          message "${PROBLEM_COLOR}The default provider is not good anymore!"
+          message "Falling back to 'none' as the default choice.$DEFAULT_COLOR"
+          default=none
+        fi
       else
         default=none
       fi
@@ -1077,10 +1094,23 @@ function work_optional_depends_provider()
   fi
 
   # check if theres a provider already installed
+  # if there are multiple, try to select the previously used one
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      spell_ok $tmp && default=$tmp && break
+      spell_ok $tmp && real_list_add choices $tmp
     done
+    if [[ $choices == ${choices##* } ]]; then
+      default=$choices
+    else
+      # only search for enabled dependencies since none is already the default
+      explode "$(search_depends_status_simple $DEPENDS_STATUS "$SPELL" ".*($1)" "on")" ":" "status"
+      local old_provider=${status[1]%(*} # Name of spell which provides $1
+      if real_list_find "$choices" $old_provider; then
+        default=$old_provider
+      else
+        default=${choices%% *}
+      fi
+    fi
   fi
 
   select_provider "provider" "$default" 1 $CANDIDATES
