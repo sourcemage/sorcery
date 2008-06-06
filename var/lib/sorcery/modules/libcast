@@ -169,7 +169,7 @@ function query_custom_cflags() {
 #---------------------------------------------------------------------
 ## Asks the user about init and xinetd services
 ##
-## expcetd $SCRIPT_DIRECTORY to be setable, any file one level deep in
+## expects $SCRIPT_DIRECTORY to be setable, any file one level deep in
 ## $SCRIPT_DIRECTORY/xinetd.d or $SCRIPT_DIRECTORY/init.d is assumed to be
 ## a service
 ##
@@ -354,7 +354,7 @@ function query_services() {
   fi
 
   if [[ $XINETD_INSTALLED ]] ; then
-    optional_depends xinetd "" "" "for $XINETD_INSTALLED"
+    suggest_depends xinetd "" "" "for $XINETD_INSTALLED"
   fi
 }
 
@@ -522,6 +522,7 @@ function install_xinetd_sub() {
 
   set_xinetd_state $tmp_file $state
 
+  # FIXME use install_config_file?
   if test -e $inst_file &&
      ! grep -v disable $inst_file|diff - $file &>/dev/null ; then
     message "${QUERY_COLOR}$inst_file differs from the default $file," \
