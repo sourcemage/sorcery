@@ -1,6 +1,21 @@
 export       DIALOGRC=/etc/sorcery/dialogrc
 shopt -u expand_aliases
 
+          LOCAL_CONFIG=/etc/sorcery/local/config
+          LOCAL_ROOTS_CONFIG=/etc/sorcery/local/roots
+          LOCAL_MEDIA_CONFIG=/etc/sorcery/local/media
+          LOCAL_URL_CONFIG=/etc/sorcery/local/url
+
+# numb color, so it doesn't fail for users who have it in LOCAL_CONFIG
+# its use was moved to LOCAL_MEDIA_CONFIG; remove this in 1.16
+color() {
+  if grep -q '^ *color "*off' $LOCAL_CONFIG; then
+    echo 'color "off"' >> $LOCAL_MEDIA_CONFIG
+  fi
+  sed -i '/^\s*color "*o[nf]f*"*/d' $LOCAL_CONFIG
+}
+. $LOCAL_CONFIG
+
                   CAST=cast
         SORCERY_BRANCH="stable"
               ARCHIVE=${ARCHIVE:=on}
@@ -76,11 +91,6 @@ FORCE_BASESYSTEM_DEPENDS=${FORCE_BASESYSTEM_DEPENDS:-off}
          SCREEN_CONFIG=/etc/sorcery/screen
 
           CONFIG_CACHE=/etc/sorcery/local
-
-          LOCAL_ROOTS_CONFIG=/etc/sorcery/local/roots
-          LOCAL_MEDIA_CONFIG=/etc/sorcery/local/media
-          LOCAL_URL_CONFIG=/etc/sorcery/local/url
-          LOCAL_CONFIG=/etc/sorcery/local/config
 
    SORCERY_INSTALL_LOG=/etc/sorcery/install.log
 
@@ -174,7 +184,6 @@ PROGRESS_SPINNER_CHARS='-\|/'
 . $ROOTS_CONFIG
 . $URL_CONFIG
 . $STATE_CONFIG
-. $LOCAL_CONFIG
 . $COMPILE_CONFIG
 . $SCREEN_CONFIG
 

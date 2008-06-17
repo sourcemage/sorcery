@@ -1040,11 +1040,6 @@ function modify_config()  {
 
   local TEMP separator EQUALS_COL VARIABLE
 
-  # what to use as separator?
-  if [[ $3 == command ]]
-  then separator=" "
-  else separator="=" ; fi
-
   if ! test -f $FILE; then
     if ! test -d $(smgl_dirname $FILE); then
       if test -e $(smgl_dirname $FILE); then
@@ -1072,8 +1067,13 @@ function modify_config()  {
   done
 
   debug "libstate" "modify_config() - entering new value $VARIABLE $seperator $@ into $tFILE"
-  # put new value and justification in
-  echo  "${TEMP}${1}${separator}\"$2\""  >>  $tFILE
+  # put the new value and justification in
+  # assign the value in a way that can be overriden from the environment #14454
+  if [[ $3 == command ]]; then
+    echo "${TEMP}${1} \"$2\""
+  else
+    echo "${TEMP}${1}=\"\${$1:-$2}\""
+  fi >> $tFILE
 
   lock_commit_transaction $FILE
 
@@ -1084,7 +1084,7 @@ function modify_config()  {
 ## @param variable
 ## @param command (optional)
 ##
-## Modifies (or adds) an entry in the local/config.
+## Removes an entry in the local/config.
 ## If "command" is the third argument, a space will separate the
 ## variable and value rather than the equals sign.
 ##

@@ -1,3 +1,14 @@
+2008-06-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: change modify_config to store values into variables in a manner
+	  that is overridable from the environment (var=${var:-value}) #14454
+	* sorcery: store COLOR in LOCAL_MEDIA_CONFIG, so there are no problems with
+	  ordering when sourcing our libraries
+	* config: source LOCAL_CONFIG before everything else; added a temporary
+	  color() override to make the switch for the user
+	* compile_config, media, roots, url: accompanying change
+	  to benefit you must convert your local configs to the new system (ex.):
+	  sed -i 's,^\(\s*\)\([^=]*\)=\(.*\),\1\2=${\2:-\3},' /etc/sorcery/config
+
 2008-06-07 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 	* libcodex: fixed an ancient minibug in codex_check_cache - the error
 	  message was printing the wrong variable
