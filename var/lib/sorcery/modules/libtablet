@@ -939,8 +939,10 @@ function tablet_coalesce_files() {
   hash_get_table tablet_coalesce| while read -a cdr; do
     car=${cdr[0]}
     for (( i=1 ; i<${#cdr[*]} ; i++ )) ; do
-      echo "Linking $car to ${cdr[$i]}" >> $link_log
-      ln -f $car ${cdr[$i]}
+      if ! [[ $car -ef ${cdr[$i]} ]]; then
+        echo "Linking $car to ${cdr[$i]}" >> $link_log
+        ln -f $car ${cdr[$i]}
+      fi
     done
   done
   hash_unset tablet_coalesce
