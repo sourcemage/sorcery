@@ -982,6 +982,7 @@ function update_install_queue()  {
       count=0
       size=$(wc -l < $recheck_queue)
       while read spell; do
+          let count++
           progress_bar $count $size 50
           explode "$(search_spell_status $SPELL_STATUS "$spell")" ":" "info"
           curr_updated=${info[1]}
@@ -989,7 +990,6 @@ function update_install_queue()  {
           codex_set_current_spell_by_name $spell &&
           does_spell_need_update_sub "$spell" "$curr_version" \
                                     "$curr_updated" "$tmp_queue"
-          let count++
       done < $recheck_queue
       clear_line
     )
