@@ -9,6 +9,7 @@ shopt -u expand_aliases
 # numb color, so it doesn't fail for users who have it in LOCAL_CONFIG
 # its use was moved to LOCAL_MEDIA_CONFIG; remove this in 1.16
 color() {
+  [[ -e $LOCAL_CONFIG ]] || return 0
   if grep -q '^ *color "*off' $LOCAL_CONFIG; then
     echo 'color "off"' >> $LOCAL_MEDIA_CONFIG
   fi
