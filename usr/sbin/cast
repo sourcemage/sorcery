@@ -69,7 +69,6 @@ Optional Parameters:
 -b  |  --force-base-dep         Force all spells to depend on basesystem
 
        --from   directory       Specify an alternate for $SOURCE_CACHE
-       --url    URL             Specify an alternate download URL
 
        --queue                  Cast all spells listed in $INSTALL_QUEUE
 
@@ -83,7 +82,7 @@ EOF
 ## @Aguments Arguments of cast
 ## @Globals DEPS_ONLY RECONFIGURE COMPILE
 ## @Globals FORCE_DOWNLOAD SOURCE_CACHE SILENT SEPARATE
-## @Globals BASE_URL INSTALL_QUEUE
+## @Globals INSTALL_QUEUE
 ##
 #---------------------------------------------------------------------
 function process_parameters()  {
@@ -118,7 +117,6 @@ function process_parameters()  {
               --from)  export  SOURCE_CACHE=$2;                      shift 2  ;;
             --silent)  SILENT="$1";                                  shift 1  ;;
                   -s)  export  SEPARATE="$1";                        shift 1  ;;
-               --url)  export  BASE_URL="$2";                        shift 2  ;;
              --queue)  CAST_QUEUE=yes ; COMPILE=$1;                  shift 1  ;;
                    *)  help                                   ;;
       esac
@@ -166,7 +164,6 @@ function strip_parameters()  {
             -c|--compile)  shift 1  ;;
            -d|--download)  shift 1  ;;
                       -s)  shift 1  ;;
-                   --url)  shift 2  ;;
                  --queue)  shift 1  ;;
                        *)  shift 1  ;;
 
