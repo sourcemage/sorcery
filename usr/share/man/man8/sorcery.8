@@ -73,10 +73,39 @@ and the provider if set to on.
 This adds a default statement to the list.
 Either <on> or <what> (not both) can be "", in which case they work as
 wildcards (anything <what> depends on / anything that depends on <on>)
+.PP
+.I Examples:
+.TP
+default add spell_1 spell_2 off
+If "spell_1" optionally depends on "spell_2" the default answer is off.
+
+.TP
+default add "" spell on
+If anything optionally depends on "spell" the default answer is on.
+
+.TP
+default add spell "" off
+If "spell" optionally depends on anything the default answer is off.
+
+.TP
+default add spell PROVIDER on
+"Spell" is the default provider for PROVIDER. In the case of optional_depends
+and the value of "off", "none" is chosen as the default instead.
+
 .SS default remove|search [<on>|"" [<what>|"" [on|off]]]
 These are used to search or modify the defaults list.
 Anything not specified or blank will be a wildcard.
 Everything that matches will be removed/shown.
+.PP
+.I Examples:
+.TP
+default remove spell_1 spell_2
+The default answer for when "spell_1" optionally depends on "spell_2" is removed.
+
+.TP
+default search spell PROVIDER off
+Search the defaults to see if "spell" is not the default provider of PROVIDER.
+
 .SS -v|--version 
 Displays the version number of your sorcery package.
 Always use this information when filing bugs.
