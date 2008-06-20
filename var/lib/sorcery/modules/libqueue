@@ -371,35 +371,6 @@ function list_install_queue() {
 }
 
 #---------------------------------------------------------------------
-##
-## Builds all spells in the install queue.
-##
-#---------------------------------------------------------------------
-function build_install_queue()  {
-
-  if  [  -f  $INSTALL_QUEUE  ];  then
-    lock_file $INSTALL_QUEUE
-
-    message  "The following spells will be updated :"
-    cat  $INSTALL_QUEUE
-
-    unset  SPELL
-    if    query  "Do you wish to edit ${FILE_COLOR}$INSTALL_QUEUE${DEFAULT_COLOR}?" n
-    then  edit_file  $INSTALL_QUEUE
-    fi
-
-    if [[ -s $INSTALL_QUEUE ]]; then
-      cast      `cat  $INSTALL_QUEUE`
-      rm              $INSTALL_QUEUE
-    fi
-
-    unlock_file $INSTALL_QUEUE
-  else
-    message  "No spells will be updated."
-  fi
-}
-
-#---------------------------------------------------------------------
 ## @Stdout history
 ##
 ## Display the history of the install queue for review
