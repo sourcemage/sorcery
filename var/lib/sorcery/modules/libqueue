@@ -248,8 +248,13 @@ function does_spell_need_update_sub() {
       tablet_get_patchlevel $page_dir curr_patchlevel
       tablet_get_security_patch $page_dir curr_sec_patch
     fi
-    if (( "${SECURITY_PATCH:-0}" > "$curr_sec_patch" )); then
-      message="$message Security update."
+    local diff=$(( ${SECURITY_PATCH:-0} - $curr_sec_patch ))
+    if (( $diff > 0 )); then
+      if (( $diff > 1 )); then
+        message="$message Security update ($diff times!)."
+      else
+        message="$message Security update."
+      fi
     elif (( "${PATCHLEVEL:-0}" > "$curr_patchlevel" )); then
       message="$message Spell update."
     elif (( "${UPDATED:-0}" > "${curr_updated:-0}" )); then
