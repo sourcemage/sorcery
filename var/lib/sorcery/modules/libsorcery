@@ -830,27 +830,131 @@ function list_install_queue() {
 }
 
 #---------------------------------------------------------------------
+## Find all spells that need to be updated due to security reasons.
+## Checks the version caches and compares them to the installed one.
+#---------------------------------------------------------------------
+function find_security_updates() {
+  local tmp_queue=$1
+  local recheck_queue=$2
+
+  awk -v i=$VERSION_STATUS -v verbose=$VERBOSE_QUEUING '
+    # decide what to print - just the spell or also the reason
+    function needs_update(                diff) {
+      if (verbose == "on") {
+        diff = factor[4] - $4
+        if (diff > 0) {
+          if (diff > 1) {
+            print $1, "Security update (" diff " times!)."
+          } else {
+            print $1, "Security update."
+          }
+        }
+      } else {
+        if ($4 < factor[4]) {
+          print $1
+        }
+      }
+    }
+
+    {
+      if ( ! ($1 in map)) {
+        map[$1]=$0;
+      }
+    }
+
+    END {
+      while (getline < i) {
+        if ($1 in map) {
+          split(map[$1], factor);
+          needs_update();
+        } else {
+          # multiversioned spell - do it the old way
+          print $1 > "/dev/stderr";
+        }
+      }
+    } ' > $tmp_queue 2> $recheck_queue
+}
+
+#---------------------------------------------------------------------
+## Find all spells that need to be updated (for any reason).
+## Checks the version caches and compares them to the installed one.
+#---------------------------------------------------------------------
+function find_updates() {
+  local tmp_queue=$1
+  local recheck_queue=$2
+
+  awk -v i=$VERSION_STATUS -v verbose=$VERBOSE_QUEUING '
+    # decide what to print - just the spell or also the reason
+    function needs_update(               reasons, diff) {
+      if (verbose == "on") {
+        # check SECURITY_PATCH first since it is the most important
+        diff = factor[4] - $4
+        if (diff > 0) {
+          if (diff > 1) {
+            reasons = reasons " Security update (" diff " times!)."
+          } else {
+            reasons = reasons " Security update."
+          }
+        }
+        if ($2 != factor[2]) {
+          reasons = reasons " New version (" factor[2] ")."
+        }
+        if ($3 < factor[3] ) {
+          reasons = reasons " Spell update."
+        }
+        if ($5 < factor[5]) {
+          reasons = reasons " UPDATED changed."
+        }
+        if (reasons != "") {
+          print $1, reasons
+        }
+      } else {
+        if ($2 != factor[2] || $3 < factor[3] || $4 < factor[4] || $5 < factor[5]) {
+          print $1
+        }
+      }
+    }
+
+    {
+      if ( ! ($1 in map)) {
+        map[$1]=$0;
+      }
+    }
+
+    END {
+      while (getline < i) {
+        if ($1 in map) {
+          split(map[$1], factor);
+          needs_update();
+        } else {
+          # multiversioned spell - do it the old way
+          print $1 > "/dev/stderr";
+        }
+      }
+    }' > $tmp_queue 2> $recheck_queue
+}
+
+#---------------------------------------------------------------------
 ## Frontend routine to encapsulate whether or not a spell needs updating
 ## Used by lazy dependency resolution
 #---------------------------------------------------------------------
 function does_spell_need_update() {
-  local line curr_updated curr_version status
   local spell=$1
-  # this is in a subshell because the caller may not want to actually load
-  # the spell yet
-  (
-    line=$(search_spell_status $SPELL_STATUS $spell)
-    codex_set_current_spell_by_name  $spell
-    explode "$line" ":" "info"
-    VERBOSE_QUEUING=on # safe override since we're in a subshell
-    does_spell_need_update_sub "$spell" "${info[3]}" "${info[1]}" /dev/null
-  )
+  local tmp_queue=$TMP_DIR/install_queue
+  local recheck_queue=$TMP_DIR/recheck_queue
+  local rc
+
+  VERBOSE_QUEUING=on
+  update_install_queue_sub "$tmp_queue" "$recheck_queue" single $spell
+  rc=$?
+  rm $tmp_queue $recheck_queue
+  return $rc
 }
 
 #---------------------------------------------------------------------
-##
-## common code between update_install_queue and does_spell_need_update
-## This helps keep update_install_queue optimized.
+## The slow way of determining if a spell needs to be updated. Doesn't
+## use the version cache and is also needed for checking multiversioned
+## spells.
 #---------------------------------------------------------------------
 function does_spell_need_update_sub() {
   local spell=$1
@@ -908,75 +1012,8 @@ function update_install_queue()  {
   touch $tmp_queue
 
   message  "${CHECK_COLOR}Generating the list of spells to update... ${DEFAULT_COLOR} "
-  if [[ -z $OLD_QUEUING_METHOD ]]; then
-    tablet_check_version_cache $VERSION_STATUS || return 1
-    local grimoire
-    for grimoire in $(codex_get_all_grimoires); do
-      cat $grimoire/$VERSION_INDEX_FILE 2>/dev/null
-    done |
-    awk -v i=$VERSION_STATUS -v verbose=$VERBOSE_QUEUING '
-      # decide what to print - just the spell or also the reasons
-      function needs_update(                reasons, diff) {
-        if (verbose == "on") {
-          # check SECURITY_PATCH first since it is the most important
-          diff = factor[4] - $4
-          if (diff > 0) {
-            if (diff > 1) {
-              reasons = reasons "Security update (" diff " times!)."
-            } else {
-              reasons = reasons "Security update."
-            }
-          }
-          if ($2 != factor[2]) {
-            reasons = reasons " New version (" factor[2] ")."
-          }
-          if ($3 < factor[3] ) {
-            reasons = reasons " Spell update."
-          }
-          if ($5 < factor[5]) {
-            reasons = reasons " UPDATED changed."
-          }
-          if (reasons != "") {
-            print $1, reasons
-          }
-        } else {
-          if ($2 != factor[2] || $3 < factor[3] || $4 < factor[4] || $5 < factor[5]) {
-            print $1
-          }
-        }
-      }
 
-      {
-        if ( ! ($1 in map)) {
-          map[$1]=$0;
-        }
-      }
-
-      END {
-        while (getline < i) {
-          if ($1 in map) {
-            split(map[$1], factor);
-            needs_update();
-          } else {
-            # multiversioned spell - do it the old way
-            print $1 > "/dev/stderr";
-          }
-        }
-      } ' > $tmp_queue 2> $recheck_queue
-    local spell
-    for spell in $(get_all_spells_with_status held); do
-      sed -i "/^$spell\( \|$\)/d" $tmp_queue $recheck_queue
-    done
-    if [[ $VERBOSE_QUEUING == on ]]; then
-      local message
-      while read spell message; do
-        message "$SPELL_COLOR$spell$DEFAULT_COLOR: $message"
-      done < $tmp_queue
-      sed -i 's,^\(\S*\)\s.*$,\1,' $tmp_queue
-    fi
-  else # use the old slow method
-    get_all_spells_with_status installed > $recheck_queue
-  fi
+  update_install_queue_sub "$tmp_queue" "$recheck_queue" || return 1
   if [[ -s $recheck_queue ]]; then
     (
       count=0
@@ -1002,6 +1039,81 @@ function update_install_queue()  {
 
 }
 
+#---------------------------------------------------------------------
+## Common code between update_install_queue and update_security_install_queue
+#---------------------------------------------------------------------
+function update_install_queue_sub()  {
+  local tmp_queue=$1
+  local recheck_queue=$2
+  local type=$3
+  local spell=$4
+  local rc
+
+  if [[ -z $OLD_QUEUING_METHOD ]]; then
+    tablet_check_version_cache $VERSION_STATUS || return 1
+    local grimoire
+    for grimoire in $(codex_get_all_grimoires); do
+      cat $grimoire/$VERSION_INDEX_FILE 2>/dev/null
+    done |
+    if [[ $type == security ]]; then
+      find_security_updates "$tmp_queue" "$recheck_queue"
+    else
+      find_updates "$tmp_queue" "$recheck_queue"
+    fi
+
+    if [[ $type == single ]]; then
+      if grep -q "^$spell " "$tmp_queue"; then
+        sed -i '/^$spell /!d' "$tmp_queue"
+      elif grep -q "^$spell$" "$recheck_queue"; then
+        update_install_queue_sub2 $spell
+        return $?
+      else
+        return 2
+      fi
+    else
+      for spell in $(get_all_spells_with_status held); do
+        sed -i "/^$spell\( \|$\)/d" $tmp_queue $recheck_queue
+      done
+    fi
+    if [[ $VERBOSE_QUEUING == on ]]; then
+      local message
+      while read spell message; do
+        message "$SPELL_COLOR$spell$DEFAULT_COLOR: $message"
+      done < $tmp_queue
+      sed -i 's,^\(\S*\)\s.*$,\1,' $tmp_queue
+    fi
+    return 0
+  else # use the old slow method
+    if [[ $type == single ]]; then
+      update_install_queue_sub2 $spell
+    else
+      get_all_spells_with_status installed > $recheck_queue
+    fi
+  fi
+}
+
+# FIXME: find a proper name
+#---------------------------------------------------------------------
+## Slow higher-level check if a spell needs to be updated
+#---------------------------------------------------------------------
+function update_install_queue_sub2()  {
+  local spell=$1
+  # this is in a subshell because the caller may not want to actually load
+  # the spell yet
+  (
+    line=$(search_spell_status $SPELL_STATUS $spell)
+    codex_set_current_spell_by_name  $spell
+    explode "$line" ":" "info"
+    does_spell_need_update_sub "$spell" "${info[3]}" "${info[1]}" /dev/null
+  )
+}
+
+#---------------------------------------------------------------------
+##
+## Finds all installed spells that need an update due to security
+## reasons and creates an install queue.
+##
+#---------------------------------------------------------------------
 function update_security_install_queue()  {
   local line spell page_dir info curr_sec_patch=0
   local tmp_queue=$TMP_DIR/install_queue
@@ -1010,62 +1122,8 @@ function update_security_install_queue()  {
 
   message  "${CHECK_COLOR}Generating the list of spells to update for" \
            "security reasons... ${DEFAULT_COLOR} "
-  if [[ -z $OLD_QUEUING_METHOD ]]; then
-    tablet_check_version_cache $VERSION_STATUS || return 1
-    local grimoire
-    for grimoire in $(codex_get_all_grimoires); do
-      cat $grimoire/$VERSION_INDEX_FILE 2>/dev/null
-    done |
-    awk -v i=$VERSION_STATUS -v verbose=$VERBOSE_QUEUING '
-      # decide what to print - just the spell or also the reason
-      function needs_update(                diff) {
-        if (verbose == "on") {
-          diff = factor[4] - $4
-          if (diff > 0) {
-            if (diff > 1) {
-              print $1, "Security update (" diff " times!)."
-            } else {
-              print $1, "Security update."
-            }
-          }
-        } else {
-          if ($4 < factor[4]) {
-            print $1
-          }
-        }
-      }
 
-      {
-        if ( ! ($1 in map)) {
-          map[$1]=$0;
-        }
-      }
-
-      END {
-        while (getline < i) {
-          if ($1 in map) {
-            split(map[$1], factor);
-            needs_update();
-          } else {
-            # multiversioned spell - do it the old way
-            print $1 > "/dev/stderr";
-          }
-        }
-      } ' > $tmp_queue 2> $recheck_queue
-    local spell
-    for spell in $(get_all_spells_with_status held); do
-      sed -i "/^$spell\( \|$\)/d" $tmp_queue $recheck_queue
-    done
-    if [[ $VERBOSE_QUEUING == on ]]; then
-      local message
-      while read spell message; do
-        message "$SPELL_COLOR$spell$DEFAULT_COLOR: $message"
-      done < $tmp_queue
-      sed -i 's,^\(\S*\)\s.*$,\1,' $tmp_queue
-    fi
-  else # use the old slow method
-    get_all_spells_with_status installed > $recheck_queue
-  fi
+  update_install_queue_sub "$tmp_queue" "$recheck_queue" security || return 1
   if [[ -s $recheck_queue ]]; then
     (
       count=0
