@@ -406,33 +406,31 @@ function install_queue_history() {
 ## line of the queue is removed, and returned.
 ##
 #---------------------------------------------------------------------
-function pop_queue() {  (
-
-  local ITEM
+function pop_queue() {
+  local item found
   local exit_code=0
 
-  esc_str "$2" ITEM
+  esc_str "$2" item
   lock_start_transaction "$1" tQUEUE_FILE
-  if  !  [  -f  "$1"  ];  then
+  if ! [[ -f $1 ]]; then
     exit_code=1
-  elif  [  -n  "$ITEM"  ];  then
-    grep  -v  "^$ITEM\$"  $1 > $tQUEUE_FILE
+  elif [[ -n $item ]]; then
+    grep -v "^$item\$" $1 > $tQUEUE_FILE
   else
-    FOUND=`sed  -n  1p  $1`
+    found=$(sed -n 1p $1)
 
-    if  [  -z  "$FOUND"  ];  then
+    if [[ -z $found ]]; then
       exit_code=1
     else
-      esc_str "$FOUND" FOUND
-      grep  -v  "^$FOUND$"  $1 > $tQUEUE_FILE
-      echo  $FOUND
+      esc_str "$found" found
+      grep -v "^$found$" $1 > $tQUEUE_FILE
+      echo $found
     fi
   fi
-  lock_commit_transaction $1
+  lock_commit_transaction "$1"
 
   return $exit_code
-
-) }
+}
 
 #---------------------------------------------------------------------
 ## @param queue filename
@@ -443,14 +441,14 @@ function pop_queue() {  (
 ## queue before being added at the end.
 ##
 #---------------------------------------------------------------------
-function push_queue()  {
-
-  pop_queue  "$1"  "$2"
+function push_queue() {
   local t_file
-  lock_start_transaction "$1" t_file
-  echo  "$2" >>  "$t_file";
-  lock_commit_transaction "$1"
 
+  pop_queue "$1" "$2"
+
+  lock_start_transaction "$1" t_file
+  echo "$2" >> "$t_file"
+  lock_commit_transaction "$1"
 }
 
 #---------------------------------------------------------------------
