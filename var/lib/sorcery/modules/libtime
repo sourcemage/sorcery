@@ -74,6 +74,52 @@ function compute_cast_time() {
 
 #---------------------------------------------------------------------
 ##
+## Display the time in seconds a spell took to compile and install.
+## All known algorithms are used (see compute_cast_time).
+##
+## @param spell
+## @param verbosity 0-machine readable/quiet
+## @Stdout pretty-printed cast times of spell
+## @return 1 if there are no valid times available
+## @return 0 otherwise
+#---------------------------------------------------------------------
+function compute_all_cast_times() {
+  local spell=$1 verbosity=$2
+  local times time
+
+  times=$(compute_cast_times $spell)
+  [[ -z $times ]] && return 1
+
+  if [[ $verbosity == 0 ]]; then
+    echo $spell
+    echo "$times" | tail -n 1
+    echo "$times" | compute_median
+    echo "$times" | compute_mean
+    echo "$times" | compute_weighted_mean last-cast $(private_installed_version $spell)
+    echo
+  else
+    message -n "Last cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
+    time=$(echo "$times" | tail -n 1)
+    fix_zero_time "$(epoch_to_hm $time)"
+
+    message -n "Median cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
+    time=$(echo "$times" | compute_median)
+    fix_zero_time "$(epoch_to_hm $time)"
+
+    message -n "Mean cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
+    time=$(echo "$times" | compute_mean)
+    fix_zero_time "$(epoch_to_hm $time)"
+
+    message -n "Weighted mean cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
+    time=$(echo "$times" | compute_weighted_mean last-cast $(private_installed_version $spell))
+    fix_zero_time "$(epoch_to_hm $time)"
+    echo
+  fi
+
+  return 0
+}
+#---------------------------------------------------------------------
+##
 ## Computes the mean of the passed arguments
 ##
 ## @Stdin  numbers separated by newlines
@@ -142,6 +188,38 @@ function compute_median() {
         print (n % 2) ? numbers[int(n/2+1)] : (numbers[n/2] + numbers[n/2+1])/2
       }
     }'
+}
+
+#---------------------------------------------------------------------
+##
+## Converts a time in seconds since the epoch to HH MM
+##
+## @param seconds
+## @param padding - if set will pad times with 0
+## @Stdout time
+#---------------------------------------------------------------------
+function epoch_to_hm() {
+  if [[ -z $2 ]]; then
+    date -u -d "1970-01-01 $1 seconds" "+%-Hh %-Mm"
+  else
+    date -u -d "1970-01-01 $1 seconds" "+%Hh %Mm"
+  fi
+}
+
+#---------------------------------------------------------------------
+##
+## Converts a time of "0h 0m" to an english string
+##
+## @param time
+## @Stdout possibly fixed time
+#---------------------------------------------------------------------
+function fix_zero_time() {
+  local time=$1
+  if [[ $time == "0h 0m" ]]; then
+    echo "less than a minute."
+  else
+    echo $time
+  fi
 }
 
 #---------------------------------------------------------------------
