@@ -2060,24 +2060,29 @@ function gaze_time() {
 
     if [[ $GAZE_VERBOSE != 0 ]]; then
       message -n "Casting ${SPELL_COLOR}$spell$DEFAULT_COLOR took "
-      time=$(date -u -d "1970-01-01 $diff seconds" "+%-Hh %-Mm")
-      if [[ "$time" == "0h 0m" ]]; then
-        echo "less than a minute."
-      else
-        echo $time
-      fi
+      time=$(epoch_to_hm $diff)
+      fix_zero_time "$time"
     else
-      echo -n "$spell:"
-      date -u -d "1970-01-01 $diff seconds" "+%Hh %Mm"
+      echo "$spell:$diff"
     fi
   done
 
   if [[ -n $2 ]]; then
     message -n "${MESSAGE_COLOR}Total time:$DEFAULT_COLOR "
     if [[ $GAZE_VERBOSE != 0 ]]; then
-      date -u -d "1970-01-01 $sum seconds" "+%-Hh %-Mm"
+      # date can only print day of year starting with 1, so we can't use it,
+      # yet we have to display the number of days, since the total can be big
+      awk -v sum=$sum 'END {
+        days = int(sum/3600/24)
+        sum -= days * 3600 * 24
+        hours = int(sum/3600)
+        sum -= hours * 3600
+        minutes = int(sum/60)
+
+        print days "d " (hours == 24 ? 0 : hours) "h " (minutes == 60 ? 0 : minutes) "m "
+      }' /dev/null
     else
-      date -u -d "1970-01-01 $sum seconds" "+%Hh %Mm"
+      echo $sum
     fi
   fi
 }
