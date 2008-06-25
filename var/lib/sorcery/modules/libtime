@@ -55,16 +55,20 @@ function compute_cast_times() {
 ## @Stdout cast time of spell in seconds
 #---------------------------------------------------------------------
 function compute_cast_time() {
-  local spell=$1 type=${2:---last}
+  # FIXME: make the default configurable
+  local spell=$1
+  local type=${2:---last}
 
   compute_cast_times $spell |
   case $type in
-  --last)
-    tail -n 1 ;;
-  --median)
-    compute_median ;;
-  --mean)
-    compute_mean ;;
+    --last)
+      tail -n 1 ;;
+    --median)
+      compute_median ;;
+    --mean)
+      compute_mean ;;
+    --weigh-last)
+      compute_weighted_mean last-cast $(private_installed_version $spell) ;;
   esac
 }
 
@@ -72,7 +76,7 @@ function compute_cast_time() {
 ##
 ## Computes the mean of the passed arguments
 ##
-## @Stdin  numbers separeted by newlines
+## @Stdin  numbers separated by newlines
 ## @Stdout mean value
 #---------------------------------------------------------------------
 function compute_mean() {
@@ -89,9 +93,38 @@ function compute_mean() {
 
 #---------------------------------------------------------------------
 ##
+## Computes the weighted mean of the passed and some more arguments.
+## WARNING: only usable for cast times!
+##
+## @param type - weigh either just the times of the latest version
+##
+## @Stdin  numbers separated by newlines
+## @Stdout mean value
+#---------------------------------------------------------------------
+function compute_weighted_mean() {
+  local type=$1
+  local version=$2
+
+  if [[ $type == last-cast ]]; then
+    local weight=10 #make this relative someday?
+    local i command
+    for ((i=1; i < $weight; i++)); do
+      command="p; $command"
+    done
+    {
+      # weigh the latest version by adding it another weight-1 times
+      # to the piped list of casting times of all versions
+      cat -
+      compute_cast_times $spell $version | sed -n "$command"
+    } | compute_mean
+  fi
+}
+
+#---------------------------------------------------------------------
+##
 ## Computes the median of the passed arguments
 ##
-## @Stdin  numbers separeted by newlines
+## @Stdin  numbers separated by newlines
 ## @Stdout median value
 #---------------------------------------------------------------------
 function compute_median() {
