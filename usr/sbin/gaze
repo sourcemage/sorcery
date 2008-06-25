@@ -123,6 +123,9 @@ time [--last|--median|--mean|--weigh-last] spell(s)
                                 Shows previous spell cast time (without summon)
                                 and total time if more than one spell is
                                 specified. Can also show median and mean times.
+time --full     spell(s)
+                                Shows previous spell cast time (without summon)
+                                computed in (all) different manners (see above)
 
 EOF
 }
@@ -2040,6 +2043,10 @@ function gaze_time() {
   if [[ $1 == -* ]]; then
     type=$1
     shift
+    if [[ $type == --full ]]; then
+      gaze_time_full "$@"
+      return
+    fi
   fi
 
   for spell in "$@"; do
@@ -2075,6 +2082,28 @@ function gaze_time() {
   fi
 }
 
+#---------------------------------------------------------------------
+##
+## Display the time spells took to compile and install. If gaze is in
+## silent mode, pad all the times as needed. Prints all the available
+## times.
+##
+## @param Spell
+## @param ...
+##
+#---------------------------------------------------------------------
+function gaze_time_full() {
+  local spell
+
+  for spell in "$@"; do
+    compute_all_cast_times $spell $GAZE_VERBOSE
+    if [[ $? != 0 ]]; then
+      message "${SPELL_COLOR}$spell$PROBLEM_COLOR wasn't cast yet at all!" \
+        "${DEFAULT_COLOR}"
+      continue
+    fi
+  done
+}
 
 parse()  {
 
