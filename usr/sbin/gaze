@@ -127,6 +127,9 @@ time --full     spell(s)
                                 Shows previous spell cast time (without summon)
                                 computed in (all) different manners (see above)
 
+time-system [--no-orphans] [--last|--median|--mean|--weigh-last]
+                                Shows system cast time (without summon)
+
 EOF
 }
 
@@ -912,9 +915,22 @@ function show_orphans()  {
     if [[ ! $spell ]]; then
       echo "$each"
     fi
-  done|sort
+  done
 }
 
+#-----
+## Show spells that have other spell depending on them
+#-----
+function show_non_orphans()  {
+  local spell each
+  compute_reverse_installed_depends my_hash
+  for each in $(get_all_spells_with_status ok); do
+    hash_get_ref my_hash $each spell
+    if [[ $spell ]]; then
+      echo "$each"
+    fi
+  done
+}
 
 
 
@@ -2033,6 +2049,8 @@ function gaze_show_spells_by_status () {
 ##
 ## Display the time spells took to compile and install. If gaze is in
 ## silent mode, pad all the times as needed.
+##
+## @param Type (optional) - tells which time calculation to use
 ## @param Spell
 ## @param ...
 ##
@@ -2108,6 +2126,34 @@ function gaze_time_full() {
       continue
     fi
   done
+}
+
+#---------------------------------------------------------------------
+##
+## Display the time all installed spells took to compile and install.
+## If --no-orphans is passed, they are skipped.
+##
+## @param orphans (optional) - skip orphans
+## @param type - see gaze_time
+##
+#---------------------------------------------------------------------
+function gaze_time_system() {
+  local type orphans
+
+  while [[ $1 == -* ]]; do
+    if [[ $1 == --no-orphans ]]; then
+      orphans=no
+    else
+      type=$1
+    fi
+    shift
+  done
+
+  if [[ $orphans == no ]]; then
+    gaze_time $type $(show_non_orphans | sort -u)
+  else
+    gaze_time $type $(get_all_spells_with_status ok | sort)
+  fi
 }
 
 parse()  {
@@ -2205,7 +2251,7 @@ parse()  {
         provides)  shift; gaze_provides $@               ;;
          depends)  shift; gaze_show_depends  "$@"        ;;
     dependencies)  shift; gaze_show_dependencies  "$@"   ;;
-         orphans)  show_orphans                          ;;
+         orphans)  show_orphans | sort                   ;;
          history)  show_spell_component HISTORY  "$2"    ;;
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
@@ -2218,7 +2264,7 @@ parse()  {
             size)  shift; gaze_show_size              $@ ;;
        checkmd5s)  shift; gaze_md5check               $@ ;;
             time)  shift; gaze_time                   $@ ;;
-
+     time-system)  shift; gaze_time_system            $@ ;;
     compile)  if  [  -n  "$3"        ];  then
                   VERSION=$3
               elif  [  -z  "$VERSION"  ];  then
