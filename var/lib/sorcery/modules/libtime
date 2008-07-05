@@ -103,19 +103,19 @@ function compute_all_cast_times() {
   else
     message -n "Last cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
     time=$(echo "$times" | tail -n 1)
-    fix_zero_time "$(epoch_to_hm $time)"
+    pretty_print_time $time
 
     message -n "Median cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
     time=$(echo "$times" | compute_median)
-    fix_zero_time "$(epoch_to_hm $time)"
+    pretty_print_time $time
 
     message -n "Mean cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
     time=$(echo "$times" | compute_mean)
-    fix_zero_time "$(epoch_to_hm $time)"
+    pretty_print_time $time
 
     message -n "Weighted mean cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
     time=$(echo "$times" | compute_weighted_mean last-cast $(private_installed_version $spell))
-    fix_zero_time "$(epoch_to_hm $time)"
+    pretty_print_time $time
     echo
   fi
 
