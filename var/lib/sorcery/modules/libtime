@@ -75,7 +75,8 @@ function compute_cast_time() {
 #---------------------------------------------------------------------
 ##
 ## Display the time in seconds a spell took to compile and install.
-## All known algorithms are used (see compute_cast_time).
+## All known algorithms are used (see compute_cast_time). Mean estimates
+## also show the estimation error.
 ##
 ## @param spell
 ## @param verbosity 0-machine readable/quiet
@@ -123,20 +124,25 @@ function compute_all_cast_times() {
 }
 #---------------------------------------------------------------------
 ##
-## Computes the mean of the passed arguments
+## Computes the mean of the passed arguments and its standard error
 ##
 ## @Stdin  numbers separated by newlines
-## @Stdout mean value
+## @Stdout mean and its error
 #---------------------------------------------------------------------
 function compute_mean() {
   gawk '
-    BEGIN { n = 0 }
+    BEGIN { n = 0; mean = 0; variance = 0; }
 
-    { sum += $0; n++ }
+    { sum += $0; numbers[n] = $0; n++ }
 
     END {
       if (n == 0) exit
-      print int(sum/n+0.5)
+      mean = sum/n;
+      for (i in numbers) {
+        variance += (numbers[i] - mean)^2;
+      }
+
+      print int(mean+0.5), int(sqrt(variance/(n-1)/n)*1.96+0.5)
     }'
 }
 
@@ -195,12 +201,29 @@ function compute_median() {
 
 #---------------------------------------------------------------------
 ##
-## Converts a time in seconds into a human readable format
+## Converts a time in seconds and the estimation error (if available)
+## into a human readable format
+##
+## @param time in seconds
+## @param estimation error in seconds (optional)
+## @Stdout time (DD:HH:MM or HH:MM or MM or "less than a minute")
+#---------------------------------------------------------------------
+function pretty_print_time() {
+  if [[ -z $2 ]]; then
+    pretty_print_time_sub "$@"
+  else
+    pretty_print_time_with_error "$@"
+  fi
+}
+
+#---------------------------------------------------------------------
+##
+## Converts a time in seconds into a human readable format.
 ##
 ## @param time in seconds
 ## @Stdout time (DD:HH:MM or HH:MM or MM or "less than a minute")
 #---------------------------------------------------------------------
-function pretty_print_time() {
+function pretty_print_time_sub() {
   # date can only print day of year starting with 1, so we can't use it,
   # yet we have to display the number of days, since the total can be big
   awk -v sum=$1 'END {
@@ -216,13 +239,40 @@ function pretty_print_time() {
       exit
     }
     if (days > 0) {
-      print days "d " hours "h " minutes "m "
+      print days "d " hours "h " minutes "m"
     } else if (hours > 0) {
-      print hours "h " minutes "m "
+      print hours "h " minutes "m"
     } else {
-      print minutes "m "
+      print minutes "m"
     }
   }' /dev/null
+}
+
+#---------------------------------------------------------------------
+##
+## Converts a time in seconds and the estimation error into a human
+## readable format. If the error is very small or 0, it isn't shown.
+##
+## @param time in seconds
+## @param estimation error in seconds
+## @Stdout time +/- error (see pretty_print_time)
+#---------------------------------------------------------------------
+function pretty_print_time_with_error() {
+  local time=$1
+  local error=$2
+
+  time=$(pretty_print_time_sub $time)
+  if (( $error < 60 )); then
+    error=0
+  else
+    error=$(pretty_print_time_sub $error)
+  fi
+
+  if [[ $error == 0 ]]; then
+    echo $time
+  else
+    echo "$time (+/- $error)"
+  fi
 }
 
 #---------------------------------------------------------------------
