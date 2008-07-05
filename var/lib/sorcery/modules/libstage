@@ -25,14 +25,22 @@ function filter_spell_configs()
 }
 
 #---------------------------------------------------------------------
-## Install config files to a staged location on the system
+## Install config files to a staged location on the system or if
+## they are also excluded, just install them normally.
 #---------------------------------------------------------------------
 function stage_install_configs()
 {
+  local spell_configs=$(get_all_package_files | filter_spell_configs -v)
+
+  # install excluded configs as ordinary files - do not stage them
+  message "${MESSAGE_COLOR}Installing excluded config files${DEFAULT_COLOR}"
+  echo "$spell_configs"      |
+  filter_excluded -v         |
+  stage_install_files
+
   message "${MESSAGE_COLOR}Staging config files into the system${DEFAULT_COLOR}"
-  get_all_package_files        |
-  filter_spell_configs -v      |
-  filter_excluded              |
+  echo "$spell_configs"      |
+  filter_excluded            |
   stage_install_files config
 }
 
