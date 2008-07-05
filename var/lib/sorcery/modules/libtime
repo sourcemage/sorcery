@@ -39,8 +39,9 @@ function compute_cast_times() {
       # check all valid start/succes pairs
       if ($5 == "start") {
         start_time = $1
+        start_version = $4
       }
-      if ($5 == "success" && start_time != 0) {
+      if ($5 == "success" && start_time != 0 && start_version == $4) {
         succes_time = $1
         print since_epoch(succes_time)-since_epoch(start_time)
         start_time = 0
