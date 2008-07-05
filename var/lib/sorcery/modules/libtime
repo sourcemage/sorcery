@@ -201,6 +201,24 @@ function compute_median() {
 
 #---------------------------------------------------------------------
 ##
+## Computes the combined error of independent variables
+##
+## @param error for each variable
+## @param ...
+## @Stdout total error
+#---------------------------------------------------------------------
+function compute_total_error() {
+  tr ' ' '\n' <<< "$@" |
+  gawk '
+    { total += $0^2 }
+
+    END {
+      print int(sqrt(total))
+    }'
+}
+
+#---------------------------------------------------------------------
+##
 ## Converts a time in seconds and the estimation error (if available)
 ## into a human readable format
 ##
@@ -212,7 +230,9 @@ function pretty_print_time() {
   if [[ -z $2 ]]; then
     pretty_print_time_sub "$@"
   else
-    pretty_print_time_with_error "$@"
+    local time=$(pretty_print_time_sub $1)
+    echo -n "$time "
+    pretty_print_time_error $2
   fi
 }
 
@@ -250,18 +270,15 @@ function pretty_print_time_sub() {
 
 #---------------------------------------------------------------------
 ##
-## Converts a time in seconds and the estimation error into a human
-## readable format. If the error is very small or 0, it isn't shown.
+## Converts a time estimation error into a human readable format.
+## If the error is very small or 0, it isn't shown.
 ##
-## @param time in seconds
 ## @param estimation error in seconds
 ## @Stdout time +/- error (see pretty_print_time)
 #---------------------------------------------------------------------
-function pretty_print_time_with_error() {
-  local time=$1
-  local error=$2
+function pretty_print_time_error() {
+  local error=$1
 
-  time=$(pretty_print_time_sub $time)
   if (( $error < 60 )); then
     error=0
   else
@@ -269,9 +286,9 @@ function pretty_print_time_with_error() {
   fi
 
   if [[ $error == 0 ]]; then
-    echo $time
+    echo
   else
-    echo "$time (+/- $error)"
+    echo "(+/- $error)"
   fi
 }
 

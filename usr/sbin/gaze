@@ -2057,7 +2057,7 @@ function gaze_show_spells_by_status () {
 #---------------------------------------------------------------------
 function gaze_time() {
 
-  local diff time sum=0 spell type
+  local diff time sum=0 err_sum=() n=0 spell type
   if [[ $1 == -* ]]; then
     type=$1
     shift
@@ -2074,7 +2074,12 @@ function gaze_time() {
         "${DEFAULT_COLOR}"
       continue
     fi
-    (( sum += ${diff% *} )) # don't count the error
+    if [[ ${diff% *} == $diff ]]; then
+      (( sum += $diff ))
+    else
+      (( sum += ${diff% *}, n++ )) # we'll count the error separately
+      err_sum[n]=${diff#* }
+    fi
 
     if [[ $GAZE_VERBOSE != 0 ]]; then
       message -n "Casting ${SPELL_COLOR}$spell$DEFAULT_COLOR took "
@@ -2087,9 +2092,9 @@ function gaze_time() {
   if [[ -n $2 ]]; then
     message -n "${MESSAGE_COLOR}Total time:$DEFAULT_COLOR "
     if [[ $GAZE_VERBOSE != 0 ]]; then
-      pretty_print_time $sum
+      pretty_print_time $sum $(compute_total_error "${err_sum[@]}")
     else
-      echo $sum
+      echo $sum $(compute_total_error "${err_sum[@]}")
     fi
   fi
 }
