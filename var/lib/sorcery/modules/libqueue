@@ -232,44 +232,43 @@ function does_spell_need_update_sub() {
   local curr_updated=$3
   local tmp_queue=$4
   local message="$SPELL_COLOR$spell$DEFAULT_COLOR:"
-  if  [[ $VERSION != $curr_version ]] ; then
-    if [[ $VERBOSE_QUEUING == on ]]; then
-      clear_line
-      message "$message New version ($VERSION)."
-    fi
-    echo $spell >> $tmp_queue
-    return 0
-  else
-    curr_patchlevel=0
-    curr_sec_patch=0
-    if tablet_find_spell_dir $spell page_dir ; then
-      curr_updated=0
-      tablet_get_updated $page_dir curr_updated
-      tablet_get_patchlevel $page_dir curr_patchlevel
-      tablet_get_security_patch $page_dir curr_sec_patch
-    fi
-    local diff=$(( ${SECURITY_PATCH:-0} - $curr_sec_patch ))
-    if (( $diff > 0 )); then
-      if (( $diff > 1 )); then
-        message="$message Security update ($diff times!)."
-      else
-        message="$message Security update."
-      fi
-    elif (( "${PATCHLEVEL:-0}" > "$curr_patchlevel" )); then
-      message="$message Spell update."
-    elif (( "${UPDATED:-0}" > "${curr_updated:-0}" )); then
-      message="$message UPDATED changed."
-    else
-      return 1
-    fi
-    if [[ $VERBOSE_QUEUING == on ]]; then
-      clear_line
-      message "$message"
-    fi
-    echo $spell >> $tmp_queue
-    return 0
+
+  local curr_patchlevel=0
+  local curr_sec_patch=0
+  if tablet_find_spell_dir $spell page_dir; then
+    curr_updated=0
+    tablet_get_updated $page_dir curr_updated
+    tablet_get_patchlevel $page_dir curr_patchlevel
+    tablet_get_security_patch $page_dir curr_sec_patch
   fi
-  return 1
+
+  local diff=$(( ${SECURITY_PATCH:-0} - $curr_sec_patch ))
+  if (( $diff > 0 )); then
+    if (( $diff > 1 )); then
+      message="$message Security update ($diff times!)."
+    else
+      message="$message Security update."
+    fi
+  fi
+  if [[ $VERSION != $curr_version ]]; then
+    message="$message New version ($VERSION)."
+  fi
+  if (( "${PATCHLEVEL:-0}" > "$curr_patchlevel" )); then
+    message="$message Spell update."
+  fi
+  if (( "${UPDATED:-0}" > "${curr_updated:-0}" )); then
+    message="$message UPDATED changed."
+  fi
+  if [[ $message == "$SPELL_COLOR$spell$DEFAULT_COLOR:" ]]; then
+    # no updates found
+    return 1
+  fi
+  if [[ $VERBOSE_QUEUING == on ]]; then
+    clear_line
+    message "$message"
+  fi
+  echo $spell >> $tmp_queue
+  return 0
 }
 
 #---------------------------------------------------------------------
