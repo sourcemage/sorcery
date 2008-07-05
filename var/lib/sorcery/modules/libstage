@@ -12,11 +12,11 @@
 #---------------------------------------------------------------------
 function transfer_staged_spell()
 {
+  stage_install_ordinary
   lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
   mkdir -p "$CONFIG_STAGE_DIRECTORY/$SPELL/current"
   stage_install_configs
   unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
-  stage_install_rest
 }
 
 function filter_spell_configs()
@@ -37,11 +37,11 @@ function stage_install_configs()
 }
 
 #---------------------------------------------------------------------
-## Install the rest of the files in the stage root
+## Install non-configs in the stage root
 #---------------------------------------------------------------------
-function stage_install_rest()
+function stage_install_ordinary()
 {
-  message "${MESSAGE_COLOR}Installing the rest of the files${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Installing ordinary files${DEFAULT_COLOR}"
   get_all_package_files        |
   filter_spell_configs         |
   stage_install_files
