@@ -226,6 +226,38 @@ function fix_zero_time() {
 }
 
 #---------------------------------------------------------------------
+##
+## Converts a time in seconds into a human readable format
+##
+## @param time in seconds
+## @Stdout time (DD:HH:MM or HH:MM or MM or "less than a minute")
+#---------------------------------------------------------------------
+function pretty_print_time() {
+  # date can only print day of year starting with 1, so we can't use it,
+  # yet we have to display the number of days, since the total can be big
+  awk -v sum=$1 'END {
+    days = int(sum/3600/24)
+    sum -= days * 3600 * 24
+    hours = int(sum/3600)
+    sum -= hours * 3600
+    minutes = int(sum/60)
+    # sum is now < 3600
+
+    if (sum < 60 && days == 0 && hours == 0) {
+      print "less than a minute."
+      exit
+    }
+    if (days > 0) {
+      print days "d " hours "h " minutes "m "
+    } else if (hours > 0) {
+      print hours "h " minutes "m "
+    } else {
+      print minutes "m "
+    }
+  }' /dev/null
+}
+
+#---------------------------------------------------------------------
 ## @License
 ##
 ## This software is free software; you can redistribute it and/or modify

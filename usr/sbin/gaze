@@ -2088,17 +2088,7 @@ function gaze_time() {
   if [[ -n $2 ]]; then
     message -n "${MESSAGE_COLOR}Total time:$DEFAULT_COLOR "
     if [[ $GAZE_VERBOSE != 0 ]]; then
-      # date can only print day of year starting with 1, so we can't use it,
-      # yet we have to display the number of days, since the total can be big
-      awk -v sum=$sum 'END {
-        days = int(sum/3600/24)
-        sum -= days * 3600 * 24
-        hours = int(sum/3600)
-        sum -= hours * 3600
-        minutes = int(sum/60)
-
-        print days "d " hours "h " minutes "m "
-      }' /dev/null
+      pretty_print_time $sum
     else
       echo $sum
     fi
