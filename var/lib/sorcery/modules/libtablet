@@ -865,12 +865,13 @@ function tablet_coalesce_files() {
 
   local total_files=$(find $dir -type f 2>/dev/null|wc -l)
   message "Computing md5sum of $total_files tablet files"
-  function tablet_coalesce_files_sub() {
-    hash_append tablet_coalesce $(md5sum $1 2>/dev/null)
+  # the + makes find stack found files, so md5sum is invoked a lot less often
+  find $dir -type f -exec md5sum {} + 2>/dev/null |
+  while read line; do
+    hash_append tablet_coalesce $line
     progress_bar $i $total_files
     let i+=1
-  }
-  iterate tablet_coalesce_files_sub $'\n' "$(find $dir -type f)"
+  done
   message ""
 
   # hash_get_table dumps out the table values one per line
