@@ -338,6 +338,7 @@ function dispel_spell() {
       remove_version_cache "$VERSION_STATUS" $SPELL &&
       { [[ $TRIGGER == off ]] || trigger "dispel";} &&
       remove_triggers $SPELL      &&
+      { [[ $DEQUEUE == off ]] || pop_install_queue $SPELL; } &&
       message  "${DISPEL_COLOR}Dispelled spell:"  \
                "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" &&
       activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
