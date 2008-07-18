@@ -659,10 +659,10 @@ function pop_queue() {  (
   local ITEM=`esc_str $2`
   local exit_code=0
 
+  [[ -f $1 ]] || return 1
+
   lock_start_transaction "$1" tQUEUE_FILE
-  if  !  [  -f  "$1"  ];  then
-    exit_code=1
-  elif  [  -n  "$ITEM"  ];  then
+  if  [  -n  "$ITEM"  ];  then
     grep  -v  "^$ITEM\$"  $1 > $tQUEUE_FILE
   else
     FOUND=`sed  -n  1p  $1`
