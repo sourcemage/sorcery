@@ -33,9 +33,9 @@ what            spell           Prints the spell's description.
 short           spell           Prints the spell's short description.
 where   -path   spell           Prints the spell's section or full path.
 website | url   spell           Prints the spell's website.
-install         spell           Views an install log, and sorcery log files for to the spell.
-install-full    spell           Views an install log including all sorcery state files.
-install-spell   spell           Views an install log without any sorcery files included.
+install         spell [version] Views an install log, and sorcery log files for to the spell.
+install-full    spell [version] Views an install log including all sorcery state files.
+install-spell   spell [version] Views an install log without any sorcery files included.
 installed      [spell]          Views installed spells.
 version         spell           Views version of spell installed,
                                  and version in the grimoire.
@@ -2268,9 +2268,12 @@ parse()  {
                        "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
-        install) gaze_install $SPELL $VERSION ;;
-   install-full) gaze_install $SPELL $VERSION full ;;
-  install-spell) gaze_install $SPELL $VERSION spell ;;
+        install) [[ -n $3 ]] && VERSION="$3"
+                 gaze_install $SPELL $VERSION ;;
+   install-full) [[ -n $3 ]] && VERSION="$3"
+                 gaze_install $SPELL $VERSION full ;;
+  install-spell) [[ -n $3 ]] && VERSION="$3"
+                 gaze_install $SPELL $VERSION spell ;;
 
     sum)  [  -n  "$SPELL"  ]                         &&
           checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
