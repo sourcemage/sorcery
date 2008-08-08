@@ -864,28 +864,24 @@ function tablet_coalesce_files() {
   local link_log=${2:-$TMP_DIR}/link_log
 
   local total_files=$(find $dir -type f 2>/dev/null|wc -l)
-  message "Computing md5sum of $total_files tablet files"
+  message
+  message "Computing the md5sums of $total_files tablet files and coalescing all the duplicates..."
   # the + makes find stack found files, so md5sum is invoked a lot less often
-  find $dir -type f -exec md5sum {} + 2>/dev/null |
-  while read line; do
-    hash_append tablet_coalesce $line
+  find $dir -type f -exec md5sum {} + 2>/dev/null | sort |
+  while read sum file; do
+    if [[ -z $previous_sum || $previous_sum != $sum ]]; then
+      previous_sum=$sum
+      previous_file=$file
+    else
+      if ! [[ $previous_file -ef $file ]]; then
+        echo "Linking $previous_file to $file" >> $link_log
+        ln -f $previous_file $file
+      fi
+    fi
     let i+=1
     progress_bar $i $total_files
   done
-  message ""
-
-  # hash_get_table dumps out the table values one per line
-  # they are read into the stuff array and then if theres more than one
-  # thing we force hardlink them together
-  message "Coalescing files.."
-  hash_get_table tablet_coalesce| while read -a cdr; do
-    car=${cdr[0]}
-    for (( i=1 ; i<${#cdr[*]} ; i++ )) ; do
-      echo "Linking $car to ${cdr[$i]}" >> $link_log
-      ln -f $car ${cdr[$i]}
-    done
-  done
-  hash_unset tablet_coalesce
+  clear_line
 }
 
 ###################### Version 0 repair functions ####################
