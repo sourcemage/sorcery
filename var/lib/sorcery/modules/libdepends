@@ -962,8 +962,8 @@ function work_depends_provider()
     # anyone noticing
     explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
     tmp=${status[1]%(*}    # Name of spell which provides $1
-    if spell_ok $tmp &&
-       query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
+    if spell_ok $tmp; then
+      message "${MESSAGE_COLOR}Using ${SPELL_COLOR}$tmp${DEFAULT_COLOR}"
       private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
       return 0
     fi
@@ -1073,14 +1073,14 @@ function work_optional_depends_provider()
   if [[ ! $RECONFIGURE ]]; then
     explode "$(search_depends_status_simple $DEPENDS_STATUS "$SPELL" ".*($1)" "on")" ":" "status"
     local tmp=${status[1]%(*}    # Name of spell which provides $1
-    if [[ "$tmp" ]] && spell_ok "$tmp" &&
-          query "Continue to use ${SPELL_COLOR}$tmp${DEFAULT_COLOR}?" y; then
+    if [[ "$tmp" ]] && spell_ok "$tmp"; then
+      message "${MESSAGE_COLOR}Using ${SPELL_COLOR}$tmp${DEFAULT_COLOR}"
       private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
       return 0
     fi
     if [[ "$(search_depends_status_simple $DEPENDS_STATUS \
-                                          "$SPELL" ".*($1)" "off")" ]] &&
-        query "Continue to use ${SPELL_COLOR}[none]${DEFAULT_COLOR}?" y; then
+                                          "$SPELL" ".*($1)" "off")" ]]; then
+      message "${MESSAGE_COLOR}Using ${SPELL_COLOR}[none]${DEFAULT_COLOR}"
       private_common_depends "$tmp($1)" "off" "$database_term" "$2" "$3"
       return 0
     fi
