@@ -1437,38 +1437,44 @@ function awkuniq() {
 ## Dirname written in bash, optionally uses an upvar (making it forkless).
 #---------------------------------------------------------------------
 function smgl_dirname() {
-  local __dir=$1
-  local __last_dir __next_dir
+  local __dir=() __dirname i __last_dir
 
   # Pull of any trailing /'s, there could be more than/one///
-  while [[ "$__dir" != "$__last_dir" ]] ; do
-    __last_dir=$__dir
-    __dir=${__dir%/}
+  __dirname=$1
+  while [[ $__dirname != $__last_dir ]]; do
+    __last_dir=$__dirname
+    __dirname=${__dirname%/}
+  done
+  if [[ -z $__dirname ]]; then
+    __dirname=/
+  fi
+
+  explode "$__dirname" / __dir
+  [[ ${__dirname:0:1} == / ]] && unset __dirname || __dirname="."
+  for (( i=0; i < ${#__dir[@]}-1; i++ )); do
+    __dirname="$__dirname/${__dir[$i]}"
   done
 
-  # remove the basename
-  __next_dir=${__dir%/*}
-  # make level one (/bin) directories work
-  [[ -z $__next_dir ]] && __next_dir=//
-
-  # if the string had no more directory seperators in it (was aaa/, now aaa),
-  # then this is a special case, the answer is '.'
-  if [[ "$__next_dir" == "$__dir" ]] ; then
-    __dir="."
+  # Pull of any trailing /'s
+  while [[ $__dirname != $__last_dir ]]; do
+    __last_dir=$__dirname
+    __dirname=${__dirname%/}
+  done
+  if [[ -z $__dirname ]]; then
+    __dirname=/
   else
-    __dir=$__next_dir
-    # Trim off anymore leading /'s (was /aa//bb, now /aa//)
-    while [[ "$__dir" != "$__last_dir" ]] ; do
-      __last_dir=$__dir
-      __dir=${__dir%/}
-      [[ "$__dir" == "/" ]] && break
-    done
+    if [[ ${__dirname:0:2} == // ]]; then
+      __dirname="${__dirname:1}"
+    elif [[ ${__dirname:0:2} == ./ ]]; then
+      # usually not strictly necessary, but let's be conformant with dirname
+      __dirname="${__dirname:2}"
+    fi
   fi
 
   if [[ "$2" ]] ; then
-    upvar "$2" "$__dir"
+    upvar "$2" "$__dirname"
   else
-    echo "$__dir"
+    echo "$__dirname"
   fi
 }
 
