@@ -401,6 +401,11 @@ function compute_uninstalled_depends()
   local _idx
   local looked_at
 
+  # this is a list of all spells basesystem depends on it is used to
+  # avoid loops with the "everything depends on basesystem" feature
+  local base_deps
+  base_deps=$(search_depends_status $DEPENDS_STATUS basesystem|cut -f2 -d:)
+
   # All specified spells are assumed to be not installed, or else -c and -r
   # would have to be specified all the time.
 
@@ -448,12 +453,6 @@ function private_run_depends()
   local spell_sub_depends
 
   hash_put "depends_looked_at" "$SPELL" "start"
-
-  # move this up to compute_uninstalled_depends?
-  # this is a list of all spells basesystem depends on it is used to
-  # avoid loops with the "everything depends on basesystem" feature
-  local base_deps
-  base_deps=$(search_depends_status $DEPENDS_STATUS basesystem|cut -f2 -d:)
 
   # We only need to run the stuff if we are going to be casting.
   # It only needs to be added to the casting hash table if we are
