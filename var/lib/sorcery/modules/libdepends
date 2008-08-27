@@ -1613,19 +1613,84 @@ function depends_message() {
 #########################BEGIN OTHER STUFF############################
 
 #---------------------------------------------------------------------
-## Removes a dependency from the list.
+## @param Spell name
+## Removes a dependency and its dependees from the to_cast list.
 #---------------------------------------------------------------------
 function private_remove_dependees()
 {
-  local SPELL=$1
-  local i
-  echo "Removing dependees of $1"
+  local spell=$1
+  local dependees dependee
+  message "${PROBLEM_COLOR}Removing dependees of $SPELL_COLOR$spell$DEFAULT_COLOR"
+
+  # take care of the spell
+  private_remove_dependees_sub $spell
+
+  # take care of the dependees and their dependees and ...
+  recurse_remove_dependees() {
+    local spell=$1
+    local dependees dependee
+    while uncommitted_upward_depends $spell dependees; do
+      [[ -z $dependees ]] && break
+      for dependee in $dependees; do
+        private_remove_dependees_sub $dependee
+        recurse_remove_dependees $dependee
+      done
+    done
+  }
+
+  recurse_remove_dependees $spell
+
+}
+
+#---------------------------------------------------------------------
+## @param Spell name
+## Does the actual removal
+#---------------------------------------------------------------------
+function private_remove_dependees_sub()
+{
+  local spell=$1
 
   # spell is being removed from cast list, add to FAILED_LIST
-  echo "$SPELL" >> $FAILED_LIST
-  hash_put depends_looked_at $SPELL failed
-  hash_unset "$CAST_HASH" "$SPELL"
-  hash_put $CANNOT_CAST_HASH "$SPELL" "Failed"
+  echo "$spell" >> $FAILED_LIST
+  hash_put depends_looked_at $spell failed
+  hash_unset "$CAST_HASH" "$spell"
+  hash_put $CANNOT_CAST_HASH "$spell" "Failed"
+
+  local bonus=${BONUS_SPELLS[@]}
+  local up_depends=${UP_DEPENDS[@]}
+  if real_list_find "$bonus" $spell; then
+    real_list_remove bonus $spell
+    BONUS_SPELLS=( $bonus )
+  fi
+  if real_list_find "$up_depends" $spell; then
+    real_list_remove up_depends $spell
+    UP_DEPENDS=( $up_depends )
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param Spell name
+## @param Return variable
+## Find all the spells already processed that depend on the spell given as $1
+## Unlike private_upward_depends, this one works with the uncommitted info
+#---------------------------------------------------------------------
+function uncommitted_upward_depends() {
+  local _spell=$1
+  local _upvar=$2
+  local candidate _dependees _deps
+
+  for candidate in $(hash_get_table_fields $CAST_HASH); do
+    hash_get_ref $CAST_HASH $candidate _deps
+    if real_list_find "$_deps" $_spell; then
+      real_list_add _dependees $candidate
+    fi
+  done
+
+  if [[ -n $_upvar ]]; then
+    upvar $_upvar $_dependees
+  else
+    echo $_dependees
+  fi
 }
 
 #---------------------------------------------------------------------
