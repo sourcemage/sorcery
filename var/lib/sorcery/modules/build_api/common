@@ -169,7 +169,11 @@ function real_gather_docs()  { (
 
     debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
 
-    DEST_DIR=$DOCUMENT_DIRECTORY/$SPELL
+    if [[ $STAGED_INSTALL == off ]]; then
+      DEST_DIR=$DOCUMENT_DIRECTORY/$SPELL
+    else
+      DEST_DIR=$STAGE_DIRECTORY/TRANSL/$DOCUMENT_DIRECTORY/$SPELL
+    fi
     mkdir  -p  $DEST_DIR
 
     cd $SOURCE_DIRECTORY
