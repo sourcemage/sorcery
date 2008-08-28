@@ -1688,14 +1688,53 @@ function private_discard_spell()
 
   local bonus=${BONUS_SPELLS[@]}
   local up_depends=${UP_DEPENDS[@]}
+  local runtime_depends=${RUNTIME_DEPENDS[@]}
+  local new_runtime_depends=${NEW_RUNTIME_DEPENDS[@]}
+  local spells2=${spells[@]}
+  local triggerees2=${TRIGGEREES[@]}
+  local triggerees3=${triggerees[@]}
+  local new_depends=${NEW_DEPENDS[@]}
   if real_list_find "$bonus" $spell; then
+echo +b+$bonus+$spell
     real_list_remove bonus $spell
     BONUS_SPELLS=( $bonus )
   fi
   if real_list_find "$up_depends" $spell; then
+echo +u+$up_depends+$spell
     real_list_remove up_depends $spell
     UP_DEPENDS=( $up_depends )
   fi
+  if real_list_find "$runtime_depends" $spell; then
+echo +r+$runtime_depends+$spell
+    real_list_remove runtime_depends $spell
+    RUNTIME_DEPENDS=( $runtime_depends )
+  fi
+  if real_list_find "$spells2" $spell; then
+echo +s+$spells2+$spell
+    real_list_remove spells2 $spell
+    spells=( $spells2 )
+  fi
+  if real_list_find "$new_runtime_depends" $spell; then
+echo +nr+$new_runtime_depends+$spell
+    real_list_remove new_runtime_depends $spell
+    NEW_RUNTIME_DEPENDS=( $new_runtime_depends )
+  fi
+  if real_list_find "$triggerees2" $spell; then
+echo +t+$triggerees2+$spell
+    real_list_remove triggerees2 $spell
+    TRIGGEREES=( $triggerees2 )
+  fi
+  if real_list_find "$triggerees3" $spell; then
+echo +t2+$triggerees3+$spell
+    real_list_remove triggerees3 $spell
+    triggerees=( $triggerees3 )
+  fi
+  if real_list_find "$new_depends" $spell; then
+echo +nd+$new_depends+$spell
+    real_list_remove new_depends $spell
+    NEW_DEPENDS=( $new_depends )
+  fi
+  #FORCE_DEPENDS, NEW_* ...
 }
 
 #---------------------------------------------------------------------
