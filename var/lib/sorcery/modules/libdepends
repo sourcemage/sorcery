@@ -1619,11 +1619,11 @@ function depends_message() {
 function private_remove_dependees()
 {
   local spell=$1
-  local dependees dependee
+  local removed_list dependee dependees
   message "${PROBLEM_COLOR}Removing dependees of $SPELL_COLOR$spell$DEFAULT_COLOR"
 
   # take care of the spell
-  private_remove_dependees_sub $spell
+  private_discard_spell $spell
 
   # take care of the dependees and their dependees and ...
   recurse_remove_dependees() {
@@ -1632,7 +1632,8 @@ function private_remove_dependees()
     while uncommitted_upward_depends $spell dependees; do
       [[ -z $dependees ]] && break
       for dependee in $dependees; do
-        private_remove_dependees_sub $dependee
+        private_discard_spell $dependee
+        real_list_add removed_list $dependee
         recurse_remove_dependees $dependee
       done
     done
@@ -1640,15 +1641,44 @@ function private_remove_dependees()
 
   recurse_remove_dependees $spell
 
+  # take care of dependencies of removed dependees
+  # but don't remove them if they were specified manually or
+  # if they wouldn't be cast at all or
+  # if something else needs them
+  recurse_remove_dependencies() {
+    local spell=$1
+    local dependency dependees ignore dependees2
+    # use BACK_CAST_HASH since we've already cleared CAST_HASH
+    # it is in the form of dependency : dependee1 dependee2 ...
+    for dependency in $(hash_get_table_fields $BACK_CAST_HASH); do
+      hash_get_ref $BACK_CAST_HASH $dependency dependees
+      if real_list_find "$dependees" $spell &&
+        hash_get_ref "depends_looked_at" "$dependency" ignore &&
+        [[ $ignore != ignore ]] &&
+        uncommitted_upward_depends $dependency dependees2 &&
+        [[ -z $dependees2 ]] &&
+        ! real_list_find "$SPELLS" $dependency; then
+          hash_unset_part $BACK_CAST_HASH $dependency $spell
+          private_discard_spell $dependency
+          recurse_remove_dependencies $dependency
+      fi
+    done
+  }
+
+  for dependee in $removed_list; do
+    recurse_remove_dependencies $dependee
+  done
 }
 
 #---------------------------------------------------------------------
 ## @param Spell name
 ## Does the actual removal
 #---------------------------------------------------------------------
-function private_remove_dependees_sub()
+function private_discard_spell()
 {
   local spell=$1
+
+  grep -qs $spell $FAILED_LIST && return 0
 
   # spell is being removed from cast list, add to FAILED_LIST
   echo "$spell" >> $FAILED_LIST
