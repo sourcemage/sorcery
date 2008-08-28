@@ -214,6 +214,29 @@ function hash_unset() {
   unset ${VARIABLE_NAME}
 }
 
+#---------------------------------------------------------------------
+## @param table name
+## @param field name
+## @param item
+##
+## The reverse of hash_append, it removes an item from the field's value.
+##
+#---------------------------------------------------------------------
+function hash_unset_part() {
+  local VARIABLE_NAME
+  local old_value
+  local item=$3
+  hash_build_variable_name "$1" "$2" VARIABLE_NAME
+  old_value=${!VARIABLE_NAME}
+  if [[ -n $old_value ]] && real_list_find "$old_value" "$item"; then
+    real_list_remove old_value "$item"
+    if [[ -n $old_value ]]; then
+      upvar $VARIABLE_NAME "$old_value"
+    else
+      unset $VARIABLE_NAME
+    fi
+  fi
+}
 
 #---------------------------------------------------------------------
 ## @param table name
