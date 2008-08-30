@@ -90,7 +90,7 @@ function run_build_spell() {
       run_transfer                          &&
       devoke_installwatch                   &&
       STAGED_INSTALL=off                    &&
-      run_final                             || return 3
+      run_final | append_to_notice_log      || return 3
     ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
        > >(tee -a $C_LOG >> $VOYEUR_STDOUT)
   )
@@ -112,6 +112,7 @@ function run_build_spell() {
 
   return 0
 }
+
 #---------------------------------------------------------------------
 ## This phase of casting involves unpacking the source into the
 ## source directories. If a PRE_BUILD file exists in SCRIPT_DIRECTORY

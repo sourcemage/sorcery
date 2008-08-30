@@ -445,3 +445,20 @@ function run_spell_failure() {
     fi
     CAST_EXIT_STATUS=1
 }
+
+#---------------------------------------------------------------------
+## Appends the input to the notice log, prepending the spell name as a
+## title, appending a newline and teeing the input back unchanged.
+#---------------------------------------------------------------------
+function append_to_notice_log() {
+  local notice_log=$TMP_DIR/notice_log
+  local tmp_log=$TMP_DIR/tmp_notice_log
+
+  tee $tmp_log
+  if [[ -s $tmp_log ]]; then
+    message "$SPELL_COLOR$SPELL:$DEFAULT_COLOR" >> $notice_log
+    cat $tmp_log >> $notice_log
+    echo >> $notice_log
+  fi
+  rm -f $tmp_log
+}

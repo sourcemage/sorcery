@@ -605,6 +605,23 @@ function pass_five()  {
 
   debug "cast" "Function : pass_five"
   local rc=0
+  local notice_log=$TMP_DIR/notice_log
+
+  if [[ -s $notice_log ]]; then
+    message "$DEFAULT_COLOR"
+    message "${MESSAGE_COLOR}Spell notices are repeated below:"
+    message "-----------------------------------------------$DEFAULT_COLOR"
+    cp $notice_log $CAST_BACKUPDIR
+    if (( $(wc -l < $notice_log) > 40 )); then
+      cat - $notice_log > $notice_log.2 <<< "Spell notices are repeated below:"
+      mv $notice_log.2 $notice_log
+      timeout_pager $notice_log
+    else
+      cat $notice_log
+    fi
+    message "These notices are backed up to $CAST_BACKUPDIR/notice_log ."
+    message "$DEFAULT_COLOR"
+  fi
 
   # must exist or we get problems with checks here.
   touch $SUCCESS_LIST
@@ -862,6 +879,8 @@ elif  [  "$UID"  -gt  0  ];  then
 elif  [  ${0:0:5} !=  "/tmp/"  ];  then
 
   # Make a nice dir structure to put stuff in, this exits if it fails
+  mk_tmp_dirs backup /tmp/cast
+  export CAST_BACKUPDIR=$TMP_DIR
   mk_tmp_dirs cast
 
   export SAFE_CAST="$TMP_DIR/casting.safe"
