@@ -26,22 +26,15 @@
 function run_security() {
     debug "build_api/common" "Starting run_security() on $SPELL"
     local rc=0
-    if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
-      echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
+    if [[ -f $SCRIPT_DIRECTORY/SECURITY ]]; then
+      message "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
       tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
-        if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
-          if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
-            rc=0
-          else
-            rc=1
-          fi
-        else
-          if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
-            rc=0
-          else
-            rc=1
-          fi
-        fi
+      if grep -q critical $SCRIPT_DIRECTORY/SECURITY; then
+        query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"
+      else
+        query "SECURITY: Do you still want to cast ${SPELL_COLOR}$SPELL${QUERY_COLOR}?" "y"
+      fi
+      rc=$?
     fi
     [[ $rc != 0 ]] && log_failure_reason "security"
     return $rc
