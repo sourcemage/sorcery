@@ -944,24 +944,20 @@ function boost() {
 ## Given a list of source files, returns true if each file exists.
 ##
 #---------------------------------------------------------------------
-function verify_source()  { (
-
-
-  for  SOURCE_FILE  in  $@;  do
-    if  !  guess_filename  $SOURCE_CACHE/$SOURCE_FILE  >/dev/null
-    then
-      message  "${PROBLEM_COLOR}Missing ${FILE_COLOR}${1}${DEFAULT_COLOR}"
+function verify_source() {
+  local source_file
+  for source_file in $@; do
+    if ! guess_filename $SOURCE_CACHE/$source_file > /dev/null; then
+      message  "${PROBLEM_COLOR}Missing ${FILE_COLOR}$source_file${DEFAULT_COLOR}"
       message  "${PROBLEM_COLOR}Cast aborting.${DEFAULT_COLOR}"
       activity_log  "cast"  "$SPELL"  "$VERSION"  "failure"  \
-                    "because it was missing source:  $1"
+                    "because it was missing source: $source_file"
       log_failure_reason "missing source"
       return 1
     fi
   done
-
   return 0
-
-) }
+}
 
 
 #---------------------------------------------------------------------
@@ -1181,7 +1177,7 @@ function invoke_build_dir() {
 ##
 #---------------------------------------------------------------------
 function verify_sources()  {
-  verify_source  "`sources  $SPELL`";
+  verify_source $(sources $SPELL)
 }
 
 
