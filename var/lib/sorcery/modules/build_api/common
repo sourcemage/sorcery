@@ -25,22 +25,26 @@
 #---------------------------------------------------------------------
 function run_security() {
     debug "build_api/common" "Starting run_security() on $SPELL"
+    local rc=0
     if    [  -f  $SCRIPT_DIRECTORY/SECURITY  ]; then
       echo -e "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
       tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
         if [ `grep critical $SCRIPT_DIRECTORY/SECURITY` ]; then
           if query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"; then
-            return 0
+            rc=0
+          else
+            rc=1
           fi
-          return 1
         else
           if query "SECURITY: Do you still want to cast ${SPELL_COLOR} $SPELL ${QUERY_COLOR}?" "y"; then
-            return 0
+            rc=0
+          else
+            rc=1
           fi
-          return 1
         fi
     fi
-    return 0
+    [[ $rc != 0 ]] && log_failure_reason "security"
+    return $rc
 }
 
 
@@ -407,7 +411,9 @@ function run_spell_failure() {
 
     sound  FAILURE
 
-    activity_log "cast" "$SPELL"  "$VERSION" "failure"
+    local reason
+    get_failure_reason reason
+    activity_log "cast" "$SPELL"  "$VERSION" "failure" "$reason"
     echo $SPELL >> $FAILED_LIST
 
     # if it failed after PRE_BUILD make a compile log
@@ -461,4 +467,32 @@ function append_to_notice_log() {
     echo >> $notice_log
   fi
   rm -f $tmp_log
+}
+
+#---------------------------------------------------------------------
+## Appends the failure reason (input) to a log for use in displaying
+## the final FAILED_LIST and the activity log
+##
+## @param reason
+#---------------------------------------------------------------------
+function log_failure_reason() {
+  # delve has a different TMP_DIR, so we can't use it
+  local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
+  echo "$SPELL ($1)" >> "$failure_reason_log"
+}
+
+#---------------------------------------------------------------------
+## Checks if there is an entry for the spell in the failure_reason_log
+## If there is one, set the upvar to the reason
+##
+## @param upvar
+#---------------------------------------------------------------------
+function get_failure_reason() {
+  local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
+  local _upvar=$1
+  local _reason
+
+  # if a spell has more than one entry, the first will be used
+  _reason=$(grep -s -m1 "^$SPELL " $failure_reason_log | sed 's,^[^(]*(\([^)]*\)).*$,\1,')
+  upvar $_upvar "$_reason"
 }

@@ -699,14 +699,16 @@ function pass_five()  {
   # install queue.
   #
   if  [  -s  $FAILED_LIST   ] ; then
-
+    local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that encountered problems:"
     message "---------------------------------${PROBLEM_COLOR}"
 
-    for item in `cat $FAILED_LIST 2>/dev/null`; do
+    while read item; do
+      grep -s "^$item " $failure_reason_log ||
       message "$item"
-    done | column
+    done < $FAILED_LIST | column
+    rm -f $failure_reason_log
 
     set_term_title "Casting failed."
     message "${DEFAULT_COLOR}"

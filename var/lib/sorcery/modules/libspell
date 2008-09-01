@@ -173,6 +173,10 @@ function run_spell_file() {
   fi;rc=$?
   persistent_save
 
+  if [[ $rc != 0 ]]; then
+    log_failure_reason $function_suffix
+  fi
+
   # restore these, so they're always false except when needed
   eval "function real_default_${function_suffix}() {
     false
