@@ -350,7 +350,7 @@ function gpg_hashsum() {
 ## This assumes the caller has already verified that gpg is installed.
 #---------------------------------------------------------------------
 function gpg_get_hashes() {
-  LC_ALL=C gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr 'A-Z' 'a-z'
+  LC_ALL=C gpg --version 2> /dev/null | awk -F: '/^Hash/ { gsub(","," ",$2); print tolower($2); }'
 }
 
 #---------------------------------------------------------------------
