@@ -52,7 +52,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
     return 200
   else
     local output=$TMP_DIR/$(smgl_basename $file).gpgout
-    gpg --no-default-keyring  \
+    LC_ALL=C gpg --no-default-keyring  \
                --always-trust        \
                --keyring $keyring    \
                --batch               \
@@ -338,7 +338,7 @@ function gpg_user_query() {
 function gpg_hashsum() {
   local algorithm=$1
   local file=$2
-  gpg --print-md "$algorithm" "$file"| tr -d '\n '  |cut -f2 -d:|
+  LC_ALL=C gpg --print-md "$algorithm" "$file"| tr -d '\n '  |cut -f2 -d:|
                                        tr 'A-F' 'a-f'|tr -d '\n'
   echo "  $file"
 }
@@ -350,7 +350,7 @@ function gpg_hashsum() {
 ## This assumes the caller has already verified that gpg is installed.
 #---------------------------------------------------------------------
 function gpg_get_hashes() {
-  gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr 'A-Z' 'a-z'
+  LC_ALL=C gpg --version 2> /dev/null | grep '^Hash' | awk -F: '{ print $2 }' | tr , ' ' | tr 'A-Z' 'a-z'
 }
 
 #---------------------------------------------------------------------
