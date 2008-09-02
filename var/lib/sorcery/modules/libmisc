@@ -1522,6 +1522,52 @@ function envar_prepend_path()
   fi
 }
 
+#---------------------------------------------------------------------
+## Appends the input to the notice log, prepending the spell name as a
+## title, appending a newline and teeing the input back unchanged.
+#---------------------------------------------------------------------
+function append_to_notice_log() {
+  local notice_log=$TMP_DIR/notice_log
+  local tmp_log=$TMP_DIR/tmp_notice_log
+
+  tee $tmp_log
+  if [[ -s $tmp_log ]]; then
+    message "$SPELL_COLOR$SPELL:$DEFAULT_COLOR" >> $notice_log
+    cat $tmp_log >> $notice_log
+    echo >> $notice_log
+  fi
+  rm -f $tmp_log
+}
+
+#---------------------------------------------------------------------
+## Appends the failure reason (input) to a log for use in displaying
+## the final FAILED_LIST and the activity log
+##
+## @param reason
+#---------------------------------------------------------------------
+function log_failure_reason() {
+  # delve has a different TMP_DIR, so we can't use it
+  local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
+  [[ -z $CAST_BACKUPDIR ]] && return 1
+  echo "$SPELL ($1)" >> "$failure_reason_log"
+}
+
+#---------------------------------------------------------------------
+## Checks if there is an entry for the spell in the failure_reason_log
+## If there is one, set the upvar to the reason
+##
+## @param upvar
+#---------------------------------------------------------------------
+function get_failure_reason() {
+  local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
+  local _upvar=$1
+  local _reason
+
+  # if a spell has more than one entry, the first will be used
+  _reason=$(grep -s -m1 "^$SPELL " $failure_reason_log | sed 's,^[^(]*(\([^)]*\)).*$,\1,')
+  upvar $_upvar "$_reason"
+}
+
 
 # Standard debug line:
 # file "function@line" "all" "args"
