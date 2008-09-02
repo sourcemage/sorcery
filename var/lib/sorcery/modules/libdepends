@@ -1623,7 +1623,7 @@ function private_remove_dependees()
   message "${PROBLEM_COLOR}Removing dependees of $SPELL_COLOR$spell$DEFAULT_COLOR"
 
   # take care of the spell
-  private_discard_spell $spell
+  private_discard_spell $spell fail
 
   # take care of the dependees and their dependees and ...
   recurse_remove_dependees() {
@@ -1677,11 +1677,15 @@ function private_remove_dependees()
 function private_discard_spell()
 {
   local spell=$1
+  local failed=$2
 
   grep -qs $spell $FAILED_LIST && return 0
 
-  # spell is being removed from cast list, add to FAILED_LIST
-  echo "$spell" >> $FAILED_LIST
+  if [[ $failed == fail ]]; then
+    # spell is being removed from cast list, add to FAILED_LIST
+    # the rest we want to just show up as dropped
+    echo "$spell" >> $FAILED_LIST
+  fi
   hash_put depends_looked_at $spell failed
   hash_unset "$CAST_HASH" "$spell"
   hash_put $CANNOT_CAST_HASH "$spell" "Failed"
