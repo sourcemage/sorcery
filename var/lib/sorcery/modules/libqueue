@@ -387,10 +387,7 @@ function install_queue_history() {
     get_new_changes "Viewing history since last update ($datedash) for spell --  ${spell}  -- :" "$date" "$(codex_find_spell_by_name $spell)/HISTORY"
 
     if query "Would you like to ${RED}remove $SPELL_COLOR$spell$QUERY_COLOR from the install queue?" n; then
-      local t_queue
-      lock_start_transaction "$INSTALL_QUEUE" t_queue
-      sedit "s/^$spell$//" "$t_queue"
-      lock_commit_transaction "$INSTALL_QUEUE"
+      pop_install_queue "$spell"
       message "${QUERY_COLOR}The spell $SPELL_COLOR$spell$QUERY_COLOR was removed from $FILE_COLOR$INSTALL_QUEUE$DEFAULT_COLOR."
     fi
   done
