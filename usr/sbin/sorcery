@@ -515,8 +515,7 @@ make_checklist()  {
 
       STATUS="OFF"
 
-      if    spell_installed  $SPELL  ||
-            spell_held       $SPELL
+      if spell_ok $SPELL
       then  STATUS="on"
       else  STATUS="off"
       fi
@@ -1678,7 +1677,7 @@ background_execute() {
   dispel  `cat  $REMOVE_QUEUE`   1>/dev/null 2>&1
   rm  -f        $REMOVE_QUEUE
 
-  if  [  -f             $INSTALL_QUEUE  ];  then
+  if [[ -s $INSTALL_QUEUE ]]; then
     cast  --deps  `cat  $INSTALL_QUEUE`
     (  cast       `cat  $INSTALL_QUEUE` 1>/dev/null 2>&1  &&
          rm             $INSTALL_QUEUE
@@ -1696,7 +1695,7 @@ foreground_execute() {
   dispel  `cat  $REMOVE_QUEUE`
   rm  -f        $REMOVE_QUEUE
 
-  [  -f         $INSTALL_QUEUE  ]  &&
+  [[ -s $INSTALL_QUEUE ]] &&
   cast `cat  $INSTALL_QUEUE`
   rm  -f        $INSTALL_QUEUE
 
