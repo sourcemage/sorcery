@@ -166,9 +166,15 @@ function make() {
 function install_desktop_files() {
   debug "libgrimoire" "Running install_desktop_files() on $SPELL"
   local each file
-  local target_dir="/usr/share/applications"
+  local target_dir
   local desktop_dir="$SCRIPT_DIRECTORY/desktop"
   test -d $desktop_dir || return 0
+
+  if [[ $STAGED_INSTALL == off ]]; then
+    target_dir="$INSTALL_ROOT/usr/share/applications"
+  else
+    target_dir="$STAGE_DIRECTORY/TRANSL/usr/share/applications"
+  fi
 
   mkdir -p $target_dir
   for each in $(find $desktop_dir -maxdepth 1 -type f); do
