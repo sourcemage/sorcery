@@ -548,6 +548,7 @@ function dispel_depends_engine() {
       # spell, the spell is not recastable
       # note: this doesnt take into account the spell changing out from
       # under us. Oh well.
+      lock_file $DEPENDS_STATUS
       for child in $borkers; do
         type=$(grep -m 1 "$parent:$child\(([^:]*)\)\?:on" $DEPENDS_STATUS|cut -f4 -d:)
         if [[ "$type" == required ]]; then
@@ -563,6 +564,7 @@ function dispel_depends_engine() {
           list_add optional_borkers $child
         fi
       done
+      unlock_file $DEPENDS_STATUS
       if [[ $recastable == yes ]] ; then
         dispel_parents_list_borkers $parent "$optional_borkers" \
                                     "$runtime_borkers" "$suggested_borkers"

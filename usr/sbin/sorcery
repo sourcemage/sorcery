@@ -1405,18 +1405,22 @@ queue_menu()  {
                       "s"     "Edit     spell    status"  "$s_HELP"'`
 
   do
+    lock_file $SPELL_STATUS
+    lock_file $INSTALL_QUEUE
+    lock_file $REMOVE_QUEUE
 
     case  $COMMAND in
-
       S)  show_file  $SPELL_STATUS         ;;
       s)  edit_file  $SPELL_STATUS         ;;
       I)  show_file  $INSTALL_QUEUE        ;;
       i)  edit_file  $INSTALL_QUEUE        ;;
       R)  show_file  $REMOVE_QUEUE         ;;
       r)  edit_file  $REMOVE_QUEUE         ;;
-
     esac
 
+    unlock_file $SPELL_STATUS
+    unlock_file $INSTALL_QUEUE
+    unlock_file $REMOVE_QUEUE
   done
 
 }

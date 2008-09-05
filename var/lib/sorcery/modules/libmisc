@@ -1532,7 +1532,8 @@ function append_to_notice_log() {
 
   tee $tmp_log
   if [[ -s $tmp_log ]]; then
-    message "$SPELL_COLOR$SPELL:$DEFAULT_COLOR" >> $notice_log
+    # use echo -e instead of message if we ever bring SILENT back
+    echo -e "$SPELL_COLOR$SPELL:$DEFAULT_COLOR" >> $notice_log
     cat $tmp_log >> $notice_log
     echo >> $notice_log
   fi
@@ -1546,10 +1547,15 @@ function append_to_notice_log() {
 ## @param reason
 #---------------------------------------------------------------------
 function log_failure_reason() {
+  [[ -z $CAST_BACKUPDIR ]] && return 1
+
   # delve has a different TMP_DIR, so we can't use it
   local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
-  [[ -z $CAST_BACKUPDIR ]] && return 1
-  echo "$SPELL ($1)" >> "$failure_reason_log"
+  local frl
+
+  lock_start_transaction "$failure_reason_log" frl
+  echo "$SPELL ($1)" >> "$frl"
+  lock_commit_transaction "$failure_reason_log"
 }
 
 #---------------------------------------------------------------------
@@ -1564,7 +1570,10 @@ function get_failure_reason() {
   local _reason
 
   # if a spell has more than one entry, the first will be used
+  lock_file $failure_reason_log
   _reason=$(grep -s -m1 "^$SPELL " $failure_reason_log | sed 's,^[^(]*(\([^)]*\)).*$,\1,')
+  unlock_file $failure_reason_log
+
   upvar $_upvar "$_reason"
 }
 

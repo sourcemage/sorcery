@@ -23,6 +23,7 @@ EOF
 
   source /etc/sorcery/config
   SPELL=${SPELL:=alter}
+  lock_resources "cast" "$SPELL"
   VERSION="$(gaze -q installed "$SPELL" | grep -v 'not installed')"
   [ -z "$VERSION" ] && VERSION=$$
   TMP_LOG=$TMP_DIR/$SPELL-$VERSION
@@ -70,6 +71,7 @@ EOF
   add_spell "$SPELL" installed "$VERSION"
   rm $C_LOG
   report_install
+  unlock_resources "cast" "$SPELL"
 
   return 0
 

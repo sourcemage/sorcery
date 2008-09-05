@@ -78,9 +78,11 @@ function delve_log_helper() {
     run_spell_config
 
     get_uncommitted_depends_file $SPELL spell_depends
+    lock_file $ABANDONED_DEPENDS/$SPELL
     if test -e $spell_depends && test -e $ABANDONED_DEPENDS/$SPELL ; then
       cp $ABANDONED_DEPENDS/$SPELL $spell_depends
     fi
+    unlock_file $ABANDONED_DEPENDS/$SPELL
     test -e $spell_depends &&
     OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
   fi

@@ -306,6 +306,7 @@ function prune_depends()
 
   # Lock the depends file so no one messes with it while it's being worked on
   lock_file $DEPENDS_STATUS
+  lock_file $SPELL_STATUS
 
   # Get a list of bad dependencies
   # Output is in the form "SPELL DEPENDENCY optional/reqired PROVIDER"
@@ -324,6 +325,7 @@ function prune_depends()
         printf("%s %s %s %s\n", $1, $2, $4, prov);
      }' $DEPENDS_STATUS ) )
 
+  unlock_file $SPELL_STATUS
   # Set the function args to the spells with problems
   set -- ${bad[@]}
   while [ $# -gt 0 ] ; do
@@ -874,6 +876,7 @@ function cleanse_fix_sym_check() {
     progress_bar $count $size 50
     # Add this if so 'file' doesn't have to run for everything,
     # check that's a symlink first
+    #FIXME: use readlink -e -s or prepend LC_ALL=C
     if [ -h "$LINE" ] && file "$LINE" | grep "broken symbolic link" ; then
       BADLIST="${BADLIST}${LINE}"$'\n'
     fi

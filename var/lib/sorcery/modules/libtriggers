@@ -60,6 +60,7 @@ function trigger ()
   esc_str "${SPELL:-$2}" spell
 
   [ -f $TRIGGER_LIST ] || return 0
+  # no locking of $TRIGGER_LIST since the triggered actions may need it
   iterate do_trigger $'\n' "`grep "^[^:]*:$spell:on_$action" $TRIGGER_LIST`"
 }
 
@@ -72,9 +73,12 @@ function get_triggerees() {
   local each
   # get all the cast/check_self triggers
   [ -f $TRIGGER_LIST ] || return 0
+
+  lock_file $TRIGGER_LIST
   for each in $3 ; do
     grep "[^:]*:$spell:$event:$each" $TRIGGER_LIST|cut -f1 -d:
   done|sort -u|grep -v '^$'
+  unlock_file $TRIGGER_LIST
 }
 
 #---------------------------------------------------------------------
@@ -85,7 +89,10 @@ function get_run_script_triggers() {
   local spell=$1
   local event=$2
   local target=$3
+
+  lock_file $TRIGGER_LIST
   grep "$target:$spell:$event:run_script" $TRIGGER_LIST|cut -f4 -d:
+  unlock_file $TRIGGER_LIST
 }
 
 #---------------------------------------------------------------------
