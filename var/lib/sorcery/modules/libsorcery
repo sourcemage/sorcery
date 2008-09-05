@@ -912,13 +912,10 @@ function unset_details()  {
   for i in ${!SOURCE*} ; do
     TEMP=${TEMP}${i}\\n
   done
-  VARS="$VARS `echo -e $TEMP | egrep "^SOURCE[[:digit:]]*(_URL)?$"`"
-  unset TEMP
+  # not all SOURCE_* should be deleted (SOURCE_CACHE)
+  VARS="$VARS `echo -e $TEMP | egrep "^SOURCE[[:digit:]]*(_URL|_GPG|_IGNORE)?$"`"
 
-  for i in $VARS ; do
-    unset $i
-  done
-
+  unset $VARS
 }
 
 
