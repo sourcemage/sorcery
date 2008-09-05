@@ -913,7 +913,7 @@ function real_config_query () {
     local ANSWER
     if config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
-        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$ANSWER${DEFAULT_COLOR} ]]"
+        message "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$ANSWER${DEFAULT_COLOR} ]]"
 
         # already have a reasonable value...
         [ "$ANSWER" == "y" ] || [ "$ANSWER" == "n" ] && return 0
@@ -961,7 +961,7 @@ function real_config_query_option () {
         list_find "$ANSWER" $5 && key=n
 
         if [[ "$key" ]]; then
-            echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$key${DEFAULT_COLOR} ]]"
+            message "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> ${QUERY_COLOR}$key${DEFAULT_COLOR} ]]"
             return 0
         fi
     fi
@@ -998,8 +998,8 @@ function real_config_query_string () {
     local ANSWER
 
     if config_get_option "$1" ANSWER; then
-        # option allready answered in config
-        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
+        # option already answered in config
+        message "[[ ${QUERY_COLOR}$2${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
     else
         local default
         config_get_last_option "$1" default
@@ -1030,7 +1030,7 @@ function real_config_query_list () {
   shift
 
   if config_get_option "$VARIABLE" ANSWER; then
-    # option allready ANSWERed in config
+    # option already ANSWERed in config
     (
         for foo in "$@"; do
             [ "$foo" == "$ANSWER" ] && exit 0
@@ -1039,7 +1039,7 @@ function real_config_query_list () {
         echo "!!!! stored option '$ANSWER' in config is not in list of provided options !!!!"
         echo "!!!! WARNING !!!!"
     )
-    echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
+    message "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
   else
     # if there was an answer before, find it
     local default default_num=0 foo
@@ -1296,7 +1296,7 @@ function complain_sorcery_var() {
   message "THIS VARIABLE IS A USED BY SORCERY, THIS IS PROBABLY" \
           "A SPELL BUG\nAND SORCERY MAY BEHAVE IN UNDEFINED WAYS IF" \
           "YOU CONTINUE."
-  message "\n\nPLEASE REPORT A BUG IMMEDIATLY!!${DEFAULT_COLOR}\n\n"
+  message "\n\nPLEASE REPORT A BUG IMMEDIATELY!!${DEFAULT_COLOR}\n\n"
 }
 
 #-------------------------------------------------------------------
