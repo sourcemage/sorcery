@@ -460,10 +460,11 @@ function private_run_depends()
   if private_should_cast $SPELL ; then
 
     # this cant go in private_should_cast because then the dependee wont
-    # have a chance at being fixed, ideally we should check in
-    # depends/optional_depends and fail there
+    # have a chance at being fixed
+    # we check already here, so a specified spell isn't needlessly run
     if spell_exiled $1; then
       depends_message  "${SPELL}" "is exiled and will not be cast."
+      log_failure_reason exiled $1
       return 1
     fi
     get_uncommitted_depends_file $SPELL spell_depends
@@ -1036,6 +1037,8 @@ function work_depends_spell()
     depends_message "${1}" "has been exiled!"
     if [[ $failure_ok == "no" ]] || ! query "Build $1 anyway?" y; then
       hash_put $CANNOT_CAST_HASH "$1" "Exiled"
+      grep -qs $1 $FAILED_LIST || echo $1 >> $FAILED_LIST
+      log_failure_reason exiled $1
       return 1
     fi
   fi
@@ -1185,7 +1188,8 @@ function work_optional_depends_spell()
   # if $1 optionally depends on something exiled we always say no
   if spell_exiled $1 ; then
     depends_message "${1}" "has been exiled! not using as $article $query_term"
-    hash_put $CANNOT_CAST_HASH "$1" "Exiled"
+    # don't put it into the bad_spells hash, since it wasn't specified directly
+    #hash_put $CANNOT_CAST_HASH "$1" "Exiled"
     private_common_depends "$1" "off" "$database_term" "$2" "$3"
     return 0
   fi

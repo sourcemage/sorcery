@@ -1552,9 +1552,12 @@ function log_failure_reason() {
   # delve has a different TMP_DIR, so we can't use it
   local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
   local frl
+  local spell=${2:-$SPELL}
+
+  grep -sq "^$spell ($1)$" $failure_reason_log && return 0
 
   lock_start_transaction "$failure_reason_log" frl
-  echo "$SPELL ($1)" >> "$frl"
+  echo "$spell ($1)" >> "$frl"
   lock_commit_transaction "$failure_reason_log"
 }
 
