@@ -301,6 +301,9 @@ function gpg_user_query() {
     message "${MESSAGE_COLOR}gpg verification is disabled${DEFAULT_COLOR}"
   else
     message "${PROBLEM_COLOR}Failure to verify gpg signature${DEFAULT_COLOR}"
+    if does_spell_need_update sorcery-pubkeys; then
+      message "It looks like casting sorcery-pubkeys may help."
+    fi
     case "$3" in
       grimoire)
         if list_find "$GPG_GRIMOIRE_LIST" $2 > /dev/null 2>&1 ; then
