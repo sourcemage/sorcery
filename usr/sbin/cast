@@ -547,8 +547,8 @@ function pass_three()  {
 ## @Globals SPELL COMPILE
 ## Sets SPELL to spellname.
 ## Calls trigger "pre_cast"
-## If COMPILE is not set and it can be resurrected
-## (can_resurrect SPELL) it calls resurrect with SPELL as argument.
+## If COMPILE is not set, the spell doesn't need an update and it can
+## be resurrected (can_resurrect SPELL) it calls resurrect with SPELL.
 ## Otherwise it calls cast_spell.
 ## If resurrect or cast_spell returned 0 it calls trigger "cast"
 ## (Is being called by make)
@@ -569,7 +569,9 @@ function pass_four()  {
     if [[ ! $VERSION ]] ; then
       message "Can't find spell version for some reason, is $SPELL a spell?"
     else
-      can_resurrect $SPELL $VERSION &> /dev/null && do_resurrect=yes
+      can_resurrect $SPELL $VERSION &> /dev/null &&
+      ! does_spell_need_update $SPELL &> /dev/null &&
+      do_resurrect=yes
     fi
   fi
 
@@ -580,7 +582,7 @@ function pass_four()  {
 
   local rc
   if [[ "$do_resurrect" == "yes" ]] ; then
-    resurrect $SPELL $VERSION
+    resurrect_spell $SPELL $VERSION
     rc=$?
     # this is here for safety in case resurrect bails out somewhere
     # we didnt expect it to
@@ -633,6 +635,9 @@ function pass_five()  {
   debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
   debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
   debug "pass_five" "CONFLICT LIST is : `cat $CONFLICT_LIST 2>/dev/null`"
+  debug "pass_five" "CHECK_TRIGGERS_SUCCESS is : `cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null`"
+  debug "pass_five" "bad_spells is : `hash_get_table_fields bad_spells`"
+  debug "pass_five" "to_cast is : `hash_get_table_fields to_cast`"
 
   if [ -s $SUCCESS_LIST ] ; then
 

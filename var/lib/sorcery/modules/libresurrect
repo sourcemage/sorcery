@@ -64,7 +64,7 @@ function can_resurrect()  {
 ##
 ## FIXME: some of the informative message calls might work better as debug messages
 #------------------------------------------------------------------------
-function resurrect()  { (
+function resurrect_spell()  { (
   debug "libresurrect" "resurrect - $*"
   local SPELL=$1
   local VERSION=$2
@@ -449,7 +449,6 @@ function internal_install_config_file() {
     # copy the new one in (plus leading directories)
     mkdir -p "$(smgl_dirname "$to")" &&
     cp -pv "$from" "$to"
-
   # to get here the file must exist
   elif test -d "$to"; then
     message "Trying to install a file ($from) to what was a directory ($to), I dont know what to do!"
@@ -638,7 +637,7 @@ function resurrect_success() {
   clear_line
   activity_log  "resurrect"  "$SPELL"  "$VERSION"  "success"
   message  "${RESURRECT_COLOR}Resurrected spell: ${SPELL_COLOR}${SPELL}" \
-           "${DEFAULT_COLOR} version ${VERSION_COLOR}${VERSION}"         \
+           "${DEFAULT_COLOR}version ${VERSION_COLOR}${VERSION}" \
            "${DEFAULT_COLOR}"
 }
 

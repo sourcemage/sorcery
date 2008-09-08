@@ -81,76 +81,8 @@ EOF
 ## @param Previous version
 #-----
 function downgrade()  {
-
-  SPELL=$1
-  REQUESTED_VERSION=$2
-  find_cache "$INSTALL_CACHE/$SPELL-$REQUESTED_VERSION-$HOST" CACHE_COMP
-
-  if [[ -n $REQUESTED_VERSION && ! -f $CACHE_COMP ]]; then
-    message  "${FILE_COLOR}$CACHE_COMP"        \
-             "${PROBLEM_COLOR}was not found."  \
-             "${DEFAULT_COLOR}"
-    return 1
-  fi
-
-  if  spell_installed  $SPELL;  then
-    message "Dispelling $SPELL $(installed_version $SPELL) ..."
-    dispel_spell  $SPELL
-    if [ $? != 0 ] ; then
-      message  "${PROBLEM_COLOR}Unable to downgrade"   \
-               "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-               "dispel failed"
-      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-1}
-      return 1
-    fi
-  fi
-
-  if  spell_held  $SPELL;  then
-    message  "${PROBLEM_COLOR}Unable to downgrade"   \
-             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-             "because it is held, please unhold it first."
-    DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-1}
-    return 1
-  fi
-
-  if  spell_exiled  $SPELL;  then
-    message  "${PROBLEM_COLOR}Unable to downgrade"   \
-             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-             "because it is exiled, please unexile it first."
-    return 1
-  fi
-
-  local version versions chosen_version
-  versions=$(find $INSTALL_CACHE -name "$SPELL-*-$HOST.*" -printf "%f\n" |
-    sed "s,^$SPELL-\(\S*\)-$HOST\.\S*$,\1," |
-    while read version; do
-      # we need to ignore other spells with similar names due to laxed matching
-      # for example, wine-gecko would match when searching for wine, but we can
-      # check if wine + gecko is a spell. We do that by comparing version parts
-      if ! codex_find_spell_by_name "$SPELL-${version%%-*}" &>/dev/null; then
-        local version2="${version#*-}"
-        if ! codex_find_spell_by_name "$SPELL-${version%%-*}-${version2%%-*}" &>/dev/null; then
-          echo $version
-        fi
-      fi
-    done | sort -r)
-  if [[ -z $versions ]]; then
-    error_message "${PROBLEM_COLOR}Unable to downgrade"   \
-                  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
-                  "because no cache was found."
-    return 1
-  fi
-  # skip the query if there is only one candidate version
-  if [[ $(wc -l <<< "$versions") != 1 ]]; then
-    select_list chosen_version "$REQUESTED_VERSION" $versions
-  else
-    chosen_version="$versions"
-  fi
-
-  SUCCESS_LIST=/dev/null
-  resurrect $SPELL $chosen_version
-
-  return 0
+  resurrect $1 -v "$2"
+  DISPEL_EXIT_STATUS=$?
 }
 
 #-----

@@ -1,0 +1,182 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Synopsis This utility lets resurrect spells - install them from
+## @Synopsis caches (install, downgrade, upgrade)
+##
+## @Copyright
+##
+## Copyright 2008 by the Source Mage Team
+##
+#---------------------------------------------------------------------
+
+function help() {
+  cat << EOF
+Resurrects the spell(s) if there is a cache available.
+
+Examples:
+resurrect aalib bb
+resurrect gemrb -v 0.3.0
+resurrect -l nano joe elvis
+
+resurrect [parameters] spell [version]
+resurrect [-l] spell [spell2] [spell3] ...
+
+Optional Parameters:
+-l, --latest                 use the latest available version (cache)
+-v, --version <version>      use the specified version
+-h, --help                   will just print this help
+
+You can invoke resurrect with spell names only or also specify the desired
+version via -v (this only works for a single spell!).
+If no version is passed, resurrect will show the available ones and
+ask you which to resurrect, defaulting to the latest.
+If -l is passed, the latest (newest mtime) version will be resurrected without querying.
+If both -v and -l are specified, the -l option is ignored.
+EOF
+  exit 1
+}
+
+function do_resurrect() {
+  local spell=$1
+  local requested_version=$USE_VERSION
+  local cache
+  local error_base="${PROBLEM_COLOR}Unable to resurrect $SPELL_COLOR$spell"
+  error_base="$error_base$DEFAULT_COLOR because$PROBLEM_COLOR"
+
+  if [[ -n $requested_version ]]; then
+    # use the version for only one spell in case more were specified (illegal)
+    unset USE_VERSION
+
+    find_cache "$INSTALL_CACHE/$spell-$requested_version-$HOST" cache
+    if [[ ! -f $cache ]]; then
+      error_message "$error_base no cache for version $requested_version" \
+        "was found.$DEFAULT_COLOR"
+      return 1
+    fi
+  fi
+
+  if spell_held $spell; then
+    error_message "$error_base it is held, please unhold it first.$DEFAULT_COLOR"
+    return 1
+  fi
+
+  if spell_exiled $spell; then
+    error_message "$error_base it is exiled, please unexile it first.$DEFAULT_COLOR"
+    return 1
+  fi
+
+  if spell_installed $spell; then
+    message "Dispelling $spell $(installed_version $spell) ..."
+    dispel_spell $spell
+    if [[ $? != 0 ]]; then
+      error_message "$error_base the dispel failed.$DEFAULT_COLOR"
+      return 1
+    fi
+  fi
+
+  local chosen_version
+  if [[ -n $requested_version ]]; then
+    chosen_version=$requested_version
+  else
+    # find the available versions, regardless of compression
+    local version versions
+    versions=$(find $INSTALL_CACHE -name "$spell-*-$HOST.*" -printf "%f\n" |
+      sed "s,^$spell-\(\S*\)-$HOST\.\S*$,\1," |
+      while read version; do
+        # we need to ignore other spells with similar names due to laxed matching
+        # for example, wine-gecko would match when searching for wine, but we can
+        # check if wine + gecko is a spell. We do that by comparing version parts
+        if ! codex_find_spell_by_name "$spell-${version%%-*}" &>/dev/null; then
+          local version2="${version#*-}"
+          if ! codex_find_spell_by_name "$spell-${version%%-*}-${version2%%-*}" &>/dev/null; then
+            echo $version
+          fi
+        fi
+      done | sort -r)
+
+    if [[ -z $versions ]]; then
+      error_message "$error_base no cache was found.$DEFAULT_COLOR"
+      return 1
+    fi
+
+    # skip the query if there is only one candidate version
+    if [[ $(wc -l <<< "$versions") == 1 ]]; then
+      chosen_version="$versions"
+    else
+      if [[ -n $USE_LATEST ]]; then
+        # determine the latest version by checking modification time
+        chosen_version=$(
+          for version in $versions; do
+            # output: mtime version
+            stat --printf "%Y $version\n" $INSTALL_CACHE/$spell-$version-$HOST.*
+          done | sort -g -r | head -n1 | cut -d" " -f2
+        )
+      else
+        select_list chosen_version "" $versions
+      fi
+    fi
+  fi
+
+  SUCCESS_LIST=/dev/null
+  resurrect_spell $spell $chosen_version
+}
+
+#---------------------------------------------------------------------
+## Parse the arguments and start resurrecting. If the version is
+## specified, the -l option is ignored.
+#---------------------------------------------------------------------
+function main() {
+  local arguments resurrectee USE_LATEST USE_VERSION
+
+  while [[ -n $1 ]]; do
+    if [[ ${1:0:1} == "-" ]]; then
+      case "$1" in
+                --help|-h) help ;;
+              --latest|-l) [[ -z $USE_VERSION ]] && USE_LATEST=on ;;
+             --version|-v) USE_VERSION="$2"
+                           shift
+                           unset USE_LATEST
+                           ;;
+                        *) help ;;
+      esac
+    else
+      codex_does_spell_exist $1 && list_add arguments $1
+    fi
+    shift
+  done
+
+  for resurrectee in $arguments; do
+    do_resurrect $resurrectee
+    echo
+  done
+}
+
+. /etc/sorcery/config
+if [[ $UID -gt 0 ]]; then
+  echo  "Enter the root password, please."
+  exec su -c "resurrect $@" root
+else
+  main "$@"
+fi
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
