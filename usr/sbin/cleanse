@@ -338,7 +338,7 @@ function prune_depends()
     local CANDIDATES=$( find_providers $4 )
     provider=""
       for spell in $CANDIDATES; do
-        if spell_installed $spell || spell_held $spell; then
+        if spell_ok $spell; then
           local provider=$spell
           break
         fi
@@ -701,7 +701,7 @@ function cleanse_fix_find_check()  {
     return 1;
   fi
 
-  local size=$(wc -l $I_LOG | awk '{print $1;}')
+  local size=$(wc -l < $I_LOG)
   local count=0
 
   local TMP_I_LOG=$TMP_DIR/${SPELL}/install.log
@@ -867,14 +867,14 @@ function cleanse_fix_sym_check() {
   filter_volatiles                               |
   log_adjuster /dev/stdin $TMP_I_LOG filterable root
 
-  local size=$(wc -l $TMP_I_LOG | awk '{print $1;}')
+  local size=$(wc -l < $TMP_I_LOG)
   local count=0
 
   while read LINE ; do
     progress_bar $count $size 50
     # Add this if so 'file' doesn't have to run for everything,
     # check that's a symlink first
-    if [ -h "$LINE" ] && file "$LINE" | grep "broken symbolic link" ; then
+    if [[ -h $LINE ]] && ! readlink -q -e "$LINE" > /dev/null; then
       BADLIST="${BADLIST}${LINE}"$'\n'
     fi
     let count++
@@ -883,7 +883,7 @@ function cleanse_fix_sym_check() {
   clear_line
 
   if [[ $BADLIST ]] ; then
-    message "${PROBLEM_COLOR}The following symlinks from "             \
+    message "${PROBLEM_COLOR}The following symlinks from"             \
             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"                  \
             "${PROBLEM_COLOR}don't link to files it installed:"       \
             "${DEFAULT_COLOR}"
