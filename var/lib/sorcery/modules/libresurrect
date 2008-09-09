@@ -610,11 +610,12 @@ function resurrect_success() {
 
   tablet_check_version_cache "$VERSION_STATUS" &&
   (
-    if tablet_find_spell_dir $SPELL page_dir && [[ $new_tablet ]]; then
-      tablet_get_patchlevel $page_dir PATCHLEVEL
-      tablet_get_security_patch $page_dir SECURITY_PATCH
-      tablet_get_updated $page_dir UPDATED
+    if [[ $new_tablet ]]; then
+      tablet_get_patchlevel $new_tablet PATCHLEVEL
+      tablet_get_security_patch $new_tablet SECURITY_PATCH
+      tablet_get_updated $new_tablet UPDATED
     else
+      debug "libresurrect" "bad tablet for version cache; new_tablet: $new_tablet"
       # we don't have a good tablet, so we don't know what we just resurrected
       # insert dummy values
       UPDATED=0
