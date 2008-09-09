@@ -18,13 +18,16 @@ Examples:
 resurrect aalib bb
 resurrect gemrb -v 0.3.0
 resurrect -l nano joe elvis
+resurrect -f /var/cache/sorcery/jack-0.102.20-i686-pc-linux-gnu.tar.gz
 
 resurrect [parameters] spell [version]
 resurrect [-l] spell [spell2] [spell3] ...
+resurrect -f cache1 [cache3] ...
 
 Optional Parameters:
 -l, --latest                 use the latest available version (cache)
 -v, --version <version>      use the specified version
+-f, --from <cache>           resurrect from the specified cache
 -h, --help                   will just print this help
 
 You can invoke resurrect with spell names only or also specify the desired
@@ -33,6 +36,7 @@ If no version is passed, resurrect will show the available ones and
 ask you which to resurrect, defaulting to the latest.
 If -l is passed, the latest (newest mtime) version will be resurrected without querying.
 If both -v and -l are specified, the -l option is ignored.
+If -f is specified, the other options are ignored.
 EOF
   exit 1
 }
@@ -119,7 +123,66 @@ function do_resurrect() {
   fi
 
   SUCCESS_LIST=/dev/null
-  resurrect_spell $spell $chosen_version
+  resurrect_spell $spell "$chosen_version"
+}
+#---------------------------------------------------------------------
+## Resurrect a passed cache. It figures out the spell name by
+## inspecting the cache's contents, the filename cannot be reliably
+## used instead.
+#---------------------------------------------------------------------
+function direct_resurrect() {
+  local cache=$1
+  local tmp spell date version
+  local error_base="${PROBLEM_COLOR}Unable to resurrect $FILE_COLOR$cache"
+  error_base="$error_base$PROBLEM_COLOR because"
+
+  if [[ ! -f $cache ]]; then
+    error_message "$error_base \nit does not exist!$DEFAULT_COLOR"
+    return 1
+  fi
+
+  local tablet_path=var/state/sorcery/tablet
+  #TODO: when we get other ARCHIVEBINs, we'll need to check which was used
+  # get the spellname/date part of the path
+  tmp=$(tar tOfOO "$cache" 2>&1 $tablet_path | sed -n "1 s,$tablet_path/,,p; q")
+  tmp=${tmp%/}
+
+  spell=${tmp%/*}
+  if [[ -z $spell ]]; then
+    error_message "$error_base the spell name couldn't be determined!$DEFAULT_COLOR"
+    error_message "Please notify the Sorcery team!"
+    return 1
+  fi
+
+  date=${tmp#*/}
+  version=$(tar fOx "$cache" 2>&1 $tablet_path/$spell/$date/version)
+  if [[ -z $version ]]; then
+    error_message "$error_base the version couldn't be determined!$DEFAULT_COLOR"
+    error_message "This can happen if the cache is corrupted."
+    return 1
+  fi
+
+  if spell_held $spell; then
+    error_message "$error_base the spell is held, please unhold it first.$DEFAULT_COLOR"
+    return 1
+  fi
+
+  if spell_exiled $spell; then
+    error_message "$error_base the spell is exiled, please unexile it first.$DEFAULT_COLOR"
+    return 1
+  fi
+
+  if spell_installed $spell; then
+    message "Dispelling $spell $(installed_version $spell) ..."
+    dispel_spell $spell
+    if [[ $? != 0 ]]; then
+      error_message "$error_base the dispel failed.$DEFAULT_COLOR"
+      return 1
+    fi
+  fi
+
+  SUCCESS_LIST=/dev/null
+  resurrect_spell $spell "$version" "$cache"
 }
 
 #---------------------------------------------------------------------
@@ -127,13 +190,16 @@ function do_resurrect() {
 ## specified, the -l option is ignored.
 #---------------------------------------------------------------------
 function main() {
-  local arguments resurrectee USE_LATEST USE_VERSION
+  local arguments caches resurrectee USE_LATEST USE_VERSION use_from
 
   while [[ -n $1 ]]; do
     if [[ ${1:0:1} == "-" ]]; then
       case "$1" in
                 --help|-h) help ;;
               --latest|-l) [[ -z $USE_VERSION ]] && USE_LATEST=on ;;
+                --from|-f) unset USE_VERSION USE_LATEST
+                           use_from=on
+                           ;;
              --version|-v) USE_VERSION="$2"
                            shift
                            unset USE_LATEST
@@ -141,15 +207,32 @@ function main() {
                         *) help ;;
       esac
     else
-      codex_does_spell_exist $1 && list_add arguments $1
+      list_add arguments $1
     fi
     shift
   done
 
-  for resurrectee in $arguments; do
-    do_resurrect $resurrectee
-    echo
-  done
+  # check if we're really using caches to avoid trying to resurrect nonspells
+  if [[ $use_from == on ]]; then
+    for resurrectee in $arguments; do
+      direct_resurrect $resurrectee
+      echo
+    done
+  else
+    # verify that we're dealing with valid spells
+    local tmp=$arguments
+    for resurrectee in $tmp; do
+      if ! codex_does_spell_exist $resurrectee; then
+        #uncomment this once resurrect_spell can work without a spelldir and tablet chapter
+        #query "Do you want to resurrect it anyway?" n ||
+        list_remove arguments $resurrectee
+      fi
+    done
+    for resurrectee in $arguments; do
+      do_resurrect $resurrectee
+      echo
+    done
+  fi
 }
 
 . /etc/sorcery/config

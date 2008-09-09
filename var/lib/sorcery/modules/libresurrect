@@ -27,6 +27,7 @@ function can_resurrect()  {
 #------------------------------------------------------------------------
 ## @param spell
 ## @param version
+## @param cache file (optional)
 ##
 ## High level overview:
 ##
@@ -68,6 +69,7 @@ function resurrect_spell()  { (
   debug "libresurrect" "resurrect - $*"
   local SPELL=$1
   local VERSION=$2
+  local CACHE_COMP=$3
 
   spell_held $SPELL && {
     message "Refusing to resurrect a held spell, please unhold it first"
@@ -80,11 +82,12 @@ function resurrect_spell()  { (
   fi
 
   # 1) if no cache file exists fail
-
-  local CACHE_COMP=$(can_resurrect $SPELL $VERSION) || {
-    message "No cache file could be found"
-    return 1
-  }
+  if [[ -z $CACHE_COMP ]]; then
+    CACHE_COMP=$(can_resurrect $SPELL $VERSION) || {
+      message "No cache file could be found"
+      return 1
+    }
+  fi
 
   if test -z $CACHE_COMP || ! test -f $CACHE_COMP ; then
     message "bug in can_resurrect, failing!"
