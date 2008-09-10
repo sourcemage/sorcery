@@ -19,6 +19,7 @@ resurrect aalib bb
 resurrect gemrb -v 0.3.0
 resurrect -l nano joe elvis
 resurrect -f /var/cache/sorcery/jack-0.102.20-i686-pc-linux-gnu.tar.gz
+resurrect -c wormux fish
 
 resurrect [parameters] spell [version]
 resurrect [-l] spell [spell2] [spell3] ...
@@ -28,6 +29,7 @@ Optional Parameters:
 -l, --latest                 use the latest available version (cache)
 -v, --version <version>      use the specified version
 -f, --from <cache>           resurrect from the specified cache
+-c, --check <spell>          check if a spell appears to be resurrectable
 -h, --help                   will just print this help
 
 You can invoke resurrect with spell names only or also specify the desired
@@ -36,7 +38,8 @@ If no version is passed, resurrect will show the available ones and
 ask you which to resurrect, defaulting to the latest.
 If -l is passed, the latest (newest mtime) version will be resurrected without querying.
 If both -v and -l are specified, the -l option is ignored.
-If -f is specified, the other options are ignored.
+If -f is specified, the other options except -c are ignored.
+If -c is specified, all other options are ignored.
 EOF
   exit 1
 }
@@ -125,6 +128,7 @@ function do_resurrect() {
   SUCCESS_LIST=/dev/null
   resurrect_spell $spell "$chosen_version"
 }
+
 #---------------------------------------------------------------------
 ## Resurrect a passed cache. It figures out the spell name by
 ## inspecting the cache's contents, the filename cannot be reliably
@@ -186,11 +190,37 @@ function direct_resurrect() {
 }
 
 #---------------------------------------------------------------------
+## Pretty print if the spells can be resurrected or not
+## Does all the checks it can do without trying a resurrect
+#---------------------------------------------------------------------
+function is_resurrectable() {
+  local spell=$1
+  local msg_base="$SPELL_COLOR$spell$DEFAULT_COLOR cannot be resurrected because"
+
+  if ! can_resurrect $spell "*" > /dev/null; then
+    message "$msg_base no cache was found!"
+    return 1
+  fi
+  if spell_held $spell; then
+    message "$msg_base it is held!"
+    return 1
+  fi
+  if spell_exiled $spell; then
+    message "$msg_base it is exiled!"
+    return 1
+  fi
+
+  message "$SPELL_COLOR$spell$DEFAULT_COLOR can be resurrected."
+  return 0
+}
+
+#---------------------------------------------------------------------
 ## Parse the arguments and start resurrecting. If the version is
-## specified, the -l option is ignored.
+## specified, the -l option is ignored. If -f is specified, -v and -l
+## are ignored. If -c is specified, everything else is ignored.
 #---------------------------------------------------------------------
 function main() {
-  local arguments caches resurrectee USE_LATEST USE_VERSION use_from
+  local arguments resurrectee USE_LATEST USE_VERSION use_from check rc=0
 
   while [[ -n $1 ]]; do
     if [[ ${1:0:1} == "-" ]]; then
@@ -198,7 +228,10 @@ function main() {
                 --help|-h) help ;;
               --latest|-l) [[ -z $USE_VERSION ]] && USE_LATEST=on ;;
                 --from|-f) unset USE_VERSION USE_LATEST
-                           use_from=on
+                           [[ -z $check ]] &&  use_from=on
+                           ;;
+               --check|-c) unset USE_VERSION USE_LATEST use_from
+                           check=on
                            ;;
              --version|-v) USE_VERSION="$2"
                            shift
@@ -212,11 +245,14 @@ function main() {
     shift
   done
 
-  # check if we're really using caches to avoid trying to resurrect nonspells
   if [[ $use_from == on ]]; then
     for resurrectee in $arguments; do
-      direct_resurrect $resurrectee
+      direct_resurrect $resurrectee || let rc+=1
       echo
+    done
+  elif [[ $check == on ]]; then
+    for resurrectee in $arguments; do
+      is_resurrectable $resurrectee || let rc+=1
     done
   else
     # verify that we're dealing with valid spells
@@ -226,13 +262,15 @@ function main() {
         #uncomment this once resurrect_spell can work without a spelldir and tablet chapter
         #query "Do you want to resurrect it anyway?" n ||
         list_remove arguments $resurrectee
+        let rc+=1
       fi
     done
     for resurrectee in $arguments; do
-      do_resurrect $resurrectee
+      do_resurrect $resurrectee || let rc+=1
       echo
     done
   fi
+  return $rc
 }
 
 . /etc/sorcery/config
