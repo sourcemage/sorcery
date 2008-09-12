@@ -145,21 +145,28 @@ function direct_resurrect() {
     return 1
   fi
 
-  local tablet_path=var/state/sorcery/tablet
-  #TODO: when we get other ARCHIVEBINs, we'll need to check which was used
-  # get the spellname/date part of the path
-  tmp=$(tar tOfOO "$cache" 2>&1 $tablet_path | sed -n "1 s,$tablet_path/,,p; q")
-  tmp=${tmp%/}
+  # check if we have a labelled cache, otherwise we have to use a fallback
+  local label=$(tar --test-label --file "$cache")
+  if [[ -n $label ]]; then
+    spell=$(cut -d" " -f1 <<< "$label")
+    version=$(cut -d" " -f2 <<< "$label")
+  else
+    local tablet_path=var/state/sorcery/tablet
+    # get the spellname/date part of the path
+    tmp=$(tar tOfOO "$cache" 2>&1 $tablet_path | sed -n "1 s,$tablet_path/,,p; q")
+    tmp=${tmp%/}
 
-  spell=${tmp%/*}
+    spell=${tmp%/*}
+    date=${tmp#*/}
+    version=$(tar fOx "$cache" 2>&1 $tablet_path/$spell/$date/version)
+  fi
+
   if [[ -z $spell ]]; then
     error_message "$error_base the spell name couldn't be determined!$DEFAULT_COLOR"
     error_message "Please notify the Sorcery team!"
     return 1
   fi
 
-  date=${tmp#*/}
-  version=$(tar fOx "$cache" 2>&1 $tablet_path/$spell/$date/version)
   if [[ -z $version ]]; then
     error_message "$error_base the version couldn't be determined!$DEFAULT_COLOR"
     error_message "This can happen if the cache is corrupted."
