@@ -986,7 +986,7 @@ function work_depends_provider()
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      real_list_find "${spells[@]}" "$tmp" && default=$tmp && break
+      real_list_find "${spells[*]}" "$tmp" && default=$tmp && break
     done
   fi
 
@@ -1131,7 +1131,7 @@ function work_optional_depends_provider()
   # check if we've already answered this question
   if [[ ! $default ]]; then
     for tmp in $CANDIDATES; do
-      real_list_find "${spells[@]}" "$tmp" && default=$tmp && break
+      real_list_find "${spells[*]}" "$tmp" && default=$tmp && break
     done
   fi
 
@@ -1252,7 +1252,7 @@ function work_optional_depends_spell()
   # check the install queue
   if [[ ! $default ]]; then
     debug "libdepends" "Checking in queue"
-    real_list_find "${spells[@]}" "$1" && default=on
+    real_list_find "${spells[*]}" "$1" && default=on
   fi
 
   # check if installed/held
@@ -1371,7 +1371,7 @@ function private_up_trigger() {
 
   # afk 6-7-06 Im not sure this line is correct, it seems to only
   # make a circular depends, instead we want $TARGET to depend on $SPELL
-  real_list_find "${NEW_DEPENDS[@]}" "$TARGET" ||
+  real_list_find "${NEW_DEPENDS[*]}" "$TARGET" ||
   NEW_DEPENDS=( ${NEW_DEPENDS[*]} $spell)
 
   triggerees=( ${triggerees[*]} $TARGET )
