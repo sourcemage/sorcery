@@ -466,6 +466,27 @@ function get_dirnames() {
 }
 
 #---------------------------------------------------------------------
+## @param directory to check
+## @Stderr error if the input is not a directory, but something else
+## @return 0 on success
+## @return >0 on failure
+##
+## Checks whether the passed directory exists and if not, tries to
+## create it, first checking if it already exists as something else.
+#---------------------------------------------------------------------
+function ensure_dir() {
+  if ! [[ -d $1 ]]; then
+    if [[ -e $1 ]]; then
+      message "${PROBLEM_COLOR}$1 exists, but is not a directory!" \
+        "Please correct this and retry.${DEFAULT_COLOR}"
+      return 1
+    else
+      mkdir -p "$1"
+    fi
+  fi
+}
+
+#---------------------------------------------------------------------
 ##  @param The function to call on each itteration and it's arguments
 ##  @param The separator string. If there is no $3, only the first char counts
 ##  @param The string to itterate over. (optional)
