@@ -357,23 +357,65 @@ function construct_cache_name() {
 function find_cache() {
   debug "libtrack" "$FUNCNAME $@"
   local filename=$1
+  local upvar=$2
+  local mode=${3:-single}
+  local spell=$4
   local real_name
 
-  if [[ -f  $filename ]]; then
-    real_name=$filename
+  # always find all the caches then check if they are really of the right spell;
+  # this avoids problems like wine matching in wine-gecko, since the cache
+  # filenames use the dash as a field separator and are thus unreliable
+  local basename _caches
+  smgl_basename "$filename" basename
+  _caches=$(find $INSTALL_CACHE -type f -name "$basename*" | sort -V)
+  if [[ -n $spell ]]; then # no point in checking if we have nothing to compare against
+    local _cache good_caches
+    for _cache in $_caches; do
+      local label=( $(tar --test-label --file $_cache 2>/dev/null) )
+      if [[ ${label[0]} != $spell ]]; then
+        continue
+      else
+        good_caches="$_cache $good_caches"
+      fi
+    done
+
+    if [[ -z $good_caches ]]; then
+      debug "libtrack" "$FUNCNAME found no good cache labels for: $filename"
+      return 1
+    fi
+
+    # any cache of the good_caches will do
+    if [[ $mode == all ]]; then
+      real_name="$good_caches"
+    else
+      # use the first if more were found
+      # usually the most recent version one, due to the sort call on _caches
+      read real_name < <(cut -d" " -f1 <<< "$good_caches")
+    fi
   else
-    # use the first if more were found
-    local basename
-    smgl_basename "$filename" basename
-    read real_name < <(find $INSTALL_CACHE -type f -name "$basename*")
+    # old dumb mode
+    # only alter calls this function without the spell argument
+    debug "libtrack" "$FUNCNAME with no spell argument: $filename"
+
+    if [[ -f $filename ]]; then
+      real_name=$filename
+    else
+      if [[ $mode == all ]]; then
+        real_name=$_caches
+      else
+        # use the first if more were found
+        real_name=$(tail -n1 <<< "$_caches")
+      fi
+    fi
+    [[ -z $real_name ]] && return 1
   fi
-  [[ -z $real_name ]] && return 1
+
   debug "libtrack" "$FUNCNAME found $real_name"
 
-  if [[ -z $2 ]]; then
-    echo $real_name
+  if [[ -z $upvar ]]; then
+    echo "$real_name"
   else
-    upvar $2 "$real_name"
+    upvar $upvar "$real_name"
   fi
   return 0
 }

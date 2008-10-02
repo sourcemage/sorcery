@@ -14,15 +14,72 @@
 ## @param spellname
 ## determines if a particular version of a spell can be resurrected
 #---------------------------------------------------------------------
-function can_resurrect()  {
+function can_resurrect() { (
   debug "libresurrect" "can_resurrect - $*"
   local SPELL=$1
   local VERSION=$2
+  local mode=${3:-strict}
+  local caches cache
+  local rc=1
 
-  find_cache "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" || return 1
-  debug "libresurrect" "I am able to resurrect."
-  return 0
-}
+  find_cache "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" caches all $SPELL || return 1
+  [[ $mode == simple ]] && return 0
+
+  codex_set_current_spell_quick $(codex_find_spell_by_name $SPELL)
+
+  # if there is more than one, check all, but one good cache is enough
+  for cache in $caches; do
+    # check if the patchlevels match
+    local label=$(tar --test-label --file "$cache" 2>/dev/null)
+    if [[ -z $label ]]; then
+      # no label - do file-based lookup from the cache
+      local tablet_path=var/state/sorcery/tablet
+      # get the spellname/date part of the path
+      local tmp=$(tar tOfOO "$cache" 2>&1 $tablet_path | sed -n "1 s,$tablet_path/,,p; q")
+
+      local version patchlevel security_patch updated
+      version=$(tar fOx "$cache" 2>&1 $tablet_path/$tmp/version)
+      patchlevel=$(tar fOx "$cache" 2>&1 $tablet_path/$tmp/patchlevel)
+      security_patch=$(tar fOx "$cache" 2>&1 $tablet_path/$tmp/security_patch)
+      updated=$(tar fOOx "$cache" 2>&1 $tablet_path/$tmp/updated)
+
+      if [[ $VERSION == "*" ]] || [[ ${version:-0} == $VERSION ]] &&
+#FIXME
+#some callers may not care if the patchlevels don't match
+#so think about adding more modes
+#/FIXME
+         [[ $patchlevel == ${PATCHLEVEL:-0} ]] &&
+         [[ $security_patch == ${SECURITY_PATCH:-0} ]] &&
+         [[ ${updated:-0} == ${UPDATED:-0} ]]; then
+        rc=0
+        break
+      else
+        rc=1
+        continue
+      fi
+    else
+      local factors="$SPELL ${VERSION:-0} ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
+      if [[ $label == $factors ]]; then
+        rc=0
+        break
+      else
+        rc=1
+        continue
+      fi
+    fi
+
+    #TODO check if subdependencies are satisfied
+    #TODO HERE?: don't resurrect if a cast_self trigger is known
+
+  done
+
+  if [[ $rc == 0 ]]; then
+    debug "libresurrect" "I am able to resurrect."
+  fi
+  #codex_clear_current_spell #instead we're in a subshell to prevent any kind of leakage
+
+  return $rc
+) }
 
 #------------------------------------------------------------------------
 ## @param spell
@@ -83,7 +140,7 @@ function resurrect_spell()  { (
 
   # 1) if no cache file exists fail
   if [[ -z $CACHE_COMP ]]; then
-    CACHE_COMP=$(can_resurrect $SPELL $VERSION) || {
+    find_cache "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE_COMP single $SPELL || {
       message "No cache file could be found"
       return 1
     }

@@ -55,7 +55,7 @@ function do_resurrect() {
     # use the version for only one spell in case more were specified (illegal)
     unset USE_VERSION
 
-    find_cache "$INSTALL_CACHE/$spell-$requested_version-$HOST" cache
+    find_cache "$INSTALL_CACHE/$spell-$requested_version-$HOST" cache single $SPELL
     if [[ ! -f $cache ]]; then
       error_message "$error_base no cache for version $requested_version" \
         "was found.$DEFAULT_COLOR"
@@ -204,9 +204,14 @@ function is_resurrectable() {
   local spell=$1
   local msg_base="$SPELL_COLOR$spell$DEFAULT_COLOR cannot be resurrected because"
 
-  if ! can_resurrect $spell "*" > /dev/null; then
+  if ! can_resurrect $spell "*" simple > /dev/null; then
     message "$msg_base no cache was found!"
     return 1
+  else
+    if ! can_resurrect $spell "*"; then
+      message "$msg_base the available caches are too old!"
+      return 1
+    fi
   fi
   if spell_held $spell; then
     message "$msg_base it is held!"
