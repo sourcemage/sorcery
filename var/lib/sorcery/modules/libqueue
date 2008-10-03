@@ -289,7 +289,8 @@ function update_install_queue_sub()  {
         cat $grimoire/$VERSION_INDEX_FILE
       else
         # provide a dummy version index, treating all spells as multiversioned
-        local grimoire_name=$(smgl_basename $grimoire)
+        local grimoire_name
+        smgl_basename "$grimoire" grimoire_name
         error_message "${PROBLEM_COLOR}Grimoire $grimoire_name is missing" \
           "the version index!$DEFAULT_COLOR"
         error_message "You can run scribe reindex-version $grimoire_name to add one."
