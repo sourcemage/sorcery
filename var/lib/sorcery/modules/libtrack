@@ -354,6 +354,10 @@ function create_cache_archive()  {
 
   message  "${MESSAGE_COLOR}Creating cache file" \
            "${FILE_COLOR}${CACHE_COMP}${DEFAULT_COLOR}"
+  # gather the queuing factors, so we can include them in the label, saving us the
+  # need to compute the spell name and a few untars when dealing with just a cache
+  local label
+  label="$SPELL ${VERSION:-0} ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
 
   local TMP_DATA=$TMP_DIR/foo.data
   local TMP_MDATA=$TMP_DIR/foo.mdata
@@ -361,7 +365,7 @@ function create_cache_archive()  {
 
   pushd $STATE_ROOT/ &>/dev/null
   install_log_filter $STATE_ROOT "." < $TMP_MDATA |
-  tar --no-recursion -cPf "$CACHE" -T -
+  tar --no-recursion -cPf "$CACHE" -V "$label" -T -
   popd &>/dev/null
 
   pushd $INSTALL_ROOT/ &>/dev/null

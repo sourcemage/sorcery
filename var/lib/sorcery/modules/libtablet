@@ -644,6 +644,7 @@ function tablet_import_repair_files_page() {
 function tablet_check_repair_file() {
   local type=$1
   local replace=0
+  local tablet_file
 
   if ! [[ "$loaded" ]] ; then
     tablet_get_version "$page" spell_version
@@ -676,6 +677,7 @@ function tablet_check_repair_file() {
       replace=2
     fi
   fi
+
   if [[ $replace == 1 ]] ||
      { [[ $replace == 2 ]] && [[ $codex_md5 != $tablet_md5 ]] ; } ; then
     message "${MESSAGE_COLOR}Tablet Repair: replacing${DEFAULT_COLOR}"
