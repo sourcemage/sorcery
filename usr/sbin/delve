@@ -145,7 +145,8 @@ function delve_build() {
   delve_log_helper
   (
     run_build
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
@@ -155,7 +156,8 @@ function delve_pre_install() {
   delve_log_helper
   (
     run_pre_install
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
@@ -184,7 +186,8 @@ function delve_install() {
     else
       $CHROOT_CMD delve $SPELL INSTALL
     fi
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
   local rc=$?
   if [[ $CHROOT_CMD ]]
@@ -218,7 +221,8 @@ function delve_install_extras() {
     else
       $CHROOT_CMD delve $SPELL INSTALL_EXTRAS
     fi
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
   local rc=$?
   if [[ $CHROOT_CMD ]]
@@ -240,7 +244,8 @@ function delve_post_build() {
   cd $SOURCE_DIRECTORY
   (
     run_post_build
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
@@ -250,7 +255,8 @@ function delve_post_install() {
   delve_log_helper
   (
     run_post_install
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
@@ -260,7 +266,8 @@ function delve_transfer() {
   delve_log_helper
   (
     run_transfer
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
@@ -272,7 +279,8 @@ function delve_final() {
   STAGED_INSTALL=off
   (
     run_final
-  ) 2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 
 }
