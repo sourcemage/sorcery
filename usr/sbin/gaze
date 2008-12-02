@@ -1432,13 +1432,13 @@ function gaze_show_short_description() {
           codex_set_current_spell_by_name  $spell           &&
           echo $SHORT
         )                                                 ||
-        { message  "No details found"
+        { message  "No details found! Please file a bug!"
           return 1
         }
     else
       message "$spell -> no such spell"
-      return 1
     fi
+    if ! [[ $GAZE_VERBOSE == 0 ]]; then echo; fi
   done
 }
 
@@ -1460,12 +1460,16 @@ function gaze_show_long_description() {
           codex_get_spell_description  $SPELL_DIRECTORY
         )                                       ||
         {
-          message  "No details found" &&
+          message "No details found! Please file a bug!" &&
           return 1
         }
     else
       message "$spell -> no such spell"
-      return 1
+    fi
+    if [[ $GAZE_VERBOSE == 0 ]]; then
+      echo --- --- ---
+    else
+      echo
     fi
   done
 }
