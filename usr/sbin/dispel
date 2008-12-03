@@ -81,7 +81,11 @@ EOF
 ## @param Previous version
 #-----
 function downgrade()  {
-  resurrect $1 -v "$2"
+  if [[ $SUSTAIN == off ]]; then
+    resurrect --nosustain $1 -v "$2"
+  else
+    resurrect $1 -v "$2"
+  fi
   DISPEL_EXIT_STATUS=$?
 }
 
@@ -105,9 +109,11 @@ function process_parameters()  {
               message  "${PROBLEM_COLOR}Missing parameters!${DEFAULT_COLOR}"
               help
             fi
-            downgrade  $2  $3
-            DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-$?}
-            [[ ${3:0:1} == - ]] || shift
+            DOWNGRADE_SPELL=$2
+            if [[ ${3:0:1} != - ]]; then
+              DOWNGRADE_VERSION=$3
+              shift
+            fi
             shift 2
             ;;
            --noreap)  REAP="off";         shift  1  ;;
@@ -149,6 +155,11 @@ function process_parameters()  {
       shift
    fi
   done
+  # handle downgrading specially, since we also want to pass some of the flags
+  # but can't rely on input being ordered correctly
+  if [[ -n $DOWNGRADE_SPELL ]]; then
+    downgrade $DOWNGRADE_SPELL $DOWNGRADE_VERSION
+  fi
 }
 
 function validate_param() {
