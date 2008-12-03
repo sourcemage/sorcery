@@ -260,7 +260,7 @@ function md5sum_files() {
 #-----
 function alien()  {
 
-  if [[ $GAZE_VERBOSE != 0 ]] ; then
+  if [[ $GAZE_VERBOSE != false ]] ; then
     message  "In a few minutes I will print files found on this disk"
     message  "that were not installed by sorcery.  This is not a"
     message  "security feature!  Files could still be lurking"
@@ -270,12 +270,12 @@ function alien()  {
   rm    -f  $TMP_DIR/gaze.found
   rm    -f  $TMP_DIR/gaze.known
 
-  [[ $GAZE_VERBOSE != 0 ]] &&
+  [[ $GAZE_VERBOSE != false ]] &&
   message  "Discovering installed files..."
   { cat $SORCERY_INSTALL_LOG ; find $INSTALL_LOGS/ -type f|xargs cat ; }  |
     files  |  sort  >  $TMP_DIR/gaze.known
 
-  [[ $GAZE_VERBOSE != 0 ]] &&
+  [[ $GAZE_VERBOSE != false ]] &&
   message  "Discovering ambient files..."
   find $GAZE_ALIEN_PATHS 2>/dev/null | files | filter "$EXCLUDED" | sort >$TMP_DIR/gaze.found
 
@@ -308,7 +308,7 @@ function gaze_catalog()  {
         fi
   fi
 
-  [[ $GAZE_VERBOSE != 0 ]] && echo  "Sorcery Grimoire for `date  -u`"
+  [[ $GAZE_VERBOSE != false ]] && echo  "Sorcery Grimoire for `date  -u`"
 
   if [ $grimoire ]; then
         echo "Grimoire: " $(smgl_basename $grimoire)
@@ -319,7 +319,7 @@ function gaze_catalog()  {
   COUNT=0
 
   for  SECTION  in  `codex_get_all_sections $grimoire`;  do
-    if [[ $GAZE_VERBOSE != 0 ]]; then
+    if [[ $GAZE_VERBOSE != false ]]; then
       echo
       echo  "-------------------------------------------------"
       echo  "SECTION: $(  smgl_basename  $SECTION  )"
@@ -738,7 +738,7 @@ function real_short_search() {
                         ); do
 
                 smgl_basename "$(smgl_dirname $spell)" spellname
-                if [[ $GAZE_VERBOSE == 0 ]]; then
+                if [[ $GAZE_VERBOSE == false ]]; then
                     echo $spellname
                 else
                     echo "$pattern -> $spellname"
@@ -764,7 +764,7 @@ function real_long_search()  {
   local file pattern
   local SEARCH SEARCH_RESULTS
 
-  if ! [[ $GAZE_VERBOSE == 0 ]] ; then
+  if ! [[ $GAZE_VERBOSE == false ]] ; then
     echo  "Searching...   "
   fi
 
@@ -790,7 +790,7 @@ function real_long_search()  {
         /^EOF$/{inLongDesc=0;} ' $file)
 
       if [[ ${SEARCH_RESULTS} ]]; then
-        if [[ $GAZE_VERBOSE == 0 ]]; then
+        if [[ $GAZE_VERBOSE == false ]]; then
           smgl_basename $(smgl_dirname $file)
         else
           clear_line
@@ -800,7 +800,7 @@ function real_long_search()  {
     done
   done
 
-  if ! [ "$GAZE_VERBOSE" == "0" ]; then
+  if ! [ "$GAZE_VERBOSE" == "false" ]; then
     clear_line
   fi
 
@@ -828,7 +828,7 @@ gaze_provides()  {
 local spell
 
   for feature in "$@"; do
-        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        ! [[ $GAZE_VERBOSE == false ]] &&
         message "${SPELL_COLOR}${feature}:${DEFAULT_COLOR}"
         spell=$(find_providers "$feature")
         if [[ "$spell" ]]; then
@@ -945,7 +945,7 @@ function gaze_show_website()  {
   for spell in $@; do
     if  codex_set_current_spell_by_name  $spell;  then
       if  [  -n  "$WEB_SITE"  ];  then
-        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        ! [[ $GAZE_VERBOSE == false ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         echo  $WEB_SITE
       else
@@ -1329,7 +1329,7 @@ function gaze_show_license_table()  {
 #---------------------------------------------------------------------
 function gaze_show_grimoires()  {
 
-  ! [[ $GAZE_VERBOSE == 0 ]] &&  echo -n "Installed Grimoires: "
+  ! [[ $GAZE_VERBOSE == false ]] &&  echo -n "Installed Grimoires: "
   echo $(codex_get_all_grimoires | get_basenames)
   exit
 
@@ -1401,7 +1401,7 @@ function gaze_show_installed() {
     grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
   else
     for spell in "$@"; do
-      ! [[ $GAZE_VERBOSE == 0 ]] &&
+      ! [[ $GAZE_VERBOSE == false ]] &&
       message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
       VERSION=$(installed_version  $spell)
       if  [  -n  "$VERSION"  ]; then
@@ -1426,7 +1426,7 @@ function gaze_show_short_description() {
 
   for spell in $@; do
     if codex_find_spell_by_name $spell > /dev/null; then
-        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        ! [[ $GAZE_VERBOSE == false ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
           codex_set_current_spell_by_name  $spell           &&
@@ -1438,7 +1438,7 @@ function gaze_show_short_description() {
     else
       message "$spell -> no such spell"
     fi
-    if ! [[ $GAZE_VERBOSE == 0 ]]; then echo; fi
+    if ! [[ $GAZE_VERBOSE == false ]]; then echo; fi
   done
 }
 
@@ -1453,7 +1453,7 @@ function gaze_show_long_description() {
 
   for spell in $@; do
     if codex_find_spell_by_name $spell > /dev/null; then
-        ! [[ $GAZE_VERBOSE == 0 ]] &&
+        ! [[ $GAZE_VERBOSE == false ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
           codex_set_current_spell_by_name  $spell           &&
@@ -1466,7 +1466,7 @@ function gaze_show_long_description() {
     else
       message "$spell -> no such spell"
     fi
-    if [[ $GAZE_VERBOSE == 0 ]]; then
+    if [[ $GAZE_VERBOSE == false ]]; then
       echo --- --- ---
     else
       echo
@@ -1496,7 +1496,7 @@ function gaze_show_where() {
       SECTION="$(codex_get_spell_section_name $spell)"
     fi
 
-    if ! [[ $GAZE_VERBOSE == 0 ]]; then
+    if ! [[ $GAZE_VERBOSE == false ]]; then
       if [[ $SECTION ]]; then
         message "$spell -> $SECTION"
       else
@@ -1526,7 +1526,7 @@ function gaze_show_depends() {
     done
     local spell=$1
     codex_does_spell_exist "$spell"  &&
-    if [[ "$GAZE_VERBOSE" == 0 ]] || [[ "$fast" ]]; then
+    if [[ "$GAZE_VERBOSE" == false ]] || [[ "$fast" ]]; then
       show_up_depends "$1" "$2" "$fast"
     else
       show_up_depends  "$1" "$2" "verbose"|
@@ -2085,7 +2085,7 @@ function gaze_time() {
       err_sum[n]=${diff#* }
     fi
 
-    if [[ $GAZE_VERBOSE != 0 ]]; then
+    if [[ $GAZE_VERBOSE != false ]]; then
       message -n "Casting ${SPELL_COLOR}$spell$DEFAULT_COLOR took "
       pretty_print_time $diff
     else
@@ -2095,7 +2095,7 @@ function gaze_time() {
 
   if [[ -n $2 ]]; then
     message -n "${MESSAGE_COLOR}Total time:$DEFAULT_COLOR "
-    if [[ $GAZE_VERBOSE != 0 ]]; then
+    if [[ $GAZE_VERBOSE != false ]]; then
       pretty_print_time $sum $(compute_total_error "${err_sum[@]}")
     else
       echo $sum $(compute_total_error "${err_sum[@]}")
@@ -2171,7 +2171,7 @@ parse()  {
 
   while [[ -n "$1" ]] && [[ ${1:0:1} == "-" ]] ; do
     case $1 in
-      -q) GAZE_VERBOSE=0
+      -q) GAZE_VERBOSE=false
           PAGER=cat
           shift
           ;;
