@@ -29,11 +29,14 @@ Usage:
 scribbler add spell from-grimoire to-grimoire [to-section]
         copies a spell from one grimoire to
         another grimoire into the specified section.
-        The to-section is the same as the source section if unspecified
+        The to-section is the same as the source section if unspecified.
+        The to-grimoire is optionally created if it doesn't exist.
 
 scribbler remove spell from-grimoire
         removes a spell from a grimoire
 
+scribbler add-grimoire to-grimoire
+        creates a local grimoire to-grimoire
 EOF
 }
 
@@ -44,6 +47,16 @@ function scribbler_remove() {
   scribe reindex $3
 }
 
+function scribbler_add_grimoire() {
+  local grimoire=$1
+
+  TO_GRIMOIRE_DIRECTORY=$(codex_canonicalize_grimoire_name $grimoire) &&
+  mkdir -p $TO_GRIMOIRE_DIRECTORY &&
+  codex_add_grimoire $TO_GRIMOIRE_DIRECTORY 0 &&
+  message "Created grimoire $grimoire" &&
+  scribe localize $TO_GRIMOIRE_DIRECTORY
+}
+
 function scribbler_add() {
   ##  Set and validate (and possibly create) the to-grimoire name
   if ! TO_GRIMOIRE_DIRECTORY=$(codex_find_grimoire $4) ; then
@@ -51,11 +64,7 @@ function scribbler_add() {
             "(${SPELL_COLOR}${4}${PROBLEM_COLOR}) is not a" \
             "valid grimoire.${DEFAULT_COLOR}"
     if query "Shall I add it for you?" y; then
-      TO_GRIMOIRE_DIRECTORY=$(codex_canonicalize_grimoire_name $4) &&
-      ##  is this still needed?
-      mkdir -p $TO_GRIMOIRE_DIRECTORY &&
-      codex_add_grimoire $TO_GRIMOIRE_DIRECTORY 0 &&
-      scribe localize $TO_GRIMOIRE_DIRECTORY
+      scribbler_add_grimoire $4
     else
       return $?
     fi || return $?
@@ -119,7 +128,9 @@ function validate_and_parse_args() {
     exit 1
   fi
 
-  if [ "${3}" == "" ]; then
+  [[ $1 == add-grimoire ]] && return
+
+  if [[ -z $3 ]]; then
     usage
     exit 1
   fi
@@ -133,7 +144,7 @@ function validate_and_parse_args() {
 
 
   ##  Set and validate the from-grimoire name
-  if ! FROM_GRIMOIRE_DIRECTORY=$(codex_find_grimoire $3) ; then
+  if ! FROM_GRIMOIRE_DIRECTORY=$(codex_find_grimoire $3); then
      message "${PROBLEM_COLOR}The grimoire you specified" \
              "(${SPELL_COLOR}${3}${PROBLEM_COLOR}) can not be" \
              "found.${DEFAULT_COLOR}"
@@ -143,7 +154,7 @@ function validate_and_parse_args() {
 
   ##  Set and validate the spell name
   SPELL_DIRECTORY=$(codex_cache_spell_lookup $2 $FROM_GRIMOIRE_DIRECTORY)
-  if [ "${SPELL_DIRECTORY}" == "" ]; then
+  if [[ -z $SPELL_DIRECTORY ]]; then
     message "${PROBLEM_COLOR}The spell you specified" \
             "(${SPELL_COLOR}${2}${PROBLEM_COLOR}) is not a" \
             "valid spell of the specified grimoire" \
@@ -157,9 +168,10 @@ function main() {
 
   ##  Get to the root of the issue
   case $1 in
-    add)    scribbler_add "$@" ;;
-    remove) scribbler_remove "$@" ;;
-    *)      usage ;;
+             add) scribbler_add "$@" ;;
+    add-grimoire) scribbler_add_grimoire "$2" ;;
+          remove) scribbler_remove "$@" ;;
+               *) usage ;;
   esac
   cleanup_tmp_dir $TMP_DIR
   exit 0
