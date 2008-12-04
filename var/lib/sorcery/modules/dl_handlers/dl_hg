@@ -42,9 +42,9 @@ function dl_hg_get () {
     if [[ -d $HG_DIRECTORY ]]; then
       message "${MESSAGE_COLOR}Running hg pull...${DEFAULT_COLOR}"
       ( cd $HG_DIRECTORY &&
-      echo hg pull $HG_ROOT
+      echo hg pull $HG_ROOT &&
       hg pull $HG_ROOT &&
-      echo hg update $HG_TAG
+      echo hg update $HG_TAG &&
       hg update $HG_TAG )
       rc=$?
       eval "$dl_target=\"$HG_DIRECTORY\""
@@ -53,7 +53,7 @@ function dl_hg_get () {
       echo hg clone $HG_ROOT $HG_DIRECTORY
       hg clone $HG_ROOT $HG_DIRECTORY &&
       ( cd $HG_DIRECTORY &&
-      echo hg update $HG_TAG
+      echo hg update $HG_TAG &&
       hg update $HG_TAG )
       rc=$?
       eval "$dl_target=\"$HG_DIRECTORY\""
