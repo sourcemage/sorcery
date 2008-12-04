@@ -1,0 +1,118 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Url handler functions for downloading hg http urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying
+## hg http urls.  This file uses the "hg" program.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2008 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item url_hg_http_crack <url>
+##
+## Parse the specified hg http url.
+##
+## @Global URL
+## @Global HG_ROOT
+## @Global HG_DIRECTORY
+## @Global HG_TAG
+##
+#---------------------------------------------------------------------
+function url_hg_http_crack() {
+  URL=$(url_strip_prefix "$1" hg_http)
+  HG_ROOT=$(echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#")
+  HG_ROOT=http://$HG_ROOT
+  local HG_DIRECTORY_TAG=$(echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#")
+  HG_DIRECTORY=$(echo $HG_DIRECTORY_TAG | cut -d : -f2)
+  local HG_TAGNAME=$(echo $HG_DIRECTORY_TAG | cut -d : -f3)
+  HG_TAG=${HG_TAGNAME:=default}
+}
+
+#---------------------------------------------------------------------
+##=item url_hg_http_bucketize <url>
+##
+## echoes the download handler - hg
+##
+#---------------------------------------------------------------------
+function url_hg_http_bucketize() {
+  echo hg
+}
+
+#---------------------------------------------------------------------
+##=item url_hg_http_verify <url>
+##
+## Verifies the specified hg http url.  Returns true if the url exists
+## OR if the url is an empty string.
+##
+#---------------------------------------------------------------------
+function url_hg_http_verify() {
+  local  URL HG_ROOT HG_DIRECTORY HG_TAG item
+  url_hg_http_crack $1
+  for item in URL HG_ROOT HG_DIRECTORY HG_TAG ; do
+    if ! [[ ${!item} ]] ; then
+      return 1
+    fi
+  done
+}
+
+#---------------------------------------------------------------------
+##=item url_hg_http_hostname <url>
+##
+## Gets the hostname out of the url
+#---------------------------------------------------------------------
+function url_hg_http_hostname() {
+  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+}
+
+#---------------------------------------------------------------------
+##=item url_hg_http_netselect <url>
+##
+## Gets a netselect type output for the url
+##
+#---------------------------------------------------------------------
+function url_hg_http_netselect() {
+  local tmp_hostname url_speed each
+
+  for each in "$@" ; do
+    tmp_hostname=$(url_hg_http_hostname $each)
+    # since we had to pull the url apart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

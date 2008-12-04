@@ -1,0 +1,88 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2008 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item dl_get_hg <url>
+##
+## Fetch the specified mercurial url.
+##
+## This handler only supports tree downloads.
+##
+#---------------------------------------------------------------------
+function dl_hg_get () {
+  dl_command_check hg || return 254
+
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local url rc=0
+
+  [[ $target ]] &&
+  dl_connect || return 255
+
+  for url in $url_list; do
+    local URL HG_ROOT HG_DIRECTORY HG_TAG
+    url_crack "$url" "$hints"
+    if [[ -z $HG_DIRECTORY ]]
+    then
+      HG_DIRECTORY=${target/.hg/}
+    fi
+    if [[ -d $HG_DIRECTORY ]]; then
+      message "${MESSAGE_COLOR}Running hg pull...${DEFAULT_COLOR}"
+      ( cd $HG_DIRECTORY &&
+      echo hg pull $HG_ROOT
+      hg pull $HG_ROOT &&
+      echo hg update $HG_TAG
+      hg update $HG_TAG )
+      rc=$?
+      eval "$dl_target=\"$HG_DIRECTORY\""
+    else
+      message "${MESSAGE_COLOR}Running hg clone...${DEFAULT_COLOR}"
+      echo hg clone $HG_ROOT $HG_DIRECTORY
+      hg clone $HG_ROOT $HG_DIRECTORY &&
+      ( cd $HG_DIRECTORY &&
+      echo hg update $HG_TAG
+      hg update $HG_TAG )
+      rc=$?
+      eval "$dl_target=\"$HG_DIRECTORY\""
+    fi
+    [[ $rc == 0 ]] && break
+  done
+  dl_disconnect
+
+  eval "$dl_type=\"tree\""
+  return $rc
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
