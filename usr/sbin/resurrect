@@ -224,6 +224,22 @@ function is_resurrectable() {
 }
 
 #---------------------------------------------------------------------
+## Make sure the parameters are ok. Used for verification before the
+## user is asked for the su password to avoid futile su-ing.
+#---------------------------------------------------------------------
+function verify_parameters() {
+  while [[ -n $1 ]]; do
+    if [[ ${1:0:1} == "-" ]]; then
+      case "$1" in
+        --latest|-l|--from|-f|--check|-c|--version|-v|--nosustain) true ;;
+                                                      --help|-h|*) help ;;
+      esac
+    fi
+    shift
+  done
+}
+
+#---------------------------------------------------------------------
 ## Parse the arguments and start resurrecting. If the version is
 ## specified, the -l option is ignored. If -f is specified, -v and -l
 ## are ignored. If -c is specified, everything else is ignored.
@@ -285,6 +301,9 @@ function main() {
 
 . /etc/sorcery/config
 if [[ $UID -gt 0 ]]; then
+  # validate the parameters before su-ing, since we may still drop out
+  verify_parameters $*
+
   echo  "Enter the root password, please."
   exec su -c "resurrect $@" root
 else

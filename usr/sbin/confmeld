@@ -264,6 +264,9 @@ function confmeld_all()
 function process_parameters()
 {
   local subroutine arguments
+  local mode=$1
+  shift
+
   while [[ -n $1 ]]; do
     if [[ ${1:0:1} == "-" ]]; then
       case "$1" in
@@ -281,6 +284,7 @@ function process_parameters()
     fi
     shift
   done
+  [[ $mode == check-only ]] && return 0
   $subroutine
 
   [[ $arguments ]] && confmeld_partial $arguments
@@ -300,7 +304,7 @@ function main()
 
   [[ -d $CONFIG_STAGE_DIRECTORY ]] || mkdir -p $CONFIG_STAGE_DIRECTORY
 
-  process_parameters "$@"
+  process_parameters normal "$@"
 
   confmeld_all
 }
@@ -308,6 +312,9 @@ function main()
 
 . /etc/sorcery/config
 if  [  "$UID"  -gt  0  ];  then
+  # validate the parameters before su-ing, since we may still drop out
+  process_parameters check-only "$@"
+
   echo  "Enter the root password, please."
   exec su -c "confmeld $@" root
 else

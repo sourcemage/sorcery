@@ -155,11 +155,6 @@ function process_parameters()  {
       shift
    fi
   done
-  # handle downgrading specially, since we also want to pass some of the flags
-  # but can't rely on input being ordered correctly
-  if [[ -n $DOWNGRADE_SPELL ]]; then
-    downgrade $DOWNGRADE_SPELL $DOWNGRADE_VERSION
-  fi
 }
 
 function validate_param() {
@@ -585,6 +580,12 @@ function dispel_depends_engine() {
 function main() {
 
   process_parameters        "$@"
+  # handle downgrading specially, since we also want to pass some of the flags
+  # but can't rely on input being ordered correctly
+  # having this block here allows process_parameters to be used for input verification
+  if [[ -n $DOWNGRADE_SPELL ]]; then
+    downgrade $DOWNGRADE_SPELL $DOWNGRADE_VERSION
+  fi
   SPELLS=`strip_parameters  "$@"`
 
   if [[ $NONORPHAN_DEFAULT ]] ||
@@ -626,6 +627,9 @@ elif  [  "$UID"  ==  0  ];  then
   cleanup_tmp_dir $TMP_DIR
   exit $rc
 else
+  # validate the parameters before su-ing, since we may still drop out
+  process_parameters "$@"
+
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
   exec su -c "dispel $PARAMS" root

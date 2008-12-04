@@ -166,6 +166,24 @@ function args()
   return ${rc:-0}
 }
 
+function verify_parameters()
+{
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+        --delint|--prune|--tablet)
+          case $2 in
+            full|doit|coalesce) shift ;;
+          esac
+        ;;
+      --fix|--nofix|--nofix_quick) true ;;
+       --sweep_all|--sweep|--logs) true ;;
+        --tablet_spell|--packages) true ;;
+                               -*)  usage $*; exit 1 ;;
+    esac
+    shift
+  done
+}
+
 #-------------------
 ## Find stale dependency entries, with full it'll look at off entries too
 ## @param full  if set, looks at off dependencies as well as on
@@ -1070,6 +1088,9 @@ else
     usage
     exit 0
   fi
+  # validate the parameters before su-ing, since we may still drop out
+  verify_parameters "$@"
+
   message "You must be root to run this command."
   message "Switching to root user..."
   PARAMS=$(consolidate_params "$@")

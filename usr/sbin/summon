@@ -242,6 +242,9 @@ if    [  "$UID"  ==  0  ] ; then
   exit $rc
 elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 else
+  # validate the parameters before su-ing, since we may still drop out
+  process_parameters $*
+
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
   exec su -c "summon $PARAMS" root

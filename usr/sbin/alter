@@ -545,6 +545,21 @@ EOF
 
 }
 
+function verify_parameters()
+{
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -m|--md5mend|-p|--prelink) true ;;
+      -s|--strip|-z|--strip-all) true ;;
+                     -a|--alter) true ;;
+        -n|--spell|-v|--version) true ;;
+                             -*) main ;;
+                              *) true ;;
+    esac
+    shift
+  done
+}
+
 #include sorcery configuration (and thus subroutines)
 . /etc/sorcery/config
 
@@ -565,6 +580,9 @@ elif  [[  "$1" == -h       ]]  ||
       [[       -z "$1"     ]]; then
   main "$1"
 else
+  # validate the parameters before su-ing, since we may still drop out
+  verify_parameters "$@"
+
   echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
   exec su -c "alter $PARAMS" root

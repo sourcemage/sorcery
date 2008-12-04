@@ -1895,6 +1895,25 @@ sorcery_queue_remove() {
   lock_commit_transaction "$INSTALL_QUEUE"
 }
 
+#---------------------------------------------------------------------
+## Make sure the parameters are ok. Used for verification before the
+## user is asked for the su password to avoid futile su-ing.
+#---------------------------------------------------------------------
+verify_parameters() {
+  [[ -z $1 ]] && return 0
+
+  case $1 in
+    -u|update|-s|system-update|-g|upgrade) true ;;
+                  -q|queue|queue-security) true ;;
+       -r|rebuild|-rr|rebuild-reconfigure) true ;;
+      add-queue|remove-queue|review-queue) true ;;
+                hold|unhold|exile|unexile) true ;;
+                                 default*) true ;;
+                                        *) help ;;
+  esac
+}
+
+
 main() {
 
   rm  -f  $UPDATE_SCRIPT
@@ -1927,7 +1946,6 @@ main() {
 
 }
 
-
 . /etc/sorcery/config
 if  [  "$UID"  ==  0  ];  then
   DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
@@ -1943,8 +1961,11 @@ else
     help
   else
     if [[ $1 == -v ]] || [[ $1 == --version ]] || [[ $1 == version ]]; then
-      echo  $( cat /etc/sorcery/version )
+      cat /etc/sorcery/version
     else
+      # validate the rest of the parameters before su-ing
+      verify_parameters "$@"
+
       echo  "Enter the root password, please."
       PARAMS=$(consolidate_params "$@")
       exec su -c "sorcery $PARAMS" root
