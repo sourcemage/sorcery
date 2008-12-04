@@ -69,6 +69,12 @@ EOF
   create_md5list $INST_LOG $MD5_LOG
   create_cache_archive $INST_LOG $CACHE $CACHE_COMP
   add_spell "$SPELL" installed "$VERSION"
+  OLD_VERSION=$VERSION
+  (
+    [[ $SPELL != alter ]] && codex_set_current_spell_by_name $SPELL
+    add_version_cache "$VERSION_STATUS" "$SPELL" "$OLD_VERSION" "${PATCHLEVEL:-0}" "${SECURITY_PATCH:-0}" "${UPDATED:-0}"
+  )
+
   rm $C_LOG
   report_install
   unlock_resources "cast" "$SPELL"

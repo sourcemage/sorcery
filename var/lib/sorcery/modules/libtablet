@@ -708,6 +708,9 @@ function tablet_create_version_cache() {
       tablet_get_security_patch $page_dir security_patch
       tablet_get_updated $page_dir updated
       echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
+    elif [[ $spell == alter ]]; then
+      version=$(installed_version alter)
+      echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
     else
       error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
                     "please run cleanse --tablet and retry. If some spells" \
