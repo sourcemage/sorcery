@@ -60,8 +60,13 @@ size            spell           Prints total size of all files installed
                                  by this spell
 size            -all            Prints total size of all spells, as well
                                  as size of the largest spell
-export                          Makes snapshot of box's configuration.
-import          snapshot        Restores snapshot.
+export
+                                Makes snapshot of box's configuration:
+                                 This includes the list of installed spells,
+                                 their dependencies and configure options.
+import [--deprecated] snapshot
+                                Restores snapshot. --deprecated activates
+                                 the old behaviour, useful for old caches.
 
 section        [section]        Lists all sections. Or all spells in
                                  the specified section.
@@ -145,56 +150,13 @@ function maybe_column()  {
 }
 
 #-----
-## Make building multiple identical systems easy with exporint of a
-## snapshot of the current state.
-## <p>Is this actualy used for anything still? Does it work?
-#-----
-function export_snapshot()  {
-
-  if [[ $UID != 0 ]]; then
-    error_message "${PROBLEM_COLOR}gaze export needs to be run as root, aborting...$DEFAULT_COLOR"
-    exit 1
-  fi
-
-  SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
-  mk_source_dir          $SOURCE_DIRECTORY
-  cp  -a  /etc           $SOURCE_DIRECTORY
-  cp  -a  $CONFIG_CACHE  $SOURCE_DIRECTORY
-
-  for  LINE  in  `cat  $SPELL_STATUS`;  do
-    SPELL=`echo  $LINE  |  cut  -d  :  -f1`
-     STATUS=`echo  $LINE  |  cut  -d  :  -f2`
-    if  [  "$STATUS"  ==  "installed"  ];  then
-      echo  $SPELL  >>  /usr/src/snapshot/install
-    fi
-  done
-
-  SNAPSHOT="/root/snapshot-$HOSTNAME-`date  -u  +%Y%m%d`.tar$EXTENSION"
-
-  cd  $BUILD_DIRECTORY
-  if  [  -n  "$EXTENSION"  ];  then
-    tar    -c  snapshot     |
-    $COMPRESSBIN      >  $SNAPSHOT
-  else
-    tar  -cf  $SNAPSHOT  snapshot
-  fi
-
-  rm_source_dir          $SOURCE_DIRECTORY
-  echo  "$SNAPSHOT created."
-
-}
-
-#-----
+## THIS FUNCTION IS DEPRECATED
 ## To make the <@function export_snapshot> actualy be useful, an import
 ## is quite handy.
 ## @param snapshot file
 #-----
-function import_snapshot()  {
-
-  if [[ $UID != 0 ]]; then
-    error_message "${PROBLEM_COLOR}gaze import needs to be run as root, aborting...$DEFAULT_COLOR"
-    exit 1
-  fi
+function import_snapshot_old()  {
+  message "${PROBLEM_COLOR}This behaviour is deprecated and can be removed at any time!$DEFAULT_COLOR"
 
           SNAPSHOT=$1
   SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
@@ -230,6 +192,93 @@ function import_snapshot()  {
 
   fi
 
+}
+
+#-----
+## Construct and echo a filename to save a snapshot in.
+#-----
+function mk_snapshot_filename() {
+  echo "snapshot-$HOSTNAME-$(date -u +%Y%m%d).tar$EXTENSION"
+}
+
+#-----
+## Write spell configurations and a list of installed spells to an archive.
+## See <@function import_snapshot>
+## @param snapshot file
+#-----
+function export_snapshot()  {
+  local snapshot=$1
+
+  if [[ $UID != 0 ]]; then
+    error_message "${PROBLEM_COLOR}gaze export needs to be run as root, aborting...$DEFAULT_COLOR"
+    exit 1
+  fi
+
+  SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
+  mk_source_dir "$SOURCE_DIRECTORY" || return 1
+  mkdir "$SOURCE_DIRECTORY/etc_sorcery_local"
+
+  cp -a "$CONFIG_CACHE/depends/" "$CONFIG_CACHE/config_option_cache/" \
+    "$SOURCE_DIRECTORY/etc_sorcery_local" || return 2
+
+  get_all_spells_with_status ok > "$SOURCE_DIRECTORY/install"
+
+  if [[ -n $EXTENSION ]]; then
+    tar -C "$BUILD_DIRECTORY" -c snapshot | $COMPRESSBIN > "$snapshot"
+  else
+    tar -C "$BUILD_DIRECTORY" -cf "$snapshot" snapshot
+  fi || return 3
+
+  rm_source_dir "$SOURCE_DIRECTORY"
+  message  "Snapshot \"$snapshot\" created."
+}
+
+#-----
+## Reads a snapshot created by <@function export_snapshot>, restores
+## spell configuration and saves the list of installed spells into the
+## install queue.
+## @param snapshot file
+#-----
+function import_snapshot()  {
+  if [[ $UID != 0 ]]; then
+    error_message "${PROBLEM_COLOR}gaze import needs to be run as root, aborting...$DEFAULT_COLOR"
+    exit 1
+  fi
+
+  if [[ $1 == '--deprecated' ]] ; then
+    import_snapshot_old "$2"
+    return
+  fi
+
+  local snapshot=$1
+  if ! [[ -r $snapshot ]]; then
+    error_message "${PROBLEM_COLOR}Unable to read snapshot \"$snapshot\", aborting...$DEFAULT_COLOR"
+    exit 1
+  fi
+
+  message -n "Saving previous configuration... "
+  export_snapshot "$TMP_DIR/$(mk_snapshot_filename)" || return 13
+  message "Done."
+
+  SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
+  mk_source_dir "$SOURCE_DIRECTORY" || return 2
+
+  # FIXME: use uncompress_unpack
+  if [[ -n $EXTENSION ]]; then
+    $COMPRESSBIN -dc "$snapshot" | tar -C "$BUILD_DIRECTORY" -x
+  else
+    tar -C "$BUILD_DIRECTORY" -xf "$snapshot"
+  fi || return 3
+
+  local spell
+  for spell in $(cat "$SOURCE_DIRECTORY/install"); do
+    push_queue "$INSTALL_QUEUE" "$spell"
+  done || return 4
+
+  cp -a "$SOURCE_DIRECTORY/etc_sorcery_local"/* "$CONFIG_CACHE" || return 5
+
+  rm_source_dir  "$SOURCE_DIRECTORY"
+  message  "$snapshot imported, please use 'cast --queue' to start compiling."
 }
 
 #-----
@@ -2228,8 +2277,8 @@ parse()  {
 
         # Other options
             html)  shift; gaze_catalog_html $@           ;;
-          export)  export_snapshot                       ;;
-          import)  import_snapshot   $2                  ;;
+          export)  export_snapshot "$(mk_snapshot_filename)" ;;
+          import)  shift; import_snapshot "$@"           ;;
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
         versions)  shift; gaze_show_versions $@          ;;
