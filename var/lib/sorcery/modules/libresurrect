@@ -321,6 +321,8 @@ function resurrect_sub() {
   # totally screwing us if we stomp on some critical libraries.
   # ld-linux.so.2 anyone?
   local res_fail=0
+  local verbose
+  [[ $VOYEUR != off ]] && verbose=-v
   cat $NEW_DATA_F_NC | while read line; do
     # filterable data also has the clever trait that to make it relative
     # in this context we prepend a .
@@ -329,7 +331,7 @@ function resurrect_sub() {
     # test -d so handle them specially
     test -h ".$line" && echo .$line ||
     test -d ".$line" || echo .$line
-  done | sort | tar -cT - | tar -xvf - -C ${INSTALL_ROOT:-/} || {
+  done | sort | tar -cT - | tar $verbose -xf - -C ${INSTALL_ROOT:-/} || {
     debug "libresurrect" "Failed to install regular files"
     resurrect_fail 1
     return 1

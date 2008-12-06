@@ -32,6 +32,7 @@ Optional Parameters:
 -c, --check <spell>          check if a spell appears to be resurrectable
 --nosustain                  turn off dispel protection for vital spells
                                (you usually don't want to do this)
+-V, --voyeur <on|off>        toggle voyeur mode (default on)
 -h, --help                   will just print this help
 
 You can invoke resurrect with spell names only or also specify the desired
@@ -233,8 +234,10 @@ function verify_parameters() {
   while [[ -n $1 ]]; do
     if [[ ${1:0:1} == "-" ]]; then
       case "$1" in
-        --latest|-l|--from|-f|--check|-c|--version|-v|--nosustain) true ;;
-                                                      --help|-h|*) help ;;
+                      --latest|-l|--from|-f) true ;;
+        --check|-c|--version|-v|--nosustain) true ;;
+                                --voyeur|-V) list_find "on off" "$2" || help ;;
+                                --help|-h|*) help ;;
       esac
     fi
     shift
@@ -263,6 +266,10 @@ function main() {
              --version|-v) USE_VERSION="$2"
                            shift
                            unset USE_LATEST
+                           ;;
+              --voyeur|-V) list_find "on off" "$2" || help
+                           VOYEUR="$2"
+                           shift
                            ;;
               --nosustain) SUSTAIN="off" ;;
                         *) help ;;
