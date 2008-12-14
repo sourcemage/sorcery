@@ -29,14 +29,32 @@
 
 
 #---------------------------------------------------------------------
-## @param gcc version (2.95. or 3.3.)
-## @return 0 if gcc is being used to compile
+## @param gcc version (digits and dots)
+## @return 0 if version of installed gcc contains the parameter as a substring
+## @return 0 if the parameter is of the form "version+" and the version of the
+##             installed gcc is at least "version"
 ## @return 1 otherwise
 #---------------------------------------------------------------------
 function use_gcc()  {
+  local needed_version=${1%+}
+  local installed_version=$(gcc -dumpversion)
 
-  gcc  -dumpversion  |  grep  -q  $(esc_str $1)  >  /dev/null
+  if [[ $needed_version == $1 ]]; then
+    grep -q $(esc_str $needed_version) <<< "$installed_version"
+  else
+    local i=0 needed_version2 installed_version2
+    explode "$needed_version" . needed_version2
+    explode "$installed_version" . installed_version2
 
+    while [[ ${needed_version2[$i]} ]] || [[ ${installed_version2[$i]} ]]; do
+      if [[ ${needed_version2[$i]:-0} == ${installed_version2[$i]:-0} ]]; then
+        let i++
+        continue
+      fi
+      # capturing the return value of arithmetic comparison inverts it
+      return $(( ${needed_version2[$i]:-0} > ${installed_version2[$i]:-0} ))
+    done
+  fi
 }
 
 #---------------------------------------------------------------------
