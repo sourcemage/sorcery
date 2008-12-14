@@ -30,7 +30,8 @@
 
 #---------------------------------------------------------------------
 ## @param gcc version (digits and dots, followed by an optional +)
-## @return 0 if version of installed gcc contains the parameter as a substring
+## @return 0 if the version of the installed gcc that will be used is equal
+##             to the passed version
 ## @return 0 if the parameter is of the form "version+" and the version of the
 ##             installed gcc is at least "version"
 ## @return 1 otherwise
@@ -40,7 +41,7 @@ function real_using_gcc()  {
   local installed_version=$(gcc -dumpversion)
 
   if [[ $needed_version == $1 ]]; then
-    grep -q $(esc_str $needed_version) <<< "$installed_version"
+    grep -qE "^$(esc_str $needed_version)(\.0)*$" <<< "$installed_version"
   else
     local i=0 needed_version2 installed_version2
     explode "$needed_version" . needed_version2
@@ -79,8 +80,9 @@ function gcc_add_paths()  {
 ##
 #---------------------------------------------------------------------
 function invoke_gcc()  {
-  if [[ $GCC_VERSION ]] && ! real_using_gcc $GCC_VERSION; then
-    GCC_VERSION=${GCC_VERSION%+}
+  # $GCC_VERSION contains only two of the version fields, but any patchlevel
+  # will do, so we pass a regex to the otherwise stricter real_using_gcc
+  if [[ $GCC_VERSION ]] && ! real_using_gcc "$GCC_VERSION(\.[0-9])?"; then
     gcc_add_paths /opt/gcc${GCC_VERSION//.}
   elif [[ -f $SCRIPT_DIRECTORY/USEGCC2 ]]; then
     gcc_add_paths /opt/gcc2

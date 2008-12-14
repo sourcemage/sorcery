@@ -81,6 +81,7 @@
 #    unpack                         (libunpack) (deprecated)
 #    unpack_file                    (libunpack)
 #    unpack_file_simple             (libunpack)
+#    using_gcc                      (libgcc2)
 #    verify_file                    (libunpack)
 #
 # The following are implicitly defined for each spell file
@@ -1277,7 +1278,8 @@ function verify_file () {
 
 #---------------------------------------------------------------------
 ## @param gcc version (digits and dots, followed by an optional +)
-## @return 0 if version of installed gcc contains the parameter as a substring
+## @return 0 if the version of the installed gcc that will be used is equal
+##             to the passed version
 ## @return 0 if the parameter is of the form "version+" and the version of the
 ##             installed gcc is at least "version"
 ## @return 1 otherwise
@@ -1286,6 +1288,18 @@ function verify_file () {
 ## Checks if the system gcc version is equal to the passed version or
 ## when the version ends with a + marker, if it the system version is
 ## greater or equal to it.
+## The gcc version is of the major.minor.patchlevel form, but trailing
+## digits can be omitted and will default to 0 in the comparison.
+##
+## <pre>
+## Example:
+##    if using_gcc 4.3+; then # same as 4.3.0+
+##      patch -p1 < $SPELL_DIRECTORY/gcc43-compilation-fixes.patch
+##    elif using_gcc 4.0.0; then
+##      # gcc 4.0.0 triggers a memleak when -O3 is used
+##      CFLAGS=${CFLAGS/-O3/-O2}
+##    fi
+## </pre>
 #---------------------------------------------------------------------
 function using_gcc()  {
   debug "libapi" "$FUNCNAME - $*"
