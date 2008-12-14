@@ -29,7 +29,7 @@
 
 
 #---------------------------------------------------------------------
-## @param gcc version (digits and dots)
+## @param gcc version (digits and dots, followed by an optional +)
 ## @return 0 if version of installed gcc contains the parameter as a substring
 ## @return 0 if the parameter is of the form "version+" and the version of the
 ##             installed gcc is at least "version"
@@ -58,44 +58,35 @@ function use_gcc()  {
 }
 
 #---------------------------------------------------------------------
-## @return 0 if gcc 2.95 is being used to compile
-## @return 1 otherwise
-#---------------------------------------------------------------------
-function use_gcc2()  {
-
-  use_gcc 2.95.
-
-}
-
-#---------------------------------------------------------------------
 ## @param path
 ##
-## Alters the environment so that gcc2 will be used for compiling and
-## building spells when the "gcc" command is used.
+## Alters the environment so that the gcc in the specified directory
+## will be used for compiling
 ##
 #---------------------------------------------------------------------
-function gcc2_add_paths()  {
-
-  export  PATH=$(  envar_prepend_path  $1/bin  $PATH  )
-  export  LD_LIBRARY_PATH=$(  envar_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
-  export  LD_RUN_PATH=$(  envar_prepend_path  $1/lib  $LD_RUN_PATH  )
-  export  INFOPATH=$(  envar_prepend_path  $1/info  $INFOPATH  )
-  export  CPPFLAGS="-I $1/include  $CPPFLAGS"
-
+function gcc_add_paths()  {
+  export PATH=$(envar_prepend_path $1/bin $PATH)
+  export LD_LIBRARY_PATH=$(envar_prepend_path $1/lib $LD_LIBRARY_PATH)
+  export LD_RUN_PATH=$(envar_prepend_path $1/lib $LD_RUN_PATH)
+  export INFOPATH=$(envar_prepend_path $1/info $INFOPATH)
+  export CPPFLAGS="-I $1/include  $CPPFLAGS"
 }
 
-
 #---------------------------------------------------------------------
 ##
-## Determines if gcc2 should be used for a spell.  If so, it alters
-## the environment so that gcc2 is used for compilation.
+## Determines if the spell specifies a gcc version to use. If so, it
+## alters the environment so that that gcc version is used for compilation.
 ##
 #---------------------------------------------------------------------
-function invoke_gcc2()  {
-  [[ -f $SCRIPT_DIRECTORY/USEGCC2 ]] && gcc2_add_paths /opt/gcc2
-  echo  "Using gcc version: `gcc  -dumpversion`"
+function invoke_gcc()  {
+  if [[ $GCC_VERSION ]] && ! real_use_gcc $GCC_VERSION; then
+    GCC_VERSION=${GCC_VERSION%+}
+    gcc_add_paths /opt/gcc${GCC_VERSION//.}
+  elif [[ -f $SCRIPT_DIRECTORY/USEGCC2 ]]; then
+    gcc_add_paths /opt/gcc2
+  fi
+  echo  "Using gcc version: $(gcc -dumpversion)"
 }
-
 
 #---------------------------------------------------------------------
 ##
