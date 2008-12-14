@@ -1,32 +1,29 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ##
-## @Synopsis Set of functions for dealing with the problem (hopefully a
-## @Synopsis temporary problem) of having to use both the gcc2 and gcc3
-## @Synopsis compilers.
+## @Synopsis Set of functions for dealing with the problem of having to
+## @Synopsis use different version of the gcc compilers.
 ##
-## The migration to gcc3 will take place in the following steps:
+## The basic usage is as follows:
 ## <pre>
-## - The gcc spell will be updated to gcc 3
-## - gcc2 will be a new spell that installs gcc2 in /opt/gcc2.
-## - The gcc spell will have gcc2 as a dependency.
-## - Spells that will only compile with gcc3 will have a USEGCC2 file
-##   in the spell directory.
-## - Sorcery will test for the existance of the USEGCC2 flag in a
-##   spell's directory.  If it's there, it will alter the environment
-##   so that gcc2 is used for building the spell.
+## - If a spell works with the latest version of gcc, do nothing.
+## - To change the compiler version for a spell, add a GCC_VERSION field
+##   to the spells DETAILS specifying major.minor version of gcc it needs,
+##   e.g. GCC_VERSION=3.4
+## - add a 'depends  gccXX' to the spell where XX == majorminor,
+##   e.g. 'depends  gcc34'
+## - add 'invoke_gcc' to the top of PRE_BUILD if the spell has a
+##   custom PRE_BUILD file
 ## </pre>
 ##
-## @Implementation These functions were added to allow the use of both the gcc2 and
-## @Implementation gcc3 compiler at the same time within sorcery.  The code can be
-## @Implementation removed once only one compiler is supported.
+## @Implementation These functions were added to allow the use of
+## @Implementation several versions of gcc in parallel.
 ##
 ##
-##  @Copyright Copyright 2002 by the Source Mage Team
+##  @Copyright Copyright 2005 by the Source Mage Team
 ##
 ##
 #---------------------------------------------------------------------
-
 
 #---------------------------------------------------------------------
 ## @param gcc version (digits and dots, followed by an optional +)
@@ -89,6 +86,7 @@ function invoke_gcc()  {
   fi
   echo  "Using gcc version: $(gcc -dumpversion)"
 }
+
 
 #---------------------------------------------------------------------
 ##
