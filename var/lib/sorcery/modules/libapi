@@ -1276,6 +1276,23 @@ function verify_file () {
 }
 
 #---------------------------------------------------------------------
+## @param gcc version (digits and dots, followed by an optional +)
+## @return 0 if version of installed gcc contains the parameter as a substring
+## @return 0 if the parameter is of the form "version+" and the version of the
+##             installed gcc is at least "version"
+## @return 1 otherwise
+## @See <@function var.lib.sorcery.modules.libgcc.html,real_using_gcc> for more details.
+##
+## Checks if the system gcc version is equal to the passed version or
+## when the version ends with a + marker, if it the system version is
+## greater or equal to it.
+#---------------------------------------------------------------------
+function using_gcc()  {
+  debug "libapi" "$FUNCNAME - $*"
+  real_using_gcc "$@"
+}
+
+#---------------------------------------------------------------------
 ## @Type API
 ## @param Target of the trigger
 ## @param Action to execute

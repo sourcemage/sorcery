@@ -35,7 +35,7 @@
 ##             installed gcc is at least "version"
 ## @return 1 otherwise
 #---------------------------------------------------------------------
-function use_gcc()  {
+function real_using_gcc()  {
   local needed_version=${1%+}
   local installed_version=$(gcc -dumpversion)
 
@@ -79,7 +79,7 @@ function gcc_add_paths()  {
 ##
 #---------------------------------------------------------------------
 function invoke_gcc()  {
-  if [[ $GCC_VERSION ]] && ! real_use_gcc $GCC_VERSION; then
+  if [[ $GCC_VERSION ]] && ! real_using_gcc $GCC_VERSION; then
     GCC_VERSION=${GCC_VERSION%+}
     gcc_add_paths /opt/gcc${GCC_VERSION//.}
   elif [[ -f $SCRIPT_DIRECTORY/USEGCC2 ]]; then
