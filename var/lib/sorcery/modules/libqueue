@@ -272,7 +272,8 @@ function does_spell_need_update_sub() {
 }
 
 #---------------------------------------------------------------------
-## Common code between update_install_queue and update_security_install_queue
+## Common code between update_install_queue,
+## update_security_install_queue and does_spell_need_update
 #---------------------------------------------------------------------
 function update_install_queue_sub()  {
   local tmp_queue=$1
@@ -289,11 +290,14 @@ function update_install_queue_sub()  {
         cat $grimoire/$VERSION_INDEX_FILE
       else
         # provide a dummy version index, treating all spells as multiversioned
-        local grimoire_name
-        smgl_basename "$grimoire" grimoire_name
-        error_message "${PROBLEM_COLOR}Grimoire $grimoire_name is missing" \
-          "the version index!$DEFAULT_COLOR"
-        error_message "You can run scribe reindex-version $grimoire_name to add one."
+        if [[ $type != single ]]; then
+          # don't whine for single spell lookups, so cast -Z is nicer
+          local grimoire_name
+          smgl_basename "$grimoire" grimoire_name
+          error_message "${PROBLEM_COLOR}Grimoire $grimoire_name is missing" \
+            "the version index!$DEFAULT_COLOR"
+          error_message "You can run scribe reindex-version $grimoire_name to add one."
+        fi
         sed -n "s|^\(\S*\) .*$|\1 multiversioned|p" $grimoire/$SPELL_INDEX_FILE
       fi
     done |
