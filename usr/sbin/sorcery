@@ -1506,6 +1506,40 @@ sorcery_devel_settings()   {
 
 }
 
+function set_dl_handler() {
+  local W_HELP="Use wget to download from urls using the http/ftp/https protocols"
+  local A_HELP="Use aria2 to download from urls using the http/ftp/https protocols"
+
+  while
+    COMMAND=$(eval $DIALOG '--title "Currently using: ${HTTP_DL_HANDLER:-wget}" \
+                      --item-help                               \
+                      --ok-label      "Select"                  \
+                      --cancel-label  "Exit"                    \
+                      --menu                                    \
+                      ""                                        \
+                      0 0 0                                     \
+                      "W"  "wget (default)"    "$W_HELP" \
+                      "A"  "aria2"             "$A_HELP"')
+  do
+    case $COMMAND in
+      W) modify_local_config HTTP_DL_HANDLER wget &&
+         HTTP_DL_HANDLER=wget ;;
+      A)
+        if ! spell_ok aria2; then
+          local error_msg
+          error_msg="aria2 is not installed on this system!\nIf you want"
+          error_msg="$error_msg to use it, cast it first, then revisit"
+          error_msg="$error_msg this menu.\n\nYour download handler choice"
+          error_msg="$error_msg has not been saved!"
+          eval "$DIALOG --msgbox \"\$error_msg\" 0 0"
+        else
+          modify_local_config HTTP_DL_HANDLER aria2 &&
+          HTTP_DL_HANDLER=aria2
+        fi ;;
+    esac
+    break
+  done
+}
 
 feature_menu()  {
 
@@ -1601,6 +1635,7 @@ option_menu()  {
   local U_HELP="Enter the permissions mask (umask value) to use for sorcery"
   local S_HELP="Sorcery development options (debugging)"
   local W_HELP="Enter maximum timeout (seconds) for summoning sources"
+  local Y_HELP="Select the default http/https/ftp download handler"
   local X_HELP="Init.d/Xinetd Default Answer Selection Menu"
   local Z_HELP="Select sorcery sound scheme"
 
@@ -1629,6 +1664,7 @@ option_menu()  {
                       "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
+                      "Y"  "Default download tool"    "$Y_HELP" \
                       "X"  "init.d xinetd.d defaults" "$X_HELP" \
                       "Z"  "Select Sound Scheme"      "$Z_HELP"'`
 
@@ -1652,6 +1688,7 @@ option_menu()  {
       S)  sorcery_devel_settings    ;;
       T)  set_compression_type      ;;
       W)  set_http_ftp_timeout      ;;
+      Y)  set_dl_handler ;;
       X)  service_defaults          ;;
       Z)  sound_schemes_menu        ;;
 
