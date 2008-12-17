@@ -1,0 +1,145 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Url handler functions for downloading http, https, and ftp urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying
+## http, https, and ftp urls. It uses the "aria2" program.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2007 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+function dl_aria2_get() {
+  debug libdownload "$FUNCNAME -- $@"
+  dl_command_check aria2c || return 254
+
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local rc=1 url
+
+  [[ $target ]] &&
+  dl_connect || return 255
+
+  local ARIA2_OPTIONS
+  dl_aria2_set_options  "$url_list"
+  dl_aria2_call_aria2  $target "$url_list"
+  rc=$?
+
+  dl_disconnect
+
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"file\""
+  return $rc
+
+}
+
+#---------------------------------------------------------------------
+# dl_aria2_call_aria2 <filename> <extension-less filename> <url>
+#
+# Private Function. Calls aria2c to download the url.
+#
+#---------------------------------------------------------------------
+function dl_aria2_call_aria2()  {
+  local FILE=$1
+  local URL_LIST=$2
+
+  debug 'dl_aria2' "$funcname -- $@"
+
+  rm -f $FILE
+  aria2c $ARIA2_OPTIONS $URL_LIST 2>&1 &&
+  if ! test -f "$FILE" ; then
+    # stupid http site trying to be nice and re-direct us, this is a failure
+    # even though aria2 doesnt notice it...
+    rm -f $FILE*
+    return 1
+  fi
+}
+
+#---------------------------------------------------------------------
+# dl_aria2_set_aria2_options
+#
+# Private Function.  Sets aria2 options
+#
+#---------------------------------------------------------------------
+function dl_aria2_set_options()  {
+  local URL_LIST=$1
+  if [  -n  "$ACTIVE_FTP"  ] ; then
+    unset  PASSIVE
+  else
+    PASSIVE="--ftp-pasv"
+  fi
+
+  # Check for ? in the url, this seems to indicate that there may be
+  # some cgi redirection involved which means continued downloading would
+  # not work (bug 8993).
+  # The sourceforge check pre-dates that but is lacking any documentation,
+  # I suspect it is a less general attempt to solve the same problem.
+  # (afk 2005-06-25)
+  # assume that it's going to continue unless badness
+  CONTINUE="-c"
+  for URL in $URL_LIST; do
+    if grep -qE "(\?|sourceforge)" <<< "$URL"; then
+      unset CONTINUE
+      break
+    fi
+  done
+
+  if [[ -n $DOWNLOAD_RATE  ]]; then
+    RATE="--max-download-limit=$DOWNLOAD_RATE"
+  fi
+
+  if [[ -n $URL_HTTP_FTP_TIMEOUT ]]; then
+    URL_HTTP_TIMEOUT="-t $URL_HTTP_FTP_TIMEOUT"
+  else
+    unset  URL_HTTP_TIMEOUT
+  fi
+
+  if [[ -n $URL_HTTP_FTP_RETRIES ]]; then
+    URL_HTTP_RETRIES="-m $URL_HTTP_FTP_RETRIES"
+  else
+    URL_HTTP_RETRIES="-m 3"
+  fi
+
+  #If this option set to false, aria2 doesn't download a file which already
+  #exists in the file system but its corresponding .aria2 file doesn't exist.
+  #Default: false
+
+  ALLOW_OVERWRITE="--allow-overwrite=true"
+  ARIA2_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $RATE $PASSIVE $CONTINUE $ALLOW_OVERWRITE"
+  debug 'dl_aria2' "aria2 options: $ARIA2_OPTIONS"
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
