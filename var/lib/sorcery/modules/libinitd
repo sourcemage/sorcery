@@ -99,7 +99,7 @@ function _init_merge_config_file()
   fi
 
   local savetime=$( date +'%Y%m%d%H%M' )
-  cp $2 $2.$savetime.backup
+  install -g root -o root $2 $2.$savetime.backup
 
   for opt in $new_opts ; do
     message "  Merging option $opt into $2..."
@@ -144,7 +144,7 @@ function _init_install_conf_files()
       check_if_modified "$target_file" && mark_file_modified "$target_file"
       _init_merge_config_file $file $target_file
     else
-      install -m 644 $file $target_file
+      install -m 644 -g root -o root $file $target_file
       touch $target_file
     fi
   done
@@ -229,11 +229,11 @@ function init_install()
     else
       _init_make_backup $script_path $runlevel_dir/$script_name
       if [ "$enable_script" == "enabled" ] ; then
-        install -m 754 $script_path $runlevel_dir
+        install -m 754 -g root -o root $script_path $runlevel_dir
         message "  script $script_name installed and ${MESSAGE_COLOR}enabled${DEFAULT_COLOR}. Disable with 'telinit disable $script_name'."
         message "${MESSAGE_COLOR}If you want to [re]start the service now${DEFAULT_COLOR}, issue 'telinit run $script_name [re]start'."
       else
-        install -m 644 $script_path $runlevel_dir
+        install -m 644 -g root -o root $script_path $runlevel_dir
         message "  script $script_name installed and ${MESSAGE_COLOR}disabled${DEFAULT_COLOR}. Enable with 'telinit enable $script_name'."
       fi
       _init_install_conf_files $( _init_get_conf_files $script_path )
