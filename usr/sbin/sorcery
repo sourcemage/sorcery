@@ -88,10 +88,13 @@ EOF
 #' <-- fix for syntax highlighting in nedit
 }
 
-mirror_list()  {
-
-  sort  $MIRRORS/$1 | awk '{print "\""$NF"\""; NF-- ; print $0; }'
-
+mirror_list() {
+  local mirror_list
+  for mirror_list in $MIRRORS; do
+    [[ -f $mirror_list/$1 ]] || continue
+    sort $mirror_list/$1 | awk '{ print "\""$2"\""; print $1; }'
+    break # only list duplicate mirror lists once
+  done
 }
 
 
@@ -110,38 +113,25 @@ select_mirror()  {
 
 
 mirror_menu()  {
+  local mirror_list mirrors mirror_name mirror_help cmd
 
-  local A_HELP="Select mirror for downloading APACHE sources."
-  local C_HELP="Select mirror for downloading CTAN sources."
-  local K_HELP="Select mirror for downloading KDE sources."
-  local L_HELP="Select mirror for downloading kernel related sources."
-  local N_HELP="Select mirror for downloading GNOME sources."
-  local G_HELP="Select mirror for downloading GNU sources."
-  local P_HELP="Select mirror for downloading PERL-CPAN sources"
+  mirrors=$(find $MIRRORS -maxdepth 1 -mindepth 1 -type f -printf "%f\n" | sort -u)
+  cmd='--title "Mirror Menu" \
+         --ok-label     "Select" \
+         --cancel-label "Exit" \
+         --item-help \
+         --menu "" 0 0 0'
+
+  while read mirror_name; do
+    mirror_help="Select mirror for downloading $mirror_name sources."
+    cmd="$cmd $mirror_name '' '$mirror_help'"
+  done <<< "$mirrors"
+
   local S_HELP="Select mirror for downloading Sorcery itself"
-  local SF_HELP="Select mirror for downloading Sourceforge"
-  local X_HELP="Select mirror for downloading XFree86 related sources."
   local HELP="Selecting a mirror site can speed your downloads."
+  cmd="$cmd SORCERY '' '$S_HELP'"
 
-  while
-
-
-    COMMAND=`eval $DIALOG '  --title "Mirror Menu"        \
-                      --ok-label      "Select"     \
-                      --cancel-label  "Exit"       \
-                      --item-help                  \
-                      --menu        ""  0 0 0      \
-                      "APACHE"      ""  "$A_HELP"  \
-                      "CTAN"        ""  "$C_HELP"  \
-                      "KDE"         ""  "$K_HELP"  \
-                      "KERNEL"      ""  "$L_HELP"  \
-                      "GNOME"       ""  "$N_HELP"  \
-                      "GNU"         ""  "$G_HELP"  \
-                      "PERL_CPAN"   ""  "$P_HELP"  \
-                      "SOURCEFORGE" "" "$SF_HELP"  \
-                      "SORCERY"     ""  "$S_HELP"  \
-                      "XFREE86"     ""  "$X_HELP"'`
-  do
+  while COMMAND=$(eval $DIALOG "$cmd"); do
     MIRROR=${COMMAND}_URL
 
     if  MIRROR_URL=`select_mirror  $COMMAND`;  then
