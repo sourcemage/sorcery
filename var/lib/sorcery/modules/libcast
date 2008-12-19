@@ -144,6 +144,29 @@ function dispel_conflicts() {
   done
 }
 
+#---------------------------------------------------------------------
+## Prompts the user about possible security problems with the current
+## spell. Allows a safe way of failing a spell due to security problems.
+## @return 0 if there are no security problem or the user acknowledges them.
+## @return 1 if the user decides not to accept the security concerns
+#---------------------------------------------------------------------
+function run_security() {
+    debug "build_api/common" "Starting run_security() on $SPELL"
+    local rc=0
+    if [[ -f $SCRIPT_DIRECTORY/SECURITY ]]; then
+      message "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
+      tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
+      if grep -q critical $SCRIPT_DIRECTORY/SECURITY; then
+        query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"
+      else
+        query "SECURITY: Do you still want to cast ${SPELL_COLOR}$SPELL${QUERY_COLOR}?" "y"
+      fi
+      rc=$?
+    fi
+    [[ $rc != 0 ]] && log_failure_reason "security"
+    return $rc
+}
+
 function query_custom_cflags() {
   if [[ $PER_SPELL_CFLAGS == on ]]; then
     query "Would you like to set custom optimizations for this spell?" n ||
