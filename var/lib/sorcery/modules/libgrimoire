@@ -227,17 +227,16 @@ function private_installed_version()  {
 ##
 #---------------------------------------------------------------------
 function real_conflicts() {
-
   debug  "libgrimoire" "Running conflicts() on $1. Default query answer $2."
 
-  if  spell_installed  $1;  then
-    [  "$2"  =  y  ]  &&  echo  "$1:y"  ||  echo  "$1:n"
+  if spell_ok $1; then
+    if [[ $2 == y ]]; then
+      echo "$1:y"
+    else
+      echo "$1:n"
+    fi
   fi
-
-  true
-
 }
-
 
 #---------------------------------------------------------------------
 ## @Stdout Warning messages.

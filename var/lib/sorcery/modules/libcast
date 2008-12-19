@@ -84,51 +84,64 @@ function prepare_spell_config()  {
 
 #---------------------------------------------------------------------
 ## Prompts the user about spells that are in conflict with the current
-## spell and allows them to dispel them. If the user chooses not to
+## spell for later dispelling. If the user chooses not to
 ## dispel the conflicting spell, the function returns 1
 ## @param dis-allow conflict with anything in this list, normally used to prevent self conflicts
-## @return nothing if the user dispels the conflicting spell
+## @param file to store output (conflicts to be removed), defaults to $CONFLICT_LIST
+## @return nothing if the user chose to dispel the conflicting spell
 ## @return 1 if the user chooses not to dispel the conflicting spell
+## @return 1 or if there was a problem parsing the CONFLICTS file
 #---------------------------------------------------------------------
-function run_conflicts() {
-
-  debug "build_api/common" "Starting run_conflicts() on $SPELL"
+function query_conflicts() {
+  debug "build_api/common" "Starting query_conflicts() on $SPELL"
   local ignore_conflict=$1
-  local each rc
+  local output=${2:-$CONFLICT_LIST}
 
-  if  [  -x  $SCRIPT_DIRECTORY/CONFLICTS  ]; then
-    local CONFLICTS=$(
-        run_spell_file CONFLICTS conflicts
-    )
+  if [[ -x $SCRIPT_DIRECTORY/CONFLICTS ]]; then
+    local CONFLICTS=$(run_spell_file CONFLICTS conflicts) || return 1
 
     local tmp to_dispel=""
-    for  tmp  in  $CONFLICTS  ;  do
+    for tmp in $CONFLICTS; do
       local spell_and_default
-      explode  $tmp  ':'  spell_and_default
-      local skip=no
-      for each in $ignore_conflict ; do
-        [[ $each == "${spell_and_default[0]}" ]] && skip=yes
-      done
-      [[ "$skip" == "yes" ]] && continue
+      explode $tmp ':' spell_and_default
+
+      # skip the spells we were told to ignore
+      list_find "$ignore_conflict" ${spell_and_default[0]} && continue
 
       local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${QUERY_COLOR}."
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}.${QUERY_COLOR}"
       text="$text Dispel"
       text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
 
-      if  query  "$text"  ${spell_and_default[1]}  ;  then
-        dispel --noqueue ${spell_and_default[0]} || rc=1
-        echo  ${spell_and_default[0]} >>  $CONFLICT_LIST
+      if query "$text" ${spell_and_default[1]}; then
+        echo ${spell_and_default[0]} >> $output
       else
-        echo  $SPELL  >>  $FAILED_LIST
-        log_failure_reason "conflict"
-        return  1
+        log_failure_reason "conflicts"
+        return 1
       fi
-
     done
   fi
-  return ${rc:-0}
 
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Dispels the spells that are scheduled for a dispel due to conflicting
+## @param file containing the list of conflicts
+#---------------------------------------------------------------------
+function dispel_conflicts() {
+  local conflict_list=${1:-$CONFLICT_LIST}
+  local spell
+
+  if [[ -s $conflict_list ]]; then
+    message "${MESSAGE_COLOR}Dispelling conflicts...$DEFAULT_COLOR"
+  else
+    return 0
+  fi
+
+  for spell in $(< $conflict_list); do
+    dispel --noqueue $spell || return 1
+  done
 }
 
 function query_custom_cflags() {

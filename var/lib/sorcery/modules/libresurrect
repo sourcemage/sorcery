@@ -272,10 +272,16 @@ function resurrect_spell()  { (
   fi
 
   # 9) remove conflicts, but not self-conflicts, they make no sense
-  run_conflicts $SPELL || {
+  local conflicts=$TMP_DIR/list.of.conflicts
+  > $conflicts
+  query_conflicts $SPELL $conflicts
+  if [[ $? == 0 ]] && dispel_conflicts $conflicts; then
+    rm $conflicts
+  else
+    rm $conflicts
     resurrect_fail
     return 1
-  }
+  fi
 
   #####
   # Start of critical region

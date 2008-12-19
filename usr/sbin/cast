@@ -219,8 +219,7 @@ function cast_spell()  { (
 # these both prompt, and prompting should NOT occur at this point
 # someday they will get split to a query and action pair (like use_xinetd
 # and install_xinetd) (afk 4/10/04)
-  run_security  &&
-  run_conflicts || return 1
+  run_security || return 1
 
   # show_downloading tail -f's (essentially) the download log as it
   # comes in, or if downloading is complete, cats the download log, in
@@ -327,8 +326,16 @@ function pass_one()  {
     local cannot_cast=$(hash_get_table_fields "bad_spells")
     message "${PROBLEM_COLOR}No spells to cast!${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Cannot cast these spells:${DEFAULT_COLOR}"
-    message "---------------------------"
-    message "${PROBLEM_COLOR}${cannot_cast}" | tr '[:blank:]' '\n' | column
+    message "---------------------------$PROBLEM_COLOR"
+
+    local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
+    local spell
+    for spell in $cannot_cast; do
+      grep -s "^$spell " $failure_reason_log ||
+      message "$spell"
+    done | awkuniq | column
+    rm -f $failure_reason_log
+
     message "${DEFAULT_COLOR}"
     exit 1
   fi
@@ -414,8 +421,17 @@ function pass_two()  {
 
   if ! query "Do you want to cast these spells?" "y" ; then
     message "Ok, quitting cast. Figure out what you want."
-  return 1
+    # conflicts are already registered, but they weren't removed, so don't show them
+    :> $CONFLICT_LIST
+    return 1
   fi
+
+  if ! dispel_conflicts; then
+    #FIXME: only break the conflictees, not the whole cast
+    error_message "There was a problem with dispelling the conflicts. Bailing out!"
+    return 1
+  fi
+  echo
 
   rm -f $TMP_DIR/pass_three.done # don't return until this file exists
   MINUS_K=yes

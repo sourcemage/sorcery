@@ -103,13 +103,19 @@ function run_prepare()
 function run_other() {
   local SPELL=$1
   # ask the questions about xinetd/initd script installation
-  persistent_load
-  query_services
-  query_custom_cflags
-  persistent_save
+  persistent_load &&
+  query_services &&
+  query_custom_cflags &&
+  query_conflicts &&
+  persistent_save ||
+  {
+    persistent_clear
+    log_failure_reason run_other #remove this if all the previous callers get one
+    return 1
+  }
 # todo:
-#ask about conflicts
 #ask about other stuff
+# run_security should be here too
 
 }
 
