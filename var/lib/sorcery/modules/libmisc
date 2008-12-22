@@ -100,31 +100,27 @@ function isalpha() {
 ## Returns true or false based on the answer given.
 ##
 #---------------------------------------------------------------------
-function real_query()  { (
+function real_query()  {
+  debug "libmisc" "Running query() with the following arguments: '$1' and '$2'"
+  local _response
 
-  debug  "libmisc" "Running query() with the following arguments: '$1' and '$2'"
+  while true; do
+    _response=""
 
-  while true ; do
+    if [[ -z $SILENT ]]; then
+      echo -e -n "${QUERY_COLOR}$1 [$2] ${DEFAULT_COLOR}"
 
-    RESPONSE=""
-
-    if  [  -z  "$SILENT"  ];  then
-
-      echo  -e  -n  "${QUERY_COLOR}$1 [$2] ${DEFAULT_COLOR}"
-
-      read   -t  $PROMPT_DELAY  -n  1  RESPONSE
+      read -t $PROMPT_DELAY -n 1 _response
       echo
     fi
 
-    RESPONSE=${RESPONSE:=$2}
-    case  $RESPONSE  in
-      n|N)  return 1  ;;
-      y|Y)  return 0  ;;
+    _response=${_response:=$2}
+    case  $_response in
+      n|N) return 1 ;;
+      y|Y) return 0 ;;
     esac
-
   done
-
-) }
+}
 
 #---------------------------------------------------------------------
 ## @param return_var
