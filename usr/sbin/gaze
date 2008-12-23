@@ -19,7 +19,7 @@ Command         Arguments       Description
 -q              <empty>         disables human style output
 
 alien           <empty>         Discovers untracked files.
-from            path/file       Discovers what installed a file.
+from [-regex]   path/file       Discovers what installed a file.
 
 search          "phrase"        Searches for "phrase" in the long and short
                                 spell descriptions and in the spell name.
@@ -663,18 +663,35 @@ function older()  {
 #-----
 ## Find all install logs that mention the given string,
 ## discarding hits that match state files
+## @param mode (-regex to not match literally)
 ## @param Search string
 ## @Stdout grep results
 #-----
 function show_from()  {
+  local mode string
 
-  if [[ -z $1 ]]; then
+  if [[ -z $2 ]]; then
+    string=$1
+  else
+    mode=$1
+    string=$2
+  fi
+
+  if [[ -z $string ]]; then
     error_message "${PROBLEM_COLOR}Missing search string parameter!$DEFAULT_COLOR"
     exit 1
   fi
 
   cd $INSTALL_LOGS
-  find . -printf "%f\n" | xargs grep "`esc_str $1`$" |
+
+  find . -printf "%f\n" |
+  # we use grep -e to protect against patterns starting with a dash
+  if [[ $mode == -regex ]]; then
+    xargs grep -e "$string"
+  else
+    # match the string literally, but only those at the end of the line
+    xargs grep -F -e "$string" | grep -e "$string$"
+  fi |
   seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
 
 }
@@ -2287,7 +2304,7 @@ parse()  {
            alien)  alien                                 ;;
      system-info)  gaze_system_info                      ;;
         activity)  display $ACTIVITY_LOG                 ;;
-            from)  show_from         $2                  ;;
+            from)  shift; show_from "$@"                 ;;
            newer)  newer             $2                  ;;
            older)  older             $2                  ;;
          sources)  sources           $SPELL              ;;
