@@ -145,7 +145,8 @@ function codex_find_grimoire() {
 
   local cfg_idx
   let cfg_idx=0
-  for cfg_grimoire in $(codex_get_all_grimoires); do
+  for cfg_grimoire in $(codex_get_all_grimoires) $CODEX_ROOT/*; do
+    [[ -d $cfg_grimoire ]] || continue
     # this will be empty if "$foo" matches the glob "*$bar"
     match=$(eval echo ${cfg_grimoire%%*$cfg_lookup})
     # if empty, echo and succeed
