@@ -1190,6 +1190,7 @@ function verify_sources()  {
 function set_compression_type() {
 
   local B_HELP="bzip2 compression (slow, small files)"
+  local P_HELP="parallel bzip2 compression (slow unless on SMP, small files)"
   local G_HELP="gzip compression (fast, larger files)"
   local T_HELP="no compression/tar (fastest, largest files)"
 
@@ -1203,6 +1204,7 @@ function set_compression_type() {
                              ""                                         \
                              0 0 0                                      \
                              "B"  "bzip2 compression"        "$B_HELP"  \
+                             "P"  "pbzip2 compression (parallel bzip2)" "$P_HELP"  \
                              "G"  "gzip compression"         "$G_HELP"  \
                              "T"  "no compression/tar"       "$T_HELP"'`
 
@@ -1212,6 +1214,18 @@ function set_compression_type() {
 
       B)  modify_local_config "COMPRESSBIN" "bzip2"  &&
           COMPRESSBIN="bzip2"                        &&
+          modify_local_config "EXTENSION" ".bz2"     &&
+          ARCHIVEBIN="tar"                           &&
+          modify_local_config "ARCHIVEBIN" "tar"     ;;
+      P)
+          if ! spell_ok pbzip2; then
+            clear_line
+            message "pbzip2 is not installed on this system! Running cast ...\n"
+            sleep 2
+            cast pbzip2
+          fi &&
+          modify_local_config "COMPRESSBIN" "pbzip2"  &&
+          COMPRESSBIN="pbzip2"                        &&
           modify_local_config "EXTENSION" ".bz2"     &&
           ARCHIVEBIN="tar"                           &&
           modify_local_config "ARCHIVEBIN" "tar"     ;;
