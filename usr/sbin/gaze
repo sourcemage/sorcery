@@ -783,7 +783,7 @@ function grep_find_grimoire() {
         local name=$2
         local pattern="$3"
 
-        codex_find_in_grimoire "$path" "$name" | xargs grep -il -- "${pattern}"
+        codex_find_in_grimoire "$path" "$name" | xargs grep -ilE -- "${pattern}"
 }
 
 #-----------------------------------------------------------------------
@@ -843,7 +843,7 @@ function real_long_search()  {
     let i++
   done
 
-  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -il "${SEARCH[@]}"`; do
+  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -ilE "${SEARCH[@]}"`; do
     for ((i=1;i<${#SEARCH[@]};i+=2)) ; do
       pattern=${SEARCH[$i]}
       SEARCH_RESULTS=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
