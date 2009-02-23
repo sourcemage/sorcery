@@ -795,15 +795,15 @@ function grep_find_grimoire() {
 ##
 #-----------------------------------------------------------------------
 function real_short_search() {
-    local pattern grimoire spell spellname
+    local pattern grimoire spell spellname spelldir
 
     for pattern in "$@"; do
         for grimoire in $(codex_get_all_grimoires); do
             for spell in $(
     grep_find_grimoire $grimoire "DETAILS" "SHORT=.*${pattern}"
                         ); do
-
-                smgl_basename "$(smgl_dirname $spell)" spellname
+                smgl_dirname "$spell" spelldir
+                smgl_basename "$spelldir" spellname
                 if [[ $GAZE_VERBOSE == false ]]; then
                     echo $spellname
                 else
@@ -829,6 +829,7 @@ function real_long_search()  {
   local atSpell=0
   local file pattern
   local SEARCH SEARCH_RESULTS
+  local spelldir spellname
 
   if ! [[ $GAZE_VERBOSE == false ]] ; then
     echo  "Searching...   "
@@ -856,11 +857,13 @@ function real_long_search()  {
         /^EOF$/{inLongDesc=0;} ' $file)
 
       if [[ ${SEARCH_RESULTS} ]]; then
+        smgl_dirname "$file" spelldir
+        smgl_basename "$spelldir" spellname
         if [[ $GAZE_VERBOSE == false ]]; then
-          smgl_basename $(smgl_dirname $file)
+          echo "$spellname"
         else
           clear_line
-          echo "$pattern ->  $(smgl_basename $(smgl_dirname $file) ) ${SEARCH_RESULTS}"
+          echo "$pattern ->  $spellname ${SEARCH_RESULTS}"
         fi
       fi
     done
