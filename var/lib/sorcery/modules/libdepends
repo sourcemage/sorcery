@@ -682,6 +682,12 @@ function real_generic_required_depends()
     return 1
   fi
 
+  # determine if we're dealing with a provider or a spell
+  local is_provider
+  if ! codex_does_spell_exist $1 &> /dev/null; then
+    is_provider=yes
+  fi
+
   # see if theres another grimoire
   if [[ "$4" ]] && ! [[ "$OVERRIDE_GRIMOIRES" ]] ; then
     local grimoire here nothere current
@@ -697,6 +703,7 @@ function real_generic_required_depends()
     done
     if [[ "$here" ]] || [[ "$current" ]] ; then
       if [[ "$nothere" ]] ; then
+        depends_message "$SPELL" "has $article $query_term on${is_provider+ some}" "$1" "from $4."
         message "${SPELL_COLOR}$1${DEFAULT_COLOR}${CHECK_COLOR}" \
                 "exists in the following grimoires${DEFAULT_COLOR}" \
                 "${SPELL_COLOR}${4}${DEFAULT_COLOR}${CHECK_COLOR}"
@@ -720,6 +727,7 @@ function real_generic_required_depends()
       fi
     else
       if [[ "$nothere" ]] ; then
+        depends_message "$SPELL" "has $article $query_term on${is_provider+ some}" "$1" "from $4."
         message "${CHECK_COLOR}You dont have any of the grimoires" \
                 "${SPELL_COLOR}$4${DEFAULT_COLOR}${CHECK_COLOR}."
         message "You must add at least one grimoire to satisfy the" \
@@ -754,7 +762,7 @@ function real_generic_required_depends()
   fi
 
   local target_spell
-  if ! codex_does_spell_exist $1 &> /dev/null; then
+  if [[ $is_provider ]]; then
     work_depends_provider "$failure_ok" "$article" \
                                    "$query_term" "$database_term" "$@" &&
     if [[ "$requested_sub_depends" ]]; then
@@ -817,6 +825,12 @@ function real_generic_optional_depends()
     return 1
   fi
 
+  # determine if we're dealing with a provider or a spell
+  local is_provider
+  if ! codex_does_spell_exist $1 &> /dev/null; then
+    is_provider=yes
+  fi
+
   # see if theres another grimoire
   if [[ "$5" ]] && ! [[ "$OVERRIDE_GRIMOIRES" ]] ; then
     local grimoire here nothere current
@@ -831,6 +845,7 @@ function real_generic_optional_depends()
     done
     if [[ "$here" ]] || [[ "$current" ]] ; then
       if [[ "$nothere" ]] ; then
+        depends_message "$SPELL" "has $article $query_term on${is_provider+ some}" "$1" "from $5."
         message "${SPELL_COLOR}$1${DEFAULT_COLOR}${CHECK_COLOR}" \
                 "exists in the following grimoires${DEFAULT_COLOR}" \
                 "${SPELL_COLOR}${5}${DEFAULT_COLOR}${CHECK_COLOR}"
@@ -854,6 +869,7 @@ function real_generic_optional_depends()
       fi
     else
       if [[ "$nothere" ]] ; then
+        depends_message "$SPELL" "has $article $query_term on${is_provider+ some}" "$1" "from $5."
         message "${CHECK_COLOR}You dont have any of the grimoires" \
                 "${SPELL_COLOR}${5}${DEFAULT_COLOR}${CHECK_COLOR}."
         for grimoire in $nothere ; do
@@ -880,12 +896,17 @@ function real_generic_optional_depends()
     if [[ ! $here ]] && [[ ! $current ]] ; then
       message "${PROBLEM_COLOR}no grimoire for $1 was retrieved${DEFAULT_COLOR}"
       message "Assuming dependency is off because it could not be met"
-      private_common_depends "$1" "off" "$database_term" "$2" "$3"
+      if [[ $is_provider ]]; then
+        private_common_depends "($1)" "off" "$database_term" "$2" "$3"
+      else
+        private_common_depends "$1" "off" "$database_term" "$2" "$3"
+      fi
+      return 0
     fi
   fi
 
   local target_spell
-  if ! codex_does_spell_exist $1 &> /dev/null; then
+  if [[ $is_provider ]]; then
     work_optional_depends_provider "$failure_ok" "$article" \
                                    "$query_term" "$database_term" "$@" &&
     if [[ "$requested_sub_depends" ]]; then
