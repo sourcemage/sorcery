@@ -1209,14 +1209,14 @@ function set_compression_type() {
                              "T"  "no compression/tar"       "$T_HELP"'`
 
   do
+    ARCHIVEBIN="tar"
+    modify_local_config "ARCHIVEBIN" "tar"
 
     case  $COMMAND in
-
-      B)  modify_local_config "COMPRESSBIN" "bzip2"  &&
+      B)
+          modify_local_config "COMPRESSBIN" "bzip2" &&
           COMPRESSBIN="bzip2"                        &&
-          modify_local_config "EXTENSION" ".bz2"     &&
-          ARCHIVEBIN="tar"                           &&
-          modify_local_config "ARCHIVEBIN" "tar"     ;;
+          modify_local_config "EXTENSION" ".bz2" ;;
       P)
           if ! spell_ok pbzip2; then
             clear_line
@@ -1226,22 +1226,16 @@ function set_compression_type() {
           fi &&
           modify_local_config "COMPRESSBIN" "pbzip2"  &&
           COMPRESSBIN="pbzip2"                        &&
-          modify_local_config "EXTENSION" ".bz2"     &&
-          ARCHIVEBIN="tar"                           &&
-          modify_local_config "ARCHIVEBIN" "tar"     ;;
-      G)  modify_local_config "COMPRESSBIN" "gzip"   &&
+          modify_local_config "EXTENSION" ".bz2" ;;
+      G)
+          modify_local_config "COMPRESSBIN" "gzip" &&
           COMPRESSBIN="gzip"                         &&
-          modify_local_config "EXTENSION" ".gz"      &&
-          ARCHIVEBIN="tar"                           &&
-          modify_local_config "ARCHIVEBIN" "tar"     ;;
-      T)  modify_local_config "ARCHIVEBIN" "tar"     &&
-          ARCHIVEBIN="tar"                           &&
+          modify_local_config "EXTENSION" ".gz" ;;
+      T)
           modify_local_config "COMPRESSBIN" ""       &&
           COMPRESSBIN=""                             &&
           modify_local_config "EXTENSION" ""         ;;
-
     esac
-
   done
 
 }
