@@ -119,7 +119,7 @@ function reap_depends()  {
 function reaper()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
-  debug  "libsorcery" "Running reaper() on $1"
+  debug  "libdispel" "Running reaper() on $1"
 
   if  !  [  "$REAP"  ==  "on"  ]   ||
       !  [  -f  $1             ];  then  return
@@ -183,7 +183,7 @@ function reaper()  {
 function reap_state_files()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
-  debug  "libsorcery" "Running reap_state_files() on $1"
+  debug  "libdispel" "Running reap_state_files() on $1"
 
   local UNIQUE="$$.$RANDOM"
   local REAPER_FILES="$TMP_DIR/reaper.$UNIQUE.files"
@@ -284,20 +284,22 @@ function load_spell()  {
 ## Run the PRE_REMOVE script if it exists
 #-----
 function pre_remove() {
+  debug  "libdispel" "pre_remove()"
   if  [[ $SCRIPT_DIRECTORY ]] ; then
     run_spell_file PRE_REMOVE pre_remove
   fi
-  return $?
+  return 0
 }
 
 #-----
 ## Run the POST_REMOVE script if it exists.
 #-----
 function post_remove() {
+  debug  "libdispel" "post_remove()"
   if  [[ $SCRIPT_DIRECTORY ]] ; then
     run_spell_file POST_REMOVE post_remove
   fi
-  return $?
+  return 0
 }
 
 #---------------------------------------------------------------------
