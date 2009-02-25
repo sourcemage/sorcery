@@ -573,14 +573,15 @@ function gaze_catalog_html()  {
 ## @param Message to display if file doesn't exist
 #-----
 function display()  {
+  local file=$(FUZZ=on guess_filename "$1")
 
-  if  [  -s  "$1"  ];  then
-    case  "$(file  -b  $1)"  in
-      *text)       cat  $1  |  $PAGER  ;;
-      bzip2*)     bzcat  $1  |  $PAGER  ;;
-      gzip*)   gzip -cd  $1  |  $PAGER  ;;
-      *) message "Unknown file type."
-      return 1 ;;
+  if [[ -s $file ]]; then
+    case "$(file -b "$file")" in
+       *text) cat  "$file" | $PAGER ;;
+      bzip2*) bzcat "$file" | $PAGER ;;
+       gzip*) gzip -cd "$file" | $PAGER ;;
+           *) message "Unknown file type."
+              return 1 ;;
     esac
   else
     message  "$2" 1>&2

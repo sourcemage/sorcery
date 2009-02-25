@@ -219,20 +219,19 @@ function guess_filename()  {
   if [[ -f  $filename ]]; then
     echo $filename
   else
-    #FIXME this is never defined, check if this function still makes sense
+    # currently only used from gaze
     if [[ $FUZZ != on ]]; then
       return 1
     else
-      local basename=$(sed -r "s/\.(tar\.(gz|bz2)|tgz)$//" <<< "$filename")
-      if [[ -f $basename.tar.gz ]]; then
-        echo $basename.tar.gz
-      elif [[ -f $basename.tar.bz2 ]]; then
-        echo $basename.tar.bz2
-      elif [[ -f $basename.tgz ]]; then
-        echo $basename.tgz
-      else
-        return 1
-      fi
+      local basename=$(sed -r "s/\.(tar\.(gz|bz2)|tgz|gz|bz2)$//" <<< "$filename")
+      local extension
+      for extension in tar.gz tar.bz2 tgz gz bz2; do
+        if [[ -f $basename.$extension ]]; then
+          echo $basename.$extension
+          return 0
+        fi
+      done
+      return 1
     fi
   fi
 
