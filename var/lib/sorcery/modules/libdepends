@@ -1806,7 +1806,7 @@ function real_show_up_depends()
     if [[ "$type" == "verbose" ]] ; then
       lock_file "$DEPENDS_STATUS"
       show_up_depends_sub "$1"|while read line; do
-        grep "$line:" "$DEPENDS_STATUS"
+        grep -E "$line(\(.*\))*:" "$DEPENDS_STATUS"
       done
       unlock_file "$DEPENDS_STATUS"
     else
