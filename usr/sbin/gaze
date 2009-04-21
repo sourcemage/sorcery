@@ -91,11 +91,12 @@ voyeur         [delay or spell]
 orphans        <empty>          Displays installed spells that no installed
                                  spells explicitly depend on.
 
-depends [--fast] spell [level]
+depends [--fast] [--required] spell [level]
                                  Displays the spells that explicitly or
                                  recursively depend on this spell,
                                  up to \$level levels (infinity if omitted)
                                  --fast omits some information but runs faster
+                                 --required omits runtime dependencies
                                  NOTE: the target spell must be installed and
                                  only enabled dependencies are shown
 
@@ -1585,21 +1586,25 @@ function gaze_show_where() {
 ##
 #-----
 function gaze_show_depends() {
-    local fast
+    local fast all=yes
     while true; do
         if [[ $1 == --fast ]] ; then
             fast=yes
             shift
             continue
+        elif [[ $1 == --required ]]; then
+          unset all
+          shift
+          continue
         fi
         break
     done
     local spell=$1
     codex_does_spell_exist "$spell"  &&
     if [[ "$GAZE_VERBOSE" == false ]] || [[ "$fast" ]]; then
-      show_up_depends "$1" "$2" "$fast"
+      show_up_depends "$1" "$2" "$fast" "$all"
     else
-      show_up_depends  "$1" "$2" "verbose"|
+      show_up_depends  "$1" "$2" "verbose" "$all"|
       awk -F: '{ printf("%s depends on %s (%s)\n",$1,$2,$4);}'
     fi
 

@@ -1778,12 +1778,14 @@ function run_spell_config()
 ## @Param spell
 ## @Param depth (optional)
 ## @Param fast -- if set only show spells, not full depends db entries
+## @Param all - if set returns also runtime dependencies
 #---------------------------------------------------------------------
 function real_show_up_depends()
 {
     local i=0
     local MAX_DEPTH=$2
     local type=$3
+    local all=$4
     function show_up_depends_sub() {
         local each dependencies checked
         let i++
@@ -1802,7 +1804,7 @@ function real_show_up_depends()
     }
     hash_reset foo
     hash_reset done
-    compute_reverse_installed_depends foo
+    compute_reverse_installed_depends foo $all
     if [[ "$type" == "verbose" ]] ; then
       lock_file "$DEPENDS_STATUS"
       show_up_depends_sub "$1"|while read line; do
