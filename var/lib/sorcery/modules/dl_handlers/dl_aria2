@@ -35,7 +35,7 @@ function dl_aria2_get() {
   dl_connect || return 255
 
   local ARIA2_OPTIONS
-  dl_aria2_set_options  "$url_list"
+  dl_aria2_set_options  "$url_list" "$hints"
   dl_aria2_call_aria2  $target "$url_list"
   rc=$?
 
@@ -77,6 +77,8 @@ function dl_aria2_call_aria2()  {
 #---------------------------------------------------------------------
 function dl_aria2_set_options()  {
   local URL_LIST=$1
+  local hints="$2"
+
   if [  -n  "$ACTIVE_FTP"  ] ; then
     unset  PASSIVE
   else
@@ -114,12 +116,17 @@ function dl_aria2_set_options()  {
     URL_HTTP_RETRIES="-m 3"
   fi
 
-  #If this option set to false, aria2 doesn't download a file which already
+  # aria doesn't mind if this flag is used on http or ftp urls
+  if list_find "$hints" no-check-certificate; then
+    ARIA2_OPTIONS="--check-certificate=false"
+  fi
+
+  #If --allow-overwrite is false, aria2 doesn't download a file which already
   #exists in the file system but its corresponding .aria2 file doesn't exist.
   #Default: false
 
-  ALLOW_OVERWRITE="--allow-overwrite=true"
-  ARIA2_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $RATE $PASSIVE $CONTINUE $ALLOW_OVERWRITE"
+  ARIA2_OPTIONS="$ARIA2_OPTIONS --allow-overwrite=true"
+  ARIA2_OPTIONS="$ARIA2_OPTIONS $URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $RATE $PASSIVE $CONTINUE"
   debug 'dl_aria2' "aria2 options: $ARIA2_OPTIONS"
 }
 
