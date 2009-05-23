@@ -109,7 +109,7 @@ function query_conflicts() {
       list_find "$ignore_conflict" ${spell_and_default[0]} && continue
 
       local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}.${QUERY_COLOR}"
+      text="$text ${SPELL_COLOR}${spell_and_default[0]}${DEFAULT_COLOR}${QUERY_COLOR}."
       text="$text Dispel"
       text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
 
@@ -157,9 +157,9 @@ function run_security() {
       message "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
       tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
       if grep -q critical $SCRIPT_DIRECTORY/SECURITY; then
-        query "${RED}SECURITY CRITICAL:${QUERY_COLOR} Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}?" "n"
+        query "${RED}SECURITY CRITICAL: ${QUERY_COLOR}Do you still want to cast ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${QUERY_COLOR}?" "n"
       else
-        query "SECURITY: Do you still want to cast ${SPELL_COLOR}$SPELL${QUERY_COLOR}?" "y"
+        query "SECURITY: Do you still want to cast ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${QUERY_COLOR}?" "y"
       fi
       rc=$?
     fi
@@ -646,8 +646,8 @@ function acquire_cast_lock() {
   if test -f $SOLO && grep -q "^$SPELL$" $SOLO ||
      [ -f $SCRIPT_DIRECTORY/SOLO ]
   then #SOLO spell
-    message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR}${SPELL_COLOR}" \
-               "all other${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to" \
+    message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR}" \
+               "${SPELL_COLOR}all other${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to" \
                "complete...${DEFAULT_COLOR}"
     excllock_resources "cast" "$SPELL"
   else

@@ -123,8 +123,7 @@ function run_pre_build() {
 
   debug "build_api/api2" "run_pre_build()"
   message  "${MESSAGE_COLOR}Preparing" \
-           "${SPELL_COLOR}${SPELL}"    \
-           "${DEFAULT_COLOR}"
+           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
 
   rm_source_dir || return 1
   mkdir -p $BUILD_DIRECTORY
@@ -147,8 +146,7 @@ function run_build()  {
   echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
   echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
   message  "${MESSAGE_COLOR}Building"  \
-           "${SPELL_COLOR}${SPELL}"    \
-           "${DEFAULT_COLOR}" >&3
+           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" >&3
 
   if [  -d  "$SOURCE_DIRECTORY"  ] ; then
     cd "$SOURCE_DIRECTORY"
@@ -211,14 +209,12 @@ function run_install() {
   debug "build_api/api2" "Starting run_install()"
 
   if [[ $STAGED_INSTALL == on ]]; then
-    message "${MESSAGE_COLOR}Installing"     \
-            "${SPELL_COLOR}${SPELL}"         \
-            "${MESSAGE_COLOR}into the stage" \
-            "${DEFAULT_COLOR}" >&3
+    message "${MESSAGE_COLOR}Installing"              \
+            "${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}"  \
+            "into the stage${DEFAULT_COLOR}" >&3
   else
     message "${MESSAGE_COLOR}Installing" \
-            "${SPELL_COLOR}${SPELL}"     \
-            "${DEFAULT_COLOR}" >&3
+            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" >&3
   fi
 
   if [ -f $S_PWD ] ; then
@@ -274,10 +270,9 @@ function run_post_install() {
 function run_transfer() {
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
-    message "${MESSAGE_COLOR}Installing"     \
-            "${SPELL_COLOR}${SPELL}"         \
-            "${MESSAGE_COLOR}into the system" \
-            "${DEFAULT_COLOR}" >&3
+    message "${MESSAGE_COLOR}Installing"              \
+            "${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}"  \
+            "into the system${DEFAULT_COLOR}" >&3
     run_spell_file TRANSFER transfer
   fi
 }
