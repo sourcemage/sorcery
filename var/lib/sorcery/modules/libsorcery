@@ -82,9 +82,8 @@ function update_sorcery_scripts() {
   echo `pwd`                                    || return 1
 
   # last chance to lock
-  message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}all" \
-             "${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to complete..." \
-             "${DEFAULT_COLOR}"
+  message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}all${DEFAULT_COLOR}" \
+             "${MESSAGE_COLOR}spells to complete...${DEFAULT_COLOR}"
   lock_resources "solo" "cast" # prevent other casts
   excllock_resources "cast" "sorcery" # wait for other casts
   message "done."
@@ -122,8 +121,8 @@ function update_sorcery_scripts() {
       rm_source_dir
     fi
   fi
-  message "${MESSAGE_COLOR}Current${SPELL_COLOR}" \
-          "sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version" \
+  message "${MESSAGE_COLOR}Current" \
+          "${SPELL_COLOR}sorcery-$BRANCH${DEFAULT_COLOR} ${MESSAGE_COLOR}version" \
           "${VERSION_COLOR}$SORCERY_VERSION${DEFAULT_COLOR}"
   echo
   sorcery_history
@@ -373,7 +372,7 @@ function spell_recover()  {
 
   debug  "libsorcery" "Running spell_recover()"
 
-  message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL}" \
+  message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
            "${MESSAGE_COLOR}and recovering...${DEFAULT_COLOR}"
 
   unlock_resources "libgrimoire" "install"
@@ -888,7 +887,7 @@ function run_details() {
   if  !  codex_set_current_spell_by_name  $SPELL;  then
     local  GRIMOIRES=`codex_get_all_grimoires`
     message  "${PROBLEM_COLOR}Unable to find spell"        \
-             "${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}"      \
+             "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${PROBLEM_COLOR}"      \
              "in grimoire(s): $GRIMOIRES ${DEFAULT_COLOR}"
     false
   fi

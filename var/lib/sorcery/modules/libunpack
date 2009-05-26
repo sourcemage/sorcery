@@ -283,7 +283,7 @@ function unpack_spell_required() {
   local x
   if ! spell_ok "$1" && ! smgl_which $2 x &> /dev/null; then
     query "This spell has an option to check its integrity via spell "\
-"${SPELL_COLOR}${1}${QUERY_COLOR} with the $2 command for $3, you might consider installing it. "\
+"${SPELL_COLOR}${1}${DEFAULT_COLOR}${QUERY_COLOR} with the $2 command for $3, you might consider installing it. "\
 "Abort?" n &&
       return 1 ||
         return 200
@@ -632,9 +632,9 @@ function uncompress_unpack() {
   local hints="$4"
 
   if [[ $type != cache ]]; then
-    message "${MESSAGE_COLOR}Unpacking $type file ${SPELL_COLOR}${1}"   \
-            "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
-            "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Unpacking $type file ${SPELL_COLOR}${1}${DEFAULT_COLOR}"  \
+            "${MESSAGE_COLOR}for spell"  \
+            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
   fi
 
   if [[ ! -f $filename ]]; then
@@ -678,8 +678,8 @@ function locate_spell_file() {
   [ -f       "$SOURCE_CACHE/$1" ] && echo       "$SOURCE_CACHE/$1" && return 0
 
   message "${MESSAGE_COLOR}"                                 \
-          "Problem: $1: file not found in spell hierarchy."  \
-          "${DEFAULT_COLOR}"                                 > /dev/stderr
+          "Problem: $1: file not found in spell hierarchy.${DEFAULT_COLOR}"  \
+          > /dev/stderr
   echo  "$1"
   return 1
 
@@ -702,9 +702,9 @@ function locate_spell_file() {
 function real_unpack() {
   debug "libgrimoire" "Running unpack -- $*"
 
-  message "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}"   \
-          "${DEFAULT_COLOR}${MESSAGE_COLOR}for spell${SPELL_COLOR}"    \
-          "${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}Unpacking source file ${SPELL_COLOR}${1}${DEFAULT_COLOR}"  \
+          "${MESSAGE_COLOR}for spell"  \
+          "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
 
   FILENAME="$(guess_filename  "$SOURCE_CACHE/$1")" &&
   COMPRESSOR="$(guess_compressor "$FILENAME")"
@@ -725,8 +725,8 @@ function real_unpack() {
 
       rm "$TMP_DIR/libgrimoire.uncompress.$$"
 
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}doesn't have an"  \
-              "MD5 sum for the uncompressed $1."
+      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}:" \
+              "${QUERY_COLOR}doesn't have an MD5 sum for the uncompressed $1."
 
       case "$MD5SUM_DL" in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
@@ -739,7 +739,7 @@ function real_unpack() {
 
       rm "$TMP_DIR/libgrimoire.uncompress.$$"
 
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum was"  \
+      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}: ${QUERY_COLOR}MD5 sum was"  \
               "purposefully left out for the uncompressed $1."
       message "${QUERY_COLOR}Would you like to abort so you can validate"  \
               "the source yourself via some alternate method?"
@@ -755,8 +755,8 @@ ask_risky|ask_ignore)  query "Abort?" "n"         && return 1   ||  return 0 ;;
 
       rm "$TMP_DIR/libgrimoire.uncompress.$$"
 
-      message "${SPELL_COLOR}${SPELL}: ${QUERY_COLOR}MD5 sum is different"  \
-              "for uncompressed $1."
+      message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}:" \
+              "${QUERY_COLOR}MD5 sum is different for uncompressed $1."
 
       case "$MD5SUM_DL" in
                  off)  message "${RED}Continuing!${DEFAULT_COLOR}"; return 0 ;;
