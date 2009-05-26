@@ -46,6 +46,10 @@ function dl_svn_get () {
       svn_args="$svn_args --username $USER --password $PASS"
     fi
 
+    if list_find "$hints" no-check-certificate && [[ $(url_get_prefix "$URL") == svn_https ]]; then
+      svn_args="$svn_args --trust-server-cert"
+    fi
+
     if test -d $target; then
       message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
       echo svn update $svn_args -r $SVN_TAG $target
