@@ -43,10 +43,21 @@ function dl_git_get () {
     if test -d $GIT_DIRECTORY; then
       message "${MESSAGE_COLOR}Running git pull...${DEFAULT_COLOR}"
       ( cd $GIT_DIRECTORY &&
-      echo git checkout $GIT_TAG &&
-      git checkout $GIT_TAG &&
-      echo git pull $GIT_ROOT $GIT_TAG &&
-      git pull $GIT_ROOT $GIT_TAG )
+      match=$(git branch | grep -F " $GIT_TAG"; true) &&
+      if [[ $match ]]; then
+        # no need to checkout a branch if we're already on it
+        if [[ ${match:0:1} != '*' ]]; then
+          echo git checkout $GIT_TAG &&
+          git checkout $GIT_TAG
+        else
+          # already on the correct branch
+        fi
+      else
+        echo git checkout -b $GIT_TAG origin/$GIT_TAG &&
+        git checkout -b $GIT_TAG origin/$GIT_TAG
+      fi
+      echo git pull &&
+      git pull )
       rc=$?
       eval "$dl_target=\"$GIT_DIRECTORY\""
     else
@@ -54,10 +65,12 @@ function dl_git_get () {
       echo git clone $GIT_ROOT $GIT_DIRECTORY
       git clone $GIT_ROOT $GIT_DIRECTORY &&
       cd $GIT_DIRECTORY &&
-      echo git checkout $GIT_TAG &&
-      git checkout $GIT_TAG &&
-      cd ../
+      if ! git branch | grep -qF " $GIT_TAG"; then
+        echo git checkout -b $GIT_TAG origin/$GIT_TAG &&
+        git checkout -b $GIT_TAG origin/$GIT_TAG
+      fi
       rc=$?
+      cd ../
       eval "$dl_target=\"$GIT_DIRECTORY\""
     fi
     [[ $rc == 0 ]] && break
