@@ -61,7 +61,9 @@ function stage_install_ordinary()
 #---------------------------------------------------------------------
 function get_all_package_files()
 {
-  find $STAGE_DIRECTORY/TRANSL | sed "s:$STAGE_DIRECTORY/TRANSL::"
+  # no point in using -printf "/%P\n" since it would cause a difference:
+  # the searchpath is now returned as empty; there it would be /
+  find "$STAGE_DIRECTORY/TRANSL" | sed "s:$STAGE_DIRECTORY/TRANSL::"
 }
 
 #---------------------------------------------------------------------
