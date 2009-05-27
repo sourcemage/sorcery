@@ -451,7 +451,7 @@ function internal_install_config_file() {
   # out where it points to and so something, but thats too annoying
   if test -h "$from" ; then
     mkdir -p "$(smgl_dirname "$to")" &&
-    cp -pv --no-dereference "$from" "$to"
+    cp -v --no-dereference --preserve=mode,timestamps "$from" "$to"
     return $?
   fi
 
@@ -459,7 +459,7 @@ function internal_install_config_file() {
   if ! test -e "$to" || [[ $STAGED_INSTALL == on ]] ; then
     # copy the new one in (plus leading directories)
     mkdir -p "$(smgl_dirname "$to")" &&
-    cp -pv "$from" "$to"
+    cp -v --preserve=mode,timestamps "$from" "$to"
   # to get here the file must exist
   elif test -d "$to"; then
     message "Trying to install a file ($from) to what was a directory ($to), I dont know what to do!"
@@ -487,7 +487,7 @@ function internal_install_config_file() {
     else
       # replace the file
       mkdir -p "$(smgl_dirname "$to")" &&
-      cp -pv "$from" "$to"
+      cp -v --preserve=mode,timestamps "$from" "$to"
     fi
   fi
 }
@@ -535,12 +535,12 @@ function real_handle_changed_config() {
     done
     echo
     case $number in
-      0)  cp -pv "$from" "$to"
+      0)  cp -v --preserve=mode,timestamps "$from" "$to"
           break ;;
-      1)  cp -pv "$to" "$to.$savetime.old"
-          cp -pv "$from" "$to"
+      1)  cp -v --preserve=mode,timestamps "$to" "$to.$savetime.old"
+          cp -v --preserve=mode,timestamps "$from" "$to"
           break ;;
-      2)  cp -pv "$from" "$to.$savetime.new"
+      2)  cp -v --preserve=mode,timestamps "$from" "$to.$savetime.new"
           mark_file_modified "$to"
           # this is deliberatly not track_manual, if this is run from
           # FINAL the user might not have wanted the files tracked
