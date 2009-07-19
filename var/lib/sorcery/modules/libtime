@@ -101,6 +101,7 @@ function compute_all_cast_times() {
     echo "$times" | compute_mean
     echo -n $spell:
     echo "$times" | compute_weighted_mean last-cast $(private_installed_version $spell)
+    echo -n $spell:n $(wc -l <<< "$times")
     echo
   else
     message -n "Last cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
@@ -118,6 +119,8 @@ function compute_all_cast_times() {
     message -n "Weighted mean cast time of ${SPELL_COLOR}$spell$DEFAULT_COLOR: "
     time=$(echo "$times" | compute_weighted_mean last-cast $(private_installed_version $spell))
     pretty_print_time $time
+
+    message "Number of samples: $(wc -l <<< "$times")"
     echo
   fi
 
