@@ -76,15 +76,6 @@ function do_resurrect() {
     return 1
   fi
 
-  if spell_installed $spell; then
-    message "Dispelling $spell $(installed_version $spell) ..."
-    dispel_spell $spell
-    if [[ $? != 0 ]]; then
-      error_message "$error_base the dispel failed.$DEFAULT_COLOR"
-      return 1
-    fi
-  fi
-
   local chosen_version
   if [[ -n $requested_version ]]; then
     chosen_version=$requested_version
@@ -125,6 +116,15 @@ function do_resurrect() {
       else
         select_list chosen_version "" $versions
       fi
+    fi
+  fi
+
+  if spell_installed $spell; then
+    message "Dispelling $spell $(installed_version $spell) ..."
+    dispel_spell $spell
+    if [[ $? != 0 ]]; then
+      error_message "$error_base the dispel failed.$DEFAULT_COLOR"
+      return 1
     fi
   fi
 
