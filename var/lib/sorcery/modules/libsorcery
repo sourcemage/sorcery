@@ -260,36 +260,35 @@ function save_libraries()  {
   debug  "libsorcery" "Running save_libraries()"
 
   OLD_LIBS=$SOURCE_DIRECTORY/old.libraries
-  mkdir  -p  $OLD_LIBS
+  mkdir -p "$OLD_LIBS"
 
   SAVED=$OLD_LIBS/$SPELL.saved.libraries
-  lock_file $SAVED
-  rm  -rf  $SAVED
+  lock_file "$SAVED"
+  rm -rf "$SAVED"
 
   OLD_VERSION=`installed_version  $SPELL`
       OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
 
-  grep   "^/lib/\|^/usr/lib"  $OLD_LOG  |
+  grep "^/lib/\|^/usr/lib" "$OLD_LOG" |
   while  read        LINE;  do
-
-    if   [  -f      $LINE   ]  &&
-         file  -bL  $LINE   |
+    if [[ -f $LINE ]] &&
+         file -bL "$LINE" |
          grep  -q   "shared object"
     then
-      if  [  -h  $LINE  ];  then
+      if [[ -h $LINE ]]; then
         local DEST=$(readlink "$LINE")
-        ln -sf "$DEST" $OLD_LIBS/$(smgl_basename "$LINE")
+        ln -sf "$DEST" "$OLD_LIBS/$(smgl_basename "$LINE")"
       else
-        cp  $LINE  $OLD_LIBS
+        cp "$LINE" "$OLD_LIBS"
       fi
-      echo       $OLD_LIBS/$(smgl_basename "$LINE")  >>  $SAVED
+      echo $OLD_LIBS/$(smgl_basename "$LINE") >> "$SAVED"
     fi
 
 
   done
 
-  ldconfig  $OLD_LIBS
-  unlock_file $SAVED
+  ldconfig "$OLD_LIBS"
+  unlock_file "$SAVED"
 
   if  [  -z   "$LD_LIBRARY_PATH"  ]
   then  export  LD_LIBRARY_PATH="$OLD_LIBS"
@@ -314,39 +313,35 @@ function save_binaries()  {
   debug  "libsorcery" "Running save_binaries()"
 
   OLD_BINS=$SOURCE_DIRECTORY/old.binaries
-  mkdir  -p  $OLD_BINS
+  mkdir -p "$OLD_BINS"
 
   SAVED=$OLD_BINS/$SPELL.saved.binaries
-  lock_file $SAVED
-  rm  -rf  $SAVED
+  lock_file "$SAVED"
+  rm -rf "$SAVED"
 
   OLD_VERSION=`installed_version  $SPELL`
       OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
 
-  grep   "^/bin/\|^/sbin/\|^/usr/bin/\|^/usr/sbin/"  $OLD_LOG  |
+  grep "^/bin/\|^/sbin/\|^/usr/bin/\|^/usr/sbin/" "$OLD_LOG" |
   while  read        LINE;  do
-
-    if   [  -f      $LINE   ]  &&
-         file  -bL  $LINE   |
+    if [[ -f $LINE ]] &&
+         file -bL "$LINE" |
          grep  -q   "executable"
     then
-      if  [  -h  $LINE  ];  then
+      mkdir -p "$( smgl_dirname "$OLD_BINS/$LINE" )"
+      if [[ -h "$LINE" ]]; then
         DEST=$( readlink "$LINE" )
-        mkdir -p $( smgl_dirname $OLD_BINS/$LINE )
-        ln  -sf  $DEST  $OLD_BINS/$LINE
+        ln -sf "$DEST" "$OLD_BINS/$LINE"
       else
-        mkdir -p $( smgl_dirname $OLD_BINS/$LINE )
-        cp  $LINE  $OLD_BINS/$LINE
+        cp "$LINE" "$OLD_BINS/$LINE"
       fi
-      echo       $OLD_BINS/$LINE >> $SAVED
+      echo $OLD_BINS/$LINE >> "$SAVED"
     fi
-
-
   done
 
-  unlock_file $SAVED
+  unlock_file "$SAVED"
 
-  for dir in $(find $OLD_BINS -type d)
+  for dir in $(find "$OLD_BINS" -type d)
   do
     export PATH=$(envar_prepend_path "$dir" "$PATH")
   done
