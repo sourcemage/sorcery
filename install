@@ -63,7 +63,22 @@ echo /usr/share/doc/sorcery/ChangeLog >> $SORCERY_INSTALL_LOG
 echo "Setting up build symlinks"
 BUILD_DIR=${INSTALL_ROOT}/var/lib/sorcery/build
 pushd $BUILD_DIR &> /dev/null || exit 1
-for COMPILER in "cc" "gcc" "c++" "g++"; do
+# optionally put in HOST style compilers
+ARCHITECTURE=$(grep ARCHITECTURE /etc/sorcery/local/config | sed 's/[^-]*-\(.*\)}.*/\1/')
+HOST_COMPILE=""
+if [[ $ARCHITECTURE ]]
+then
+  archspec=$(find /usr/share/archspecs -type f -name $ARCHITECTURE)
+  if [[ -f $archspec ]]
+  then
+    HOST=$(grep HOST $archspec | sed 's/.*"\(.*\)".*/\1/')
+    for COMPILER in "c++" "g++" "gcc"
+    do
+      HOST_COMPILE="$HOST_COMPILE $HOST-$COMPILER"
+    done
+  fi
+fi
+for COMPILER in "cc" "gcc" "c++" "g++" $HOST_COMPILE; do
   ln -sf "run_compiler" "$COMPILER"
   echo $BUILD_DIR/$COMPILER >> $SORCERY_INSTALL_LOG
 done
