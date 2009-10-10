@@ -1193,6 +1193,60 @@ function work_optional_depends_provider()
 }
 
 #---------------------------------------------------------------------
+## @param spell
+## @param question
+## @param default answer
+##
+## @return 0 on yes
+## @return 1 on no
+##
+## Works just like normal query but can show short description of a
+## spell and stops the timer for taking the default answer if
+## h/H is pressed. Type of query is chosen in sorcery feature menu.
+##
+#---------------------------------------------------------------------
+function optional_depends_query()  {
+  local _response
+  local spell_name=$1
+  local time_to_answer=$PROMPT_DELAY
+
+  while true; do
+    _response=""
+
+    if [[ -z $SILENT ]]; then
+      if [[ $SHOW_GAZE_SHORT_QUERY == off ]]; then
+        echo -e -n "${QUERY_COLOR}$2 [$3] ${DEFAULT_COLOR}"
+      else
+        if [[ $3 == y ]]; then
+          echo -e -n "${QUERY_COLOR}$2 [Y/n/h] ${DEFAULT_COLOR}"
+        else
+          echo -e -n "${QUERY_COLOR}$2 [y/N/h] ${DEFAULT_COLOR}"
+        fi
+      fi
+
+      if [[ -n $time_to_answer ]]; then
+        read -t $time_to_answer -n 1 _response
+        echo
+      else
+        read -n 1 _response
+        echo
+      fi
+    fi
+
+    _response=${_response:=$3}
+    case  $_response in
+      n|N) return 1 ;;
+      y|Y) return 0 ;;
+      h|H) ( codex_set_current_spell_by_name $spell_name
+           echo $SHORT
+           echo More information at: $WEB_SITE
+           )
+           unset time_to_answer
+    esac
+  done
+}
+
+#---------------------------------------------------------------------
 ## @param  spell name
 ## @param  addition to OPTS if enabled
 ## @param  addition to OPTS if disabled
@@ -1296,10 +1350,10 @@ function work_optional_depends_spell()
   [[ $default == off ]] && stuff=n || stuff=y
 
   if spell_ok $1 ; then
-     query "Do you want to use ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "$stuff" &&
-          install="on"
+    optional_depends_query "$1" "Do you want to use ${SPELL_COLOR}$1${QUERY_COLOR}?" "$stuff" &&
+        install="on"
   else
-    query "Do you want to cast ${SPELL_COLOR}$1${DEFAULT_COLOR}?" "$stuff" &&
+    optional_depends_query "$1" "Do you want to cast ${SPELL_COLOR}$1${QUERY_COLOR}?" "$stuff" &&
         install="on"
   fi
 
