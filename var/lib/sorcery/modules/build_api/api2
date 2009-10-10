@@ -84,8 +84,13 @@ function run_build_spell() {
       then
         invoke_installwatch
       fi                                    &&
-      delve $SPELL INSTALL                  &&
-      delve $SPELL INSTALL_EXTRAS           &&
+      if [[ $OVERRIDE_GRIMOIRES ]]; then
+        delve -g "$OVERRIDE_GRIMOIRES" $SPELL INSTALL &&
+        delve -g "$OVERRIDE_GRIMOIRES" $SPELL INSTALL_EXTRAS
+      else
+        delve $SPELL INSTALL &&
+        delve $SPELL INSTALL_EXTRAS
+      fi &&
       run_post_install                      || return 2
       run_transfer                          &&
       devoke_installwatch                   &&

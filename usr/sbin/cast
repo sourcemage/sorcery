@@ -204,30 +204,6 @@ function get_option() {
 }
 
 #---------------------------------------------------------------------
-## Check that we have all the passed grimoires and use them to
-## override the default selection (all)
-#---------------------------------------------------------------------
-function override_grimoires() {
-  local grimoires=$1
-  local grimoire
-
-  for grimoire in $grimoires; do
-    if ! codex_find_grimoire $grimoire > /dev/null; then
-      error_message "Grimoire $grimoire does not exist!"
-      if query "Do you want to add it?" y; then
-        scribe add $grimoire || exit 13
-        echo
-      else
-        list_remove grimoires $grimoire
-      fi
-    fi
-  done
-  [[ -z $grimoires ]] && message "Using default grimoire selection!\n"
-
-  export OVERRIDE_GRIMOIRES="$grimoires"
-}
-
-#---------------------------------------------------------------------
 ## Cast a single spell. When this function is called, all dependencies
 ## have been taken care of and we are allowed to cast this.
 ## @Globals SPELL
