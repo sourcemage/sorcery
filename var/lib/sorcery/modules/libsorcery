@@ -618,15 +618,14 @@ function dirnames()  {
 ## option passed.  Options may be on or more of:  i386, i486, i586,
 ## pentium, pentium-mmx, i686, pentiumpro, pentium2, pentium3,
 ## pentium4, k6, k6-2, k6-3, athlon, athlon-tbird, athlon-4,
-## athlon-xp, athlon-mp, powerpc, speedy, tiny, risky, strip,
-## combreloc
+## athlon-xp, athlon-mp, powerpc, speedy, tiny, risky, strip
 ##
 #---------------------------------------------------------------------
 function optimize()  {
   debug "libsorcery" "In optimize()"
 
   unset  CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
-  unset  COMBRELOC FAST PRELINK RISKY SMALL SPEEDY STRIP TINY
+  unset  FAST PRELINK RISKY SMALL SPEEDY STRIP TINY
 
   # if user specified --no-opts then use only the args from the command line
   # otherwise do the normal stuff
@@ -647,11 +646,6 @@ function optimize()  {
     CFLAGS="$CFLAGS -pipe"
     for  PARAM  in  $OPTIMIZATIONS;  do
       case  $PARAM  in
-        combreloc)
-          LDFLAGS="$LDFLAGS -z combreloc"
-          COMBRELOC="on"
-          ;;
-
         prelink)
           CFLAGS="$CFLAGS -DPIC -fPIC"
           PRELINK="on"

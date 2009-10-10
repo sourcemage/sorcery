@@ -759,13 +759,12 @@ architecture_menu() {
 optimization_menu(){
 
   local OPTIMIZATIONS=${OPTIMIZATIONS}
-  # this is here so COMBRELOC, PRELINK, RISKY, etc. are set
+  # this is here so PRELINK, RISKY, etc. are set
   # and appear in the menu
   optimize
   local      OPT_TITLE="Optimization Menu"
   local       OPT_HELP="Please select optimizations"
 
-  local COMBRELOC_HELP="Speed up loading libs, also needed for prelink (LDFLAGS=-z combreloc)"
   local   PRELINK_HELP="Speed up loading applications by pre-linking libraries (CFLAGS=-DPIC -fPIC)"
   local     RISKY_HELP="Optimize by violating ANSI/IEEE (unsafe) (CFLAGS=-ffast-math -funroll-loops)"
   local    SPEEDY_HELP="Optimize generated code, conflicts with 'tiny' (CFLAGS=$FAST)"
@@ -779,7 +778,6 @@ optimization_menu(){
                               --checklist               \
                               "$OPT_HELP"               \
                                0 0 0                    \
-        "combreloc" "         ++speed"  "$COMBRELOC" "$COMBRELOC_HELP" \
         "prelink"   "          +speed"  "$PRELINK"   "$PRELINK_HELP"   \
         "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
         "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
