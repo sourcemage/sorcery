@@ -894,10 +894,9 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 elif  [  "$UID"  -gt  0  ];  then
   # validate the parameters before su-ing, since we may still drop out
   process_parameters "$@"
-
-  echo  "Enter the root password, please."
   PARAMS=$(consolidate_params "$@")
-  exec su -c "cast $PARAMS" root
+
+  run_as_root cast "$PARAMS"
 
 elif  [  ${0:0:5} !=  "/tmp/"  ];  then
 
