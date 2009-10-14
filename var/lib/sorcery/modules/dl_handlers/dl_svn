@@ -43,13 +43,17 @@ function dl_svn_get () {
       local SVN_ROOT=$(echo $SVN_ROOT|sed 's#//\(.*\)@#//#')
       local USER=${USER_PASS%:*};
       local PASS=${USER_PASS#*:};
-      svn_args="--username $USER --password $PASS "
+      svn_args="$svn_args --username $USER --password $PASS"
+    fi
+
+    if list_find "$hints" no-check-certificate && [[ $(url_get_prefix "$url") == svn_https ]]; then
+      svn_args="$svn_args --trust-server-cert"
     fi
 
     if test -d $target; then
       message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
-      echo svn update $svn_args --non-interactive -r $SVN_TAG $target
-      svn update $svn_args --non-interactive -r $SVN_TAG $target
+      echo svn update $svn_args -r $SVN_TAG $target
+      svn update $svn_args -r $SVN_TAG $target
       rc=$?
       eval "$dl_target=\"$target\""
     else

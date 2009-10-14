@@ -149,6 +149,18 @@ function real_on_cast () {
 ## @param spell that triggers
 ## @param action
 ##
+## Used by spells to make adding triggerse nice.
+##
+#---------------------------------------------------------------------
+function real_on_pre_cast() {
+  set_trigger "on_pre_cast" "$1" "$2"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param spell that triggers
+## @param action
+##
 ## Used by spells to make adding triggers nice.
 ##
 #---------------------------------------------------------------------
@@ -189,7 +201,7 @@ function do_trigger () {
         cast -c "${TRIGGER[0]}"
         ;;
       dispel_self)
-        dispel "${TRIGGER[0]}"
+        dispel --nosustain "${TRIGGER[0]}"
         ;;
       check_self)
         cleanse --nofix_quick "${TRIGGER[0]}" ||

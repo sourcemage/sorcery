@@ -1,0 +1,95 @@
+.TH DELVE "8" "MAY 2009" "Source Mage GNU Linux" "System Administration"
+.SH NAME
+delve \- a tool that allows the running of single spell files through the
+build and install phases of the casting process.
+.SH SYNOPSIS
+.B delve
+.RB [ \-f ]
+.IR spellname\ SPELL_FILE
+.RI [ ...\ SPELL_FILE ]
+
+.B delve
+.IR spellname \ success|failure
+
+.BI delve \ spellname 
+.R all
+
+.B delve [\-f] \-c
+.I start end spellname
+.SH DESCRIPTION
+.I delve
+.R is a low level tool that normally should not be used as it can harm your
+system when done improperly. It allows the running and stepping through
+single spell build and install files that cast runs continuously.
+
+But it is useful in some instances, such as resuming failed builds,
+circumventing dependency requirements or for custom package builds. For
+example, one could type
+.B delve -c start config_loc spellname 
+.R do some changes to the source, compile the spell manually and then continue off with
+.B delve -c PRE_INSTALL end 
+.BR spellname .
+.R Please do not complain if your system breaks after using this.
+
+When one needs to do something special, they should consider if that change
+can be useful to others and file a bug report if that is so.
+
+.SS SPELL STATES
+.B spell states
+.R are stages in which a spell carries out certain actions. For example,
+.B PRE_BUILD
+.R will unpack and verify the sources of the spell.
+
+The spell states go, in order of precedency by API:
+
+.B API1=
+.R \*(lqstart PRE_BUILD config_loc BUILD POST_BUILD POST_INSTALL TRIGGERS end\*(rq
+
+.B API2=
+.R \*(lqstart PRE_BUILD config_loc BUILD PRE_INSTALL INSTALL INSTALL_EXTRAS POST_INSTALL TRANSFER FINAL TRIGGERS end\*(rq
+
+.R API2 is the default API. Consult
+.BR grimoire (5)
+.R for more information on the spell states.
+
+.SS NON-FILE STATES
+.B start
+.R is an empty state that will always go onto the next spell state.
+
+.B config_loc
+.R is a state which will ask if one wants to add custom
+.B ./configure
+.R flags only if
+.B CONFIG_LOC
+.R is enabled in the Sorcery Features menu and the source uses configure,
+otherwise it is an empty state.
+
+.BR success \ and \ failure
+.R are substates of end.
+
+.B end
+.R runs success if all the run states were successful, otherwise
+failure (internal sorcery functions).
+.PP
+.SH OPTIONS
+\-f,\-\-force
+.RS
+.R Continue to run all files even if one fails
+.RE
+\-c, \-\-continue
+.I start end
+.RS
+Run all files from the start step to the end step.
+.SH AUTHOR
+Written by Donald Johnson.
+
+Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org/).
+.SH REPORTING BUGS
+Report bugs to bugzilla <http://bugs.sourcemage.org/>.
+.SH SEE ALSO
+.BR cast (8),
+.BR sorcery (8),
+.BR alter (8),
+.BR grimoire (5)
+.SH WARRANTY
+This is free software with ABSOLUTELY NO WARRANTY.
