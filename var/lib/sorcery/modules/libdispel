@@ -38,13 +38,24 @@ function reap_regular_files()  {
 #---------------------------------------------------------------------
 function reap_config_files()  {
   debug "libsorcery" "reap_config_files()"
-  local FILE
+  local FILE md5
   while  read  FILE;  do
     [[ $FILE ]] || continue
     if [[ $TOTAL_DISPEL ]] ; then
       rm -f "$FILE"
-    elif grep -qX "$(md5sum "$FILE")" "$MD5S"; then
+      continue
+    fi
+
+    md5=$(md5sum "$FILE")
+    orig="$SCRIPT_DIRECTORY/init.d/${FILE##*/}.conf"
+    if grep -qX "$md5" "$MD5S"; then
       debug libdispel "$FILE is a config file that hasnt changed, removing..."
+      rm -f "$FILE"
+    # this check only handles sysconfig files, since they're the only ones
+    # nicely available at this point
+    elif [[ -f $orig ]] &&
+    [[ $(cut -d" " -f1 <<< "$md5") == $(md5sum "$orig" | cut -d" " -f1) ]]; then
+      debug libdispel "$FILE is a config file that was reverted to the default, removing..."
       rm -f "$FILE"
     else
       reap_modified_file "$FILE"
