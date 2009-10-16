@@ -98,8 +98,11 @@ function _init_merge_config_file()
     return 0
   fi
 
-  local savetime=$( date +'%Y%m%d%H%M' )
-  install -g root -o root $2 $2.$savetime.backup
+  # no need for a backup when staging, since the installation will be deffered
+  if [[ $STAGED_INSTALL != on ]]; then
+    local savetime=$( date +'%Y%m%d%H%M' )
+    install -g root -o root $2 $2.$savetime.backup
+  fi
 
   for opt in $new_opts ; do
     message "  Merging option $opt into $2..."
