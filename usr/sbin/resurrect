@@ -207,22 +207,22 @@ function direct_resurrect() {
 #---------------------------------------------------------------------
 function is_resurrectable() {
   local spell=$1
-  local msg_base="$SPELL_COLOR$spell$DEFAULT_COLOR cannot be resurrected because"
+  local msg_base="$SPELL_COLOR$spell${PROBLEM_COLOR} cannot be resurrected because"
 
   if ! can_resurrect $spell "*" > /dev/null; then
-    message "$msg_base no cache was found!"
+    message "$msg_base no cache was found!${DEFAULT_COLOR}"
     return 1
   fi
   if spell_held $spell; then
-    message "$msg_base it is held!"
+    message "$msg_base it is held!${DEFAULT_COLOR}"
     return 1
   fi
   if spell_exiled $spell; then
-    message "$msg_base it is exiled!"
+    message "$msg_base it is exiled!${DEFAULT_COLOR}"
     return 1
   fi
 
-  message "$SPELL_COLOR$spell$DEFAULT_COLOR can be resurrected."
+  message "$SPELL_COLOR$spell${MESSAGE_COLOR} can be resurrected.${DEFAULT_COLOR}"
   return 0
 }
 
