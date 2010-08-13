@@ -162,11 +162,13 @@ function run_spell_file() {
   }"
 
   persistent_load &&
+  if [[ $pre_function ]]; then
+    $pre_function
+    true
+  fi &&
   if test -x "$SCRIPT_DIRECTORY/$spell_file"; then
-    [[ $pre_function ]] && $pre_function
     . $SCRIPT_DIRECTORY/$spell_file
   elif [[ "$spell_cmd" ]] ; then
-    [[ $pre_function ]] && $pre_function
     $spell_cmd
   else
     default_${function_suffix}
