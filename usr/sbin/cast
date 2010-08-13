@@ -328,7 +328,7 @@ function pass_one()  {
     for spell in $cannot_cast; do
       grep -s "^$spell " $failure_reason_log ||
       message "$spell"
-    done | awkuniq | column
+    done | sort -u | column
     rm -f $failure_reason_log
 
     message "${DEFAULT_COLOR}"
@@ -371,7 +371,7 @@ function pass_one()  {
       message "${MESSAGE_COLOR}None of the spells have dependencies" \
               "to cast:${DEFAULT_COLOR}"
       message "---------------------------"
-      message "${PROBLEM_COLOR}${parents}" | tr '[:blank:]' '\n' | column
+      message "${PROBLEM_COLOR}${parents}" | tr '[:blank:]' '\n' | sort | column
       message "${DEFAULT_COLOR}"
       exit 1
     fi
@@ -663,7 +663,7 @@ function pass_five()  {
 
     for item in `cat $SUCCESS_LIST 2>/dev/null`; do
       message "$item"
-    done | column
+    done | sort | column
 
     set_term_title "Casting successful."
     message "${DEFAULT_COLOR}"
@@ -676,7 +676,7 @@ function pass_five()  {
     message "---------------------------------------------${SPELL_COLOR}"
     for item in `cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null`; do
       message "$item"
-    done | column
+    done | sort | column
     message "${DEFAULT_COLOR}"
   fi
 
@@ -686,7 +686,7 @@ function pass_five()  {
     message "------------------------------------------${SPELL_COLOR}"
     for item in `cat $CHECK_TRIGGERS_FAILURE 2>/dev/null`; do
       message "$item"
-    done | column
+    done | sort | column
     message "${DEFAULT_COLOR}"
   fi
 
@@ -699,7 +699,7 @@ function pass_five()  {
     message "${DEFAULT_COLOR}" #being paranoid
     message "${MESSAGE_COLOR}Spells that have been dropped:"
     message "------------------------------${QUERY_COLOR}"
-    message "$NOT_CAST" | column
+    message "$NOT_CAST" | sort | column
     message "${DEFAULT_COLOR}"
   fi
 
@@ -709,7 +709,7 @@ function pass_five()  {
     message "-----------------------------------------------${QUERY_COLOR}"
     for item in `cat $CONFLICT_LIST 2>/dev/null`; do
       message "$item"
-    done | column
+    done | sort | column
     message "${DEFAULT_COLOR}"
   fi
 
@@ -726,7 +726,7 @@ function pass_five()  {
     while read item; do
       grep -s "^$item " $failure_reason_log ||
       message "$item"
-    done < $FAILED_LIST | awkuniq | column
+    done < $FAILED_LIST | sort -u | column
     rm -f $failure_reason_log
 
     set_term_title "Casting failed."
@@ -742,7 +742,7 @@ function pass_five()  {
       message "---------------------------------------${PROBLEM_COLOR}"
       for item in `cat $INSTALL_QUEUE 2>/dev/null`; do
         message "$item"
-      done | column
+      done | sort | column
       message "${DEFAULT_COLOR}"
       rc=1
     fi
@@ -760,7 +760,7 @@ function pass_five()  {
     message "${MESSAGE_COLOR}Cast deferred installing some configuration files."
     message "The following spells have new pending updates: "
     message "----------------------------------------------$SPELL_COLOR"
-    message "$deferred_list" | column
+    message "$deferred_list" | sort | column
     message "${MESSAGE_COLOR}Please run confmeld to merge them into your system."
     message "$DEFAULT_COLOR"
   fi
