@@ -311,10 +311,11 @@ function main() {
 . /etc/sorcery/config
 if [[ $UID -gt 0 ]]; then
   # validate the parameters before su-ing, since we may still drop out
-  verify_parameters $*
+  verify_parameters "$@"
 
   echo  "Enter the root password, please."
-  exec su -c "resurrect $@" root
+  PARAMS=$(consolidate_params "$@")
+  exec su -c "resurrect $PARAMS" root
 else
   main "$@"
 fi
