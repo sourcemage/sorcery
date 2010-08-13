@@ -1,134 +1,163 @@
-.TH CAST 8 "November 2004" "Source Mage GNU Linux" "System Administration"
+.TH CAST 8 "2010-08-13" "Source Mage GNU/Linux" "System Administration"
 .SH NAME
 cast \- installs software packages
 .SH SYNOPSIS
+\fBcast\fP [\fIoptions\fP] [\fIpackage\fP ...]
+.SH DESCRIPTION
 .B cast
-[options] [package1] ... [package2] ...
-.SH "EXAMPLE"
-To install emacs type:
-.IP
-.B cast
-emacs
-.SH "DESCRIPTION" 
-.I cast
 is part of the
-.I sorcery
-source-code package management suite. It is a command-line tool
-for automatically retrieving, unpacking, compiling, installing, and
-tracking software installations. 
-.SH "OPTIONS"
-.SS "-f, --fix"
-Used to be: Discover and fix broken spells. Now removed.
-.P
-Use
-.I cleanse --fix
-instead.
-.SS "-s"
-First download all spells, then cast.
-Normal cast behavior is to download in the background while compiling.
-This disables that behavior.
-.SS "--deps"
-Determines dependencies for the given spell(s) and casts the dependencies,
-but does not cast the given spell(s) itself.
-.SS "--cflags, --cxxflags, --ldflags, --cppflags"
-Set custom cflags/cxxflags/ldflags/cppflags values to override those found in
-arch specs, and set through the sorcery menu.
-.SS "--no-opts"
-Disable the use of optimization flags from arch specs and the sorcery
-menu, only use those specified on the command line with --cflags,
---cxxflags, or --ldflags.
-.SS "-c, --compile"
-Compiles spell even if there is a compile cache in /var/cache/sorcery.
-Otherwise, it would just resurrect (untar) it.
-Helpful when the system configuration changes.
-.SS "-r, --reconfigure"
-This will prompt you again for optional dependencies
-and configuration options, even those you answered before.
-Implies
-.IR "-c" .
-.SS "-g, --grimoire [grimoire names ...]"
+.B sorcery
+package management suite. It is a command\-line tool for
+automatically retrieving, unpacking, compiling, installing, and tracking
+software installations.  In order to find a package (known as a
+\fBspell\fP) to cast, refer to
+.BR gaze (1)
+and
+.BR scribe (8)\.
+
+.SH OPTIONS
+.SS \fB\-b\fP, \fB\-\-force\-base\-dep\fP
+Force all spells to depend on basesystem (used internally).
+
+.SS \fB\-B\fP, \fB\-\-recast\-up\fP
+Recasts all the spells that depend on the given spell(s) (and the ones
+they depend on ...).
+.I \-c
+may be specified to make sure they are recompiled and not resurrected.
+
+.SS \-c, \-\-compile
+Compiles the spell even if there is a binary cache in
+.IR /var/cache/sorcery .
+Otherwise, it would just resurrect (untar) it.  Helpful when the system
+configuration changes.
+
+.\" Next line: Do not wrap.  Formatting makes it reallllly long.
+.SS \fB\-\-cflags\fP, \fB\-\-cxxflags\fP, \fB\-\-ldflags\fP, \fB\-\-cppflags\fP '\fIflags\fP'
+Set custom compiler and linker flag values to be appended to those found in
+the arch specs and those set through the sorcery menu.
+
+.SS \-d, \-\-download
+Forces redownloading of sources, even if they exist in the source cache
+directory.
+
+.SS \-\-deps
+Determines dependencies for the given spell(s) and casts the
+dependencies, but does not cast the given spell(s) itself.
+
+.SS \fB\-\-from\fP \fIdirectory\fP
+Specify a directory to look for cached sources in instead of
+the default
+.IR /var/spool/sorcery .
+For further use it is usually easier to just copy the sources there though.
+
+.SS \fB\-g\fP, \fB\-\-grimoire\fP \fIgrimoire\fP
+.ns
+.SS \fB\-g\fP, \fB\-\-grimoire\fP '\fIgrimoire\fP ...'
 Use only the specified grimoires for this cast.
-NOTE: If there are any cross-grimoire dependencies on unspecified grimoires they will not work. The target spell will not be found. To avoid this, specify all relevant grimoires to the -g parameter in the order you wish them to be searched.
-.SS "--from directory"
-Specify an alternate directory to search for cached sources.
-An alternate to /var/spool/sorcery.
-Usually though, you'd just copy the source to /var/spool/sorcery.
-.SS "--queue"
-Re-casts all spells in the install queue, as generated for example by
+
+.BR IMPORTANT:
+If there are any
+cross\-grimoire dependencies on unspecified grimoires, then they will
+not work, and the target spell will not be found. To avoid this, specify
+all relevant grimoires to the option in the order to be searched.
+
+.SS \fB\-h\fP, \fB\-\-help\fP, \fB\-\-uhh\fP
+Display the short help.
+
+.SS \fB\-\-no\-opts\fP
+Disables the use of optimization flags from the arch specs and the sorcery
+menu, using none or only those specified on the command line with
+\fI\-\-cflags\fP,
+\fI\-\-cxxflags\fP, or \fI\-\-ldflags\fP.
+
+.SS \fB\-O\fP, \fB\-\-recast\-optional always|ask-yes|ask-no|never\fP
+If a spell being built has spells which could optionally depend on it,
+but those dependencies are disabled, ask to recast these dependees. The
+default option can be set via the sorcery menu. Implies
+.IR \-c .
+
+.SS \fB\-\-queue\fP
+Casts all the spells in the install queue, as generated for example by
 .BI sorcery " queue"
-.SS "-V on|off"
-Overrides the VOYEUR option, which specifies whether or not
-compile output should be displayed. Helpful if you usually have
-it off and want to see where an error is.
-.SS "-d, --download"
-Forces redownloading of sources, sources are freshly downloaded
-even when we already have them.
-.SS "-R, --recast-down"
-recasts all the spells the given spell(s) depend on
-(and the ones they depend on ...). You probably also want to specify
-.IR "-c"
-to make sure they are recompiled and not resurrected.
-This might be quite a lot of spells.
 
-.SS "-B, --recast-up"
-recasts all the spells that depend on the given spell(s)
-(and the ones they depend on ...). You probably also want to specify
-.IR "-c"
-to make sure they are recompiled and not resurrected.
+.SS \fB\-r, \-\-reconfigure\fP
+This will make cast prompt again for optional dependencies and configuration
+options. For those that have been answered before, the default will be the
+previous value. This implies
+.IR \-c .
 
-.SS "-O, --recast-optional [option]"
-If a spell being built has spells which could optionally depend on it, but those
-dependencies are disabled, ask to recast the dependee. Option can be one of: "always",
-"ask-yes", "ask-no", or "ignore"; it defaults to what is set via the sorcery menu.
-Implies
-.IR "-c" .
+.SS \fB\-R, \-\-recast\-down\fP
+Recasts all the spells the given spell(s) depend on (and the ones they
+depend on ...). It suggested to combine this option with
+.IR \-c
+in order to avoid resurrection instead of compilation. This may recast
+a lot of spells.
 
-.SS "-Z, --lazy-updates [option]"
-Perform updates on installed spells that need updates. Optional parameter are the same as above.
-.SS "-b, --force-base-dep"
-Force all spells to depend on basesystem.
-.SS "-h, --help"
-Display short help.
-.SH "ENVIRONMENT"
-The environment is set using the sorcery configuration files.
-See
-.I sorcery_config(8)
-.SH ADVANCED USAGE
-Casting from an alternate spell cache.
+.SS \fB\-s\fP
+First download all spells, then cast.  Normal cast behavior is to
+download in the background while compiling.  This disables that
+behavior.
+
+.SS \fB\-V on|off\fP
+Overrides the VOYEUR option, which specifies whether or not the compile
+output should be displayed. Helpful if it is usually off and it is
+needed for troubleshooting.
+
+.SS \fB\-Z\fP, \fB\-\-lazy\-updates always|ask-yes|ask-no|never\fP
+Performs updates on the installed dependencies of spells to be cast.
+The default option can be set via the sorcery menu.
+
+.SH ENVIRONMENT
+The environment is set using the sorcery configuration files. See
+.BR sorcery_config (8).
 .IP
-cast
-.B --from
-/root/sgl/personal/cache
-emacs
-.SH "NOTES"
-Do not include 
+.SH NOTES
+Do not include
 .SM version
 or
 .SM section
-name when specifying a package. To get complete listing of software packages
-type
-.I gaze grimoire
+name when specifying a package. \fBgaze\fP can provide a catalog of
+both. Refer to
+.BR gaze (1)
+for such functionality.
 .P
 If spell fails during a cast, try recasting it with
-.I cast -r -c
+.I cast \-r
 to reconfigure and recompile.
-.SH "COMMENTS"
+.P
 Unless the
-.B --from
-option is specified cast will always check the
+.I \-\-from
+option is specified,
+.B cast
+will always check the
 .I /var/spool/sorcery
 directory first to see if the package exists. If the package does not
 exist it downloads the package via the Internet.
-.SH "AUTHOR"
+.SH AUTHOR
 Original version by Kyle Sallee, and updated Thomas Stewart.
-Rewritten and shortened by Karsten Behrmann.
+Rewritten and shortened by Karsten Behrmann. Overhaul by Donald Johnson.
 .PP
 Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
 .PP
-.SH "REPORTING BUGS"
-Report bugs to bugzilla <http://bugs.sourcemage.org>
-.SH "SEE ALSO"
-alter(8), cleanse(8), confmeld(8), dispel(8), gaze(1), grimoire(5), scribbler(8),
-scribe(8), sorcery(8), sorcery_config(8), summon(8)
-.SH "WARRANTY"
+.SH BUGS
+Report bugs to the bugzilla at <http://bugs.sourcemage.org>.
+.SH EXAMPLE
+To install emacs type:
+.IP
+$
+.B cast emacs
+.SH SEE ALSO
+.BR alter (8),
+.BR cleanse (8),
+.BR confmeld (8),
+.BR dispel (8),
+.BR gaze (1),
+.BR grimoire (5),
+.BR resurrect (8),
+.BR scribbler (8),
+.BR scribe (8),
+.BR sorcery (8),
+.BR sorcery_config (8),
+.BR summon (8)
+.SH WARRANTY
 This is free software with ABSOLUTELY NO WARRANTY
