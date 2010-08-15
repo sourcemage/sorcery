@@ -121,12 +121,17 @@ function dl_aria2_set_options()  {
     ARIA2_OPTIONS="--check-certificate=false"
   fi
 
+  if [[ $VOYEUR == "off" ]]; then
+    local quiet="-q"
+  fi
+
   #If --allow-overwrite is false, aria2 doesn't download a file which already
   #exists in the file system but its corresponding .aria2 file doesn't exist.
   #Default: false
 
   ARIA2_OPTIONS="$ARIA2_OPTIONS --allow-overwrite=true"
-  ARIA2_OPTIONS="$ARIA2_OPTIONS $URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $RATE $PASSIVE $CONTINUE"
+  ARIA2_OPTIONS="$ARIA2_OPTIONS $URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $RATE"
+  ARIA2_OPTIONS="$ARIA2_OPTIONS $PASSIVE $CONTINUE $quiet"
   debug 'dl_aria2' "aria2 options: $ARIA2_OPTIONS"
 }
 
