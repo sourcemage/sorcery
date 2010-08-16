@@ -211,7 +211,12 @@ function get_option() {
 function cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
-  set_term_title "Casting spell [$SPELL]"
+
+  local gsp_done gsp_total
+  get_cast_progress gsp_done gsp_total
+  set_term_title "Casting spell [$SPELL] ($gsp_done of $gsp_total)"
+  message "${MESSAGE_COLOR}Casting spell [${SPELL_COLOR}$SPELL${MESSAGE_COLOR}]" \
+          "($gsp_done of $gsp_total)"
 
   run_details
   load_build_api || return 1
@@ -408,6 +413,7 @@ function pass_two()  {
   debug "cast" "Starting pass_two()"
 
   unset_details
+
   hash_export "to_cast"
   hash_export "trg_r_hash"
   local gsp_done gsp_total
