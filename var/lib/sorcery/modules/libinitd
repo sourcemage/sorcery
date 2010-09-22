@@ -176,7 +176,7 @@ function init_prepare_install()
   local old_provides="$2"
   local result_list="$3"
   local script_path="$SCRIPT_DIRECTORY/init.d/$service"
-  local script_provides=$( grep '^[:space:]*PROVIDES' $script_path )
+  local script_provides=$( grep '^[[:space:]]*PROVIDES' $script_path )
   script_provides=$( eval "( ${script_provides:=:} ; echo \$PROVIDES ; )" )
 
   [ -z "$script_provides" ] && return
@@ -208,7 +208,7 @@ function init_install()
   local enable_script="$1"
   local script_name="$2"
   local script_path="$SCRIPT_DIRECTORY/init.d/$script_name"
-  local script_runlevel=$( grep '^[:space:]*RUNLEVEL' $script_path )
+  local script_runlevel=$( grep '^[[:space:]]*RUNLEVEL' $script_path )
   script_runlevel=$( eval "( $script_runlevel ; echo \$RUNLEVEL )" )
 
   [ "$script_runlevel" = "s" ] && script_runlevel="S"
@@ -265,7 +265,7 @@ function init_post_install()
       mark_file_modified "$INSTALL_ROOT/etc/sysconfig/facilities"
       IFS=":"
       set $sp   # $1 - script name, $2 - facility
-      if ! sedit "s/^\([:space:]*$2\)=.*/\1=$1/" \
+      if ! sedit "s/^\([[:space:]]*$2\)=.*/\1=$1/" \
             $INSTALL_ROOT/etc/sysconfig/facilities ; then
         message -n "${PROBLEM_COLOR}Unable to modify facilities file to make "
         message "$1 provider of $2.${DEFAULT_COLOR}"
