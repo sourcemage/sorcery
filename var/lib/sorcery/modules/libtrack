@@ -152,9 +152,9 @@ function destroy_stage_root()
 ##
 #---------------------------------------------------------------------
 function real_invoke_installwatch()  {
-  if  [  -e  /usr/lib/installwatch.so  ];  then
+  if [[ -e $INSTALLWATCH_SO ]]; then
     export  INSTALLWATCHFILE=$IW_LOG
-    export  LD_PRELOAD=/usr/lib/installwatch.so
+    export  LD_PRELOAD=$INSTALLWATCH_SO
   fi
 }
 
@@ -322,7 +322,7 @@ function check_if_modified() {
     fi
   fi
   local my_md5=$(md5sum "$to")
-  if test -f "$md5_log" && grep -q "$my_md5" "$md5_log"; then
+  if test -f "$md5_log" && grep -qx "$my_md5" "$md5_log"; then
     false
   else
     true
