@@ -86,6 +86,37 @@
 
 ################################### Accessors ########################
 
+#---
+## return grimoire name from tablet
+#---
+function tablet_get_grimoire_name() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/grimoire_name && value=$(<$tb_dir/grimoire_name) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+#---
+## return section name from tablet
+#---
+function tablet_get_section_name() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/section_name && value=$(<$tb_dir/section_name) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+
 function tablet_get_version() {
   local tb_dir=$1 tb_version value
   tablet_get_tb_version $tb_dir tb_version
@@ -142,6 +173,21 @@ function tablet_get_build_api() {
   [[ $? != 0 ]] && return 1
   case $tb_version in
     1) test -f $tb_dir/build_api && value=$(<$tb_dir/build_api) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
+#---
+## get path to roots
+#---
+function tablet_get_roots() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/roots && value=$tb_dir/roots|| return 2 ;;
     *) return 3 ;;
   esac
   eval "$2=\"$value\""
@@ -476,6 +522,7 @@ function tablet_install_spell_files() {
   echo ${SECURITY_PATCH:-0} > security_patch
   echo $BUILD_API > build_api
   echo $SECTION > section_name
+  echo ${GRIMOIRE##*/} > grimoire_name
   echo installed > status # this could be held or something else
 
   # SPELL_CONFIG and persistent variables
