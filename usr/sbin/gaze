@@ -121,6 +121,10 @@ checkmd5s       [spell|section]  Print a md5 check of spells
 
 system-info                      Show information about a Source Mage system
 
+tablet           spell <option>  Show spell information from tablet.
+                                 Options: info, depends, sub_depends, spell_config
+                                 rsub_depends, roots, dirs, all
+
 show-held                        Shows all held spells.
 
 show-exiled                      Shows all exiled spells.
@@ -1861,6 +1865,104 @@ function figure_installed()
 
 #---------------------------------------------------------------------
 ##
+## display spell information from tablet
+## @param spell
+## @param command (info, depends, sub_depends, spell_config, rsub_depends, roots, dirs, all)
+## @Stdout information of spell from tablet
+#---------------------------------------------------------------------
+function gaze_tablet() {
+  local spell=$1
+  local command=$2
+  local spell spell_directory spell_depends section_name version
+  local patchlevel security_patch spell_persistent_config sub_depends build_api
+  local file
+  if ! spell_installed $spell ;then
+    message "${SPELL_COLOR}$spell${PROBLEM_COLOR} isn't installed!" \
+            "${DEFAULT_COLOR}"
+    return 1
+  fi
+  # get spell_directory that is used in all comands
+  tablet_find_spell_dir $spell spell_directory
+
+  function gaze_tablet_sub() {
+    local command=$1
+    local cat_file=${command}_file
+    tablet_get_$command $spell_directory ${cat_file}
+    message "${PROBLEM_COLOR}---{ $spell: $command }---${DEFAULT_COLOR}"
+    cat ${!cat_file}
+  }
+
+  case $command in
+    info)
+      tablet_get_section_name $spell_directory section_name
+      tablet_get_version $spell_directory version
+      tablet_get_patchlevel $spell_directory patchlevel
+      tablet_get_security_patch $spell_directory security_patch
+      tablet_get_build_api $spell_directory build_api
+      # not in all tablets yet
+      tablet_get_grimoire_name $spell_directory grimoire_name
+      # basic information (section & version)
+      message "${MESSAGE_COLOR}grimoire / section / spell: ${SPELL_COLOR}" \
+              "$grimoire_name / $section_name / $spell${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}version / patchlevel / security patchlevel:${VERSION_COLOR} $version /" \
+              "$patchlevel / $security_patch${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}Build API:${VERSION_COLOR} $build_api${DEFAULT_COLOR}"
+    ;;
+    depends)
+      gaze_tablet_sub depends
+    ;;
+    spell_config)
+      gaze_tablet_sub persistent_config
+    ;;
+    sub_depends)
+      gaze_tablet_sub sub_depends
+    ;;
+    rsub_depends)
+      gaze_tablet_sub rsub_depends
+    ;;
+    roots)
+      gaze_tablet_sub roots
+    ;;
+    spell-files)
+      for file in $spell_directory/spell/* ;do
+        if [[ ${file} != ${file%.gpg} ]]; then
+           message "${PROBLEM_COLOR} Keyring: ${file##*/}"
+           continue
+        fi
+        message "${PROBLEM_COLOR}---{ $spell: ${file##*/} }---${DEFAULT_COLOR}"
+        cat $file
+      done
+    ;;
+    dirs)
+      message "${MESSAGE_COLOR}Tablet dir:${DEFAULT_COLOR} $spell_directory"
+      message "${MESSAGE_COLOR}Grimoire dir:${DEFAULT_COLOR} $spell_directory/grimoire"
+      message "${MESSAGE_COLOR}Section dir:${DEFAULT_COLOR} $spell_directory/section"
+      message "${MESSAGE_COLOR}Spell dir:${DEFAULT_COLOR} $spell_directory/spell"
+    ;;
+    all)
+      gaze_tablet $spell info
+      gaze_tablet_sub depends
+      gaze_tablet_sub persistent_config
+      gaze_tablet_sub rsub_depends
+      gaze_tablet_sub sub_depends
+      gaze_tablet_sub roots
+      gaze_tablet $spell spell-files
+      gaze_tablet $spell dirs
+    ;;
+    *)
+      gaze_tablet $spell info
+      gaze_tablet_sub depends
+      gaze_tablet_sub persistent_config
+      gaze_tablet_sub rsub_depends
+      gaze_tablet_sub sub_depends
+    ;;
+  esac
+
+}
+
+
+#---------------------------------------------------------------------
+##
 ## displays various information about a Source Mage system
 ##
 #---------------------------------------------------------------------
@@ -2312,6 +2414,7 @@ parse()  {
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
      system-info)  gaze_system_info                      ;;
+          tablet)  shift; gaze_tablet $1 $2              ;;
         activity)  display $ACTIVITY_LOG                 ;;
             from)  shift; show_from "$@"                 ;;
            newer)  newer             $2                  ;;
