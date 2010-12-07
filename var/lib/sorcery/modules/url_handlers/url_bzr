@@ -1,0 +1,114 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Url handler functions for downloading bzr urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying
+## bzr urls.  This file uses the "bzr" program.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2002 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+##=item url_bzr_crack <url>
+##
+## Parse the specified bzr url.
+##
+## @Global URL
+## @Global BZR_ROOT
+## @Global BZR_DIRECTORY
+##
+#---------------------------------------------------------------------
+function url_bzr_crack() {
+  URL=$(url_strip_prefix "$1" bzr)
+  BZR_ROOT=bzr://$(echo $URL | cut -d: -f1)
+  BZR_DIRECTORY=$(echo $URL | cut -d: -f2)
+}
+
+#---------------------------------------------------------------------
+##=item url_bzr_bucketize <url>
+##
+## echoes the download handler - bzr
+##
+#---------------------------------------------------------------------
+function url_bzr_bucketize() {
+  echo bzr
+}
+
+#---------------------------------------------------------------------
+##=item url_bzr_verify <url>
+##
+## Verifies the specified bzr url.  Returns true if the url exists
+## OR if the url is an empty string.
+##
+#---------------------------------------------------------------------
+function url_bzr_verify() {
+  local URL BZR_ROOT item
+  url_bzr_crack $1
+  for item in URL BZR_ROOT; do
+    if ! [[ ${!item} ]] ; then
+      return 1
+    fi
+  done
+}
+
+#---------------------------------------------------------------------
+##=item url_<prefix>_hostname <url>
+##
+## Gets the hostname out of the url
+#---------------------------------------------------------------------
+function url_bzr_hostname() {
+  echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
+}
+
+#---------------------------------------------------------------------
+##=item url_bzr_netselect <url>
+##
+## Gets a netselect type output for the url
+##
+#---------------------------------------------------------------------
+function url_bzr_netselect() {
+  local tmp_hostname url_speed each
+
+  for each in "$@" ; do
+    tmp_hostname=$(url_bzr_hostname $each)
+    # since we had to pull the url apart to give netselect
+    # something it can understand we'll just pretend like
+    # multiple A records wont exist for this host...
+    url_speed=$(netselect -s 1 $tmp_hostname 2>/dev/null|awk '{print $1}')
+    [[ -n $url_speed ]] && echo "$url_speed $each"
+  done
+}
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
