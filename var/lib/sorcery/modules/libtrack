@@ -38,7 +38,7 @@ function exists()  {
 #---------------------------------------------------------------------
 function real_track_manual()  {
   if  [[ -z "$STAGED_INSTALL" || $STAGED_INSTALL == off ]] &&
-      [[ -z "$INSTALLWATCHFILE"  ]] ;  then
+      [[ -z "$INSTALLWATCHFILE" && -z "$INSTW_LOGFILE" ]] ;  then
     echo "Can't tell installwatch to manually track... installwatch isn't running."
     return 1
   fi
@@ -154,6 +154,7 @@ function destroy_stage_root()
 function real_invoke_installwatch()  {
   if [[ -e $INSTALLWATCH_SO ]]; then
     export  INSTALLWATCHFILE=$IW_LOG
+    export  INSTW_LOGFILE=$IW_LOG
     export  LD_PRELOAD=$INSTALLWATCH_SO
   fi
 }
@@ -165,7 +166,7 @@ function real_invoke_installwatch()  {
 #---------------------------------------------------------------------
 function real_devoke_installwatch()  {
   unset  LD_PRELOAD
-  unset  INSTALLWATCHFILE
+  unset  INSTALLWATCHFILE INSTW_LOGFILE
 }
 
 function is_castfs_installed()
@@ -198,7 +199,7 @@ function parse_iw()  {
   # tab character and not some number of spaces. Otherwise BAD THINGS
   # will happen.
   local TAB=$'\t'
-  OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink"
+  OMIT_IN="${TAB}rename\|${TAB}symlink\|${TAB}unlink\|${TAB}access\|${TAB}utimes"
 
   grep -v "$OMIT_IN" $INPUT | cut -f3 | grep "^/" | sed 's#^//#/#g'
   cat                $INPUT | cut -f4 | grep "^/" | sed 's#^//#/#g'
