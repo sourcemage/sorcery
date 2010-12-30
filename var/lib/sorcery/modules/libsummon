@@ -253,14 +253,6 @@ function download_src_args() {
     if [[ $summon_target != $target ]] ; then
       mv -f "$summon_target" "$target"
     fi
-    local type
-    if ! source_sanity "$target" "type"; then
-      message "${PROBLEM_COLOR}Sanity check of${DEFAULT_COLOR}" \
-              "${FILE_COLOR}${target}${DEFAULT_COLOR}" \
-              "${PROBLEM_COLOR}failed:${DEFAULT_COLOR}"
-      message "$type"
-      return 1
-    fi
   else
     message "${PROBLEM_COLOR}Unknown download type: \"$summon_type\""\
             "at \"$summon_target\". Please file a bug if you see this." \
@@ -296,16 +288,23 @@ function download_src_sub()  {
   {
     [[ $guess_type == file ]] &&
     download_from_leapforward "$target" "$url_list" "$hints" \
-                            "$_summon_target" "$_summon_type"
+                            "$_summon_target" "$_summon_type" &&
+    source_sanity "$target"
   } ||
 
-  url_download_expand_sort "$target" "$url_list" "$hints" \
-                           "$_summon_target" "$_summon_type" ||
+  {
+    url_download_expand_sort "$target" "$url_list" "$hints" \
+                             "$_summon_target" "$_summon_type"  &&
+    if [[ $guess_type == file ]]; then
+      source_sanity "$target"
+    fi
+  } ||
 
   { # dont use fallback if the type is not a file (bug 9847)
     [[ $guess_type == file ]] &&
     download_from_fallback "$target" "$url_list" "$hints" \
-                           "$_summon_target" "$_summon_type"
+                           "$_summon_target" "$_summon_type" &&
+    source_sanity "$target"
   }
 
 }
@@ -435,20 +434,30 @@ function unpack_for_update() {
 ## the requested file, which then successfully downloads (which is
 ## the correct thing to do). We catch that here rather than wait for
 ## file verification to catch it.
+## @param file to check
+## @Stdout error message if file fails the check
+## @return 1 if file fails the check
+## @return 0 if file passes the check
 #---------------------------------------------------------------------
 function source_sanity() {
   [[ "$1" ]] || return 0
   [[ "$SUMMON_SANITY" == off ]] && return 0
+  local core_msg
+  core_msg="${PROBLEM_COLOR}Sanity check of${DEFAULT_COLOR}"
+  core_msg="$core_msg ${FILE_COLOR}$1${DEFAULT_COLOR}"
+  core_msg="$core_msg ${PROBLEM_COLOR}failed:${DEFAULT_COLOR}\n"
+
   if ! test -s "$1"; then
-    upvar "$2" "Empty"
+    message "$core_msg Empty"
     return 1
   fi
+
   if [[ "$1" != "${1%.tar.bz2}" ]] ||
      [[ "$1" != "${1%.tar.gz}" ]] ||
      [[ "$1" != "${1%.tgz}" ]]; then
     local _type=$(file -bi "$1")
     if echo $_type | grep -iq "text/"; then
-      upvar "$2" "$_type"
+      message "$core_msg $_type"
       return 1
     fi
   fi
