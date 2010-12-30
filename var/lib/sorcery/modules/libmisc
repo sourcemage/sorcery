@@ -1115,7 +1115,13 @@ function misc_is_function()  {
 #---------------------------------------------------------------------
 function remove_files_and_dirs() {
     cat $1 | while read file; do
-      test -d $file || rm -f $file
+      if [[ ! -d $file ]]; then
+        rm -f $file
+      else
+        # also try to remove empty dirs, as
+        # the leaves are not taken care of by the next block #15804
+        rmdir $file &>/dev/null
+      fi
     done
 
     # remove possibly empty directories, rmdir WILL have error output
