@@ -1270,14 +1270,18 @@ function override_grimoires() {
 #---------------------------------------------------------------------
 function set_pager() {
   if [[ -z $PAGER ]]; then
-    # pager info
-    # -R: display color codes properly
-    # -F: quit on one-screenfull of data (otherwise scribe pauses on empty updates)
-    # -X: dont do screen init and deinit, gaze install
-    # of a small spell is effectively useless otherwise as the
-    # screen is cleared afterwards.
-    # -f: force it, since we may not be dealing with a regular file
-    PAGER="less -R -F -X -f"
+    if real_spell_ok less; then
+      # pager info
+      # -R: display color codes properly
+      # -F: quit on one-screenfull of data (otherwise scribe pauses on empty updates)
+      # -X: dont do screen init and deinit, gaze install
+      # of a small spell is effectively useless otherwise as the
+      # screen is cleared afterwards.
+      # -f: force it, since we may not be dealing with a regular file
+      PAGER="less -R -F -X -f"
+    else
+      PAGER=cat
+    fi
     return
   fi
 
