@@ -1127,7 +1127,7 @@ function remove_files_and_dirs() {
     # remove possibly empty directories, rmdir WILL have error output
     # because some directories wont be empty for one of many reasons,
     # this is OKAY
-    cat $1|get_dirnames|while read dir; do
+    cat $1|get_dirnames|sort -u|while read dir; do
       until [[ $dir == ${2:-/} ]] ; do
         rmdir $dir &>/dev/null || break
         smgl_dirname "$dir" dir
