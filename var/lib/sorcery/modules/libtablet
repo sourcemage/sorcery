@@ -16,6 +16,7 @@
 ## $TABLET_PATH/$SPELL/<timestamp>/
 ##                         build_api
 ##                         depends
+##                         grimoire_name
 ##                         grimoire/<all files from the grimoire dir>
 ##                         logs/[install,md5sum,compile] (links to real files)
 ##                         roots (all important FOO_ROOT values)
@@ -255,6 +256,18 @@ function tablet_get_grimoire_file() {
   return 0
 }
 
+function tablet_get_grimoire_name() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/grimoire_name && value=$(<$tb_dir/grimoire_name) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$3=\"$value\""
+  return 0
+}
+
 function tablet_get_log_file() {
   local tb_dir=$1 tb_version value
   tablet_get_tb_version $tb_dir tb_version
@@ -476,6 +489,7 @@ function tablet_install_spell_files() {
   echo ${SECURITY_PATCH:-0} > security_patch
   echo $BUILD_API > build_api
   echo $SECTION > section_name
+  echo $GRIMOIRE_NAME > grimoire_name
   echo installed > status # this could be held or something else
 
   # SPELL_CONFIG and persistent variables
@@ -540,6 +554,9 @@ function tablet_set_spell() {
   SCRIPT_DIRECTORY=$SPELL_DIRECTORY/spell
   SECTION_DIRECTORY=$SPELL_DIRECTORY/section
   GRIMOIRE=$SPELL_DIRECTORY/grimoire
+  if [[ -f $SPELL_DIRECTORY/grimoire_name ]]; then
+    GRIMOIRE_NAME=$(<$SPELL_DIRECTORY/grimoire_name)
+  fi
 
   # Names
   SECTION=$(<$SPELL_DIRECTORY/section)
