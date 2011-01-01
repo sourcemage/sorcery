@@ -20,9 +20,11 @@
 
 
 #---------------------------------------------------------------------
-# Load libraries
+# Load libraries (avoiding .orig patching leftovers)
 for MODULE in "$SGL_LIBRARY_MODULES"/lib*[^~]; do
-  . $MODULE
+  if [[ $MODULE == ${MODULE/.orig/} ]]; then
+    . $MODULE
+  fi
 done
 #---------------------------------------------------------------------
 
