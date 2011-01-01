@@ -1663,6 +1663,8 @@ function set_pager() {
   local pager_prog
   local pager_params=${PAGER#* }
   smgl_basename "${PAGER%% *}" pager_prog
+  # setting PAGER to a single word would give bad parameters
+  [[ $pager_prog == $PAGER ]] && unset pager_params
 
   # TODO: add any needed options for the rest of the pagers
   case $pager_prog in
