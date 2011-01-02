@@ -1221,41 +1221,48 @@ function gaze_show_version()  {
 function gaze_show_versions()  {
 
   local SPELL=$1
-  local SPELL_DIRECTORY=
-  local GRIMOIRE=
-  local GRIMOIRES=
-  local ECHO_INSTALLED=1
-  local GRIMOIRE_NAME
 
   if ! codex_does_spell_exist $SPELL
   then return 1
   fi
-
-  local INSTALLED=`installed_version $SPELL`
-
-  GRIMOIRES=$(codex_get_all_grimoires)
 
   (
 
   echo "Grimoire|Section|Spell|Grimoire Version|Installed Version"
   echo "--------|-------|-----|----------------|-----------------"
 
-  for GRIMOIRE in $GRIMOIRES
+  #saving them, since they will be overwritten later
+  if tablet_find_spell_dir "$SPELL" tablet; then
+    # TODO: change this if it will be stored in the less volatile state/packages file
+    tablet_get_grimoire_name $tablet installed_grimoire
+  fi
+  installed=$(installed_version $SPELL)
+
+  for grimoire in $(codex_get_all_grimoires)
   do
-    if SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $GRIMOIRE)
+    if SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $grimoire)
     then
       codex_set_current_spell $SPELL_DIRECTORY
 
-      if [ $ECHO_INSTALLED -eq 1 ]
+      # old states don't have the name stored so fall back to similar old
+      # broken behaviour where the first matching grimoire was used
+      [[ -z $installed_grimoire ]] && installed_grimoire=$GRIMOIRE_NAME
+
+      if [[ $GRIMOIRE_NAME == $installed_grimoire ]]
       then
-        echo "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|${INSTALLED:="-"}"
-        ECHO_INSTALLED=0
+        echo "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|${installed:="-"}"
       else
         echo  "$GRIMOIRE_NAME|$SECTION|$SPELL|$VERSION|-"
       fi
 
     else
-      echo "$(smgl_basename $GRIMOIRE)|-|-|-|-"
+      # handle also (re)moved spells
+      smgl_basename "$grimoire" name
+      if [[ $name == $installed_grimoire ]]; then
+        echo "$name|-|-|-|$installed"
+      else
+        echo "$name|-|-|-|-"
+      fi
     fi
   done
 

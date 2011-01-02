@@ -1115,13 +1115,19 @@ function misc_is_function()  {
 #---------------------------------------------------------------------
 function remove_files_and_dirs() {
     cat $1 | while read file; do
-      test -d $file || rm -f $file
+      if [[ ! -d $file ]]; then
+        rm -f $file
+      else
+        # also try to remove empty dirs, as
+        # the leaves are not taken care of by the next block #15804
+        rmdir $file &>/dev/null
+      fi
     done
 
     # remove possibly empty directories, rmdir WILL have error output
     # because some directories wont be empty for one of many reasons,
     # this is OKAY
-    cat $1|get_dirnames|while read dir; do
+    cat $1|get_dirnames|sort -u|while read dir; do
       until [[ $dir == ${2:-/} ]] ; do
         rmdir $dir &>/dev/null || break
         smgl_dirname "$dir" dir
@@ -1294,7 +1300,7 @@ function is_sorcery_var() {
   spell_depends DEPENDS_CONFIG UP_DEPENDS SPELL_CONFIG GRIMOIRE_DIR \
   SCRIPT_DIRECTORY SECTION_DIRECTORY GRIMOIRE SPELL_DIRECTORY SECTION \
   BUILD_API VOYEUR_STDOUT VOYEUR_STDERR C_LOG C_FIFO INSTALL_ROOT HOST \
-  BUILD INST_LOG MD5_LOG INSTALLWATCHFILE CAST_EXIT_STATUS"
+  BUILD INST_LOG MD5_LOG INSTALLWATCHFILE INSTW_LOGFILE CAST_EXIT_STATUS"
 
   # the \\< \\> matches word boundaries
   real_list_find "$vars" "$1"
