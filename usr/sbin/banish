@@ -1,0 +1,81 @@
+#!/bin/bash
+function get_new_orphans() {
+  local each
+
+  compute_reverse_installed_depends my_hash
+  {
+    get_all_spells_with_status 'installed'
+    get_all_spells_with_status 'held'
+  } | while read each; do
+    [ -z "$(hash_get my_hash $each)" ] &&
+    echo "$each"
+  done | filter_kept | sort
+}
+
+function generate_items() {
+  local spell status
+
+  while read spell; do
+    codex_set_current_spell_by_name "$spell" && {
+      #query_spell_status "$spell" status
+      #[[ "$status" == auto-installed ]] &&
+      #status=off ||
+      status=on
+
+      echo "\"$spell\" \"${SHORT//\"/\\\\\\\"}\" $status"
+      # prevent the use of SHORT's value in the next cycle.
+      unset SHORT
+    }
+  done
+}
+
+function filter_kept() {
+  while read spell; do
+    grep -q "^$spell\$" "$SUSTAINED" ||
+    grep -q "^$spell\$" "$KEEPFILE" ||
+    echo "$spell"
+  done
+}
+
+. /etc/sorcery/config
+
+KEEPFILE="$LOG_DIRECTORY/banish/keep"
+LOGFILE="$LOG_DIRECTORY/banish/log"
+
+if [[ "$UID" > 0 ]]; then
+  echo 'Enter the root password, please.'
+  PARAMS=$(consolidate_params "$@")
+  exec su -c "$0 $PARAMS" root
+fi
+
+if [ ! -f "$KEEPFILE" ]; then
+  libdir="$(dirname "$KEEPFILE")"
+  [ -d "$libdir" ] || mkdir -p "$libdir"
+  touch "$KEEPFILE"
+  unset libdir
+fi  
+
+echo "--- $(date --rfc-3339=seconds)" >> "$LOGFILE"
+
+while orphans="$(get_new_orphans)"; [ -n "$orphans" ]; do
+  eval "$DIALOGPROG" --title Spellfoster --separate-output \
+              --checklist '"Select spells to keep"' 0 0 0 \
+              $(echo "$orphans" | generate_items) 2>> "$KEEPFILE" || exit
+
+  todispel="$(echo "$orphans" | filter_kept)"
+  todispel_num="$(echo "$todispel" | wc -w)"
+  [[ "$todispel_num" == 0 ]] && break
+
+  $DIALOGPROG --yesno \
+         "Do you really want to dispel the $todispel_num unselected spells?" \
+         0 0 || exit
+
+  i=0
+  echo "$todispel" | while read spell; do
+    dispel "$spell" >> "$LOGFILE" 2>&1
+    echo $((++i * 100 / todispel_num))
+  done | $DIALOGPROG --gauge 'Dispelling unselected spells' 8 46
+done
+
+# TODO:
+# - implement keeplist edit feature
