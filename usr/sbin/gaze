@@ -686,16 +686,25 @@ function show_from()  {
 
   cd $INSTALL_LOGS
 
-  find . -printf "%f\n" |
-  # we use grep -e to protect against patterns starting with a dash
-  if [[ $mode == -regex ]]; then
-    xargs grep -e "$string"
-  else
-    # match the string literally, but only those at the end of the line
-    xargs grep -F -e "$string" | grep -e "$string$"
-  fi |
-  seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
+  local matches=$(
+    find . -printf "%f\n" |
+    # we use grep -e to protect against patterns starting with a dash
+    if [[ $mode == -regex ]]; then
+      xargs grep -e "$string"
+    else
+      # match the string literally, but only those at the end of the line
+      xargs grep -F -e "$string" | grep -e "$string$"
+    fi |
+    seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
+  )
 
+  if [[ -n $matches ]]; then
+    if [[ $GAZE_VERBOSE != false ]]; then
+      echo "$matches"
+    fi
+    return 1
+  fi
+  return 0
 }
 
 #-----
