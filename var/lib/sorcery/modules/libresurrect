@@ -272,16 +272,28 @@ function resurrect_spell()  { (
   fi
 
   # 9) remove conflicts, but not self-conflicts, they make no sense
-  local conflicts=$TMP_DIR/list.of.conflicts
-  > $conflicts
-  query_conflicts $SPELL $conflicts
-  if [[ $? == 0 ]] && dispel_conflicts $conflicts; then
-    rm $conflicts
+  # be extra careful to get the right list, since we may be called from within cast
+  local conflicts;
+  if [[ -z $CAST_TMPDIR ]]; then
+    conflicts="$TMP_DIR/list.of.conflicts"
+    > "$conflicts"
   else
-    rm $conflicts
+    conflicts="$CAST_TMPDIR/conflict_list" # the original $CONFLICT_LIST
+  fi
+  # we need the CONFLICTS file for this, but it wasn't unpacked yet
+  # change the SCRIPT_DIRECTORY out of the tablet (in the making) for this
+  # TODO: unpack just this file instead if it turns out there are problems
+  local tmp="$SCRIPT_DIRECTORY"
+  SCRIPT_DIRECTORY=$(codex_find_spell_by_name $SPELL)
+  query_conflicts $SPELL "$conflicts"
+  if [[ $? == 0 ]] && dispel_conflicts $SPELL "$conflicts"; then
+    rm "$conflicts"
+  else
+    rm "$conflicts"
     resurrect_fail
     return 1
   fi
+  SCRIPT_DIRECTORY="$tmp"
 
   #####
   # Start of critical region

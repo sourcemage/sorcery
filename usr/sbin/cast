@@ -216,6 +216,8 @@ function cast_spell()  { (
   run_details
   load_build_api || return 1
 
+  dispel_conflicts $SPELL || return 1
+
   # show_downloading tail -f's (essentially) the download log as it
   # comes in, or if downloading is complete, cats the download log, in
   # either case it blocks until downloading is complete by the presence of
@@ -421,11 +423,6 @@ function pass_two()  {
     return 1
   fi
 
-  if ! dispel_conflicts; then
-    #FIXME: only break the conflictees, not the whole cast
-    error_message "There was a problem with dispelling the conflicts. Bailing out!"
-    return 1
-  fi
   echo
 
   rm -f $TMP_DIR/pass_three.done # don't return until this file exists
@@ -707,7 +704,7 @@ function pass_five()  {
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that have been removed due to conflicts:"
     message "-----------------------------------------------${QUERY_COLOR}"
-    for item in `cat $CONFLICT_LIST 2>/dev/null`; do
+    for item in $(cut -d" " -f2- $CONFLICT_LIST 2>/dev/null); do
       message "$item"
     done | sort | column
     message "${DEFAULT_COLOR}"
@@ -905,6 +902,7 @@ elif  [  ${0:0:5} !=  "/tmp/"  ];  then
   mk_tmp_dirs backup /tmp/cast
   export CAST_BACKUPDIR=$TMP_DIR
   mk_tmp_dirs cast
+  export CAST_TMPDIR=$TMP_DIR
 
   export SAFE_CAST="$TMP_DIR/casting.safe"
   export SUCCESS_LIST="$TMP_DIR/success_list"

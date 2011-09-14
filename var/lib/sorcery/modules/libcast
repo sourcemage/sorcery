@@ -97,10 +97,13 @@ function query_conflicts() {
   local ignore_conflict=$1
   local output=${2:-$CONFLICT_LIST}
 
+  # skip if the spell was already processed (avoids a double query for in-cast resurrects)
+  [[ -s $output ]] && awk -v s=$SPELL '{ if ($1 == s) {rc=1} } END {exit !rc}' $output && return 0
+
   if [[ -x $SCRIPT_DIRECTORY/CONFLICTS ]]; then
     local CONFLICTS=$(run_spell_file CONFLICTS conflicts) || return 1
 
-    local tmp to_dispel=""
+    local tmp conflicts to_dispel=""
     for tmp in $CONFLICTS; do
       local spell_and_default
       explode $tmp ':' spell_and_default
@@ -114,12 +117,15 @@ function query_conflicts() {
       text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
 
       if query "$text" ${spell_and_default[1]}; then
-        echo ${spell_and_default[0]} >> $output
+        list_add conflicts "${spell_and_default[0]}"
       else
         log_failure_reason "conflicts"
         return 1
       fi
     done
+    if [[ $conflicts ]]; then
+      echo $SPELL $conflicts >> $output
+    fi
   fi
 
   return 0
@@ -127,11 +133,13 @@ function query_conflicts() {
 
 #---------------------------------------------------------------------
 ## Dispels the spells that are scheduled for a dispel due to conflicting
+## @param spell whose conflicts to dispel
 ## @param file containing the list of conflicts
 #---------------------------------------------------------------------
 function dispel_conflicts() {
-  local conflict_list=${1:-$CONFLICT_LIST}
-  local spell
+  local spell=$1
+  local conflict_list=${2:-$CONFLICT_LIST}
+  local conflict
 
   if [[ -s $conflict_list ]]; then
     message "${MESSAGE_COLOR}Dispelling conflicts...$DEFAULT_COLOR"
@@ -139,8 +147,12 @@ function dispel_conflicts() {
     return 0
   fi
 
-  for spell in $(sort -u $conflict_list); do
-    dispel --nosustain --noqueue $spell || return 1
+  # no conflict is repeated, since we use list_add (idempotent) to construct it
+  for conflict in $(awk '{ if($1 == "'$1'") { $1=""; print $0;} }' "$conflict_list"); do
+    # don't break if it was already removed by another conflict
+    if spell_ok $conflict; then
+      dispel --nosustain --noqueue $conflict || return 1
+    fi
   done
 }
 
