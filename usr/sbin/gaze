@@ -693,7 +693,8 @@ function show_from()  {
       xargs grep -e "$string"
     else
       # match the string literally, but only those at the end of the line
-      xargs grep -F -e "$string" | grep -e "$string$"
+      # substr indices start with 1
+      xargs awk -v str="$string" '{ if (substr($0, length($0)-length(str)+1) == str) print $0 }'
     fi |
     seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
   )
