@@ -1,120 +1,147 @@
-.TH ALTER 8 "September 2004" "Source Mage GNU Linux" "System Administration"
+.\"Layout note:
+.\" This document uses .RS and .RE a lot as well as a general abuse of .SS.
+.\" Refer to man(7) for their definitions.  There wasn't a clear way to make
+.\" the output readable without hacking with indentations.  This
+.\" human-readable code isn't.  A layout redesign may be in order.
+.TH ALTER 8 "2011\-09\-14" "Source Mage GNU/Linux" "System Administration"
 .SH NAME
 alter \- changes spells after they have been installed
 .SH SYNOPSIS
 .B alter
-[action] [parameters]
-.SH "DESCRIPTION" 
-.I alter
-is part of the
+.RI [ option ]
+.SH "DESCRIPTION"
+alter is part of the
 .SM sorcery
-source-code package management suite. It is a command-line tool
-to change spells after they have been installed.
-
-Basically, what this does is change a spell's logs so sorcery
-has a better idea of what files are supposed to be.
-This ought to help fixing the problems we've been having running cleanse --fix
-with md5sum checking turned on.
+source\-code package management suite. It is a command\-line tool to
+change spells after they have been installed.  Among others, this can fix problems
+with running \fIcleanse \-\-fix\fP with md5sum checking on.
 .SH "OPTIONS"
-.TP
-.B "-a, --alter"
-This is the default action of alter.
-It will run a command and add all the files it touched to the spells' install
-log and change the cache and md5sum log.
+.SS \fB\-a\fP, \fB\-\-alter\fP [\fIparameters\fP] '\fIcommand\fP'
+This is the default action of alter.  It will run a command and add all
+the files it touched to the spells' install log and change the cache and
+md5sum log.
 
-.IB parameters:
-
-.B "-n|--spell <spell>"
-.IP
-specify which spell to alter.
-If not given, the pseudo-spell "alter" is altered.
-If the spell does not exist yet, it is created.
-
-.B "-v|--version <version>"
-.IP
+.I parameters
+.RS
+\fB\-n\fP, \fB\-\-spell\fP \fIspell\fP
+.RS
+specify which spell to alter.  If not given, the pseudo\-spell "alter" is
+altered.  If the spell does not exist yet, it is created.
+.RE
+.PP
+.B \-v, \-\-version
+.I version
+.RS
 specify which version of the logs to alter.
-Note: it seems like -v is getting overridden in the source !?
+.RE
+.RE
 
-.B <command>
-.IP
-The main part. This is the command to run. This command will be tracked like
-a command during spell install. Note that this command will be run as
-"$@"|bash, which means that you may have to double-escape some things
-(or put the whole command in '')
-.TP
-.B "-m, --md5mend <spell(s)>"
-This is another major action of alter.
-It will scan the install logs of all the spells on the command line
-for files that are also in the install log of other, "environmental" spells.
-those files will be removed from all environmental spells' md5sum logs.
-This should fix the problem that cleanse --fix is overly touchy with
-md5sum checks turned on.
-.TP
-.B "-p, --prelink [prelink args]"
-This will prelink all binaries on your system. This makes especially
-C++ apps with many links a lot faster (KDE). All files touched will be added
-to the pseudo-spell "smgl-prelink". alter -m smgl-prelink is run automatically.
+.RI ' command '
+.RS
+The main part.  This is the command to run.  This command will be
+tracked like a command during spell install.  The single quotes should
+be present to escape the command.
+.RE
+.SS
+\fB\-h\fP, \fB\-\-help\fP, \fB\-\-about\fP
+Displays a longer help message.  This help message contains much more
+detailed documentation and a FAQ.
+.\" ...for some reason.
+.SS
+\fB\-m\fP, \fB\-\-md5mend\fP \fIspell \fP...
+This will will scan the install logs of all the spells on the command
+line for files that are also in the install log of other,
+"environmental" spells.  those files will be removed from all
+environmental spells' md5sum logs.  This should fix the problem that
+cleanse \-\-fix is overly touchy with md5sum checks turned on.
+.SS
+\fB\-s\fP, \fB\-\-strip\fP '\fIspell\fP ...' [\fIarguments\fP]
+This strips the specified spells.  If several spells have to be given
+need to be stripped If one spell is given, the spell logs of that spell
+are altered.  If multiple spells are given, smgl\-strip is altered.
+Refer to
+.BR strip (1)
+for arguments.
+.SS
+.B Note:
+The first time one of these next two commands is run, they will create
+/etc/prelink.conf, a listing of all directories on the system that
+contain binaries. This may take a long time.
+.SS
+\fB\-p, \-\-prelink\fP [\fIarguments\fP]
+This will prelink all binaries on the system. This makes especially C++
+apps with many links slightly faster (KDE).
+.B prelink
+will be cast automatically if it does not exist on the system.  All
+files touched will be added to the pseudo\-spell "smgl\-prelink". alter
+\-m smgl\-prelink is run automatically.
 .B DO NOT
 dispel that spell. It is not in the sustained spells for some reason,
-but doing so will wipe all executables off your system...
+but doing so will wipe all executables off the system...
+.\" But perhaps it should be in the sustained spells.
 
-If no prelink args are given, the defaults are "-afmR".
-.TP
-.B "-z, --strip-all [strip args]"
-This will strip debugging symbols from all binaries on your system.
-This will make the binaries smaller. If you want both strip and prelink,
-strip before prelink is recommended.
-The pseudo-spell created here is smgl-strip.
-The default options to strip are "".
-.TP
-.B note:
-the first time you run one of these last two commands,
-They will create /etc/prelink.conf, a listing of all directories on your
-system that contain binaries. This takes a long time.
-.TP
-.B "-s, --strip '<spell[s]>' [strip args]"
-This lets you strip specified spells.
-Several spells have to be given as
-
-alter -s "spell1 spell2" [strip args]
-
-If one spell is given, the spell logs of that spell are altered.
-If multiple spells are given, smgl-strip is altered.
-.TP
-.B "-h --help --about"
-Displays a longer help message.
+If no prelink args are given, the defaults are \fI\-afmR\fP.  Refer to
+.BR prelink (8)
+for arguments.
+.SS
+\fB\-z\fP, \fB\-\-strip\-all\fP [\fIarguments\fP]
+This will strip debugging symbols from all binaries on the system.  This
+will make the binaries smaller.  If both strip and prelink is desired,
+then strip first and prelink is recommended.  The pseudo\-spell created
+here is smgl\-strip.  Refer to
+.BR strip (1)
+for arguments.
 .SH "NOTES"
-.B Never
-dispel an alter (spell alter, smgl-prelink, smgl-strip)
-unless you want to delete everything the alter touched!
+If an alter pseudo\-spell is dispelled, then everything that alter
+touched will be deleted.
 
 Instead, use the undo archives (created after a md5mend):
-(This will restore the original md5sum logs. Nothing else!)
-.PP
-dispel -d <spell>-undo <version>
-alter -m <spell>-undo
-.PP
-Note that all these archives take up a lot of space. To save a drastic
-amount of space in /var, set ARCHIVE=off.
-In alter, this will keep alter from creating compile caches
-for the spells it touches. This may actually make sense.
-Otherwise, smgl-prelink and smgl-strip will have caches of
-1-2gig each (your mileage may vary).
 
-For casts however it may be intelligent to turn ARCHIVE back on
-so you have an easy rollback in case something fails.
-.SH "WARNING"
-.B alter is still under development and freshly written.
-Do not use this on a production system, it may still be pretty buggy.
-.SH "AUTHOR"
-Manpage by Karsten Behrmann, source by Seth Woolley.
+.RS
+.B resurrect
+.I version
+
+.B alter \-m
+.I spell
+.B \-undo
+.RE
 .PP
-Maintained by the Source Mage GNU Linux Team (http://www.sourcemage.org)
+
+This will restore the original md5sum logs. Nothing else!
+
+Note that all these archives take up a lot of space. To save a drastic
+amount of space in /var, set ARCHIVE=off.  In alter, this will keep
+alter from creating compile caches for the spells it touches. This may
+actually make sense.  Otherwise, smgl\-prelink and smgl\-strip may have
+caches of 1\-2G each.
+
+For casts, however, it may be intelligent to turn ARCHIVE back on so
+there is an easy rollback in case something fails.
+.SH "WARNING"
+.B alter is still very unstable.
+It is
+.B NOT
+recommended to use
+.B alter
+on a production system.
+.SH "AUTHOR"
+Original man page by Karsten Behrmann.  Source by Seth Woolley.
+.PP
+Since maintained by the Source Mage GNU/Linux Team (<http://www.sourcemage.org/>)
 .PP
 .SH "REPORTING BUGS"
-Report bugs to bugzilla <http://bugs.sourcemage.org>
+Report bugs to the bugzilla at <http://bugs.sourcemage.org/>
 .SH "SEE ALSO"
-cast(8), confmeld(8), cleanse(8), dispel(8), gaze(1), grimoire(5),
-scribbler(8), scribe(8), sorcery(8), sorcery_config(8), summon(8)
+.BR cast (8),
+.BR cleanse (8),
+.BR confmeld (8),
+.BR dispel (8),
+.BR gaze (1),
+.BR grimoire (5),
+.BR scribbler (8),
+.BR scribe (8),
+.BR sorcery (8),
+.BR sorcery_config (8),
+.BR summon (8)
 .SH "WARRANTY"
 This is free software with ABSOLUTELY NO WARRANTY
