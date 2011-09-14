@@ -1868,8 +1868,12 @@ sorcery_add_defaults () {
 #---------------------------------------------------------------------
 sorcery_search_defaults () {
   # it wont hurt to look in both
-  search_default_depends $DEFAULT_DEPENDS "$@"
-  search_default_provider $DEFAULT_PROVIDERS "$@"
+  if [[ -z $1 ]]; then
+    cat $DEFAULT_DEPENDS $DEFAULT_PROVIDERS 2>/dev/null
+  else
+    search_default_depends $DEFAULT_DEPENDS "$@"
+    search_default_provider $DEFAULT_PROVIDERS "$@"
+  fi
 }
 
 #---------------------------------------------------------------------
