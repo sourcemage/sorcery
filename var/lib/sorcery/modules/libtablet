@@ -256,6 +256,21 @@ function tablet_get_grimoire_file() {
   return 0
 }
 
+#---
+## return section name from tablet
+#---
+function tablet_get_section_name() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/section_name && value=$(<$tb_dir/section_name) || return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
+}
+
 function tablet_get_grimoire_name() {
   local tb_dir=$1 tb_version value
   tablet_get_tb_version $tb_dir tb_version
@@ -288,6 +303,21 @@ function tablet_get_section_filter() {
 }
 function tablet_get_grimoire_filter() {
   tablet_get_grimoire_file $1 $2 $3
+}
+
+#---
+## get path to roots
+#---
+function tablet_get_roots() {
+  local tb_dir=$1 tb_version value
+  tablet_get_tb_version $tb_dir tb_version
+  [[ $? != 0 ]] && return 1
+  case $tb_version in
+    1) test -f $tb_dir/roots && value=$tb_dir/roots|| return 2 ;;
+    *) return 3 ;;
+  esac
+  eval "$2=\"$value\""
+  return 0
 }
 
 function tablet_load_roots() {
