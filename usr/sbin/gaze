@@ -1893,6 +1893,7 @@ function gaze_tablet() {
   local spell spell_directory spell_depends section_name version
   local patchlevel security_patch spell_persistent_config sub_depends build_api
   local file
+  [[ -z $spell ]] && return 1
   if ! spell_ok $spell ;then
     message "${SPELL_COLOR}$spell${PROBLEM_COLOR} isn't installed!" \
             "${DEFAULT_COLOR}"
@@ -1901,12 +1902,21 @@ function gaze_tablet() {
   # get spell_directory that is used in all comands
   tablet_find_spell_dir $spell spell_directory
 
+  function gaze_tablet_display() {
+    message "${PROBLEM_COLOR}---{ $2: $3 }---${DEFAULT_COLOR}"
+    if [[ -d $1 ]]; then
+      message "Not a file, skipping ..."
+    elif [[ -s $1 && $(file -b --mime-encoding $1) == binary ]]; then
+      message "Binary file, skipping ..."
+    else
+      cat $1
+    fi
+  }
   function gaze_tablet_sub() {
     local command=$1
     local cat_file=${command}_file
     tablet_get_$command $spell_directory ${cat_file}
-    message "${PROBLEM_COLOR}---{ $spell: $command }---${DEFAULT_COLOR}"
-    cat ${!cat_file}
+    gaze_tablet_display "${!cat_file}" "$spell" "$command"
   }
 
   case $command in
@@ -1942,12 +1952,7 @@ function gaze_tablet() {
     ;;
     spell-files)
       for file in $spell_directory/spell/* ;do
-        if [[ ${file} != ${file%.gpg} ]]; then
-           message "${PROBLEM_COLOR} Keyring: ${file##*/}"
-           continue
-        fi
-        message "${PROBLEM_COLOR}---{ $spell: ${file##*/} }---${DEFAULT_COLOR}"
-        cat $file
+        gaze_tablet_display "$file" "$spell" "${file##*/}"
       done
     ;;
     dirs)
