@@ -204,6 +204,9 @@ function uncompress_core() {
             Zip)  cat           "$1"  ;;
             RPM)  rpmunpack  <  "$1" | gzip  -cd    ;;
             tar)  cat           "$1"  ;;
+             XZ)  xz -cdf "$1" ;;
+           LZMA)  xz -cdf "$1" ;;
+          7-zip)  cat "$1" ;; # 7z supports stdout, but it unpacks at the same time
               *)  cat           "$1"  ;;
   esac
 
@@ -224,7 +227,7 @@ function unpack_core() {
   debug "libgrimoire" "unpack_core - $*"
 
   case  "$2"  in
-            bzip2|gzip|compress*|tar)
+            bzip2|gzip|compress*|tar|XZ|LZMA)
                     if real_list_find "$3" same-permissions; then
                       tar -xf /dev/stdin 2> /dev/null
                     else
@@ -233,6 +236,8 @@ function unpack_core() {
                     fi || cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
                     unzip  -q  "$1"                                    ;;
+            7-zip)  cat /dev/stdin >/dev/null   #get rid of unused output
+                    7z e "$1"                                          ;;
               RPM)  cpio  -idm < /dev/stdin                            ;;
                 *)  cat > /dev/null                                    ;;
   esac
