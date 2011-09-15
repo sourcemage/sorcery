@@ -1608,36 +1608,32 @@ function get_failure_reason() {
 ##
 ## @param file
 ## @param use dialog (optional)
-#---------------------------------------------------------------------
-function display_file() {
-  local file=$1
-  local dialog=$2
-  case "$(file -b "$file")" in
-     *text) if [[ $dialog ]]; then
-              eval $DIALOG '--textbox  $1  0  0'
-            else
-              cat "$file" | $PAGER
-            fi ;;
-    bzip2*) bzcat "$file" | $PAGER ;;
-     gzip*) gzip -cd "$file" | $PAGER ;;
-       XZ*) xz -cd "$file" | $PAGER ;;
-    7-zip*) 7z -d "$file" | $PAGER ;;
-         *) message "Unknown file type."
-            return 1 ;;
-  esac
-}
-
-#---------------------------------------------------------------------
-## Checks if the file is compressed and displays it, erroring out with
-## a dialog on error
-##
-## @param file
+## @param message to print on error (optional)
 #---------------------------------------------------------------------
 function show_file() {
-  if [[ -f $1 ]]; then
-    display_file "$1" yes
+  local file=$1
+  local dialog=${2:-yes}
+  local msg=${3:-"File not found."}
+  if [[ -f $file && -s $file ]]; then
+    case "$(file -b "$file")" in
+      *text) if [[ $dialog ]]; then
+                eval $DIALOG '--textbox  $1  0  0'
+              else
+                cat "$file" | $PAGER
+              fi ;;
+      bzip2*) bzcat "$file" | $PAGER ;;
+      gzip*) gzip -cd "$file" | $PAGER ;;
+        XZ*) xz -cd "$file" | $PAGER ;;
+      7-zip*) 7z -d "$file" | $PAGER ;;
+          *) message "Unknown file type."
+              return 1 ;;
+    esac
   else
-    eval $DIALOG '--msgbox  "File not found."  0  0'
+    if [[ $dialog == yes ]]; then
+      eval $DIALOG '--msgbox  "'$msg'"  0  0'
+    else
+      message "$msg" 1>&2
+    fi
     return 1
   fi
 }
