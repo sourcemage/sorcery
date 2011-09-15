@@ -1178,6 +1178,7 @@ function set_compression_type() {
 
   local B_HELP="bzip2 compression (slow, small files)"
   local P_HELP="parallel bzip2 compression (slow unless on SMP, small files)"
+  local X_HELP="xz compression (slow compress, fast decompress, smallest files)"
   local G_HELP="gzip compression (fast, larger files)"
   local T_HELP="no compression/tar (fastest, largest files)"
 
@@ -1192,6 +1193,7 @@ function set_compression_type() {
                              0 0 0                                      \
                              "B"  "bzip2 compression"        "$B_HELP"  \
                              "P"  "pbzip2 compression (parallel bzip2)" "$P_HELP"  \
+                             "X"  "xz compression"           "$X_HELP"  \
                              "G"  "gzip compression"         "$G_HELP"  \
                              "T"  "no compression/tar"       "$T_HELP"'`
 
@@ -1214,6 +1216,16 @@ function set_compression_type() {
           modify_local_config "COMPRESSBIN" "pbzip2"  &&
           COMPRESSBIN="pbzip2"                        &&
           modify_local_config "EXTENSION" ".bz2" ;;
+      X)
+          if ! spell_ok xz-utils; then
+            clear_line
+            message "xz-utils is not installed on this system! Running cast ...\n"
+            sleep 2
+            cast xz-utils
+          fi &&
+          modify_local_config "COMPRESSBIN" "xz"   &&
+          COMPRESSBIN="xz"                         &&
+          modify_local_config "EXTENSION" ".xz"    ;;
       G)
           modify_local_config "COMPRESSBIN" "gzip" &&
           COMPRESSBIN="gzip"                         &&
