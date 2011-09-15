@@ -1627,6 +1627,21 @@ function display_file() {
   esac
 }
 
+#---------------------------------------------------------------------
+## Checks if the file is compressed and displays it, erroring out with
+## a dialog on error
+##
+## @param file
+#---------------------------------------------------------------------
+function show_file() {
+  if [[ -f $1 ]]; then
+    display_file "$1" yes
+  else
+    eval $DIALOG '--msgbox  "File not found."  0  0'
+    return 1
+  fi
+}
+
 # Standard debug line:
 # file "function@line" "all" "args"
 STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ;
