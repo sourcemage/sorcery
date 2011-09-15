@@ -1384,8 +1384,12 @@ function set_architecture() {
     [ $SPECFILE ] && break
   done
   if [[ ! $SPECFILE ]] ; then
-    message "${PROBLEM_COLOR}Cannot find arch spec for $arch!$DEFAULT_COLOR"
-    return 1
+    message "${PROBLEM_COLOR}Cannot find arch spec for $arch!"
+    message "Reverting to null!"
+    message "Please run sorcery afterwards and pick another architecture!$DEFAULT_COLOR"
+    echo
+    sleep 2
+    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "null" -print -quit 2>/dev/null)
   fi
   debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
 
