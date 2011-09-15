@@ -581,13 +581,7 @@ function display()  {
   local file=$(FUZZ=on guess_filename "$1")
 
   if [[ -s $file ]]; then
-    case "$(file -b "$file")" in
-       *text) cat  "$file" | $PAGER ;;
-      bzip2*) bzcat "$file" | $PAGER ;;
-       gzip*) gzip -cd "$file" | $PAGER ;;
-           *) message "Unknown file type."
-              return 1 ;;
-    esac
+    display_file "$file"
   else
     message  "$2" 1>&2
     false

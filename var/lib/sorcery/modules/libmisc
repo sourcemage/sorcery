@@ -1603,6 +1603,27 @@ function get_failure_reason() {
   upvar $_upvar "$_reason"
 }
 
+#---------------------------------------------------------------------
+## Checks if the file is compressed and displays it
+##
+## @param file
+## @param use dialog (optional)
+#---------------------------------------------------------------------
+function display_file() {
+  local file=$1
+  local dialog=$2
+  case "$(file -b "$file")" in
+     *text) if [[ $dialog ]]; then
+              eval $DIALOG '--textbox  $1  0  0'
+            else
+              cat "$file" | $PAGER
+            fi ;;
+    bzip2*) bzcat "$file" | $PAGER ;;
+     gzip*) gzip -cd "$file" | $PAGER ;;
+         *) message "Unknown file type."
+            return 1 ;;
+  esac
+}
 
 # Standard debug line:
 # file "function@line" "all" "args"

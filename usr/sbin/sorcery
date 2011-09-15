@@ -247,15 +247,7 @@ add_pkgs()  { (
 show_file() {
 
   if  [  -f  $1  ];  then
-
-    if  [  "`file  -b  $1  |  cut  -d ' '  -f1`"  == "bzip2" ];  then
-      bzcat  $1  |  $PAGER
-    elif  [  "`file  -b  $1  |  cut  -d ' '  -f1`"  == "gzip" ];  then
-      gzip  -cd  $1  |  $PAGER
-    else
-      eval $DIALOG  '--textbox  $1  0  0'
-    fi
-
+    display_file "$1" yes
   else
     eval $DIALOG  '--msgbox  "File not found."  0  0'
     return  1
