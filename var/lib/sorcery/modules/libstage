@@ -82,9 +82,10 @@ function stage_install_files()
 function stage_install_directory()
 {
   local DIR=$1
-  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/${DIR}")
-  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/${DIR}")
-  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/${DIR}")
+  local stat=( $(stat --printf "%a\n%U\n%G\n" "$STAGE_DIRECTORY/TRANSL/$DIR" ) )
+  local PERMISSION=${stat[0]}
+  local OWNER=${stat[1]}
+  local GROUP=${stat[2]}
   if [[ ! -d $(smgl_dirname "${INSTALL_ROOT}/$DIR") ]]
   then
     # this shouldn't happen but just in case
@@ -106,9 +107,10 @@ function stage_install_directory()
 function stage_install_file()
 {
   local FILE=$1
-  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local stat=( $(stat --printf "%a\n%U\n%G\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local PERMISSION=${stat[0]}
+  local OWNER=${stat[1]}
+  local GROUP=${stat[2]}
   local SAVE="$CONFIG_STAGE_DIRECTORY/$SPELL/current/$FILE"
   message "${FILE_COLOR}$PERMISSION $OWNER:$GROUP $FILE${DEFAULT_COLOR}"
   case $2 in
@@ -160,9 +162,10 @@ function stage_install_fifo()
 {
   local FILE=$1
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
-  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local stat=( $(stat --printf "%a\n%U\n%G\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local PERMISSION=${stat[0]}
+  local OWNER=${stat[1]}
+  local GROUP=${stat[2]}
   message "${FILE_COLOR}Fifo $PERMISSION $OWNER:$GROUP $FILE${DEFAULT_COLOR}"
   case $2 in
     config)
@@ -190,11 +193,12 @@ function stage_install_fifo()
 function stage_install_char_block()
 {
   local FILE=$1
-  local PERMISSION=$(stat -c %a "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local MAJOR=$(stat -c %t "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local MINOR=$(stat -c %T "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local OWNER=$(stat -c %U "${STAGE_DIRECTORY}/TRANSL/$FILE")
-  local GROUP=$(stat -c %G "${STAGE_DIRECTORY}/TRANSL/$FILE")
+  local stat=( $(stat --printf "%a\n%U\n%G\n%t\n%T\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local PERMISSION=${stat[0]}
+  local OWNER=${stat[1]}
+  local GROUP=${stat[2]}
+  local MAJOR=${stat[3]}
+  local MINOR=${stat[4]}
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
   local TYPE=$3
   message "${FILE_COLOR}${PERMISSION} $OWNER:$GROUP $TYPE $MAJOR $MINOR $FILE${DEFAULT_COLOR}"
