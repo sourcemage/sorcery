@@ -13,6 +13,27 @@
 function transfer_staged_spell()
 {
   stage_install_ordinary
+
+  # restore any hardlinks, since they were copied over normally
+  local hlist
+  if [[ -n $CAST_TMPDIR ]]; then
+    hlist="$CAST_TMPDIR/hardlinks"
+  else
+    hlist="$TMP_DIR/hardlinks"
+  fi
+  if [[ -s $hlist ]]; then
+    local inode last_inode filename last_filename
+    sort "$hlist" |
+    while read inode filename; do
+      if [[ $last_inode == $inode ]]; then
+        ln -f "$last_filename" "$filename"
+      fi
+      last_filename="$filename"
+      last_inode=$inode
+    done
+    rm -f "$hlist"
+  fi
+
   lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
   mkdir -p "$CONFIG_STAGE_DIRECTORY/$SPELL/current"
   stage_install_configs
@@ -107,10 +128,12 @@ function stage_install_directory()
 function stage_install_file()
 {
   local FILE=$1
-  local stat=( $(stat --printf "%a\n%U\n%G\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local stat=( $(stat --printf "%a\n%U\n%G\n%h\n%i\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
   local PERMISSION=${stat[0]}
   local OWNER=${stat[1]}
   local GROUP=${stat[2]}
+  local link_count=${stat[3]}
+  local inode=${stat[4]}
   local SAVE="$CONFIG_STAGE_DIRECTORY/$SPELL/current/$FILE"
   message "${FILE_COLOR}$PERMISSION $OWNER:$GROUP $FILE${DEFAULT_COLOR}"
   case $2 in
@@ -131,6 +154,15 @@ function stage_install_file()
       ;;
     *)
       cp -fdp "$STAGE_DIRECTORY/TRANSL/$FILE" "${INSTALL_ROOT}/$FILE"
+      # we can't fix symlinks now, since the other file is often not on the system yet
+      # doing it later in TRANSFER also avoids the search for matching inodes
+      if [[ $link_count != 1 ]]; then
+        if [[ -n $CAST_TMPDIR ]]; then
+          echo "$inode ${INSTALL_ROOT}/$FILE" >> "$CAST_TMPDIR/hardlinks"
+        else
+          echo "$inode ${INSTALL_ROOT}/$FILE" >> "$TMP_DIR/hardlinks"
+        fi
+      fi
       ;;
   esac
 }
