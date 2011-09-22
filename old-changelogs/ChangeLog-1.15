@@ -1,0 +1,849 @@
+2011-09-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: make show_from print the filename again
+	* libtrack: detect symlinks in real_invoke_stage_root #16
+
+2011-09-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstage: ensure hardlinks are preserved #15981
+
+2011-09-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze, sorcery, cabal: merged a similar file display function
+	* libmisc: added xz and 7z support to display_file 
+	  merged show_file from cabal and sorcery
+	  merged display_file into show_file
+	  use a fallback when an archspec vanishes #15838
+	* libsecurity: use filename_indicates_compression
+	* libunpack: added xz, 7z and lzma support #13176
+	* libsorcery: added xz compression support #13176
+	* libstage: stat only once to improve transfer speed
+
+2011-09-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* config: unset GREP_OPTIONS in case the user set it to something bad
+	* libstage: ensure the install log is sorted #33
+	* gaze: only search for files in gaze-from
+	  added tablet subcommand that shows various spell tablet bits #10440
+	  improved the result display of gaze tablet
+	* libcast, cast: rather dispel conflicts during cast_spell
+	* alter.8: updated, adaptation of work from Donald Johnson #15478
+	* libmisc: use read -e for the second portion of query_string (#10707)
+	* libtablet: add roots and section name accessors
+	* sorcery: print all matches if nothing is specified to sorcery default
+	  search #15413
+	* cleanse: ignore spells removed during execution #15611
+
+2011-08-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: fixed gaze from not finding "[", fixes #41
+
+2011-08-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: gaze from support for -q #40
+
+2011-07-31 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libgrimoire: changed the real_mk_source_dir debug echo to show the
+	  actual arguments, not an assumption
+
+2011-05-28 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsummon, {dl,url}_bzr: merged bzr support from Ismael Luceno #14856
+
+2011-01-01 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: avoid passing bad parameters when PAGER has none
+	* subroutines: avoid sourcing leftovers from failed patching attempts
+
+2010-12-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtrack, common: newer installwatch has a different log variable #13873
+	* libsummon: skip some more files in source_sanity
+	* config, libsorcery: be a bit more smart about setting the pager #15793
+	* libtablet: store the grimoire name in the tablet, part of #8370
+	  fixed the section name fetching in tablet_set_spell
+	* gaze: versions show the correct grimoire when using cast -g #15745
+	* libmisc: fixed remove_files_and_dirs not removing some dirs #15804
+	  and optimised the empty dir removal a bit
+	* libsorcery: default the pager to cat if nothing is specified and less
+	  is not present on the system
+
+2010-10-19 Bor Kraljič <pyrobor@ver.si>
+	* libsummon: moved sanity check of source to right after download (#15886)
+
+2010-09-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libinitd: fixed bad regexes, grep 2.7 does not tolerate them #15852
+
+2010-08-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstage: fixed regression from 070be194c9e
+
+2010-08-13 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast: sort most of the spell list outputting, part of patch from
+	  Ismael Luceno
+	* libcast: remove duplicate entries in the conflicts list
+	* ressurect: consolidate parameters before calling su, patch from
+	  Edouard Klein
+	* scribe: show the correct grimoire url when updating all grimoires,
+	  and added message colorisation, based on patches by Bor Kraljič
+	  fixed "existing" typo in an error message
+	* cleanse: update the term title during fixing, patch by Bor Kraljič
+	* libspell: always run the pre_function in run_spell_file
+	* api2: run optimize right before build so the persistent variables are
+	  available and per-spell flags can work #15782
+	* libunpack: follow symlinks in real_guess_compressor, patch from
+	  Kirikaza #15767
+	* common: fixed gather_docs needlessly thinking about the dest dir,
+	  patch from Andraž Levstik #15503
+	* libgrimoire: don't hardcode the build dir, patch from Pol Vinogradov,
+	  bug #15501
+	* cast.8: updated, based on work by Donald Johnson from #15480
+	* libtrack: unhardcoded the installwatch location #15594
+	* sustained: added missing spells #15332
+
+2010-07-04 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtrack, libdispel: use the correct whole-line option for grep
+
+2009-10-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtrack, libdispel: match complete lines when comparing md5s, fixes
+	  part of #15192
+	* libinitd: if staging is on, mark the staged init file as modified,
+	  fixes part of #15192
+	  don't create a useless backup file when staging init configs
+	* libdispel: remove modified configs if they were modified back to the
+	  original (reverted)
+	* libstage: don't defer configs if the system already has exact copies
+
+2009-10-10 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* protected: added tr for heisenbug #15408
+	* cast: moved override_grimoires to libsorcery
+	* delve: added support for overriding grimoires with -g #15211
+	* api2: call delve with -g when not working with all grimoires #15211
+	* sorcery, libsorcery: removed combreloc, it is on by default where
+	  appropriate #10750
+	* sorcery, libdepends: added option to show a spell description option
+	  in queries for optional dependencies #14675, patch by Bor Kraljič
+	* gaze: quote $SHORT to prevent glob expansion #15460
+
+2009-09-04 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* api2: fixed two debug statements
+	* install: symlink also host dependent compiler names, so ccache and
+	  distcc can be used there too, patch from David Brown #13142
+
+2009-08-29 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtime: simplified the awk in compute_mean and compute_median
+	* libtriggers: added real_on_pre_cast #15352
+	* libdepends: fixed real_show_up_depends regression #15357
+	* dl_wget, dl_aria2: rename the download to the expected name #15097
+	* dl_wget: removed unused vars in dl_wget_set_options
+	* sustained: removed texinfo #15374
+
+2009-07-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* config: made BUILD_DIRECTORY ignore INSTALL_ROOT and user changeable,
+	  modified patch by eekee #15234
+	* libsorcery: fixed save_libraries and save_binaries to be whitespace
+	  proof #15286
+	* libmisc: mk_tmp_dirs now works also for nonroot-but-uid0 users, patch
+	  by ruskie #15269
+	* resurrect: consistently only dispel the target if there is a cache we
+	  can resurrect later
+	* libtime: fixed the verbosity check for --full
+	  added the number of samples to the output of --full
+	  moved a block of code in compute_mean, so it is run only when needed
+
+2009-05-27 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* dl_git: fixed syntax error
+	* libresurrect: fixed installing of spell files from user owned
+	  grimoires #14576
+	* libstage: quoted the argument in get_all_package_files
+	* libtrack: made use of get_all_package_files in create_install_log
+	* libtrack: made real_track_manual work with whitespace and optimised
+	  it #15240, patch by chp
+	* libcast, libtriggers: made conflicts and triggers unsustaining #15226
+
+2009-05-26 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* delve.8: added delve manpage based on the draft in #15094 by Donald
+	  Johnson
+
+2009-05-22 Eric Sandall <sandalle@sourcemage.org>
+	* api2, libdepends, libunpack, libdispel: Changing back to 
+	  DEFAULT_COLOR needs to occur in the same call to message() as the
+	  colour change. Fixes Bug #15237
+	* libgpg, libresurrect, libcodex, libsorcery: Changing back to
+	  DEFAULT_COLOR needs to occur in the same call to message() as the
+	  colour change. Fixes Bug #15237
+	* libcast: Changing back to DEFAULT_COLOR needs to occur in the same
+	  call to message() as the colour change and before calls to different
+	  colors. Fixes Bug #15237
+
+2009-05-12 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* url_*: fixed url_verify_* to not break on empty optional parameters
+	* dl_git: updated for newer git, initial patch from Andraž Levstik #15208
+
+2009-04-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* dl_svn: check the prefix of the correct url
+	* dl_aria2: added no-check-certificate source hint
+	* libqueue: removed the "missing index" warning #15085
+
+2009-04-20 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: fixed show_up_depends not printing matches that are also
+	  providers
+	* libdepends, gaze: made show_up_depends and gaze also display runtime
+	  dependencies by default
+	* dl_svn: don't pass --no-interactive twice or never in some cases
+	  support the no-check-certificate source hint #15045
+
+2009-03-03 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* delve: fixed typo in help
+	* url: changed the main fallback url #10799
+
+2009-02-25 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: added support for non-archive files to guess_filename
+	* gaze: use guess_filename to search for the compile log, so it still
+	  works if the user changed his compressor
+
+2009-02-24 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: added missing quotes to right hand side of checks in
+	  smgl_dirname, so unwanted glob expansion doesn't occur; this
+	  fixes the obscure #15051
+	* libdispel: fixed two debug statements, added two new and made pre_
+	  and post_remove numb again
+
+2009-02-23 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: improve the handling of missing grimoires when a
+	  dependency is referencing another grimoire
+	* sorcery_config.5: renamed and moved to section 8 #15036
+	* gaze, gaze.1: use extended regular expressions in all search modes,
+	  not just in some and mixed with basic REs #15080
+	* gaze: removed a few avoidable forks when searching
+	* libsorcery, libtrack: added pbzip2 support #15072
+	* libcast: pass the file directly instead of using stdin when
+	  compressing, so pbzip2 can be used without modifications
+	* libsorcery: small simplification of set_compression_type
+	* url: removed dead fallback urls
+
+2009-01-09 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* config: allow for an empty EXTENSION and COMPRESSBIN
+
+2008-12-29 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcodex: made codex_find_grimoire also check dirs under $CODEX_ROOT
+	* cast: -g now verifies the grimoires and offers to fetch them if they
+	  are not present
+	* libtrack: avoid an installwatch issue in create_install_log #14835
+
+2008-12-23 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze, gaze.1: solidified the gaze from matching and added optional
+	  regex support (pass -regex)
+
+2008-12-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: removed the bubble around real_query and reformatted it
+
+2008-12-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcast: split run_conflicts into query_conflicts and
+	  dispel_conflicts, so they can be asked for sooner #4815
+	* cast: act on conflicts sooner, right at the start of pass two
+	  modified the end summaries to show conflicts properly
+	* libdepends: made run_other fallible and added query_conflicts to it
+	* libresurrect: use the new conflicts logic
+	* libgrimoire: made real_conflicts also deal with held spells
+	* common, libcast: moved run_security to libcast for simpler access
+	* cast, libdepends: do run_security before dependency resolution, right
+	  after conflicts
+
+2008-12-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* media: source the local config first
+	* libcast, libinitd, libgrimoire, common: ensure most grimoire files
+	  have correct ownership #14576
+	* config, url: moved MIRRORS definition to url
+	* sorcery: fixed a mirror_list regression from yesterday
+	  don't include the sorcery mirror list twice
+	* libdispel: fixed post_remove and pre_remove always returning 0
+
+2008-12-17 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* sorcery, url_http, config: made the default http/ftp/http download
+	  handler configurable #13838
+	* dl_aria2: added an alternative http/ftp/http download handler #1777
+	  using a slightly modified patch from David Kowis
+	* dl_wget: fixed the continuous downloading check
+	* libqueue: don't warn about the missing version index when looking up
+	  single spells
+	* config, sorcery, url_http: added external mirror list support #13122
+	  the sorcery mirror list menu is now autogenerated
+
+2008-12-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* excluded: added /etc/.pwd.lock to fix #5924
+
+2008-12-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libgcc2: use_gcc now also supports a greater-or-equal comparison,
+	  triggered by appending + to the passed version #14620, based on a
+	  patch by Fredrik Carlström
+	  Made invoke_gcc2 slightly more efficient and style-conformant
+	* libgcc2, api1, api2: Merged with the newer grimoire version, changing
+	  uses of invoke_gcc2 to invoke_gcc and removing use_gcc2
+	* libapi, libgcc2: renamed use_gcc to real_using_gcc and added
+	  using_gcc to the public api
+	  expanded the description of using_gcc and made the matching stricter
+	* libgcc2: renamed to libgcc, since it no longer is version specific
+	* libgcc: synced also the initial description of the module
+	  readded use_gcc and use_gcc2 for archspecs
+	  added missing quotes in a check in real_using_gcc
+
+2008-12-12 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcast: fixed a syntax error in custom cppflag setting, patch from
+	  Mario García H. #14954
+
+2008-12-08 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libgrimoire: improved the real_rm_source_dir security check
+
+2008-12-06 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze, gaze.1: overhaul of export and import, changing semantics;
+	  initial patch by Robert Figura #14661
+	* resurrect, libresurrect: silence tar if VOYEUR is not enabled; added
+	  a -V|--voyeur commandline override
+
+2008-12-05 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast: fixed some horizontal lines in the final output
+
+2008-12-04 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* *: validate commandline parameters before su-ing #7286
+	* resurrect: also redefine FAILED_LIST
+	* summon: simplified set_print_type
+	* alter, libtablet: added the missing version cache support #14934
+	* url_hg_http, dl_hg, libsummon, scribe: added hg support #14771,
+	  slightly modified patch by Remko van der Vossen
+	* libgrimoire: fixed a slight security issue in real_rm_source_dir #14100
+	* api2: bail out of run_pre_build if rm_source_dir fails
+	* cast: also save stderr in the download log, fixes #14661
+	* dl_git, dl_hg: properly propagate errors, the chains were broken
+
+2008-12-03 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: improved what/short when dealing with multiple spells #14839
+	  changed the value of GAZE_VERBOSE for better readability
+	* api2: fixed a build message
+	* libdispel: fixed a duplicate debug message in reap_state_files
+	* resurrect, dispel: implemented --nosustain #14877
+	* scribbler: added an option for creating local grimoires #14221
+
+2008-10-07 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* delve: redirect messages that should be shown with VOYEUR=off too
+
+2008-10-03 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcodex, libqueue, scribe.8: fixed #14772; grimoires without a
+	  version index are treated the old way and the correct entry for a
+	  spell is used on all occasions
+
+2008-10-02 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* dl_svn: be verbose when updating too #14770
+	* install, libmisc, libsorcery, libsummon: check that SOURCE_CACHE is a
+	  dir #14731; based on a patch by Arjan Bouter
+	* dl_wget: no-check-certificate hint is applied less liberally #14739
+
+2008-09-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends, libmisc: fixed bad real_list_find invocations #14743
+	* cast, cast.8: mention the need for the -c option with -B and -R
+	  made cast --recast-optionals imply -c
+
+2008-09-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: remove the (empty) safe dir at the end of filter()
+
+2008-09-12 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtrack: add the queuing factors to the volume label of the cache,
+	  to make lookups from caches easier and faster #14723
+	* resurrect: use the volume label if it is available
+
+2008-09-10 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* resurrect*: added a --check option and made the exit status equal the
+	  number of failures
+
+2008-09-09 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libresurrect: fixed the lookup of queueing factors from the new
+	  tablet
+	  made resurrect_spell accept an optional cache parameter
+	* resurrect: added support for resurrecting from caches directly
+	* resurrect: mention the new feature
+	* libcast: uniq the compile log before copying in create_compile_log
+
+2008-09-08 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* dispel: moved the downgrade code into a separate tool
+	* resurrect: added script for resurrecting spells, currently an
+	  improved version of dispel -d; check out its --help; man page wanted
+	* libresurrect, libsorcery, cast: renamed resurrect to resurrect_spell
+	  to not conflict with the new binar... err script
+	* cast: don't resurrect the spell if it needs an update
+	  added some more debug statements for the summary
+	* libqueue: fixed a quoting problem in update_install_queue_sub
+	* libgrimoire: also copy the rerun-make-single query to fd3
+	* resurrect.8: added man page from Arjan Bouter :)
+	  fixed the synopsis, improved the description and changed the examples
+
+2008-09-06 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: made log_failure_reason idempotent and added an optional arg
+	* libdepends: improved the way exiled spells are handled for the cast
+	  summary failure reason feature
+	* api2: improve the VOYEUR=off experience by printing some messages
+	  unconditionally to give a better progress indicator
+	* sorcery, sorcery.8: added -rr|rebuild-reconfigure #12858
+	* libgpg: added another message suggesting to update sorcery-pubkeys if
+	  things go wrong; it is displayed if the spell needs an update #13752
+	* cast: don't print duplicate failure summary results #10654
+
+2008-09-05 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* *: added more locking calls #7917
+	* cleanse: simplified a few lines and made the symlink check locale
+	  agnostic and single-spaced
+	* sorcery: properly check if the queue is not empty and use spell_ok
+	* common: use spell_ok instead of spell_installed || spell_held
+	* libcast: simplified a check in show_downloading
+	* libcrossinstall: fixed a help description for install_root_menu
+	* libdownload: removed an useless nonlocal variable
+	* libgrimoire: fixed install_desktop_files for staging
+	* libmisc: use message instead of echo, fixed a few typos
+	* libqueue: use pop_install_queue in install_queue_history
+	* libsorcery: made unset_details a bit more thorough
+
+2008-09-03 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtablet: fixed broken repair file handling - a nonexisting tablet
+	  file caused the function to use the previous found tablet file,
+	  sometimes overwritting it with the new repair file
+	* invoke, invoke.8, scribbler.8, cleanse.8: removed invoke which seems
+	  to have never worked and has a replacement in enthrall
+
+2008-09-02 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* common, libmisc: moved the notice and failure log functions to
+	  libmisc and added a check to log_failure_reason for being in cast
+	* cast: when looking for dropped spells, also check the bad_spells
+	  hash, since we're removing spells from to_cast when things go awry
+	* libdepends: only put the broken spell into the failed list, "drop"
+	  the dependees and dependencies
+	* libgpg: set LC_ALL=C for commands output of which we parse #14705
+	  internalised extra pipes into the existing awk call in gpg_get_hashes
+
+2008-09-01 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast, libspell, libsorcery, libcast, libsummon: fixed bug #2209
+	  display the reason for spell failure. Now the end summary will show
+	  the phase the spell failed in; this info is added to the activity log
+	  aswell (before only two types of failures were explained)
+	* common: simplified run_security
+	* libsorcery: modified verify_sources and verify_source, so it prints
+	  the correct error and simplified verify_source
+	* cast: in cleanup,remove the backup dir if it is empty
+	* common: remove the doc dir if nothing was installed in gather_docs
+
+2008-08-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast: don't compute SPELLS twice in main
+
+2008-08-29 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* common, api2, cast: duplicate the FINAL outputs at the end of cast,
+	  bug #8830
+	* libtime: fixed an error in computing the mean's error
+
+2008-08-28 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libhash: added hash_unset_part, the opposite of hash_append
+	* libdepends: improved the cleanup algorithm further, now also the
+	  dependencies of removed dependees will be removed, unless they were
+	  specified to cast manually or if some other spell need them; the
+	  dependencies' dependencies get the same treatment #14668/#7164
+	* common: when staging, gather_docs into the stage, the live system is
+	  not available at this point (rightly so) #14197
+
+2008-08-27 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: improved the cleanup algorithm when a spell fails in the
+	  dependency resolution part of cast - now the dependees are really
+	  removed, not just the broken spell #14668/#7164
+	  It does not remove the failed spells dependencies yet
+
+2008-08-26 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: look up the basesystem dependencies only once
+	  made two variables explicitly local
+
+2008-08-25 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: removed a variable leak causing problems for hard deps on
+	  providers - previous query's choice was used as default, usually
+	  resulting in the first choice being the default, since the value
+	  was not in the list; patch by Mikael Morin #14681
+
+2008-08-23 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* sorcery: fixed silly mirror list handling; the spaces broke config saving
+
+2008-08-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdepends: disabled the "continue to use" queries for providers #14667
+	  colorised the subdependency request message
+	* libsorcery: fixed a grammatically incorect comment
+
+2008-08-21 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtablet: REPAIR^all can now "repair" non-existing files
+
+2008-08-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* cast: exit 1 when falling in an INT/TERM trap
+	* dl_git: use the multicall git binary; the hardlinks aren't available
+	  by default anymore since 1.6 #14648
+
+2008-08-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: made gaze search not display duplicates
+
+2008-08-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* confmeld: make sure the config stage dir exists
+
+2008-08-08 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtablet: fixed a coalescing regression #14618
+	  follow symbolic links when searching for the grimoire
+
+2008-07-21 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libdispel: never fail when trying to remove the spell from the queue
+
+2008-07-20 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libunpack: fixed the case in three messages
+	* libtrack: fixed the case in two messages
+
+2008-07-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libapi: fixed a wrong function name in the starting comment
+	* gaze, gaze.1: gaze install can accept an optional version now; before
+	  it always took the installed one, which doesn't work for dispelled
+	  spells, even though their logs possibly still exist
+	* libtablet: shortcircuit tablet_check_version_cache if the old queuing
+	  method is used
+	* dispel, libdispel, common, cleanse, libcast, libtriggers: fixed bug
+	  #14575 - manually dispelling removes the spell from the install queue
+	  most internal calls pass a flag to disable that behaviour
+	* libqueue: fixed pop_queue to not create the queue if it doesn't exist
+	* sorcery: properly check for empty files in *_execute()
+
+2008-07-07 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcast: removed extraneus spaces in acquire_cast_lock messages
+
+2008-07-05 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libqueue: made the old method print all the reasons for queuing. This
+	  way the behaviour is consistent with the new method and multiversioned
+	  spells have all the reasons printed
+	* libstage: install the rest of the files first, so any leading directories
+	  the configs need get properly created; renamed stage_install_rest to
+	  stage_install_ordinary
+	  fixed a regression that caused us not to install excluded configs #14339
+	* libstate: removed three unused variable definitions
+	* libtime, gaze: factored out a pretty_print_time function and improved it
+	  to not show 0 parts and incorporated the fix_zero_time in it
+	  made use of pretty_print_time in other parts of the code
+	  made compute_mean also compute the estimation error, adapted libtime and
+	  gaze to it and removed an extraneous space from pretty_print_time
+	  also compute and print the total error
+	* libtime: removed the now unused fix_zero_time and epoch_to_hm functions
+	  only print time pairs of the same version in compute_cast_times
+
+2008-07-04 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: removed older, commented-out versions of config_[gs]et_option
+
+2008-06-27 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: added time-system, which calculates the time the current system
+	  took to build and install, based on each spell's timings. Can take a
+	  --no-orphans parameter and type parameters like gaze time
+
+2008-06-25 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtime: added to hold functions dealing with time calculations
+	  fixed a comment with a new insight
+	  added weighted mean mode where the last version's timing counts 10 times
+	  added compute_all_cast_times for use in gaze and two helper functions
+	  display the spell name in front of each timing in quiet mode
+	* gaze: added gaze time which shows the casting time of spells
+	  added time --full, which prints all the casting times we can compute
+	  made time use the new helpers, fixed (big) total display and changed
+	  the quiet output to print seconds
+	  removed two useless checks in the awk time printer
+	* libsorcery: in verify_source print "failure" instead of the
+	  unusual "failed"
+
+2008-06-21 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libqueue: reformatted push_queue and cleaned up pop_queue
+	  formatting, coloring and spelling fixes in install_queue_history
+	* libsorcery, scribe: moved a newline from get_new_changes to 2/3 callers
+
+2008-06-20 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: refactored common code out of queueing functions and made
+	  does_spell_need_update use the cache method too (a big cast -Z speedup)
+	* libqueue: created to hold all the install queue functions
+	  print the number of security updates for multiversion spells too
+	  removed the unused build_install_queue() which is largely a duplicate of
+	  list_install_queue()
+
+2008-06-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* sorcery.8: clarify the sorcery default subcommands with examples #14528
+	* libsorcery: use the new fast method in sorcery queue-security too
+	  fixed held spells getting queued in the old compatibility mode
+
+2008-06-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* config: made the rest of the previously overridable variables overridable
+	  added missing file handling to the color() hack
+	* libsorcery: increment the counter before drawing the progress bar
+	* libtablet: only hardlink files if they're not already hardlinked when
+	  coalescing the tablet
+	* cast, summon, vcast, libapi, libmisc: removed --url remnants #14525
+	  If you want to download from a different location, use summon --raw
+
+2008-06-17 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* sorcery_config.5: clarify what the internal_version is for
+	* libtablet: sped up tablet_coalesce_files to take a third of the time
+	  append to the link_log, don't overwrite it each time
+	  increment the counter before drawing the progress bar - this way it will
+	  reach 100%
+	* cleanse: call tablet_coalesce_files with $BACKUPDIR, so the log isn't
+	  discarded right away
+
+2008-06-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: change modify_config to store values into variables in a manner
+	  that is overridable from the environment (var=${var:-value}) #14454
+	* sorcery: store COLOR in LOCAL_MEDIA_CONFIG, so there are no problems with
+	  ordering when sourcing our libraries
+	* config: source LOCAL_CONFIG before everything else; added a temporary
+	  color() override to make the switch for the user
+	* compile_config, media, roots, url: accompanying change
+	  to benefit you must convert your local configs to the new system (ex.):
+	  sed -i 's,^\(\s*\)\([^=]*\)=\(.*\),\1\2=${\2:-\3},' /etc/sorcery/config
+
+2008-06-07 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcodex: fixed an ancient minibug in codex_check_cache - the error
+	  message was printing the wrong variable
+	* sorcery: removed a useless variable, a relic from the days when sorcery
+	  was a spell itself
+
+2008-05-31 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* build: fixed a typo in the pwd error message
+	* libsorcery: added a hidden switch disabling the new queing method
+	  (mainly for reference)
+	* libstate: fixed a typo in the search_spell_status description
+
+2008-05-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* config: use $HOME instead of hardcoding /root
+
+2008-05-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtablet: made tablet_create_version_cache logically simpler
+
+2008-04-29 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: made smgl_dirname pass the last failing unit test
+
+2008-04-28 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libresurrect: fixed ordering of the version cache addition
+	* libgpg: fixed case in an error message
+
+2008-04-26 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcast: made the optional dependency on xinetd suggested and changed two
+	  comments
+
+2008-04-25 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: rewrote smgl_dirname using an explode approach for it to conform
+	  to the system dirname (it was failing the unit tests for dirs like /etc
+	  and //)
+	  fixed smgl_basename not giving the correct result for /
+	* common: moved the version cache addition in run_spell_success to before
+	  the addition of the spell to the SPELL_STATUS to avoid a false failure
+	  in tablet_check_version_cache
+
+2008-04-23 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: made get_all_spells_with_status accept "ok" as a parameter too
+	* libtablet: added a check to tablet_check_version_cache to make sure that
+	  it is also in a good state, not just there
+	* gaze, libsorcery, libtablet: made use of the "ok" status shortcut
+
+2008-04-22 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtablet: improved the error message in tablet_create_version_cache and
+	  made it remove the partial cache on error
+
+2008-04-20 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: simplified a loop in save_binaries
+	  fixed a typo in yesterday's change
+	* run_compiler: use the normal dirname and basename, since it doesn't have
+	  the full sorcery environment
+
+2008-04-19 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* sorcery: sanitized the saving of CCACHE in the feature_menu
+	  fixed CCACHE and STORE_CONF_LOG not being disablable
+	  rewrote feature_menu to be much more concise and removed the extra
+	  variable fallbacks, since most are already in the sorcery config
+	  improved printing of the grimoire changelog
+	  fixed broken symlink handling in save_libraries
+	* config: added defaults for COLOR, CONFIG_LOC and GATHER_DOCS
+	* scribe: fixed case in scribe update message
+	* *: use smgl versions of basename and dirname
+
+2008-04-18 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: don't clear the line on every queuing progress bar update
+
+2008-04-17 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: made verbose queuing use the version cache too and now all
+	  the reasons are displayed, not just the first (only in the cache code)
+	  readded the progress bar, but only to the slow part of the queuing
+	  removed an extra space in list_install_queue
+	  reformatted and sanitized list_install_queue
+	  also add held spells to the (tablet) version cache
+	  don't queue held spells in either verbosity mode
+
+2008-04-16 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* scribe.8: don't mention local grimoires for reindex-version, nothing good
+	  can come of it
+	* libdepends: when falling back to installed spells as default choices for
+	  providers, try to use the currently used provider; added a warning
+	* libcast: made run_conflicts query in QUERY_COLOR
+	* libsorcery: removed a use of hardcoded $INSTALL_CACHE
+	  change tee to sed p in clean_logs, it didn't work nicely for Vlad
+
+2008-04-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* state: added VERSION_STATUS=${STATE_DIRECTORY}/versions
+	* libtablet: added tablet_{create,check}_version_cache for creating a
+	  cache of installed spells' queuing factors - the system variant of
+	  scribe reindex-version; allows for a great speedup in sorcery queue
+	* libstate: added remove_version_cache and add_version_cache for keeping
+	  the tablet version cache up to date
+	* common, libresurrect, libdispel: update the tablet version cache when
+	  needed
+	* libcodex: don't insert anything into the cache for multiversioned spells
+	* libresurrect: fixed bad variable name in previous commit
+	* libsorcery: changed silent queuing to use the new version caches
+
+2008-04-14 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libunpack: removed one of the parameters to uncompress_unpack and
+	  made it pass on possible hints to uncompress/unpack;
+	  changed unpack_core to allow for perserving permissions and owners;
+	  uncompress_unpack_cache now requests the above via a hint
+
+2008-04-13 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* gaze: don't show find errors when searching for aliens
+
+2008-04-12 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* scribe: fixed progress message when reindexing keywords or versions
+	* dispel: display the version of the downgraded spell too
+
+2008-04-11 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: sanitized a check in build_install_queue
+	  fixed two typos and added optional verbose sorcery queue-ing - it now
+	  prints why the spell was added to the queue; also displayed for cast -Z
+	* config: added VERBOSE_QUEUING=on
+
+2008-04-11 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcodex: added codex_create_version_cache; will be used for a faster
+	  sorcery queue
+	* scribe: added scribe_reindex_version which calls it
+	* scribe.8: added reindex-version
+	* config: defined VERSION_INDEX_FILE
+
+2008-04-11 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libressurect: always use the saved version after setting the spell
+	* libsorcery: rewrote log_list to conform with sorcery standards and be 50
+	  times faster; made it also echo castfs logs and echo absolute paths
+	  rewrote clean_logs to be more slick and as a result a lot faster
+	  formatting and "localisation" fixes to activity_log
+
+2008-04-10 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libressurect, libgpg: fixed some comments and error messages
+	* libressurect: fallback to the variable's contents, not its name if the
+	  current variable is empty/unset
+	* sustained: added some missing basesystem entries and removed the now
+	  nonexistant util-linux-crypto
+	* libgpg: fixed gpg_verify_grimoire not liking versioned grimoires #13461
+
+2008-04-08 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libtrack: added find_cache, a function similar to guess_filename for
+	  finding caches from part of their name
+	  added construct_cache_name which currently just appends $ARCHIVEBIN
+	  modified create_cache_archive to be more generic
+	* alter, dispel, common: use the new functions to be more abstract; now
+	  caches created with a different compressor than the current work too
+	* libunpack: added optional params to unpack_uncompress and a wrapper for
+	  caches uncompress_unpack_cache
+	* libressurect: fixed can_resurrect to accept other extensions
+	  made ressurect use the new unpack_uncompress wrapper
+	* libsorcery: made spell_recover use ressurect
+	  set_compression_type now distinguishes between compressors and archivers;
+	  tar is now saved to ARCHIVEBIN, EXTENSION holds the compressed extension
+	* config: added a default for ARCHIVEBIN
+	* api2: preserve the return status in run_pre_install
+	* all this was part of bug #14218, FIXMEs and planned support for other
+	  compressors and archivers
+
+2008-04-02 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcodex: added codex_find_spell_provides which prints the features
+	  the spell is a provider of
+	* libdepends: added support for recasting of spells that have a disabled
+	  dependency on a feature which the cast spell is a provider of. Part of
+	  private_recast_optionals
+	  fixed formatting of the previous change
+	* libstate: changed a regex in toggle_depends_status to be more general
+	  added change_spell_provider for silently changing and toggling providers
+	* libstate, libsorcery, libcodex: moved codex_is_local and find_providers
+	  to libcodex
+	* libapi: fixed #9676 using a slightly modified comment from the real code
+	* libunpack: fixed typos in two comments
+
+2008-03-31 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmisc: added an esc_provider_str function for queries that look for
+	  spells that provide the provider, where the initial .* should not be
+	  escaped. This was broken since esc_str became consistent on 2008-03-26
+	* libstate: use esc_provider_str for the second argument in the
+	  search_depends_status* functions
+	  added a toggle_depends_status for toggling dependencies on/off
+	* libdepends: fixed private_recast_optionals. It never worked. #14411
+
+2008-03-30 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libstate: added a workaround to search_depends_status_exact for provider
+	  functions, since they were broke after the 2008-03-26 esc_str fix
+	* common: check if the iw log exists before using it in run_spell_succes
+	* libtrack: reformatted exists() and made it use a local variable
+	* libgrimoire: dereference the deaddir in rm_source_dir #14399
+
+2008-03-28 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libmedia: reset the color in the CHECK_ and MESSAGE_COLOR definitions, so
+	  they can't inherit the bold atribute from the other colors
+	* api2: added some more messages to cast stages, initial patch from Sergey
+	  Lipnevich #8521
+	* libgrimoire: real_rm_source_dir: use local variables and a simpler loop
+	* gaze, gaze.1: added size -all, initial patch from Danilo Vidovic #13556
+	* url_git_local: added an url handler for local git urls, patch by Andraž
+	  Levstik #14397; fixed the comments and removed the netselect function
+	* libmisc: made esc_str forkless and optionally return by reference
+	* libstate, libtriggers, libsorcery: use esc_str by reference
+	* liblock: save the escaped string in lock_kill_transaction
+	* libstate: converted two inline esc_str calls to the forkless version
+	* libcast: reformatted show_download_progress and made it a bit less dumb
+	* libgpg: nicely quit verify_grimoire_tree for alien grimoire trees #14398
+
+2008-03-27 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* changed uses of plain sort|uniq to the featurewise equivalent sort -u
+	  and then the same for uses of plain sort file|uniq
+	* cast, dispel, gaze, sorcery, libdepends: use hash_get_ref some more
+	* dispel: commented out four debug statements with inline code
+
+2008-03-26 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: deprecated dirnames() for get_dirnames() in libmisc
+	  cleaned up guess_filename
+	* libmisc: adjusted formatting in get_dirnames and get_basenames and made
+	  them use the faster internal smgl_dirname and smgl_basename respectively
+	* libdispel, libmisc: fixed the only three callers to use get_dirnames
+	* common: cleaned up install_pam_confs
+	* libdepends: use real_list_find in private_should_cast instead of forking
+	  fixed the check if spell is held in real_sub_depends and improved the msg
+	  use real_list_find in private_up_trigger
+	  use real_list_find in work_{,optional_}depends_provider
+	  fixed private_upward_depends matching spells too loosely
+	  use real_list_find in private_run_depends
+	  use real_list_find everywhere else
+	  fixed real_show_up_depends showing false positives
+	* libcodex: silence the unused codex_remove_duplicates with real_list_find
+	* applied a modified patch from Arvid Norlander, which mainly changes uses
+	  of hash_get to has_get_ref, removes double evaluations and improves some
+	  formatting
+	* dl_wget, liburl, url_http: use real_list_find instead of echo | grep -q
+	* libmisc: fixed esc_str not escaping strings starting with .
+	* cleanse: cleanse_fix_ldd_check: use hash_get_ref, don't do the lookup
+	  twice and trick wc
+	* dispel, libstate: use hash_get_ref some more
+	* config: revert the recent addition of STAGED_INSTALL, so
+	  is_castfs_installed gets a chance to be run
+
+2008-03-25 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libsorcery: reformatted the files, directories and symlinks functions and
+	  made their variable local
+	  then did the same for dirnames
+	* config: added STAGED_INSTALL default and added DEBUG to the unstaged list
+	* libsorcery: rewrote filename_indicates_compression to be less dumb
+	* roots: honor environment variables #13263 and improve sourcing #14304
+
+2008-03-24 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* libcodex: made a few trivial optimisations, making the remaining relevant
+	  functions return by reference
+	  fixed ENTERED typo in codex_clear_current_spell and two comments
+	* grimoire.5, libcodex, libtablet: made BUILD_API=2 the default
+	* libmisc: simplified and sped up is_sorcery_var
+	* dispel: made downgrading more user friendly #11749; now a list of
+	  possible versions is displayed to choose from and the version
+	  doesn't need to be specified on the commandline anymore
+	* scribe: scribe index now also shows VERSION of grimoires #14233
+
+2008-03-24 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
+	* Start 1.15 development stream.
