@@ -102,7 +102,13 @@ function real_invoke_stage_root()
   # this forks and daemonizes so it will exit you simply unmount the dir to stop the process
   for dir in ${CASTFS_UNSTAGED_PATHS} ${LOCAL_IGNORE_DIRS}
   do
-    CASTFS_IGNORE_LIST="${CASTFS_IGNORE_LIST} -o ignore=$dir"
+    if [[ -h $dir ]]; then
+      CASTFS_IGNORE_LIST="${CASTFS_IGNORE_LIST} -o ignore=$(readlink $dir)"
+    elif [[ -d $dir ]]; then
+      CASTFS_IGNORE_LIST="${CASTFS_IGNORE_LIST} -o ignore=$dir"
+    else
+      debug "libtrack" "User wanted $FUNCNAME to treat $dir as a directory!"
+    fi
   done &&
   castfs "${STAGE_DIRECTORY}/MOUNT" -o "stage=${STAGE_DIRECTORY}/TRANSL" $CASTFS_IGNORE_LIST &&
   for dir in /dev /dev/pts /proc /sys
