@@ -1640,6 +1640,43 @@ function filename_indicates_compression()  {
 
 
 #---------------------------------------------------------------------
+## Sets the most appropriate params for PAGER
+## @Globals PAGER
+#---------------------------------------------------------------------
+function set_pager() {
+  if [[ -z $PAGER ]]; then
+    if real_spell_ok less; then
+      # pager info
+      # -R: display color codes properly
+      # -F: quit on one-screenfull of data (otherwise scribe pauses on empty updates)
+      # -X: dont do screen init and deinit, gaze install
+      # of a small spell is effectively useless otherwise as the
+      # screen is cleared afterwards.
+      # -f: force it, since we may not be dealing with a regular file
+      PAGER="less -R -F -X -f"
+    else
+      PAGER=cat
+    fi
+    return
+  fi
+
+  local pager_prog
+  local pager_params=${PAGER#* }
+  smgl_basename "${PAGER%% *}" pager_prog
+  # setting PAGER to a single word would give bad parameters
+  [[ $pager_prog == $PAGER ]] && unset pager_params
+
+  # TODO: add any needed options for the rest of the pagers
+  case $pager_prog in
+    less) PAGER="less -R -F -X -f $pager_params" ;;
+    most) PAGER="most $pager_params" ;;
+    w3m)  PAGER="w3m $pager_params" ;;
+    more) PAGER="more $pager_params";;
+    *) ;;
+  esac
+}
+
+#---------------------------------------------------------------------
 ##
 ## This software is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
