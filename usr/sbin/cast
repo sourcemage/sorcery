@@ -211,7 +211,12 @@ function get_option() {
 function cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
-  set_term_title "Casting spell [$SPELL]"
+
+  local gsp_done gsp_total
+  get_cast_progress gsp_done gsp_total
+  set_term_title "Casting spell [$SPELL] ($gsp_done of $gsp_total)"
+  message "${MESSAGE_COLOR}Casting spell [${SPELL_COLOR}$SPELL${MESSAGE_COLOR}]" \
+          "($gsp_done of $gsp_total)"
 
   run_details
   load_build_api || return 1
@@ -411,7 +416,12 @@ function pass_two()  {
 
   unset_details
 
-  message "${MESSAGE_COLOR}Spells are to be cast:${DEFAULT_COLOR}"
+  hash_export "to_cast"
+  hash_export "trg_r_hash"
+  local gsp_done gsp_total
+  get_cast_progress gsp_done gsp_total
+  message "${MESSAGE_COLOR}Spells are to be cast" \
+          "(${DEFAULT_COLOR}${gsp_total}${MESSAGE_COLOR}):${DEFAULT_COLOR}"
   message "---------------------------"
   message "${SPELL_COLOR}${SPELLS_TO_CAST}" | tr '[:blank:]' '\n' | column
   message "${DEFAULT_COLOR}"
@@ -594,6 +604,11 @@ function pass_four()  {
 
   local rc
   if [[ "$do_resurrect" == "yes" ]] ; then
+    local gsp_done gsp_total
+    get_cast_progress gsp_done gsp_total
+    set_term_title "Resurrecting spell [$SPELL] ($gsp_done of $gsp_total)"
+    message "${MESSAGE_COLOR}Resurrecting spell [${SPELL_COLOR}$SPELL${MESSAGE_COLOR}]" \
+            "($gsp_done of $gsp_total)"
     resurrect_spell $SPELL $VERSION
     rc=$?
     # this is here for safety in case resurrect bails out somewhere
@@ -764,6 +779,41 @@ function pass_five()  {
 
   debug "cast" "End of pass_five"
   return $rc
+}
+
+#---------------------------------------------------------------------
+## @Param var name to get number of spell completed + current one
+## @Param var name to get number of total spells
+##
+## @Stdout number of spells completed + current one
+## @Stdout number of total spells
+##
+## Counts and caculates the number of allready processed spells.
+## And counts the number of total spells in a cast.
+##
+#---------------------------------------------------------------------
+function get_cast_progress()  {
+  local _gsp_done=$1
+  local _gsp_total=$2
+  local n_sl n_fl n_cts n_ctf n_casts n_total n_done
+  [[  -s  $SUCCESS_LIST ]] && n_sl=$(wc -w < $SUCCESS_LIST)
+  [[  -s  $FAILED_LIST ]] && n_fl=$(wc -w < $FAILED_LIST)
+  [[  -s  $CHECK_TRIGGERS_SUCCESS ]] && n_cts=$(wc -w < $CHECK_TRIGGERS_SUCCESS)
+  [[  -s  $CHECK_TRIGGERS_FAILURE ]] && n_ctf=$(wc -w < $CHECK_TRIGGERS_FAILURE)
+
+  n_done=$(( ${n_sl:-0} + ${n_fl:-0} + ${n_cts:-0} + ${n_ctf:-0} + 1 ))
+#finding triggers
+#   hash_get_table_fields "trg_r_hash"
+#   echo ----------------
+#   hash_debug_dump "to_cast"
+#   echo -----
+#   echo ${BONUS_SPELLS[*]}
+  n_casts=( $(hash_get_table_fields "to_cast") )
+  n_total=$(( ${n_ctf:-0} + ${#n_casts[@]} ))
+
+  # We must have variable name otherwise we get nasty error
+  [[ ! -z "$_gsp_done" ]] && upvar "$_gsp_done" "$n_done"
+  [[ ! -z "$_gsp_total" ]] && upvar "$_gsp_total" "$n_total"
 }
 
 #---------------------------------------------------------------------
