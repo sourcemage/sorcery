@@ -1915,12 +1915,22 @@ function gaze_tablet() {
       tablet_get_build_api $spell_directory build_api
       # not in all tablets yet
       tablet_get_grimoire_name $spell_directory grimoire_name
+      local date_and_time_of_tablet=$(basename $spell_directory)
+      local year=${date_and_time_of_tablet:0:4}
+      local mounth=${date_and_time_of_tablet:4:2}
+      local day=${date_and_time_of_tablet:6:2}
+      local hour=${date_and_time_of_tablet:8:2}
+      local minute=${date_and_time_of_tablet:10:2}
+      local seconds=${date_and_time_of_tablet:12:2}
+
       # basic information (section & version)
       message "${MESSAGE_COLOR}grimoire / section / spell: ${SPELL_COLOR}" \
               "$grimoire_name / $section_name / $spell${DEFAULT_COLOR}"
       message "${MESSAGE_COLOR}version / patchlevel / security patchlevel:${VERSION_COLOR} $version /" \
               "$patchlevel / $security_patch${DEFAULT_COLOR}"
       message "${MESSAGE_COLOR}Build API:${VERSION_COLOR} $build_api${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}Date of tablet: ${VERSION_COLOR}$year-$mounth-$day" \
+              "$hour:$minute:$seconds${DEFAULT_COLOR}"
     ;;
     depends)
       gaze_tablet_sub depends
