@@ -19,14 +19,14 @@
 ## @Type API
 ## @param directory name
 ## @param [size]
-## Creates a tmpfs filesystem.  By default, the size is 1GB.
+## Creates a tmpfs filesystem.  By default, the size is half of ram.
 ## The caller may optionally supply a size argument.
 ## <pre>
 ## Example1:  Create a 2GB mount at $SOURCE_DIRECTORY
 ##
 ##    mk_source_dir  $SOURCE_DIRECTORY  2g
 ##
-## Example2:  Create a mount at /tmp/newdir, defaults to 1GB size
+## Example2:  Create a mount at /tmp/newdir, defaults to half of ram
 ##
 ##    mk_source_dir  /tmp/newdir
 ## </pre>
@@ -39,7 +39,7 @@ function real_mk_source_dir() {
   local NEW_DIR=${NEW_DIR:=$SOURCE_DIRECTORY}
 
   local SIZE=$2
-  local SIZE=${SIZE:=1g}
+  local SIZE=${SIZE:=$(($(free -m | awk '/^Mem/ {print $2}') / 2))m}
 
   if  [  -n  "$NEW_DIR"  ];  then
 
