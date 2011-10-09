@@ -1284,6 +1284,29 @@ function override_grimoires() {
 }
 
 #---------------------------------------------------------------------
+## @param command that we want to run with root privileges 
+## @param all parameters to add to the command
+##
+## If USE_SUDO is enabled in feature menu it will use sudo to exec
+## the command. If not it will use su -c (default).
+##
+#---------------------------------------------------------------------
+function run_as_root() {
+
+  local run_command=$1
+  local all_params="$2"
+
+  if [[ $USE_SUDO == on ]]; then
+    message  "${MESSAGE_COLOR}Using sudo tu run ${SPELL_COLOR}$run_command"\
+             "${MESSAGE_COLOR}...${DEFAULT_COLOR}"
+    exec sudo -E bash -c "$run_command $all_params"
+  else
+    message "${MESSAGE_COLOR}Enter the root password, please.${DEFAULT_COLOR}"
+    exec su -c "$run_command $all_params" root
+  fi
+}
+
+#---------------------------------------------------------------------
 ## Sets the most appropriate params for PAGER
 ## @Globals PAGER
 #---------------------------------------------------------------------

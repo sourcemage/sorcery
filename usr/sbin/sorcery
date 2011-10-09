@@ -1531,6 +1531,7 @@ feature_menu()  {
   local UF_HELP="Ensure a sane environment before sorcery update"
   local SCR_HELP="Toggle usage of screen in cast"
   local PSC_HELP="Ask for custom cflags for each spell"
+  local US_HELP="Use sudo instead of su when runnning sorcery as non-root user"
   local SHSQ_HELP="Show spell description option in queries for optional dependencies"
 
   if  TOGGLES=`eval $DIALOG '  --title "Feature Menu"  \
@@ -1562,9 +1563,10 @@ feature_menu()  {
       "SET_TERM_TITLE" "Toggle"  "$SET_TERM_TITLE" "$ST_HELP"  \
       "SCREEN"         "Toggle"  "$SCREEN"         "$SCR_HELP" \
       "PER_SPELL_CFLAGS" "Toggle" "$PER_SPELL_CFLAGS" "$PSC_HELP" \
-      "SHOW_GAZE_SHORT_QUERY" "Toggle" "$SHOW_GAZE_SHORT_QUERY" "$SHSQ_HELP"'`
+      "SHOW_GAZE_SHORT_QUERY" "Toggle" "$SHOW_GAZE_SHORT_QUERY" "$SHSQ_HELP" \
+      "USE_SUDO"       "Toggle"  "$USE_SUDO"       "$US_HELP"'`
   then
-    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE CCACHE COLOR CONFIG_LOC GATHER_DOCS MAIL_REPORTS PRESERVE SUSTAIN TMPFS VIEW_REPORTS VOYEUR REAP STORE_CONF_LOG NET_SELECT CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN PER_SPELL_CFLAGS SHOW_GAZE_SHORT_QUERY)
+    TEMP=(ARCHIVE AUTOFIX UPDATEFIX AUTOPRUNE CCACHE COLOR CONFIG_LOC GATHER_DOCS MAIL_REPORTS PRESERVE SUSTAIN TMPFS VIEW_REPORTS VOYEUR REAP STORE_CONF_LOG NET_SELECT CLEAN_SOURCE CROSS_INSTALL SET_TERM_TITLE SCREEN PER_SPELL_CFLAGS SHOW_GAZE_SHORT_QUERY USE_SUDO)
     for i in ${TEMP[*]} ; do
       eval $i=off
     done
@@ -1973,10 +1975,10 @@ else
     else
       # validate the rest of the parameters before su-ing
       verify_parameters "$@"
-
-      echo  "Enter the root password, please."
       PARAMS=$(consolidate_params "$@")
-      exec su -c "sorcery $PARAMS" root
+
+      run_as_root sorcery "$PARAMS"
+
     fi
   fi
 fi
