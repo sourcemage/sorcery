@@ -468,10 +468,9 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 elif  [  "$UID"  -gt  0  ];  then
   # validate the parameters before su-ing, since we may still drop out
   process_parameters "$@"
-
-  echo  "Enter the root password, please."
   PARAMS=$(consolidate_params "$@")
-  exec su -c "delve $PARAMS" root
+
+  run_as_root delve "$PARAMS"
 else
   # Make a nice dir structure to put stuff in, this exits if it fails
   mk_tmp_dirs delve

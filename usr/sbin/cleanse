@@ -1097,9 +1097,7 @@ else
   fi
   # validate the parameters before su-ing, since we may still drop out
   verify_parameters "$@"
-
-  message "You must be root to run this command."
-  message "Switching to root user..."
   PARAMS=$(consolidate_params "$@")
-  exec su -c "cleanse $PARAMS" root
+
+  run_as_root cleanse "$PARAMS"
 fi
