@@ -248,9 +248,10 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
 else
   # validate the parameters before su-ing, since we may still drop out
   process_parameters $*
-  PARAMS=$(consolidate_params "$@")
 
-  run_as_root summon "$PARAMS"
+  echo  "Enter the root password, please."  1>&2
+  PARAMS=$(consolidate_params "$@")
+  exec su -c "summon $PARAMS" root
 fi
 
 

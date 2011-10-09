@@ -181,8 +181,9 @@ function main() {
 validate_and_parse_args $@
 
 if [ "${UID}" != 0 ]; then
+  echo "Enter the root password, please:"
   PARAMS=$(consolidate_params "$@")
-  run_as_root scribbler "$PARAMS"
+  exec su -c "scribbler $PARAMS" root
 fi
 
 main "$@"

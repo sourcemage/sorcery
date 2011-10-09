@@ -867,8 +867,9 @@ elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then
 elif [[ $1 == index ]] ; then
   scribe_index # this requires no access privaledges so special case it
 else
+  echo  "Enter the root password, please."  1>&2
   PARAMS=$(consolidate_params "$@")
-  run_as_root scribe "$PARAMS"
+  exec su -c "scribe $PARAMS" root
 fi
 
 #---------------------------------------------------------------------

@@ -588,9 +588,10 @@ elif  [[  "$1" == -h       ]]  ||
 else
   # validate the parameters before su-ing, since we may still drop out
   verify_parameters "$@"
-  PARAMS=$(consolidate_params "$@")
 
-  run_as_root alter "$PARAMS"
+  echo  "Enter the root password, please."  1>&2
+  PARAMS=$(consolidate_params "$@")
+  exec su -c "alter $PARAMS" root
 fi
 
 

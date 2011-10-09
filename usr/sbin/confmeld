@@ -315,7 +315,8 @@ if  [  "$UID"  -gt  0  ];  then
   # validate the parameters before su-ing, since we may still drop out
   process_parameters check-only "$@"
 
-  run_as_root confmeld "$@"
+  echo  "Enter the root password, please."
+  exec su -c "confmeld $@" root
 else
   STAGED_INSTALL="off"
   main "$@"

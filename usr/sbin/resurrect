@@ -312,8 +312,10 @@ function main() {
 if [[ $UID -gt 0 ]]; then
   # validate the parameters before su-ing, since we may still drop out
   verify_parameters "$@"
+
+  echo  "Enter the root password, please."
   PARAMS=$(consolidate_params "$@")
-  run_as_root resurrect "$@"
+  exec su -c "resurrect $PARAMS" root
 else
   main "$@"
 fi

@@ -629,9 +629,10 @@ elif  [  "$UID"  ==  0  ];  then
 else
   # validate the parameters before su-ing, since we may still drop out
   process_parameters "$@"
-  PARAMS=$(consolidate_params "$@")
 
-  run_as_root dispel "$PARAMS"
+  echo  "Enter the root password, please."  1>&2
+  PARAMS=$(consolidate_params "$@")
+  exec su -c "dispel $PARAMS" root
 fi
 
 
