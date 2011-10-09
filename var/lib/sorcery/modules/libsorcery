@@ -86,7 +86,7 @@ function update_sorcery_scripts() {
              "${MESSAGE_COLOR}spells to complete...${DEFAULT_COLOR}"
   lock_resources "solo" "cast" # prevent other casts
   excllock_resources "cast" "sorcery" # wait for other casts
-  message "done."
+  message "${MESSAGE_COLOR}done.${DEFAULT_COLOR}"
   lock_resources "libgrimoire" "install"      &&
 
   if test -x ./uninstall && test -f /etc/sorcery/install.log ; then
@@ -695,10 +695,15 @@ function grimoire_history() {
     local date="`cat "$STATE_DIRECTORY/$grimoirename.lastupdate" 2> /dev/null`"
     [ -z "$date" ] && date="20030818"
     local datedash=$(echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,')
-    get_new_changes "Viewing history since last update ($datedash) for grimoire --  ${grimoirename}  -- :" "$date" "$grimoire/ChangeLog"
+
+    local part1="${MESSAGE_COLOR}Viewing history since last update ("
+    local part2="${FILE_COLOR}$datedash${MESSAGE_COLOR}) for grimoire -- "
+    local part3="${SPELL_COLOR}${grimoirename}${MESSAGE_COLOR}  -- :"
+
+    get_new_changes "${part1}${part2}${part3}" "$date" "$grimoire/ChangeLog"
   else
-    echo  "No ChangeLog in the $grimoire Grimoire, skipping viewing..."
-    echo  ""
+    message  "${MESSAGE_COLOR}No ChangeLog in the ${SPELL_COLOR}$grimoire"\
+             "${MESSAGE_COLOR} Grimoire, skipping viewing..."
   fi
   date +%Y%m%d > "$STATE_DIRECTORY/$grimoirename.lastupdate"
 }
@@ -714,7 +719,10 @@ function sorcery_history() {
   [ -z "$date" ] && date="20030818"
   local datedash="`echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,'`"
 
-  get_new_changes "Viewing history since last update ($datedash) for sorcery :"  "$date" /usr/share/doc/sorcery/ChangeLog
+  local part1="${MESSAGE_COLOR}Viewing history since last update (${FILE_COLOR}"
+  local part2="$datedash${MESSAGE_COLOR}) for sorcery :${MESSAGE_COLOR}"
+
+  get_new_changes "${part1}${part2}"  "$date" /usr/share/doc/sorcery/ChangeLog
 
   date +%Y%m%d > "$STATE_DIRECTORY/sorcery.lastupdate"
 }
@@ -752,16 +760,15 @@ function get_new_changes() {
 
     if [[ "$changelog" ]] ; then
       {
-        echo "$msg"
-        echo "$changelog"
+        message "$msg"
         echo
+        echo "$changelog"
       }  > $TMP_DIR/pagerdata
       timeout_pager "$TMP_DIR/pagerdata"
       rm $TMP_DIR/pagerdata
     else
-      echo "$msg"
-      echo "Nothing new."
-      echo
+      message "$msg"
+      message "${MESSAGE_COLOR}Nothing new.${DEFAULT_COLOR}"
     fi
 }
 
