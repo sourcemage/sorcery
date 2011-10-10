@@ -57,7 +57,19 @@ function dl_git_get () {
         git checkout -b $GIT_TAG origin/$GIT_TAG
       fi
       echo git pull &&
-      git pull )
+      git pull
+      if [[ $? != 0 ]]; then
+        echo "git pull failed!"
+        if query "Do you wand to clean git repository and try again?" n ; then
+          echo "running 'git clean -d -f -q' and 'git reset --hard HEAD'" &&
+          git clean -d -f -q &&
+          git reset --hard HEAD
+          echo git pull &&
+          git pull
+        else
+          exit 1
+        fi
+      fi )
       rc=$?
       eval "$dl_target=\"$GIT_DIRECTORY\""
     else
