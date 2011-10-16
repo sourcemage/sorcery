@@ -1,0 +1,38 @@
+if [[ -x /usr/bin/play ]] ; then
+
+#---------------------------------------------------------------------
+##
+## @Globals SOUND
+## Plays a given soundfile if sounds are on and the file exists in 
+## the chosen theme.
+##
+## Needs sox
+#---------------------------------------------------------------------
+function sound()  {
+
+  case  $SOUND  in
+    on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
+         if  [[  -e  $SOUND_FILE  ]];  then
+           (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
+           debug "libmisc" "Playing $SOUND_FILE"
+         else
+           debug "libmisc" "Error playing $SOUND_FILE: no such file"
+         fi
+    ;;
+  esac
+
+}
+
+function sound_REPORT_hook() {
+  sound REPORT  
+}
+
+function sound_post_FAILURE_hook() {
+  sound FAILURE
+}
+
+function sound_post_SUCCESS_hook() {
+  sound SUCCESS
+}
+
+fi

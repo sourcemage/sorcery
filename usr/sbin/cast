@@ -211,7 +211,7 @@ function get_option() {
 function cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
-  set_term_title "Casting spell [$SPELL]"
+  run_hook cast_start_spell
 
   run_details
   load_build_api || return 1
@@ -410,6 +410,8 @@ function pass_two()  {
   debug "cast" "Starting pass_two()"
 
   unset_details
+
+  run_hook cast_initialize
 
   message "${MESSAGE_COLOR}Spells are to be cast:${DEFAULT_COLOR}"
   message "---------------------------"
@@ -662,7 +664,6 @@ function pass_five()  {
       message "$item"
     done | sort | column
 
-    set_term_title "Casting successful."
     message "${DEFAULT_COLOR}"
 
   fi
@@ -726,7 +727,6 @@ function pass_five()  {
     done < $FAILED_LIST | sort -u | column
     rm -f $failure_reason_log
 
-    set_term_title "Casting failed."
     message "${DEFAULT_COLOR}"
     rc=1
 
@@ -744,6 +744,8 @@ function pass_five()  {
       rc=1
     fi
   fi
+  run_hook cast_final
+  debug "cast" "End of pass_five"
 
   # check if confmeld should be run
   local spell deferred_list
@@ -987,6 +989,8 @@ else
   fi
 
   trap int_trap INT
+  # FIXME: not sure if this is the right place for this
+  init_hooks
   main  "$@"
   rc=$?
   if [ $SHLVL -eq $TOP_LEVEL ] ; then

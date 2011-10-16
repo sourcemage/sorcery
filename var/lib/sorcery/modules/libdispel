@@ -319,6 +319,7 @@ function post_remove() {
 function dispel_spell() {
 
     local SPELL=$1
+    run_hook dispel pre
     # fake dispel, only remove sorcery metadata
     if [[ $DEBUG_DISPEL ]] ; then
         echo "pretending to dispel $SPELL"
@@ -362,6 +363,7 @@ function dispel_spell() {
                 "${PROBLEM_COLOR}failed!${DEFAULT_COLOR}"
         return $rc
     fi
+    run_hook dispel post
     return 0
 }
 

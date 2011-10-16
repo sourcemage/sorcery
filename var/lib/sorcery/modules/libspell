@@ -151,6 +151,9 @@ function run_spell_file() {
   # this is mostly used for messages like "<spell> checking dependencies"
   local pre_function=$3
 
+	# hook calling moved into here
+  run_hook ${spell_file} pre
+
   eval "function real_default_${function_suffix}() {
     default_section_${function_suffix}
   }"
@@ -178,6 +181,9 @@ function run_spell_file() {
   if [[ $rc != 0 ]]; then
     log_failure_reason $function_suffix
   fi
+
+  # hooks moved into here
+  run_hook ${spell_file} post
 
   # restore these, so they're always false except when needed
   eval "function real_default_${function_suffix}() {

@@ -166,6 +166,7 @@ function run_security() {
     debug "build_api/common" "Starting run_security() on $SPELL"
     local rc=0
     if [[ -f $SCRIPT_DIRECTORY/SECURITY ]]; then
+      run_hook SECURITY pre
       message "${SPELL_COLOR}${SPELL}:${DEFAULT_COLOR}"
       tee -a $SECURITY_LOG < $SCRIPT_DIRECTORY/SECURITY
       if grep -q critical $SCRIPT_DIRECTORY/SECURITY; then
@@ -174,6 +175,7 @@ function run_security() {
         query "SECURITY: Do you still want to cast ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${QUERY_COLOR}?" "y"
       fi
       rc=$?
+      run_hook SECURITY post
     fi
     [[ $rc != 0 ]] && log_failure_reason "security"
     return $rc

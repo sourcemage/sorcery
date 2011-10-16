@@ -173,8 +173,7 @@ function set_umask()  {
 #---------------------------------------------------------------------
 ## @param filename
 ##
-## Displays and/or mails the contents of the file given as the first
-## argument.
+## Displays and the contents of the file given as the first argument.
 ##
 #---------------------------------------------------------------------
 function report() {
@@ -186,15 +185,8 @@ function report() {
     debug  "libsorcery" "Prompting to view $2 for $SPELL"
 
     VIEW_PROMPT="View $2 for ${SPELL_COLOR}${SPELL}-${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}?"
-    sound  REPORT
+    run_hook  REPORT
     if  query  "$VIEW_PROMPT" n;  then  $PAGER  $1;  fi
-  fi
-
-  if  [  "$MAIL_REPORTS"  ==  "on"  ];  then
-    debug  "libsorcery" "Mailing report ($2) for $SPELL to $SORCERER"
-    date  -u  |
-    mail  -s  "Sorcery Report : $HOSTNAME : $2 for $SPELL-$VERSION"  \
-              -a $1 $SORCERER 2>/dev/null
   fi
 
   true

@@ -103,6 +103,7 @@ function isalpha() {
 function real_query()  {
   debug "libmisc" "Running query() with the following arguments: '$1' and '$2'"
   local _response
+  run_hook real_query
 
   while true; do
     _response=""
@@ -142,6 +143,7 @@ function real_query_string () {
     local ANSWER_first ANSWER_rest
 
     local DEFAULT=""
+    run_hook real_query_string
     [ -n "$3" ] && DEFAULT=" [$3] "
 
     if [ -z "$SILENT" ]; then
@@ -323,27 +325,146 @@ function clear_line()  {
 
 }
 
+#---------------------------------------------------------------------
+##
+## @Globals USE_HOOKS LIST_OF_HOOKS
+## Used to initialize hooks
+## Limitations: hook functions need to be defined as:
+## something_hookname_hook
+## in files named: something.hook
+##
+## Example:
+## mail.hook
+## function mail_post_SUCCESS_hook(){
+##   send_that_mail
+## }
+##
+#---------------------------------------------------------------------
+function init_hooks()  {
+  debug "libmisc" "init_hooks - starting"
+  local hook_file
+  local hookdir_perms="$(ls -lnd $SORCERY_HOOKS 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4;}')"
+  local hooks_list=""
+  if [[ $hookdir_perms == "drwxr-xr-x:0:0" ]]; then
+    for hook_file in $SORCERY_HOOKS/* ; do
+      # check if the effective owner and group are
+      # the same as the running process - root
+      # check for read and execute perms
+      # still lacks better security checking
+      # ideally this should be:
+      # if it's owned by 0:0 and has no write perms
+      # for group or other then it's assumed safe
+      # Extra precaution is done by permissions on the hooks
+      # directory and checked before the loop
+      if [[ -G $hook_file ]] &&
+         [[ -O $hook_file ]] &&
+         [[ -x $hook_file ]] &&
+         [[ -r $hook_file ]]
+      then
+        . $hook_file
+        hooks_list="$hooks_list $(smgl_basename ${hook_file/.hook})"
+        debug "libmisc" "init_hooks - loaded $hook_file"
+      fi
+    done
+    local function_name function_list
+    function_list="cast_initialize \
+                   cast_start_spell \
+                   cast_final \
+                   real_query \
+                   real_query_string \
+                   REPORT \
+                   pre_dispel \
+                   post_dispel \
+                   pre_SUCCESS \
+                   post_SUCCESS \
+                   pre_FAILURE \
+                   post_FAILURE \
+                   pre_BUILD \
+                   post_BUILD \
+                   pre_config_loc \
+                   post_config_loc \
+                   pre_CONFIGURE \
+                   post_CONFIGURE \
+                   pre_DEPENDS \
+                   post_DEPENDS \
+                   pre_DOWNLOAD \
+                   post_DOWNLOAD \
+                   pre_FINAL \
+                   post_FINAL \
+                   pre_INSTALL \
+                   post_INSTALL \
+                   pre_INSTALL_EXTRAS \
+                   post_INSTALL_EXTRAS \
+                   pre_POST_INSTALL \
+                   post_POST_INSTALL \
+                   pre_POST_REMOVE \
+                   post_POST_REMOVE \
+                   pre_POST_RESURRECT \
+                   post_POST_RESURRECT \
+                   pre_PRE_BUILD \
+                   post_PRE_BUILD \
+                   pre_PRE_INSTALL \
+                   post_PRE_INSTALL \
+                   pre_PREPARE \
+                   post_PREPARE \
+                   pre_PRE_REMOVE \
+                   post_PRE_REMOVE \
+                   pre_PRE_RESURRECT \
+                   post_PRE_RESURRECT \
+                   pre_SECURITY \
+                   post_SECURITY \
+                   pre_SUB_DEPENDS \
+                   post_SUB_DEPENDS \
+                   pre_TRANSFER \
+                   post_TRANSFER \
+                   pre_TRIGGER_CHECK \
+                   post_TRIGGER_CHECK \
+                   pre_TRIGGERS \
+                   post_TRIGGERS \
+                   pre_UP_TRIGGERS \
+                   post_UP_TRIGGERS"
+    local i f
+#    [[ -z $hooks_list ]] && return
+    for function_name in $function_list; do
+      f="function sorcery_default_${function_name}_hook () {"
+      for i in $hooks_list; do
+        # check if the function as is is declared
+        if declare -F ${i}_${function_name}_hook &>/dev/null; then 
+          f="$f ${i}_${function_name}_hook;"
+        fi
+      done
+      # check if there was anything done if yes then just close it else
+      # default it to true
+      if [[ "$f" != "function sorcery_default_${function_name}_hook () {" ]]; then
+        f="$f }"
+      else
+        f="$f true; }"
+        debug "libmisc" "init_hooks - defaulting sorcery_default_${function_name}_hook"
+      fi
+      eval "$f"
+    done
+  fi
+  debug "libmisc" "init_hooks - finished initial load"
+}
+
 
 #---------------------------------------------------------------------
 ##
-## @Globals SOUND
-## Plays a given soundfile if sounds are on and the file exists in
-## the chosen theme.
+## This function first checks if the spell_file hook should be run
+## and then assembles the parameters into a call to the relevant function
+## @param spell_file
+## @optional_param hook_order pre|post
 ##
 #---------------------------------------------------------------------
-function sound()  {
-
-  case  $SOUND  in
-    on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
-         if  [  -e  $SOUND_FILE  ];  then
-           (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
-           debug "libmisc" "Playing $SOUND_FILE"
-         else
-           debug "libmisc" "Error playing $SOUND_FILE: no such file"
-         fi
-    ;;
+function run_hook() {
+  local spell_file="$1"
+  local hook_order="$2"
+  debug "libmisc" "run_hook - starting ${hook_order}_${spell_file}_hook"
+  case $spell_file in
+         DETAILS|CONFLICTS|PRE_SUB_DEPENDS|SUB_DEPENDS) return 0 ;;
+    REPORT|cast_start_spell|cast_initialize|cast_final|real_query|real_query_string) sorcery_default_${spell_file}_hook ;;
+    *) sorcery_default_${hook_order}_${spell_file}_hook ;;
   esac
-
 }
 
 
@@ -597,26 +718,6 @@ function select_list_sub() {
   echo
   eval $returnvar=\"\$_result\"
 }
-
-#---------------------------------------------------------------------
-## @param title
-##
-## sets the terminal title if TERM=xterm|rxvt or the window title if
-## TERM=screen
-##
-#---------------------------------------------------------------------
-function set_term_title()
-{
-    if [[ $SET_TERM_TITLE != on ]]; then return; fi
-    case $TERM in
-        xterm*|rxvt*)  echo -ne "\e]0;$@\007"
-                       ;;
-              screen)  echo -ne "\ek$@\e\\"
-                       ;;
-                   *) ;;
-    esac
-}
-
 
 #---------------------------------------------------------------------
 ## @param return_var

@@ -23,6 +23,7 @@
 function run_config_loc () {
   debug "build_api/common" "Starting run_config_loc() on $SPELL"
   pushd . > /dev/null # may have been somewhere else
+  run_hook config_loc pre
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
   cd      $SOURCE_DIRECTORY   # we need to be in here for this function to work
   if  [[  $CONFIG_LOC  == on  ]]; then
@@ -71,6 +72,7 @@ function run_config_loc () {
   fi
 
   popd &>/dev/null
+  run_hook config_loc post
 
 }
 
@@ -206,11 +208,10 @@ function run_spell_success() {
     local TMP_MD5_LOG="$TMP_DIR/$SPELL-$VERSION.md5"
     local C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
 
+    run_hook  SUCCESS pre
     local CACHE
     construct_cache_name "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE
     local CACHE_COMP=$CACHE$EXTENSION
-
-    sound  SUCCESS
 
     tablet_check_version_cache "$VERSION_STATUS" &&
     (
@@ -363,6 +364,7 @@ function run_spell_success() {
     create_cache_archive $TMP_INST_LOG $CACHE $CACHE_COMP
 
     report_install
+    run_hook  SUCCESS post
     rm  -f $IW_LOG $C_LOG $TMP_INST_LOG $TMP_MD5_LOG "$STAGE_INST_LOG" \
            "$spell_sub_depends" "$spell_rsub_depends" "$spell_depends"
 }
@@ -375,7 +377,7 @@ function run_spell_failure() {
     debug "build_api/common" "cast of $SPELL-$VERSION failed"
     local rc=$1
 
-    sound  FAILURE
+    run_hook  FAILURE pre
 
     local reason
     get_failure_reason reason
@@ -399,6 +401,8 @@ function run_spell_failure() {
 
     IW_LOG="${INSTALLWATCHFILE:-$INSTW_LOGFILE}"
     devoke_installwatch
+
+    run_hook  FAILURE post
 
     rm -f $IW_LOG $C_LOG
 
