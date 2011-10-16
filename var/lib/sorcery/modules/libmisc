@@ -423,10 +423,11 @@ function init_hooks()  {
                    post_TRIGGERS \
                    pre_UP_TRIGGERS \
                    post_UP_TRIGGERS"
-    local i f
+    local i f of
 #    [[ -z $hooks_list ]] && return
     for function_name in $function_list; do
-      f="function sorcery_default_${function_name}_hook () {"
+      of="function sorcery_default_${function_name}_hook () { local ANTE_RC=\$1; "
+      f="$of"
       for i in $hooks_list; do
         # check if the function as is is declared
         if declare -F ${i}_${function_name}_hook &>/dev/null; then 
@@ -435,11 +436,10 @@ function init_hooks()  {
       done
       # check if there was anything done if yes then just close it else
       # default it to true
-      if [[ "$f" != "function sorcery_default_${function_name}_hook () {" ]]; then
+      if [[ $f != $of ]]; then
         f="$f }"
       else
         f="$f true; }"
-        debug "libmisc" "init_hooks - defaulting sorcery_default_${function_name}_hook"
       fi
       eval "$f"
     done
@@ -459,11 +459,11 @@ function init_hooks()  {
 function run_hook() {
   local spell_file="$1"
   local hook_order="$2"
-  debug "libmisc" "run_hook - starting ${hook_order}_${spell_file}_hook"
+  local rc=$3
   case $spell_file in
          DETAILS|CONFLICTS|PRE_SUB_DEPENDS|SUB_DEPENDS) return 0 ;;
-    REPORT|cast_start_spell|cast_initialize|cast_final|real_query|real_query_string) sorcery_default_${spell_file}_hook ;;
-    *) sorcery_default_${hook_order}_${spell_file}_hook ;;
+    REPORT|cast_start_spell|cast_initialize|cast_final|real_query|real_query_string) sorcery_default_${spell_file}_hook $rc ;;
+    *) sorcery_default_${hook_order}_${spell_file}_hook $rc ;;
   esac
 }
 
