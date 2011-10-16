@@ -1,22 +1,29 @@
-if [[ -x /usr/bin/play ]] ; then
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Hooks for playing sounds
+## @Copyright Copyright (C) 2010 The Source Mage Team <http://www.sourcemage.org>
+## Functions implementing sound hooks for the end of cast reporting
+#---------------------------------------------------------------------
+
+[[ -x /usr/bin/play ]] || return 0
 
 #---------------------------------------------------------------------
 ##
-## @Globals SOUND
+## @Globals SOUND SOUND_DIRECTORY SOUND_THEME
 ## Plays a given soundfile if sounds are on and the file exists in 
 ## the chosen theme.
 ##
 ## Needs sox
 #---------------------------------------------------------------------
 function sound()  {
-
+  local sound_file
   case  $SOUND  in
-    on)  SOUND_FILE=$SOUND_DIRECTORY/$SOUND_THEME/$1
-         if  [[  -e  $SOUND_FILE  ]];  then
-           (  cd  /  ;  play  $SOUND_FILE  2>/dev/null  & )
-           debug "libmisc" "Playing $SOUND_FILE"
+    on)  sound_file=$SOUND_DIRECTORY/$SOUND_THEME/$1
+         if  [[  -e  $sound_file  ]];  then
+           (  cd  /  ;  play  $sound_file  2>/dev/null  & )
+           debug "libmisc" "Playing $sound_file"
          else
-           debug "libmisc" "Error playing $SOUND_FILE: no such file"
+           debug "libmisc" "Error playing $sound_file: no such file"
          fi
     ;;
   esac
@@ -35,4 +42,21 @@ function sound_post_SUCCESS_hook() {
   sound SUCCESS
 }
 
-fi
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

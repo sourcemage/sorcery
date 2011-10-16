@@ -1,22 +1,27 @@
-MAIL_REPORT_HOOK=""
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Hooks for sending mail
+## @Copyright Copyright (C) 2010 The Source Mage Team <http://www.sourcemage.org>
+## Functions implementing mail hooks for the end of cast reporting
+#---------------------------------------------------------------------
 
-if [[ -x /usr/bin/mail ]] ; then
+[[ -x /usr/bin/mail ]] || return 0
 
 function mail_cast_final_hook() {
-MAIL_REPORT_HOOK=$(echo "---Success---" 
-cat $SUCCESS_LIST | column
-echo "---Failure---"
-cat $FAILED_LIST | column
-echo "---Dropped---"
-echo $NOT_CAST | column
-echo "---Conflicts---"
-cat $CONFLICT_LIST | column
-echo "---check_self succeed---"
-cat $CHECK_TRIGGERS_SUCCESS | column
-echo "---check_self fail---"
-cat $CHECK_TRIGGERS_FAILURE | column
-)
-echo "$MAIL_REPORT_HOOK" | mail -s "Final report" $SORCERER
+  {
+    echo "---Success---"
+    cat $SUCCESS_LIST | column
+    echo "---Failure---"
+    cat $FAILED_LIST | column
+    echo "---Dropped---"
+    echo $NOT_CAST | column
+    echo "---Conflicts---"
+    cut -d" " -f2- $CONFLICT_LIST 2>/dev/null | column
+    echo "---check_self succeed---"
+    cat $CHECK_TRIGGERS_SUCCESS | column
+    echo "---check_self fail---"
+    cat $CHECK_TRIGGERS_FAILURE | column
+  } | mail -s "Final report" $SORCERER
 }
 
 function mail_post_FAILURE_hook() {
@@ -28,4 +33,21 @@ function mail_post_SUCCESS_hook() {
   date -u | mail -s "Install log" -a $INST_LOG $SORCERER 2>/dev/null
 }
 
-fi
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
