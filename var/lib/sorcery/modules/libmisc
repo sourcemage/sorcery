@@ -342,9 +342,13 @@ function clear_line()  {
 #---------------------------------------------------------------------
 function init_hooks()  {
   debug "libmisc" "init_hooks - starting"
+  # check if we were called already
+  declare -F hook_marker &>/dev/null && return 0
+
   local hook_file
   local hookdir_perms="$(ls -lnd $SORCERY_HOOKS 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4;}')"
   local hooks_list=""
+
   if [[ $hookdir_perms == "drwxr-xr-x:0:0" ]]; then
     for hook_file in $SORCERY_HOOKS/* ; do
       # check if the effective owner and group are
@@ -444,6 +448,7 @@ function init_hooks()  {
       eval "$f"
     done
   fi
+  hook_marker() { true; };
   debug "libmisc" "init_hooks - finished initial load"
 }
 
