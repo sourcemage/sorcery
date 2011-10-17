@@ -1,0 +1,115 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Hooks for setting the term title
+## @Copyright Copyright (C) 2010 The Source Mage Team <http://www.sourcemage.org>
+## Functions implementing term title hooks for all the hook points
+
+[[ $SET_TERM_TITLE != "on" ]] && return 0
+
+#---------------------------------------------------------------------
+## @param title
+## @Globals TERM
+## 
+## sets the terminal title if TERM=xterm|rxvt or the window title if
+## TERM=screen
+##
+#---------------------------------------------------------------------
+function set_term_title()
+{
+  case $TERM in
+    xterm*|rxvt) echo -ne "\e]0;$@\007" ;;
+         screen) echo -ne "\ek$@\e\\" ;;
+              *) true ;;
+  esac
+}
+
+function xterm_title_cast_initialize_hook() {
+  set_term_title "cast started"
+}
+
+function xterm_title_cast_start_spell_hook() {
+  set_term_title "[$SPELL]: casting"
+}
+
+function xterm_title_cast_final_hook() {
+  if [[ $ANTE_RC == 0 ]]; then
+    set_term_title "cast finished succesfully"
+  else
+    set_term_title "cast finished with failures!"
+  fi
+}
+
+function xterm_title_pre_SUCCESS_hook() {
+  set_term_title "[$SPELL]: success!"
+}
+
+function xterm_title_pre_FAILURE_hook() {
+  set_term_title "[$SPELL]: failure!"
+}
+
+function xterm_title_pre_BUILD_hook() {
+  set_term_title "[$SPELL]: building"
+}
+
+function xterm_title_pre_DOWNLOAD_hook() {
+  # summon and cast are run in parallel, so try to avoid conflicts
+  # let cast have precedence
+  if test -t 1; then
+    set_term_title "[$SPELL]: downloading"
+  fi
+}
+
+function xterm_title_pre_INSTALL_hook() {
+  if [[ $STAGED_INSTALL != on ]]; then
+    set_term_title "[$SPELL]: installing"
+  else
+    set_term_title "[$SPELL]: installing to stage"
+  fi
+}
+
+function xterm_title_pre_INSTALL_EXTRAS_hook() {
+  set_term_title "[$SPELL]: installing extras"
+}
+
+function xterm_title_pre_PRE_BUILD_hook() {
+  set_term_title "[$SPELL]: unpacking"
+}
+
+function xterm_title_pre_dispel_hook() {
+  set_term_title "[$SPELL]: dispelling"
+}
+
+function xterm_title_pre_PRE_RESURRECT_hook() {
+  set_term_title "[$SPELL]: resurrecting"
+}
+
+function xterm_title_pre_TRANSFER_hook() {
+  set_term_title "[$SPELL]: transfering to system"
+}
+
+function xterm_title_pre_TRIGGERS_hook() {
+  set_term_title "[$SPELL]: checking triggers"
+}
+
+function xterm_title_pre_UP_TRIGGERS_hook() {
+  set_term_title "[$SPELL]: checking reverse triggers"
+}
+
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

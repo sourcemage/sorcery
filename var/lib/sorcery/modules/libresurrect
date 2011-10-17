@@ -325,11 +325,13 @@ function resurrect_spell()  { (
 function resurrect_sub() {
   # 10) if theres a PRE_RESURRECT run it or fail/rollback
   if test -x $SCRIPT_DIRECTORY/PRE_RESURRECT ; then
+    run_hook PRE_RESURRECT pre
     . $SCRIPT_DIRECTORY/PRE_RESURRECT || {
       debug "libresurrect" "PRE_RESURRECT failed"
       resurrect_fail 1
       return 1
     }
+    run_hook PRE_RESURRECT post
   fi
 
 
@@ -408,11 +410,13 @@ function resurrect_sub() {
 
   # 14) if theres a POST_RESURRECT run it
   if test -x $SCRIPT_DIRECTORY/POST_RESURRECT ; then
+    run_hook POST_RESURRECT pre
     . $SCRIPT_DIRECTORY/POST_RESURRECT || {
       message "POST_RESURRECT failed"
       resurrect_fail 1
       return 1
     }
+    run_hook POST_RESURRECT post
   fi
   ldconfig # can never be too careful
 }
