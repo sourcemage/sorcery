@@ -1748,6 +1748,23 @@ function show_file() {
   fi
 }
 
+#---------------------------------------------------------------------
+## @param title
+## @Globals TERM
+##
+## sets the terminal title if TERM=xterm|rxvt or the window title if
+## TERM=screen
+##
+#---------------------------------------------------------------------
+function set_term_title()
+{
+  case $TERM in
+    xterm*|rxvt) echo -ne "\e]0;$@\007" ;;
+         screen) echo -ne "\ek$@\e\\" ;;
+              *) true ;;
+  esac
+}
+
 # Standard debug line:
 # file "function@line" "all" "args"
 STD_DEBUG='eval local _stddbg_file=${BASH_SOURCE[0]} ;
