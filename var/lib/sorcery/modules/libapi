@@ -78,7 +78,6 @@
 #    suggest_depends                (libdepends)
 #    track_manual                   (libtrack)
 #    uncompress                     (libunpack)
-#    unpack                         (libunpack) (deprecated)
 #    unpack_file                    (libunpack)
 #    unpack_file_simple             (libunpack)
 #    using_gcc                      (libgcc2)
@@ -1124,25 +1123,6 @@ function uncompress () {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param file to unpack
-## @param md5sum
-## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack> for more details.
-##
-## Given a file, unpack runs the decompression program for that file,
-## as well as untar'ing the file if appropriate and if the MD5
-## matches.
-## Note: zip is a special case because it doesn't work with streams.
-## Note: This function is deprecated and kept for spells that still
-##       use the old verification methods (MD5[0]=).
-##
-#---------------------------------------------------------------------
-function unpack () {
-    debug "libapi" "unpack - $*"
-    real_unpack "$@"
-}
-
-#---------------------------------------------------------------------
-## @Type API
 ## @param SOURCE suffix
 ## @See <@function var.lib.sorcery.modules.libunpack.html,real_unpack_file> for more details.
 ##
@@ -1199,9 +1179,6 @@ function unpack () {
 ##   see unpack_ignore
 ##
 ## Otherwise, it falls back to MISSING mode, see unpack_missing
-## (or for now)
-## Otherwise, it falls back to old uncompressed md5sum check with MD5[n].
-##   see real_unpack()
 ##
 ## The default verification level is "WORKS_FOR_ME"
 ##
