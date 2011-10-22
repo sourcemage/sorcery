@@ -371,62 +371,15 @@ function init_hooks()  {
       fi
     done
     local function_name function_list
-    function_list="cast_initialize \
-                   cast_start_spell \
-                   cast_final \
-                   real_query \
-                   real_query_string \
+    function_list=$(echo cast_{initialize,start_spell,final} \
+                   real_query{,_string} \
                    REPORT \
-                   pre_dispel \
-                   post_dispel \
-                   pre_SUCCESS \
-                   post_SUCCESS \
-                   pre_FAILURE \
-                   post_FAILURE \
-                   pre_BUILD \
-                   post_BUILD \
-                   pre_config_loc \
-                   post_config_loc \
-                   pre_CONFIGURE \
-                   post_CONFIGURE \
-                   pre_DEPENDS \
-                   post_DEPENDS \
-                   pre_DOWNLOAD \
-                   post_DOWNLOAD \
-                   pre_FINAL \
-                   post_FINAL \
-                   pre_INSTALL \
-                   post_INSTALL \
-                   pre_INSTALL_EXTRAS \
-                   post_INSTALL_EXTRAS \
-                   pre_POST_INSTALL \
-                   post_POST_INSTALL \
-                   pre_POST_REMOVE \
-                   post_POST_REMOVE \
-                   pre_POST_RESURRECT \
-                   post_POST_RESURRECT \
-                   pre_PRE_BUILD \
-                   post_PRE_BUILD \
-                   pre_PRE_INSTALL \
-                   post_PRE_INSTALL \
-                   pre_PREPARE \
-                   post_PREPARE \
-                   pre_PRE_REMOVE \
-                   post_PRE_REMOVE \
-                   pre_PRE_RESURRECT \
-                   post_PRE_RESURRECT \
-                   pre_SECURITY \
-                   post_SECURITY \
-                   pre_SUB_DEPENDS \
-                   post_SUB_DEPENDS \
-                   pre_TRANSFER \
-                   post_TRANSFER \
-                   pre_TRIGGER_CHECK \
-                   post_TRIGGER_CHECK \
-                   pre_TRIGGERS \
-                   post_TRIGGERS \
-                   pre_UP_TRIGGERS \
-                   post_UP_TRIGGERS"
+                   {pre_,post_}{dispel,SUCCESS,FAILURE,BUILD,config_loc} \
+                   {pre_,post_}{CONFIGURE,DEPENDS,DOWNLOAD,FINAL,INSTALL} \
+                   {pre_,post_}{INSTALL_EXTRAS,POST_INSTALL,POST_REMOVE} \
+                   {pre_,post_}{POST_RESURRECT,PRE_BUILD,PRE_INSTALL,PREPARE} \
+                   {pre_,post_}{PRE_REMOVE,PRE_RESURRECT,SECURITY,TRANSFER} \
+                   {pre_,post_}{TRIGGER_CHECK,TRIGGERS,UP_TRIGGERS})
     local i f of
 #    [[ -z $hooks_list ]] && return
     for function_name in $function_list; do
@@ -466,9 +419,13 @@ function run_hook() {
   local hook_order="$2"
   local rc=$3
   case $spell_file in
-         DETAILS|CONFLICTS|PRE_SUB_DEPENDS|SUB_DEPENDS) return 0 ;;
-    REPORT|cast_start_spell|cast_initialize|cast_final|real_query|real_query_string) sorcery_default_${spell_file}_hook $rc ;;
-    *) sorcery_default_${hook_order}_${spell_file}_hook $rc ;;
+    DETAILS|CONFLICTS|PRE_SUB_DEPENDS|SUB_DEPENDS) return 0 ;;
+    *)
+      if [[ $hook_order ]]; then
+        sorcery_default_${hook_order}_${spell_file}_hook $rc
+      else
+        sorcery_default_${spell_file}_hook $rc
+      fi ;;
   esac
 }
 
