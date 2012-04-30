@@ -747,8 +747,9 @@ function tablet_create_version_cache() {
   local page_dir
   local spell version patchlevel security_patch updated
   local rc=0
+  local ok_spells=( $(get_all_spells_with_status ok) )
 
-  for spell in $(get_all_spells_with_status ok); do
+  for spell in ${ok_spells[@]}; do
     if tablet_find_spell_dir $spell page_dir; then
       tablet_get_version $page_dir version
       tablet_get_patchlevel $page_dir patchlevel
@@ -762,13 +763,16 @@ function tablet_create_version_cache() {
       error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
                     "please run cleanse --tablet and retry. If some spells" \
                     "have unfixable tablet pages, recast them.$DEFAULT_COLOR"
-      rc=1
       break
     fi
   done | sort > $file
 
-  [[ $rc == 1 ]] && rm $file
-  return $rc
+  # we can't set rc inside the loop, since it is in a subshell and
+  # the rc of break 13 still does not match what is documented in bash 4.2.24
+  if [[ ${#ok_spells[@]} != $(wc -l $file) ]]; then
+    rm $file
+    return 1
+  fi
 }
 
 #---------------------------------------------------------------------
