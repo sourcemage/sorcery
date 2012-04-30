@@ -50,6 +50,14 @@ function dl_svn_get () {
       svn_args="$svn_args --trust-server-cert"
     fi
 
+    local svn_format=$(head -1 $target/.svn/entries)
+    message "${MESSAGE_COLOR}Subversion working copy format: $svn_format${DEFAULT_COLOR}"
+    if (( ${svn_format:-100} <= 10 )); then
+      message "${MESSAGE_COLOR}Running svn upgrade...${DEFAULT_COLOR}"
+      echo svn upgrade $svn_args $target
+      svn upgrade $svn_args $target
+    fi
+
     if test -d $target; then
       message "${MESSAGE_COLOR}Running svn update...${DEFAULT_COLOR}"
       echo svn update $svn_args -r $SVN_TAG $target
