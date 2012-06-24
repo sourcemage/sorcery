@@ -35,7 +35,7 @@ function update_install_queue()  {
           curr_updated=${info[1]}
           curr_version=${info[3]}
           codex_set_current_spell_by_name $spell &&
-          does_spell_need_update_sub "$spell" "$curr_version" \
+          does_spell_need_update_slow "$spell" "$curr_version" \
                                     "$curr_updated" "$tmp_queue"
       done < $recheck_queue
       clear_line
@@ -226,7 +226,7 @@ function does_spell_need_update() {
 ## use the version cache and is also needed for checking multiversioned
 ## spells.
 #---------------------------------------------------------------------
-function does_spell_need_update_sub() {
+function does_spell_need_update_slow() {
   local spell=$1
   local curr_version=$2
   local curr_updated=$3
@@ -303,7 +303,8 @@ function update_install_queue_sub()  {
       if grep -q "^$spell " "$tmp_queue"; then
         sed -i "/^$spell /!d" "$tmp_queue"
       elif grep -q "^$spell$" "$recheck_queue"; then
-        update_install_queue_sub2 $spell
+        # the fast method failed, recheck the old slower way
+        update_install_queue_slow $spell
         return $?
       else
         return 2
@@ -323,18 +324,17 @@ function update_install_queue_sub()  {
     return 0
   else # use the old slow method
     if [[ $type == single ]]; then
-      update_install_queue_sub2 $spell
+      update_install_queue_slow $spell
     else
       get_all_spells_with_status installed > $recheck_queue
     fi
   fi
 }
 
-# FIXME: find a proper name
 #---------------------------------------------------------------------
 ## Slow higher-level check if a spell needs to be updated
 #---------------------------------------------------------------------
-function update_install_queue_sub2()  {
+function update_install_queue_slow()  {
   local spell=$1
   # this is in a subshell because the caller may not want to actually load
   # the spell yet
@@ -342,7 +342,7 @@ function update_install_queue_sub2()  {
     line=$(search_spell_status $SPELL_STATUS $spell)
     codex_set_current_spell_by_name  $spell
     explode "$line" ":" "info"
-    does_spell_need_update_sub "$spell" "${info[3]}" "${info[1]}" /dev/null
+    does_spell_need_update_slow "$spell" "${info[3]}" "${info[1]}" /dev/null
   )
 }
 
