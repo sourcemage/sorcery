@@ -685,7 +685,7 @@ architecture_menu() {
   # same name), it reverses the output from tac so that the first archspecs
   # found are the last added to the hash table and thus are prefered over
   # ones found later
-  for  SPECFILE  in  $(find  $ARCH_SPECS  -not  -name '*~'|tac); do
+  for  SPECFILE  in  $(find $ARCH_SPECS -type f -not -name '*~' | tac); do
     if  test -x  "$SPECFILE"   && grep  -q  "CPUNAME"  $SPECFILE; then
       smgl_basename "$SPECFILE" specname
       hash_put archspec_hash $specname $SPECFILE
