@@ -36,44 +36,23 @@ function dl_git_get () {
   for url in $url_list; do
     local URL GIT_ROOT GIT_DIRECTORY GIT_TAG
     url_crack "$url" "$hints"
-    if [[ -z $GIT_DIRECTORY ]]
-    then
-      GIT_DIRECTORY=${target/.git/}
+    [[ -z $GIT_DIRECTORY ]] && GIT_DIRECTORY=${target%.git}
+    [[ -z $GIT_TAG ]] && GIT_TAG=master
+
+    if ! test -d $GIT_DIRECTORY; then
+      message "${MESSAGE_COLOR}Initializing...${DEFAULT_COLOR}"
+      git init "$GIT_DIRECTORY"
     fi
-    if test -d $GIT_DIRECTORY; then
-      message "${MESSAGE_COLOR}Running git pull...${DEFAULT_COLOR}"
-      ( cd $GIT_DIRECTORY &&
-      match=$(git branch | grep -F " $GIT_TAG"; true) &&
-      if [[ $match ]]; then
-        # no need to checkout a branch if we're already on it
-        if [[ ${match:0:1} != '*' ]]; then
-          echo git checkout $GIT_TAG &&
-          git checkout $GIT_TAG
-        else
-          : # already on the correct branch
-        fi
-      else
-        echo git checkout -b $GIT_TAG origin/$GIT_TAG &&
-        git checkout -b $GIT_TAG origin/$GIT_TAG
-      fi
-      echo git pull &&
-      git pull )
-      rc=$?
-      eval "$dl_target=\"$GIT_DIRECTORY\""
-    else
-      message "${MESSAGE_COLOR}Running git clone...${DEFAULT_COLOR}"
-      echo git clone $GIT_ROOT $GIT_DIRECTORY
-      git clone $GIT_ROOT $GIT_DIRECTORY &&
-      cd $GIT_DIRECTORY &&
-      if ! git branch | grep -qF " $GIT_TAG"; then
-        echo git checkout -b $GIT_TAG origin/$GIT_TAG &&
-        git checkout -b $GIT_TAG origin/$GIT_TAG
-      fi
-      rc=$?
-      cd ../
-      eval "$dl_target=\"$GIT_DIRECTORY\""
-    fi
-    [[ $rc == 0 ]] && break
+
+    message "${MESSAGE_COLOR}Fetching...${DEFAULT_COLOR}"
+    GIT_DIR="$GIT_DIRECTORY/.git" git fetch "$GIT_ROOT" "$GIT_TAG" || continue
+
+    cd "$GIT_DIRECTORY" &&
+    git reset --hard FETCH_HEAD; rc=$?
+    cd ..
+
+    eval "$dl_target=\"$GIT_DIRECTORY\""
+    break
   done
   dl_disconnect
 
