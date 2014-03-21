@@ -181,8 +181,6 @@ function real_download_src() {
 ## Download the resource, handles file and tree discrepencies, if a tree is
 ## downloaded it is repackaged as the specified file for later use.
 ##
-## Only tar.bz2 files are acceptable caches for repackaged trees
-##
 #-------------------------------------------------------------------------
 function download_src_args() {
   $STD_DEBUG
@@ -233,7 +231,7 @@ function download_src_args() {
 
     # incorrect guess, set new_target appropriatly
     if [[ "$guess_type" == file ]] ; then
-      new_target="${target/.tar.bz2/}"
+      new_target="${target%.tar.*}"
     fi
 
     if ! test -d $summon_target; then
@@ -246,7 +244,7 @@ function download_src_args() {
       mv -f $summon_target $new_target
     fi &&
     message "${MESSAGE_COLOR}Repackaging ${SPELL_COLOR}$target${DEFAULT_COLOR}"
-    tar --remove-files -cjf $target $new_target &&
+    tar --remove-files -caf $target $new_target &&
     rm -rf $new_target
   elif [[ "$summon_type" == file ]] ; then
     # there is no penalty for guessing tree when the result is a file
@@ -409,7 +407,7 @@ function unpack_for_update() {
   local prefix=$(url_get_prefix $url_list)
   if ! list_find "$hints" file &&
      list_find "$hints" tree || list_find "$tree_prefixes" "$prefix" ; then
-    _new_target="${target/.tar.bz2/}"
+    _new_target="${target%.tar.*}"
     eval "$guess_type_ref=\"tree\""
     eval "$new_target_ref=\"\$_new_target\""
 
