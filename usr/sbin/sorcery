@@ -750,6 +750,7 @@ optimization_menu(){
   local    SPEEDY_HELP="Optimize generated code, conflicts with 'tiny' (CFLAGS=$FAST)"
   local     STRIP_HELP="Remove all symbol table and relocation (debugging) information (LDFLAGS=-s)"
   local      TINY_HELP="Optimize to smaller generated code, conflicts with 'speedy' (CFLAGS=$SMALL)"
+  local AS_NEEDED_HELP="Only emit DT_NEEDED entries for directly used libraries (LDFLAGS=-Wl,--as-needed)"
 
   if  OPTIMIZATIONS=`eval $DIALOG '  --title  "$OPT_TITLE"     \
                               --no-cancel               \
@@ -762,7 +763,8 @@ optimization_menu(){
         "risky"     "          +speed"  "$RISKY"     "$RISKY_HELP"     \
         "speedy"    "  +size  ++speed"  "$SPEEDY"    "$SPEEDY_HELP"    \
         "strip"     " --size"           "$STRIP"     "$STRIP_HELP"     \
-        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"'`
+        "tiny"      "  -size   +speed"  "$TINY"      "$TINY_HELP"      \
+        "as_needed" "only direct libs"  "$AS_NEEDED" "$AS_NEEDED_HELP"'`
   then
 
     OPTIMIZATIONS=`echo  ${OPTIMIZATIONS}  |  tr  '\n'  ' '`

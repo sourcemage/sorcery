@@ -617,7 +617,7 @@ function optimize()  {
   debug "libsorcery" "In optimize()"
 
   unset  CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
-  unset  FAST PRELINK RISKY SMALL SPEEDY STRIP TINY
+  unset  FAST PRELINK RISKY SMALL SPEEDY STRIP TINY AS_NEEDED
 
   # if user specified --no-opts then use only the args from the command line
   # otherwise do the normal stuff
@@ -661,6 +661,11 @@ function optimize()  {
         tiny)
           CFLAGS="$CFLAGS $SMALL"
           TINY="on"
+          ;;
+
+        as_needed)
+          LDFLAGS="$LDFLAGS -Wl,--as-needed"
+          AS_NEEDED="on"
           ;;
 
       esac
