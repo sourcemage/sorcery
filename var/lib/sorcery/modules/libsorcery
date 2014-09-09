@@ -6,8 +6,8 @@
 ## This should really be home to things related to the sorcery script
 ## itself, not a repository for other functions. (Andrew 5/29/04)
 ##
+## @Copyright Additions/Corrections Copyright 2002, 2014 by the Source Mage Team
 ## @Copyright Original version Copyright 2001 by Kyle Sallee
-## @Copyright Additions/Corrections Copyright 2002 by the Source Mage Team
 ##
 #---------------------------------------------------------------------
 
@@ -725,27 +725,7 @@ function sorcery_history() {
 function get_new_changes() {
     local msg="$1"
     local date="$2"
-    # This needs some explaination:
-    # The first item in {}'s extracts the date, assuming the format yyyy-mm-dd
-    # then checks if its less than the last-update date ($date). The second
-    # part ensures that we're actually looking at a date and not a line
-    # of changelog. If both those are true, set 'd' to 1, otherwise d is '0'.
-    #
-    # In other words, d is 0 until it encounters a starting changelog entry
-    # from before the given $date. Then d is 1 for each starting entry. Its
-    # always 0 for bulleted changelog lines and blank lines.
-    #
-    # The second portion begins "NR==1,d". This is special awk syntax
-    # that says to run the stuff to the right in {}'s starting once the
-    # first statement is true, up through when the second one is true.
-    # For example, NR==1,NR==8 would run the right-hand block for lines 1
-    # through 8.
-    #
-    # NR is the line number, so its true on the first line. d is true once the
-    # the dates are from before the last update. The if(!d) is necessary
-    # to skip the first line where the changelog date is less than $date.
-    #
-    local changelog="$( awk -v date="$date" '{ d = (strtonum(substr($0,1,4) substr($0,6,2) substr($0,9,2)) < date && strtonum(substr($0,1,4)) > 0); }; NR == 1, d { if (!d) print }' "$3" )"
+    local changelog="$(awk -v date="$date" -F'[- ]' -- '/^[0-9]/{if (($1 $2 $3) < date) exit}{print}' "$3")"
 
     if [[ "$changelog" ]] ; then
       {
