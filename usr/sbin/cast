@@ -3,7 +3,7 @@
 ## @Synopsis cast is the spell installation utility. It can be called by the user or by sorcery
 ## @Copyright Original version Copyright 2001 by Kyle Sallee
 ## @Copyright Some parts copyright 2002 Anders Bruun Olsen et al
-## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
+## @Copyright Other additions/corrections Copyright 2002, 2014 by the Source Mage Team
 ## Script to cast spells.
 #---------------------------------------------------------------------
 
@@ -474,14 +474,13 @@ function pass_two()  {
     let i+=5
     if [[ $i -gt 60 ]] ; then
       message "Download pass did not finish, killing it off."
-      # this is rather violent, but job control in bash lame and theres
+      # this is rather violent, but job control in bash lame and there's
       # no other way to kill everything off effectively :-(
-      ps x|grep $TMP_DIR|awk '{print $1}'|grep -v $$|xargs kill &>/dev/null
-      echo -n .; sleep 1
-      ps x|grep $TMP_DIR|awk '{print $1}'|grep -v $$|xargs kill &>/dev/null
-      echo -n .; sleep 1
-      ps x|grep $TMP_DIR|awk '{print $1}'|grep -v $$|xargs kill -9 &>/dev/null
-      echo -n .;  sleep 1
+      pids="`ps x | awk -v t="$TMP_DIR" -v p=$$ -- '$0 ~ t && $1 != p {print $1}'`"
+      for i in '' '' -9; do
+	 kill $i $pids >/dev/null 2>&1
+	 echo -n .; sleep 1
+      done
       echo
       break
     fi
