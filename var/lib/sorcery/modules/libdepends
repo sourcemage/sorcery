@@ -306,19 +306,23 @@ function compute_installed_depends() {
   lock_file "$DEPENDS_STATUS"
   lock_file "$SPELL_STATUS"
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
-    while (getline < ARGV[1] ) {
-      if( $3==status && ( $4 ~ pattern ) ) {
-        sub(/\(.*\)/, "", $2);
-        depmap[$1]=depmap[$1]" "$2" "
-      }
-    }
-    while (getline < ARGV[2] ) {
-      if( $3=="installed" || $3=="held") {
-        printf("hash_put $hash %s \"%s\";\n",$1,depmap[$1]);
-      }
-    }
-  }' $DEPENDS_STATUS $SPELL_STATUS )
+  awk -v pattern="$pattern" -v status="$status" -F : '
+	FNR == 1 { file++ }
+	file == 1 {
+		if ($3 == status && ($4 ~ pattern)) {
+			sub(/\(.*\)/, "", $2);
+			depmap[$1] = depmap[$1] " " $2 " "
+		}
+		next
+	}
+	{
+		if ($3 == "installed" || $3 == "held")
+			print $1, depmap[$1]
+	}
+	' "$DEPENDS_STATUS" "$SPELL_STATUS" |
+  while read a b; do
+    hash_put "$hash" "$a" "$b"
+  done
   unlock_file "$DEPENDS_STATUS"
   unlock_file "$SPELL_STATUS"
 }
@@ -348,19 +352,23 @@ function compute_reverse_installed_depends() {
   lock_file "$DEPENDS_STATUS"
   lock_file "$SPELL_STATUS"
   # sub(/(.*)/, "", $2) removes a provider name
-  eval $(awk -v pattern="$pattern" -v status="$status" -F : 'BEGIN {
-    while (getline < ARGV[1] ) {
-      if( $3==status && ( $4 ~ pattern ) ) {
-        sub(/\(.*\)/, "", $2);
-        depmap[$2]=depmap[$2]" "$1" "
-      }
-    }
-    while (getline < ARGV[2] ) {
-      if( $3=="installed" || $3=="held") {
-        printf("hash_put $hash %s \"%s\";\n",$1,depmap[$1]);
-      }
-    }
-  }' $DEPENDS_STATUS $SPELL_STATUS )
+  awk -v pattern="$pattern" -v status="$status" -F : '
+	FNR == 1 { file++ }
+	file == 1 {
+		if ($3 == status && ($4 ~ pattern)) {
+			sub(/\(.*\)/, "", $2);
+			depmap[$2] = depmap[$2] " " $1 " "
+		}
+		next
+	}
+	{
+		if ($3 == "installed" || $3 == "held")
+			print $1, depmap[$1]
+	}
+	' "$DEPENDS_STATUS" "$SPELL_STATUS" |
+  while read a b; do
+    hash_put "$hash" "$a" "$b"
+  done
   unlock_file "$DEPENDS_STATUS"
   unlock_file "$SPELL_STATUS"
 }

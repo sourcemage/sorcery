@@ -6,6 +6,7 @@
 ## remove corrupted lines, and ensure the information all agrees
 ## with itself. It is also to clean out unused lines and files.
 ##
+## @Copyright Copyright 2014 by Ismael Luceno for Source Mage
 ## @Copyright Copyright 2004 by Paul Mahon for Source Mage
 ## @Licence Relased under the GNU GPL version 2
 ##
@@ -230,10 +231,13 @@ function delint()
   for LINE in $( sed 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/;tp;d;:p;s/+/\\+/}' $DEPENDS_STATUS | sort | uniq -d ) ; do
     message
     options=()
-    eval $(awk '/^'$LINE':/{
-      if(!ENTRIES[$0]) {
-        printf("options[%d]=\"%s\"\n", count++, $0); ENTRIES[$0]=1;
-      } }' $DEPENDS_STATUS)
+    awk -v line="^$LINE:" -- '
+      $0 ~ line && !($0 in seen) {print count++, $0; seen[$0]}
+    ' $DEPENDS_STATUS |
+    while read v opt; do
+      options[$v]="$opt"
+    done
+
     if [ ${#options[@]} -gt 1 ] ; then
       select_list choice "" "${options[@]}"
       message "Removing other entries and keeping selected entry"

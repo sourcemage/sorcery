@@ -1,7 +1,7 @@
 #!/bin/bash
 #---------------------------------------------------------------------
 ## @Synopsis A set of functions for the Cabal distributed administration system.
-## @Copyright Copyright 2002 by the Source Mage Team. Some parts Copyright 2001 by Kyle Sallee
+## @Copyright Copyright 2002, 2014 by the Source Mage Team. Some parts Copyright 2001 by Kyle Sallee
 ## Control a set of SourceMage boxes on a network. This documentation was
 ## written by someone who never used cabal or looked at this code before.
 ##
@@ -17,11 +17,12 @@ function read_cabal_names()  {
 
   mkdir  -p  $CABAL_DIRECTORY
 
- [  -f  $CABAL_NAMES  ] || return
+  [  -f  $CABAL_NAMES  ] || return
 
-
-  eval `awk '{ print "CABALS[" NR-1 "]=\"" $0 "\""; }' "$CABAL_NAMES"`
-
+  awk '{ print n++, $0 }' "$CABAL_NAMES" |
+  while read v name; do
+    CABALS[$v]="$name"
+  done
 }
 
 #--------------------

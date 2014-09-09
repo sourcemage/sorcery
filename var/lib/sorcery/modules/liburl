@@ -300,17 +300,12 @@ function url_rank() {
   for tmp_prefix in $(hash_get_table_fields url_div_hash) ; do
     hash_get_ref url_div_hash $tmp_prefix tmp_list
     debug liburl "urls are $tmp_list"
-    # the awk command turns netselect output like this:
-    # 69 url1
-    # 234 url2
-    # into the following bash code, which is then executed
-    # url_speed[69]="${url_speed[69]} url1"
-    # url_speed[234]="${url_speed[234]} url2"
-    eval $(url_netselect $tmp_list|
-      awk '{ if ($2 > 0 && $2 < 65536 ) {
-               printf "url_speed[%s]=\"${url_speed[%s]} %s\";",$1,$1,$2
-             }
-           }')
+    url_netselect $tmp_list |
+    awk '$2 > 0 && $2 < 65536 { print $1, $2 }' |
+    while read a b; do
+      url_speed[$a]+=" $b"
+    done
+
   done
 
   # since we put things in url_speed indexed by speed, the * should
