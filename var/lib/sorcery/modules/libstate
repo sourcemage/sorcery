@@ -187,7 +187,7 @@ function get_depends_options()
   esc_str "$1" START
   debug "libstate" "get_depends_options() - START=$START"
   lock_file "$depends_status"
-  awk -F ':' -v start=$START "{ if (\$1 == start) if (\$3 == \"on\") OPTS = OPTS \" \" \$5; else OPTS = OPTS \" \" \$6; } END { print OPTS; }" $depends_status 2> /dev/null
+  awk -F ':' -v start=$START '$1 == start { OPTS = OPTS " " ($3 == "on" ? $5 : $6) } END { print OPTS }' $depends_status 2> /dev/null
   unlock_file "$depends_status"
 }
 
@@ -249,9 +249,9 @@ function toggle_depends_status() {
   local t_status
   lock_start_transaction "$depends_status" t_status
   awk -F ':' -v OFS=':' \
-    '/^'$spell:$dependency':(on|off):(optional|suggest):/ \
-      { if ($3 == "on") $3 = "off"; else $3 = "on"; }
-    { print; }' $depends_status > $t_status
+    -v re="^$spell:$dependency:(on|off):(optional|suggest):" -- \
+    '$0 ~ re { $3 = ($3 == "on") ? "off" : "on" } { print; }' \
+    $depends_status > $t_status
   lock_commit_transaction "$depends_status"
 }
 
@@ -728,10 +728,10 @@ function query_spell_status()
   if [[ -z $3 ]]; then
     [[ -z $2 ]] && return 0
     return_var="$2"
-    __status=$(awk -F: -v spell="$1" '{ if (spell == $1) status=$3 } END{print status}' "$SPELL_STATUS" 2>/dev/null)
+    __status=$(awk -F: -v spell="$1" '$1 == spell { status = $3 } END { print status }' "$SPELL_STATUS" 2>/dev/null)
   else
     return_var="$3"
-    __status=$(awk -F: -v spell="$1" -v version="$2" '{ if (spell == $1 && version == $4) status=$3 } END{print status}' "$SPELL_STATUS" 2>/dev/null)
+    __status=$(awk -F: -v spell="$1" -v version="$2" '$1 == spell && $4 == version { status = $3 } END { print status }' "$SPELL_STATUS" 2>/dev/null)
   fi
   unlock_file "$SPELL_STATUS"
 
@@ -991,10 +991,9 @@ function get_all_spells_with_status () {
   local status=$1
   lock_file $SPELL_STATUS
   if [[ $status != ok ]]; then
-    gawk -F: 'BEGIN { status="'$status'" }
-              ($3 == status) { print $1 }' $SPELL_STATUS
+    awk -F: -v status="$status" '$3 == status { print $1 }' $SPELL_STATUS
   else
-    awk -F: '{ if ($3 == "installed" || $3 == "held") print $1 }' $SPELL_STATUS
+    awk -F: '$3 == "installed" || $3 == "held" { print $1 }' $SPELL_STATUS
   fi
   unlock_file $SPELL_STATUS
 }

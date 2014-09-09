@@ -346,7 +346,7 @@ function init_hooks()  {
   declare -F hook_marker &>/dev/null && return 0
 
   local hook_file
-  local hookdir_perms="$(ls -lnd $SORCERY_HOOKS 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4;}')"
+  local hookdir_perms="$(ls -lnd $SORCERY_HOOKS 2>/dev/null|awk '{print $1 ":" $3 ":" $4}')"
   local hooks_list=""
 
   if [[ $hookdir_perms == "drwxr-xr-x:0:0" ]]; then
@@ -1214,7 +1214,7 @@ function mk_tmp_dirs() {
 
 
 
-  tmp=$(ls -lnd $BASE_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  tmp=$(ls -lnd $BASE_DIR 2>/dev/null|awk '{print $1 ":" $3 ":" $4}')
   if [[ "$tmp" != "drwxr-xr-x:0:0" ]] ; then
     test -d $BASE_DIR &&
     message "$BASE_DIR has unknown permissions and ownership, replacing it" >&2
@@ -1224,20 +1224,20 @@ function mk_tmp_dirs() {
   fi || mk_tmp_dir_error $BASE_DIR
 
   # double check
-  tmp=$(ls -lnd $BASE_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  tmp=$(ls -lnd $BASE_DIR 2>/dev/null|awk '{print $1 ":" $3 ":" $4}')
   if [[ "$tmp" != "drwxr-xr-x:0:0" ]] ; then
     mk_tmp_dir_error $BASE_DIR
   fi
 
 
-  tmp=$(ls -lnd $SCRIPT_DIR 2>/dev/null|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  tmp=$(ls -lnd $SCRIPT_DIR 2>/dev/null|awk '{print $1 ":" $3 ":" $4}')
   if [[ "$tmp" != "drwxr-xr-x:0:0" ]] ; then
     rm -rf $SCRIPT_DIR
     install -d -o root -g root -m 755 "$SCRIPT_DIR"
   fi || mk_tmp_dir_error $SCRIPT_DIR
 
   # double check
-  tmp=$(ls -lnd $SCRIPT_DIR|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  tmp=$(ls -lnd $SCRIPT_DIR|awk '{print $1 ":" $3 ":" $4}')
   if [[ "$tmp" != "drwxr-xr-x:0:0" ]] ; then
     mk_tmp_dir_error $SCRIPT_DIR
   fi
@@ -1249,7 +1249,7 @@ function mk_tmp_dirs() {
   fi
 
   install -d -o root -g root -m 755 "$FULL_DIR" || mk_tmp_dir_error $FULL_DIR
-  tmp=$(ls -lnd $SCRIPT_DIR|awk '{printf "%s:%s:%s\n" ,$1,$3,$4; }')
+  tmp=$(ls -lnd $SCRIPT_DIR|awk '{print $1 ":" $3 ":" $4}')
   if [[ "$tmp" != "drwxr-xr-x:0:0" ]] ; then
     mk_tmp_dir_error $FULL_DIR
   fi
@@ -1520,7 +1520,7 @@ function upvar() {
 ## Like uniq, but doesnt require a sorted list, implemented in awk.
 #---------------------------------------------------------------------
 function awkuniq() {
-  awk '{ if ( seen[$0] != 1) { seen[$0]=1;print $0;}}'
+  awk '{if (!($0 in seen)) { seen[$0]; print }}'
 }
 
 #---------------------------------------------------------------------

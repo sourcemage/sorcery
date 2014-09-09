@@ -281,16 +281,16 @@ function generic_remove_stale() {
   message "Pass $3 (stale $2 entries)"
   local tmp=$TMP_DIR/delint.$2.stale
   local t
-  awk -F: '
+  awk -F: -v status="$SPELL_STATUS" '
     BEGIN {
-      while (getline < "'$SPELL_STATUS'")
-        Installed[$1] = 1;
+      while (getline < status)
+        Installed[$1]
     }
     {
-      if ( ! Installed[$1])
-        print $0;
+      if (!($1 in Installed))
+        print $0
     }' "$1" |tee $tmp
-  t=$(wc -l $tmp | awk '{print $1;}')
+  t=$(wc -l $tmp | awk '{print $1}')
   message "\t$t bad lines, $(( $(wc -l $1| cut -f1 -d' ') - t))" \
           "good lines in your $2 file."
   if [[ $t -gt 0 ]] ; then
@@ -328,18 +328,17 @@ function prune_depends()
 
   # Get a list of bad dependencies
   # Output is in the form "SPELL DEPENDENCY optional/reqired PROVIDER"
-  bad=( $( awk -F: '
+  bad=( $( awk -F: -v status="$SPELL_STATUS" '
     BEGIN {
-      while (getline < "'$SPELL_STATUS'")
-        Installed[$1] = 1;
+      while (getline < status)
+        Installed[$1]
     }
-    $3=="on"{
-      if($2 ~ "[(].*[)]")
-        prov=gensub("^.*\\((.*)\\).*$", "\\1", 1, $2);
-      else
-        prov="__BLANK__";
+    $3 == "on" {
+      prov = ($2 ~ "[(].*[)]") ?
+        gensub("^.*\\((.*)\\).*$", "\\1", 1, $2) :
+        "__BLANK__"
       gsub("\\(.*\\)", "", $2)
-      if ( Installed[$1] && ! Installed[$2] && $2!="")
+      if ($1 in Installed && !($2 in Installed) && $2 != "")
         printf("%s %s %s %s\n", $1, $2, $4, prov);
      }' $DEPENDS_STATUS ) )
 
@@ -487,7 +486,7 @@ function packages()
     done
   )
   if [[ $t ]] && query "\tRemove all but one of each set of duplicates?" "n" ; then
-    awk -F: '{if(!LINES[$1]) { LINES[$1]=1; print $0; } }' $SPELL_STATUS > $TMP_DIR/packages.3
+    awk -F: '!($1 in LINES){LINES[$1]; print}' $SPELL_STATUS > $TMP_DIR/packages.3
     message "\tRemoving bad entries"
     mv $TMP_DIR/packages.3 $SPELL_STATUS
   fi

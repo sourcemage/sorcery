@@ -19,7 +19,7 @@
 ## @Stdout casting time(s)
 #---------------------------------------------------------------------
 function compute_cast_times() {
-  gawk -v spell=$1 -v version=$2 '
+  awk -v spell=$1 -v version=$2 '
     # log timestamps are in the "%Y%m%d:%H%M\(%z\)" format (20080625:0853(+0000))
     # we need them in "%Y %m %d %H %M %S" and %s (epoch time). We ignore the
     # timezone, since the time is stored in UTC and %z is always +0000
@@ -134,24 +134,23 @@ function compute_all_cast_times() {
 ## @Stdout mean and its error
 #---------------------------------------------------------------------
 function compute_mean() {
-  gawk '
-    BEGIN { mean = 0; variance = 0; }
-
-    { sum += $0; numbers[NR] = $0; }
-
+  awk '
+    {
+      sum += $0
+      numbers[NR] = $0
+    }
     END {
       if (NR == 0) exit
-      mean = sum/NR;
+      mean = sum / NR
       if (NR == 1) {
-        error = 0;
+        error = 0
       } else {
-        for (i in numbers) {
-          variance += (numbers[i] - mean)^2;
-        }
-        error = int(sqrt(variance/(NR-1)/NR)*1.96 + 0.5);
+        variance = 0
+        for (i in numbers)
+          variance += (numbers[i] - mean) ^ 2
+        error = int(sqrt(variance / (NR-1) / NR) * 1.96 + .5);
       }
-
-      print int(mean+0.5), error
+      print int(mean + .5), error
     }'
 }
 
@@ -216,8 +215,8 @@ function compute_median() {
 #---------------------------------------------------------------------
 function compute_total_error() {
   tr ' ' '\n' <<< "$@" |
-  gawk '
-    { total += $0^2 }
+  awk '
+    { total += $0 ^ 2 }
 
     END {
       print int(sqrt(total))

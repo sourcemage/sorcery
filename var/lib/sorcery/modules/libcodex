@@ -548,7 +548,7 @@ function codex_get_spells_in_section() {
     message "${PROBLEM_COLOR}${section:-<null>} is not a section directory!${DEFAULT_COLOR}"
       return 1
   fi
-  grep "/$section$" < $index | awk '{ printf("%s/%s\n",$2,$1); }'
+  grep "/$section$" < $index | awk '{ print $2 "/" $1 }'
 
 }
 
@@ -729,7 +729,7 @@ function codex_set_current_spell_by_name()  {
 
 #---------------------------------------------------------------------
 ## @param spell name
-## Returns the features a spell is a provider off.
+## Returns the features a spell is a provider of.
 ## Example, firefox: GECKO, GRAPHICAL-WEB-BROWSER, WEB-BROWSER,
 ##                   NS-PLUGIN-COMPATIBLE
 ##
@@ -739,7 +739,7 @@ function codex_find_spell_provides() {
   local feature grimoire
   local features=$(
     for grimoire in $(codex_get_all_grimoires);  do
-      gawk '/\/'$spell'$/ { print $1 }' \
+      awk -v re="/$spell\$" -- '$0 ~ re { print $1 }' \
         "$grimoire/$PROVIDE_INDEX_FILE"
     done | sort -u)
 
@@ -773,7 +773,7 @@ function find_providers()  {
   local provider GRIMOIRE spell_path
   local providers=$(
     for GRIMOIRE in $(codex_get_all_grimoires);  do
-      gawk '/^'"$feature"'[[:blank:]]/ { print $2 }' \
+      gawk -v re="^$feature[[:blank:]]" -- '$0 ~ re { print $2 }' \
         "$GRIMOIRE/$PROVIDE_INDEX_FILE"
     done | get_basenames|sort -u)
 
@@ -879,24 +879,22 @@ function codex_create_in_memory_cache() {
   eval $(
     for each in "$@"; do
       cat $each/$SPELL_INDEX_FILE
-    done | awk -v i=$list -v hash=$hash '{
-      if ( ! ($1 in map)) {
-        map[$1]=$2;
-      }
-    } END {
-      if (i) {
-        FS=":";
-        while (getline < i) {
-          if( $3=="installed" || $3=="held") {
-            printf("hash_put %s %s \"%s/%s\";\n",hash,$1,map[$1],$1);
-          }
-        }
-      } else {
-        for (spell in map) {
-          printf("hash_put %s %s \"%s/%s\";\n",hash,spell,map[spell],spell);
-        }
-      }
-    }'
+    done | awk -v i="$list" -v hash="$hash" '
+	{ if (!($1 in map)) map[$1] = $2 }
+	function phash(hash, spell) {
+		printf("hash_put %s %s \"%s/%s\";\n", hash, spell, map[spell], spell)
+	}
+	END {
+		if (i) {
+			FS=":"
+			while (getline < i)
+				if ($3 == "installed" || $3 == "held")
+					phash(hash, $1)
+		} else {
+			for (spell in map)
+				phash(hash, spell)
+		}
+	}'
   )
 
 }
@@ -935,10 +933,7 @@ function codex_list_provides () {
 
     for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
         smgl_dirname "$file" spell
-        for provides in $(gawk '{if (/provides/) { print $2 }
-                                 else { print $1 }}' $file); do
-            echo "$provides $spell"
-        done
+        awk -v s="$spell" '/provides/{$1 = $2} {print $1, s}' $file
     done | sort
 }
 

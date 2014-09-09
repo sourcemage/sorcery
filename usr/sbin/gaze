@@ -592,7 +592,7 @@ function newer()  {
   local COMPUTE
 
   if [ x"$DATE" == x"last_sorcery_update" ]; then
-    COMPUTE='($3=="update") { a=a+1; if (a>1) { print $1 ; exit } }'
+    COMPUTE='($3=="update") { if (++a > 1) { print $1 ; exit } }'
   elif [ x"$DATE" == x"last_cast" ]; then
     COMPUTE='($3 == "cast" && $6 == "success") { print $1 ; exit }'
   elif ! date -d "$DATE" +%Y%m%d > /dev/null; then
@@ -1613,7 +1613,7 @@ function gaze_show_depends() {
       show_up_depends "$1" "$2" "$fast" "$all"
     else
       show_up_depends  "$1" "$2" "verbose" "$all"|
-      awk -F: '{ printf("%s depends on %s (%s)\n",$1,$2,$4);}'
+      awk -F: '{print $1, "depends on", $2, "(" $4 ")"}'
     fi
 
 
@@ -1773,7 +1773,11 @@ function gaze_show_size_all () {
   done <<< "$installed_spells"
   clear_line
   echo $spell_count $total_size $total_files | awk \
-    'END { print $1" spells -> "$2" bytes ("int($2/1024+0.5)" K, "int($2/1024/1024+0.5)" M, "int($2/1024/1024/1024+0.5)" G) in "$3" files." }'
+    'END {
+	print $1, "spells ->", $2, "bytes ("int($2/1024+0.5), "K,",
+		int($2/1024/1024+0.5), "M,", int($2/1024/1024/1024+0.5),
+		"G) in", $3, "files."
+     }'
   echo
   echo "Largest spell:"
   gaze_show_size $max_spell
@@ -1812,8 +1816,12 @@ function gaze_show_size () {
         while read each; do
           test -f "$each" && echo $each
         done < $file | xargs du -b |
-            awk '{ x += $1 }
-                END { print "'$spell' -> " x " bytes ("int(x/1024+0.5)" K, "int(x/1024/1024+0.5)" M) in " NR " files." }'
+            awk -v spell="$spell" '
+		{ x += $1 }
+		END {
+			print spell, "->", x, "bytes (" int(x/1024+0.5), "K,",
+				int(x/1024/1024+0.5), "M) in", NR, "files."
+		}'
     done
 }
 

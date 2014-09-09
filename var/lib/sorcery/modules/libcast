@@ -98,7 +98,7 @@ function query_conflicts() {
   local output=${2:-$CONFLICT_LIST}
 
   # skip if the spell was already processed (avoids a double query for in-cast resurrects)
-  [[ -s $output ]] && awk -v s=$SPELL '{ if ($1 == s) {rc=1} } END {exit !rc}' $output && return 0
+  [[ -s $output ]] && awk -v s=$SPELL '{ if ($1 == s) {rc=1; exit} } END {exit !rc}' $output && return 0
 
   if [[ -x $SCRIPT_DIRECTORY/CONFLICTS ]]; then
     local CONFLICTS=$(run_spell_file CONFLICTS conflicts) || return 1
