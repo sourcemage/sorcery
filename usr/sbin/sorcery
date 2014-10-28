@@ -1476,6 +1476,7 @@ sorcery_devel_settings()   {
 function set_dl_handler() {
   local W_HELP="Use wget to download from urls using the http/ftp/https protocols"
   local A_HELP="Use aria2 to download from urls using the http/ftp/https protocols"
+  local C_HELP="Use cURL to download from urls using the http/ftp/https protocols"
 
   while
     COMMAND=$(eval $DIALOG '--title "Currently using: ${HTTP_DL_HANDLER:-wget}" \
@@ -1486,7 +1487,8 @@ function set_dl_handler() {
                       ""                                        \
                       0 0 0                                     \
                       "W"  "wget (default)"    "$W_HELP" \
-                      "A"  "aria2"             "$A_HELP"')
+                      "A"  "aria2"             "$A_HELP" \
+                      "C"  "curl"              "$C_HELP"')
   do
     case $COMMAND in
       W) modify_local_config HTTP_DL_HANDLER wget &&
@@ -1502,6 +1504,18 @@ function set_dl_handler() {
         else
           modify_local_config HTTP_DL_HANDLER aria2 &&
           HTTP_DL_HANDLER=aria2
+        fi ;;
+      C)
+        if ! spell_ok curl; then
+          local error_msg
+          error_msg="cURL is not installed on this system!\nIf you want"
+          error_msg="$error_msg to use it, cast it first, then revisit"
+          error_msg="$error_msg this menu.\n\nYour download handler choice"
+          error_msg="$error_msg has not been saved!"
+          eval "$DIALOG --msgbox \"\$error_msg\" 0 0"
+        else
+          modify_local_config HTTP_DL_HANDLER curl &&
+          HTTP_DL_HANDLER=curl
         fi ;;
     esac
     break

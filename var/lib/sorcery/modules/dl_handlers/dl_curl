@@ -1,0 +1,147 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Url handler functions for downloading http, https, and ftp urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying
+## http, https, and ftp urls.  This file uses the "curl" program.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2014 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+function dl_curl_get() {
+  debug libdownload "$FUNCNAME -- $@"
+  dl_command_check curl || return 254
+
+  local target=$1
+  local url_list=$2
+  local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local rc=1 url
+
+  [[ $target ]] &&
+  dl_connect || return 255
+
+  for url in $url_list; do
+    local CURL_OPTIONS
+    dl_curl_set_options $url $hints
+    dl_curl_call_curl  $target $url
+    rc=$?
+    [[ $rc == 0 ]] && break
+  done
+
+  dl_disconnect
+
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"file\""
+  return $rc
+
+}
+
+#---------------------------------------------------------------------
+## dl_curl_call_curl <filename> <extension-less filename> <url>
+##
+## Private Function. Call curls to download the url.
+##
+#---------------------------------------------------------------------
+function dl_curl_call_curl()  {
+  local FILE=$1
+  local URL=$2
+
+  debug 'dl_curl' "$funcname -- $@"
+
+  rm -f "$FILE"
+  curl $CURL_OPTIONS -o "$FILE" "$URL" 2>&1 &&
+  if ! test -f "$FILE" ; then
+    # stupid http site trying to be nice and re-direct us, this is a failure
+    # even though curl doesnt notice it...
+    rm -f "$FILE"*
+    return 1
+  fi
+}
+
+#---------------------------------------------------------------------
+## dl_curl_set_curl_options
+##
+## Private Function. Sets curl options
+##
+#---------------------------------------------------------------------
+function dl_curl_set_options()  {
+  local URL=$1
+  local hints="$2"
+
+  if [  -n  "$ACTIVE_FTP"  ] ; then
+    unset  PASSIVE
+  else
+    PASSIVE="--ftp-pasv"
+  fi
+
+  # Check for ? in the url, this seems to indicate that there may be
+  # some cgi redirection involved which means continued downloading would
+  # not work (bug 8993).
+  # The sourceforge check pre-dates that but is lacking any documentation,
+  # I suspect it is a less general attempt to solve the same problem.
+  # (afk 2005-06-25)
+  if grep -qE "(\?|sourceforge)" <<< "$URL"; then
+    unset  CONTINUE
+  else         CONTINUE="-C -"
+  fi
+
+  if [  -n  "$DOWNLOAD_RATE"  ] ; then
+    RATE="--limit-rate=${DOWNLOAD_RATE}"
+  fi
+
+  if [  -n  "$URL_HTTP_FTP_TIMEOUT"  ] ; then
+    URL_HTTP_TIMEOUT="--connect-timeout $URL_HTTP_FTP_TIMEOUT"
+  else
+    unset  URL_HTTP_TIMEOUT
+  fi
+
+  if [  -n  "$URL_HTTP_FTP_RETRIES"  ] ; then
+    URL_HTTP_RETRIES="--retry $URL_HTTP_FTP_RETRIES"
+  else
+    URL_HTTP_RETRIES="--retry 3"
+  fi
+
+  local check_certificate
+  if list_find "$hints" no-check-certificate && [[ $(url_get_prefix "$URL") == https ]]; then
+    check_certificate=--insecure
+  fi
+
+  REDIRECT="--location"
+
+  CURL_OPTIONS="$URL_HTTP_TIMEOUT $URL_HTTP_RETRIES $RATE $PASSIVE $CONTINUE $REDIRECT $check_certificate"
+  debug 'dl_curl' "curl options: $CURL_OPTIONS"
+}
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
