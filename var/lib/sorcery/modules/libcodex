@@ -548,7 +548,7 @@ function codex_get_spells_in_section() {
     message "${PROBLEM_COLOR}${section:-<null>} is not a section directory!${DEFAULT_COLOR}"
       return 1
   fi
-  grep "/$section$" < $index | awk '{ print $2 "/" $1 }'
+  awk -v re="/$section\$" -- '$0 ~ re { print $2 "/" $1 }' "$index"
 
 }
 
