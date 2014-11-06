@@ -541,10 +541,10 @@ function codex_find_spell_by_name() {
 #---------------------------------------------------------------------
 function codex_get_spells_in_section() {
   debug "libcodex" "codex_get_spells_in_section - $*"
-  codex_is_canonicalized $1 || return 1
+  codex_is_canonicalized "$1" || return 1
   local section="$(smgl_basename $1)"
   local index="$(smgl_dirname $1)/$SPELL_INDEX_FILE"
-  if ! test -r $index || ! test -s $index; then
+  if ! test -r "$index" || ! test -s "$index"; then
     message "${PROBLEM_COLOR}${section:-<null>} is not a section directory!${DEFAULT_COLOR}"
       return 1
   fi
