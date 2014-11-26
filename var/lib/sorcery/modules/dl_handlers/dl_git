@@ -45,7 +45,8 @@ function dl_git_get () {
     fi
 
     message "${MESSAGE_COLOR}Fetching...${DEFAULT_COLOR}"
-    GIT_DIR="$GIT_DIRECTORY/.git" git fetch "$GIT_ROOT" "$GIT_TAG" || continue
+    GIT_DIR="$GIT_DIRECTORY/.git" git fetch -n --progress \
+      "$GIT_ROOT" "$GIT_TAG" || continue
 
     cd "$GIT_DIRECTORY" &&
     git reset --hard FETCH_HEAD; rc=$?
