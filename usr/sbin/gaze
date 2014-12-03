@@ -747,44 +747,28 @@ function gaze_search() {
 ##
 #-----------------------------------------------------------------------
 function real_name_search() {
-    local grimoire pattern
+    local pattern
 
-    for grimoire in $(codex_get_all_grimoires); do
-        for pattern in "$@"; do
-            awk -v pat="$pattern" -v quiet="$GAZE_VERBOSE" '
-                BEGIN {
-                    OFS = ""
-                    if (!quiet)
-                        pfx = pat " -> "
-                    pat = "^[^[:blank:]]*" tolower(pat)
-                }
-                tolower($0) ~ pat {
-                    print pfx, $1
-                }
-            ' "$grimoire/$SPELL_INDEX_FILE" 2>/dev/null
-        done
+    for pattern in "$@"; do
+      xargs < <(awk -v idx="/$VERSION_INDEX_FILE" '{print $0 idx}' \
+		    < <(codex_get_all_grimoires)) \
+      awk -v pat="$pattern" -v quiet="$GAZE_VERBOSE" '
+          BEGIN {
+              if (!quiet)
+                  pfx = pat " -> "
+              pat = tolower(pat)
+          }
+          tolower($1) ~ pat {
+              grimoire = FILENAME
+              sub("/[^/]*$", "", grimoire)
+              sub(".*/", "@", grimoire)
+              print pfx $1, $2, grimoire
+          }
+      '
     done
 }
 
 
-#-----------------------------------------------------------------------
-##
-## Searches for something in a specified grimoire. Not really sure what
-## it looks for or why.
-##
-## @param Path to grimoire
-## @param Spell to look for
-## @param Patern to find in the files
-## @Stdout The full path to the file, /var/lib/sorcery/codex/grimoire/games/coal/DETAILS
-##
-#-----------------------------------------------------------------------
-function grep_find_grimoire() {
-        local path=$1
-        local name=$2
-        local pattern="$3"
-
-        codex_find_in_grimoire "$path" "$name" | xargs grep -ilE -- "${pattern}"
-}
 
 #-----------------------------------------------------------------------
 ##
@@ -795,23 +779,41 @@ function grep_find_grimoire() {
 ##
 #-----------------------------------------------------------------------
 function real_short_search() {
-    local pattern grimoire spell spellname spelldir
+    local pattern
 
     for pattern in "$@"; do
-        for grimoire in $(codex_get_all_grimoires); do
-            for spell in $(
-    grep_find_grimoire $grimoire "DETAILS" "SHORT=.*${pattern}"
-                        ); do
-                smgl_dirname "$spell" spelldir
-                smgl_basename "$spelldir" spellname
-                if [[ $GAZE_VERBOSE == false ]]; then
-                    echo $spellname
-                else
-                    echo "$pattern -> $spellname"
-                fi
-
-            done
-        done
+      xargs < <(sed 's:$:/DETAILS:' < <(codex_get_all_spells)) \
+      awk -v pat="$pattern" -v quiet="$GAZE_VERBOSE" \
+          -F "[=\"']+" '
+                BEGIN {
+                    if (!quiet)
+                        pfx = pat " -> "
+                    pat = tolower(pat)
+                }
+                {
+                    sub(/^[\t ]+/, "")
+                }
+                /^SPELL=/ {
+                    spell = $2
+                    next
+                }
+                /^VERSION=/ {
+                    ver = $2
+                    next
+                }
+                !/^SHORT=/ {
+                    next
+                }
+                tolower($0) ~ pat {
+                    grimoire = FILENAME
+                    sub("/[^/]*/[^/]*$", "", grimoire)
+                    sub(".*/", "@", grimoire)
+                    print pfx spell, ver, grimoire
+                }
+                {
+                    nextfile
+                }
+            '
     done
 }
 
@@ -826,54 +828,41 @@ function real_short_search() {
 ##
 #-----------------------------------------------------------------------
 function real_long_search()  {
-  local atSpell=0
-  local file pattern
-  local SEARCH SEARCH_RESULTS
-  local spelldir spellname
-
-  if ! [[ $GAZE_VERBOSE == false ]] ; then
-    echo  "Searching...   "
-  fi
-
-  let i=0
+  local pattern
 
   for pattern in "$@"; do
-    SEARCH[$i]=-e
-    let i++
-    SEARCH[$i]=$pattern
-    let i++
-  done
-
-  for file in `codex_get_all_spells | sed 's/$/\/DETAILS/' | xargs grep -ilE "${SEARCH[@]}"`; do
-    for ((i=1;i<${#SEARCH[@]};i+=2)) ; do
-      pattern=${SEARCH[$i]}
-      SEARCH_RESULTS=$(gawk 'BEGIN{ORS = ""; IGNORECASE=1; inLongDesc=0}
-        /'"${pattern}"'/{
-          if(/^[[:blank:]]*SPELL=.*'"${pattern}"'/)   {print "(Name Match)";        exit 0;}
-          if(/^[[:blank:]]*SHORT=.*'"${pattern}"'/)   {print "(Short Description)"; exit 0;}
-          if(inLongDesc) {print "(Description)";       exit 0;}
+    xargs < <(sed 's:$:/DETAILS:' < <(codex_get_all_spells)) \
+    awk -v pat="$pattern" -v quiet="$GAZE_VERBOSE" -F "[=\"']+" '
+        BEGIN {
+            if (!quiet)
+                pfx = pat " -> "
+            pat = tolower(pat)
         }
-        /cat[[:blank:]]*<<[[:blank:]]*EOF/{inLongDesc = 1;}
-        /^EOF$/{inLongDesc=0;} ' $file)
-
-      if [[ ${SEARCH_RESULTS} ]]; then
-        smgl_dirname "$file" spelldir
-        smgl_basename "$spelldir" spellname
-        if [[ $GAZE_VERBOSE == false ]]; then
-          echo "$spellname"
-        else
-          clear_line
-          echo "$pattern ->  $spellname ${SEARCH_RESULTS}"
-        fi
-      fi
-    done
+        {
+            sub(/^[\t ]+/, "")
+        }
+        /^VERSION=/ {
+            ver = $2; next
+        }
+        /^SPELL=/ {
+            spell = $2
+            where = "(Name)"
+        }
+        /^SHORT=/ {
+            where = "(Short Description)"
+        }
+        /^cat[\t ]*<</ {
+            where = "(Description)"
+        }
+        tolower($0) ~ pat {
+            grimoire = FILENAME
+            sub("/[^/]*/[^/]*$", "", grimoire)
+            sub(".*/", "@", grimoire)
+            print pfx spell, ver, grimoire, where
+            nextfile
+        }
+    '
   done
-
-  if ! [ "$GAZE_VERBOSE" == "false" ]; then
-    clear_line
-  fi
-
-
 }
 
 #---------------------------------------------------------------------
