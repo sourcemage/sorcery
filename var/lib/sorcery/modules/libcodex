@@ -773,7 +773,7 @@ function find_providers()  {
   local provider GRIMOIRE spell_path
   local providers=$(
     for GRIMOIRE in $(codex_get_all_grimoires);  do
-      gawk -v re="^$feature[[:blank:]]" -- '$0 ~ re { print $2 }' \
+      awk -v re="^$feature[\t ]" -- '$0 ~ re { print $2 }' \
         "$GRIMOIRE/$PROVIDE_INDEX_FILE"
     done | get_basenames|sort -u)
 
