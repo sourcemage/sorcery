@@ -4,7 +4,7 @@
 ## (gaze into the crystal ball)
 ## @Copyright First version of gaze written & copyrighted 2001 by Brian Peterson
 ## @Copyright Current version contains none of Brian Peterson's code and is Copyright 2001 by Kyle Sallee
-## @Copyright Other additions/corrections Copyright 2002 by the Source Mage Team
+## @Copyright Other additions/corrections Copyright 2002-2014 by the Source Mage Team
 #---------------------------------------------------------------------
 
 
@@ -751,20 +751,17 @@ function real_name_search() {
 
     for grimoire in $(codex_get_all_grimoires); do
         for pattern in "$@"; do
-            gawk ' BEGIN {
-                        OFS=""
-                        IGNORECASE=1
-                        quiet = "'$GAZE_VERBOSE'"
-                    }
-                    /^[^[:blank:]]*'"$pattern"'/ {
-                        if (quiet) {
-                            print $1
-                        }
-                        else {
-                            print "'"$pattern"' -> ", $1
-                        }
-                    }
-                ' "$grimoire/$SPELL_INDEX_FILE" 2>/dev/null
+            awk -v pat="$pattern" -v quiet="$GAZE_VERBOSE" '
+                BEGIN {
+                    OFS = ""
+                    if (!quiet)
+                        pfx = pat " -> "
+                    pat = "^[^[:blank:]]*" tolower(pat)
+                }
+                tolower($0) ~ pat {
+                    print pfx, $1
+                }
+            ' "$grimoire/$SPELL_INDEX_FILE" 2>/dev/null
         done
     done
 }
