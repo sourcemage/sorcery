@@ -2,7 +2,7 @@
 #---------------------------------------------------------------------
 ##
 ## @Synopsis Set of functions used by gaze for time calculations
-## @Copyright (C) 2008 The Source Mage Team <http://www.sourcemage.org>
+## @Copyright (C) 2008-2014 The Source Mage Team <http://www.sourcemage.org>
 ##
 ## This file holds various statistical functions and an interface to
 ## the activity log for getting the input data.
@@ -191,18 +191,17 @@ function compute_weighted_mean() {
 ## @Stdout median value
 #---------------------------------------------------------------------
 function compute_median() {
-  gawk '
-    { numbers[NR] = $0; }
-
+  sort -n | awk '
+    { n[NR] = $0 }
     END {
-      if (NR == 0) exit
-      if (NR == 1) {
-        print numbers[0]
+      if (NR > 1) {
+        m = n[1 + int(NR / 2)]
+        print (NR % 2) ? m : (m + n[NR / 2]) / 2
       } else {
-        asort(numbers)
-        print (NR % 2) ? numbers[int(NR/2+1)] : (numbers[NR/2] + numbers[NR/2+1])/2
+        print n[0]
       }
-    }'
+    }
+  '
 }
 
 #---------------------------------------------------------------------
