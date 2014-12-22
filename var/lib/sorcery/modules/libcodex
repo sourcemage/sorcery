@@ -960,21 +960,33 @@ function codex_create_keyword_cache () { (
 ## Multiversioned spells will a dummy entry. Persistent
 ## variables are ignored.
 #---------------------------------------------------------------------
-function codex_create_version_cache () { (
-  grimoire="$1"
-
-  for file in $(codex_find_in_grimoire "$grimoire" DETAILS); do
-    codex_get_spell_paths ${file%/DETAILS}
-    source "$file" &> /dev/null
-    if [[ $(grep -c "^[[:space:]]*VERSION=" "$file") == 1 ]]; then
-      echo "$SPELL ${VERSION:-0} ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
-    else
-      # multiversioned or unusually formatted spell - add a dummy entry
-      echo "$SPELL multiversioned"
-    fi
-    unset SPELL VERSION PATCHLEVEL SECURITY_PATCH UPDATED
-  done | sort > $grimoire/$VERSION_INDEX_FILE
-) }
+function codex_create_version_cache () {
+  xargs < <(codex_find_in_grimoire "$1" DETAILS) \
+  awk -F"[\"'= ]+" '
+	function p(v) { return v in f ? f[v] : 0 }
+	{ sub(/^[\t ]+/, "") }
+	/^cat[^0-9A-Za-z]/ {
+		print p("VERSION"), p("PATCHLEVEL"), p("SECURITY_PATCH"),
+		      p("UPDATED")
+		split("", f)
+		nextfile
+	}
+	$1 == "SPELL" {
+		printf "%s ", $2
+		next
+	}
+	$1 == "VERSION" && "VERSION" in f {
+		print "multiversioned"
+		split("", f)
+		nextfile
+	}
+	$1 == "VERSION" && $2 ~ /^\$/ {
+		f[$1] = "scm"
+		next
+	}
+	{ f[$1] = $2 }
+  ' | sort > "$1/$VERSION_INDEX_FILE"
+}
 
 #---------------------------------------------------------------------
 ## @param servicename
