@@ -876,27 +876,32 @@ function codex_create_in_memory_cache() {
   fi
   local hash=$1
   shift
-  eval $(
-    for each in "$@"; do
-      cat $each/$SPELL_INDEX_FILE
-    done | awk -v i="$list" -v hash="$hash" '
-	{ if (!($1 in map)) map[$1] = $2 }
+  while read hash spell dir; do
+    hash_put "$hash" "$spell" "$dir/$spell"
+  done < <(
+    awk -v idx="/$SPELL_INDEX_FILE" -v lst="$list" -v hash="$hash" '
+	BEGIN {
+		for (i in ARGV)
+			ARGV[i] = ARGV[i] idx
+	}
+	!($1 in map) {
+		map[$1] = $2
+	}
 	function phash(hash, spell) {
-		printf("hash_put %s %s \"%s/%s\";\n", hash, spell, map[spell], spell)
+		print hash, spell, map[spell]
 	}
 	END {
-		if (i) {
+		if (lst) {
 			FS=":"
-			while (getline < i)
+			while (getline < lst)
 				if ($3 == "installed" || $3 == "held")
 					phash(hash, $1)
 		} else {
 			for (spell in map)
 				phash(hash, spell)
 		}
-	}'
-  )
-
+	}
+    ' "$@")
 }
 
 #---------------------------------------------------------------------
