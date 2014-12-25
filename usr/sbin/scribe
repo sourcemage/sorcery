@@ -6,7 +6,7 @@
 ## @Synopsis scribe handles adding/updating/reindexing/etc. of grimoires
 ##
 ## @Copyright Original version Copywright 2002 by Ryan Abrams
-## @Copyright Additions/Corrections Copyright 2002-2004 by the Source Mage Team
+## @Copyright Additions/Corrections Copyright 2002-2014 by the Source Mage Team
 ## @Copyright Released under the GPL
 #---------------------------------------------------------------------
 
@@ -329,12 +329,14 @@ function scribe_add_update_worker() {
   chmod +x $grimoire/GRIMOIRE &&
 
   if [[ $add_or_update == add ]] ; then
-    codex_add_grimoire $grimoire 0 &&
-    scribe_reindex $grimoire
+    codex_add_grimoire $grimoire 0
+  fi &&
+  scribe_reindex $grimoire &&
+  scribe_reindex_version $grimoire &&
+  if [[ $add_or_update == add ]] ; then
     message "${MESSAGE_COLOR}Grimoire ${FILE_COLOR}\"$grimoire\"" \
             "${MESSAGE_COLOR}successfully added to your codex.${DEFAULT_COLOR}"
   else
-    scribe_reindex $grimoire
     message "${SPELL_COLOR}$grim_name ${MESSAGE_COLOR}updated!${DEFAULT_COLOR}"
     echo
     grimoire_history $grimoire
