@@ -1,0 +1,99 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+## Url handler functions for downloading http, https, and ftp urls
+##
+##=head1 DESCRIPTION
+##
+## This file contains functions for downloading and verifying
+## http, https, and ftp urls. It uses the "axel" program.
+##
+##=head1 COPYRIGHT
+##
+## Copyright 2015 by the Source Mage Team
+##
+##=head1 FUNCTIONS
+##
+##=over 4
+##
+#---------------------------------------------------------------------
+
+function dl_axel_get() {
+  debug libdownload "$FUNCNAME -- $@"
+  dl_command_check axel || return 254
+
+  local target=$1
+  local url_list=$2
+  # local hints=$3
+  local dl_target=$4
+  local dl_type=$5
+  local rc=1 url
+
+  [[ "$target" ]] &&
+  dl_connect || return 255
+
+  local AXEL_OPTIONS
+  dl_axel_set_options
+  dl_axel_call_axel "$target" $url_list
+  rc=$?
+
+  dl_disconnect
+
+  eval "$dl_target=\"$target\""
+  eval "$dl_type=\"file\""
+  return $rc
+
+}
+
+#---------------------------------------------------------------------
+# dl_axel_call_axel <filename> <url...>
+#
+# Private Function. Calls axel to download the url.
+#
+#---------------------------------------------------------------------
+function dl_axel_call_axel()  {
+  debug 'dl_axel' "$funcname -- $@"
+  local FILE=$1
+  shift
+
+  rm -f "$FILE"
+  axel $AXEL_OPTIONS -o "$FILE" "$@" 2>&1
+}
+
+#---------------------------------------------------------------------
+# dl_axel_set_axel_options
+#
+# Private Function.  Sets axel options
+#
+#---------------------------------------------------------------------
+function dl_axel_set_options()  {
+  if [[ "$DOWNLOAD_RATE" ]]; then
+    RATE="-s $DOWNLOAD_RATE"
+  fi
+
+  AXEL_OPTIONS="$RATE"
+  debug 'dl_axel' "axel options: $AXEL_OPTIONS"
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
