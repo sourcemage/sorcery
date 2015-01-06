@@ -980,14 +980,10 @@ function codex_create_version_cache () {
 		printf "%s ", $2
 		next
 	}
-	$1 == "VERSION" && "VERSION" in f {
+	$1 == "VERSION" && ("VERSION" in f || $2 ~ /\$/) {
 		print "multiversioned"
 		split("", f)
 		nextfile
-	}
-	$1 == "VERSION" && $2 ~ /^\$/ {
-		f[$1] = "scm"
-		next
 	}
 	{ f[$1] = $2 }
   ' | sort > "$1/$VERSION_INDEX_FILE"
