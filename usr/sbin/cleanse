@@ -364,7 +364,6 @@ function prune_depends()
         fi
       done
 
-
       if [[ ${provider} ]] ; then
         message -n "$provider "
         if [[ $3 == suggest ]] || [[ $3 == runtime ]]; then
@@ -434,8 +433,10 @@ function prune_depends()
       return 0
     fi
     t=$(date +%Y%m%d%s)
-    echo dispel $prune_dispel > $BACKUPDIR/prune.$t
-    echo cast -c $prune_cast >> $BACKUPDIR/prune.$t
+    [ "$prune_dispel" ] &&
+      echo dispel $prune_dispel > $BACKUPDIR/prune.$t
+    [ "$prune_cast" ] &&
+      echo cast -c $prune_cast >> $BACKUPDIR/prune.$t
     cat $BACKUPDIR/prune.$t
     message "For future reference, lines are stored in $BACKUPDIR/prune.$t"
   fi
