@@ -339,6 +339,19 @@ function clear_line()  {
 ##   send_that_mail
 ## }
 ##
+## We iterate over all hook names and hook files, constructing
+## hook functions that are either NOOPs or run any designated
+## functions (one or more).
+##
+## Example how post_SUCCESS_hook ends up:
+## function sorcery_default_post_SUCCESS_hook() {
+##   local ANTE_RC=$1;
+##   mail_post_SUCCESS_hook
+##   sound_post_SUCCESS_hook
+## }
+##
+## One would run it by calling: run_hook SUCCESS post
+##
 #---------------------------------------------------------------------
 function init_hooks()  {
   debug "libmisc" "init_hooks - starting"
