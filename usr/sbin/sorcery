@@ -47,6 +47,7 @@ Optional Parameters:
                           generate queue of spells needing to be updated.
        queue-security   Same as queue, but only for spells that need
                           updating due to security fixes.
+-Z  |  queue-newer      Same as queue, but no gratuitous downgrades.
 
 review-queue            Review the install queue for each spell's history
                           since each was last installed.
@@ -457,6 +458,10 @@ update_queue () {
 update_security_queue () {
     update_security_install_queue
     list_install_queue
+}
+
+update_queue_newer() {
+  LIBQUEUE_VERCMP=newer update_queue
 }
 
 rebuild()  {
@@ -1943,6 +1948,7 @@ verify_parameters() {
   case $1 in
     -u|update|-s|system-update|-g|upgrade) true ;;
                   -q|queue|queue-security) true ;;
+                           -Z|queue-newer) true ;;
        -r|rebuild|-rr|rebuild-reconfigure) true ;;
       add-queue|remove-queue|review-queue) true ;;
                 hold|unhold|exile|unexile) true ;;
@@ -1965,6 +1971,7 @@ main() {
            -g|upgrade)  update_pkgs  upgrade                    ;;
              -q|queue)  update_queue                            ;;
        queue-security)  update_security_queue                   ;;
+       -Z|queue-newer)  update_queue_newer                      ;;
            -r|rebuild)  rebuild                                 ;;
 -rr|rebuild-reconfigure)  rebuild -r                            ;;
          review-queue)  install_queue_history                   ;;
