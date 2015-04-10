@@ -281,6 +281,40 @@ function process_sub_depends() {
 
 ######################END CALLS TO OUTSIDE WORLD########################
 
+function __comp_depends_aux() {
+  #$2==hash table to fill
+  local pattern="required|optional"
+  if [ "$3" ]; then
+    pattern="$pattern|runtime|suggest"
+  fi
+  touch "$DEPENDS_STATUS" "$SPELL_STATUS" >/dev/null 2>&1
+  lock_file "$DEPENDS_STATUS"
+  lock_file "$SPELL_STATUS"
+  while read a b; do
+    hash_put "$2" "$a" "$b"
+  done < <(
+    awk -F: -v reverse="$1" -v pattern="$pattern" -v status="${4:-on}" '
+	FNR == 1 { file++ }
+	file == 1 {
+		if ($3 == status && $4 ~ pattern) {
+			# Remove provider name
+			sub(/[(].*/, "", $2)
+			if (reverse)
+				depmap[$2] = depmap[$2] " " $1 " "
+			else	depmap[$1] = depmap[$1] " " $2 " "
+		}
+		next
+	}
+	{
+		if ($3 == "installed" || $3 == "held")
+			print $1, depmap[$1]
+	}
+    ' "$DEPENDS_STATUS" "$SPELL_STATUS"
+  )
+  unlock_file "$DEPENDS_STATUS"
+  unlock_file "$SPELL_STATUS"
+}
+
 #---------------------------------------------------------------------
 ## Create a map of spells to their dependent spells.
 ## Then for all installed or held spells, output a libhash command to
@@ -289,42 +323,7 @@ function process_sub_depends() {
 ## @param Name of hash table to put dependencies
 #---------------------------------------------------------------------
 function compute_installed_depends() {
-  #$1==hash table to fill
-  local hash=$1
-  touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
-
-  local pattern status
-  if [[ $2 ]] ; then
-    pattern="required|optional|runtime|suggest"
-  else
-    pattern="required|optional"
-  fi
-  status=${3:-on}
-
-  # From here forward $1 and $2 are only used to refer to awk variables
-
-  lock_file "$DEPENDS_STATUS"
-  lock_file "$SPELL_STATUS"
-  # sub(/(.*)/, "", $2) removes a provider name
-  awk -v pattern="$pattern" -v status="$status" -F : '
-	FNR == 1 { file++ }
-	file == 1 {
-		if ($3 == status && ($4 ~ pattern)) {
-			sub(/\(.*\)/, "", $2);
-			depmap[$1] = depmap[$1] " " $2 " "
-		}
-		next
-	}
-	{
-		if ($3 == "installed" || $3 == "held")
-			print $1, depmap[$1]
-	}
-	' "$DEPENDS_STATUS" "$SPELL_STATUS" |
-  while read a b; do
-    hash_put "$hash" "$a" "$b"
-  done
-  unlock_file "$DEPENDS_STATUS"
-  unlock_file "$SPELL_STATUS"
+  __comp_depends_aux 0 "$@"
 }
 
 #---------------------------------------------------------------------
@@ -335,42 +334,7 @@ function compute_installed_depends() {
 ## @param Name of hash table to fill with dependencies
 #---------------------------------------------------------------------
 function compute_reverse_installed_depends() {
-  #$1==hash table to fill
-  local hash=$1
-  touch $DEPENDS_STATUS $SPELL_STATUS &>/dev/null
-
-  local pattern status
-  if [[ $2 ]] ; then
-    pattern="required|optional|runtime|suggest"
-  else
-    pattern="required|optional"
-  fi
-  status=${3:-on}
-
-  # From here forward $1 and $2 are only used to refer to awk variables
-
-  lock_file "$DEPENDS_STATUS"
-  lock_file "$SPELL_STATUS"
-  # sub(/(.*)/, "", $2) removes a provider name
-  awk -v pattern="$pattern" -v status="$status" -F : '
-	FNR == 1 { file++ }
-	file == 1 {
-		if ($3 == status && ($4 ~ pattern)) {
-			sub(/\(.*\)/, "", $2);
-			depmap[$2] = depmap[$2] " " $1 " "
-		}
-		next
-	}
-	{
-		if ($3 == "installed" || $3 == "held")
-			print $1, depmap[$1]
-	}
-	' "$DEPENDS_STATUS" "$SPELL_STATUS" |
-  while read a b; do
-    hash_put "$hash" "$a" "$b"
-  done
-  unlock_file "$DEPENDS_STATUS"
-  unlock_file "$SPELL_STATUS"
+  __comp_depends_aux 1 "$@"
 }
 
 #---------------------------------------------------------------------
