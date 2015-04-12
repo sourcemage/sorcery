@@ -231,12 +231,11 @@ function delint()
   for LINE in $( sed 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/;tp;d;:p;s/+/\\+/' "$DEPENDS_STATUS" | sort | uniq -d ) ; do
     message
     options=()
-    awk -v line="^$LINE:" -- '
-      $0 ~ line && !($0 in seen) {print count++, $0; seen[$0]}
-    ' $DEPENDS_STATUS |
     while read v opt; do
       options[$v]="$opt"
-    done
+    done < <(awk -v line="^$LINE:" -- '
+        $0 ~ line && !($0 in seen) {print count++, $0; seen[$0]}
+      ' "$DEPENDS_STATUS")
 
     if [ ${#options[@]} -gt 1 ] ; then
       select_list choice "" "${options[@]}"
