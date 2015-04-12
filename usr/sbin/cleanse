@@ -228,7 +228,7 @@ function delint()
   generic_remove_stale "$DEPENDS_STATUS" depends two
 
   message "Pass three (duplicate depends entries)"
-  for LINE in $( sed 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/;tp;d;:p;s/+/\\+/}' $DEPENDS_STATUS | sort | uniq -d ) ; do
+  for LINE in $( sed 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/;tp;d;:p;s/+/\\+/' "$DEPENDS_STATUS" | sort | uniq -d ) ; do
     message
     options=()
     awk -v line="^$LINE:" -- '
