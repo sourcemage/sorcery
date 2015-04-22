@@ -43,6 +43,8 @@ function depengine_entry_point() {
   local spell_list=$1
   local need_cast_list=$2
   local spell pending_list spell_status rc
+  local spell_depends spell_sub_depends spell_rsub_depends
+
   for spell in $(hash_get_table_fields dep_f_hash); do
     dpgn_set_spell_color $spell white
   done
@@ -67,6 +69,21 @@ function depengine_entry_point() {
     done
     pending_list=$(dpgn_get_all_pending_triggers)
   done
+
+  if [[ $CAST_PASS == "four" ]]; then
+    # Now clean up uncommitted dependency files.
+    # During cast it is too early, since things can get re-cast via triggers
+    # and then miss the configuration (empty OPTS).
+    # See issue #662 in chiliproject.
+    debug "libdepengine" "Cleanup of all uncommitted files"
+    for spell in $spell_list; do
+      get_uncommitted_depends_file      $spell spell_depends
+      get_uncommitted_sub_depends_file  $spell spell_sub_depends
+      get_uncommitted_rsub_depends_file $spell spell_rsub_depends
+      rm -f "$spell_sub_depends" "$spell_rsub_depends" "$spell_depends"
+    done
+  fi
+
   return 0
 }
 
