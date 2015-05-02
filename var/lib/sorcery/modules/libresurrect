@@ -287,9 +287,9 @@ function resurrect_spell()  { (
   SCRIPT_DIRECTORY=$(codex_find_spell_by_name $SPELL)
   query_conflicts $SPELL "$conflicts"
   if [[ $? == 0 ]] && dispel_conflicts $SPELL "$conflicts"; then
-    rm "$conflicts"
+    sed -i "/^$SPELL /d" "$conflicts"
   else
-    rm "$conflicts"
+    sed -i "/^$SPELL /d" "$conflicts"
     resurrect_fail
     return 1
   fi
