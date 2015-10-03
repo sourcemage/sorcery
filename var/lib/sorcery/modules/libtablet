@@ -760,6 +760,9 @@ function tablet_create_version_cache() {
     elif [[ $spell == alter ]]; then
       version=$(installed_version alter)
       echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
+    elif [[ $spell == smgl-prelink || $spell == smgl-strip ]]; then
+      version=$(installed_version $spell)
+      echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
     else
       error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
                     "please run cleanse --tablet and retry. If some spells" \
