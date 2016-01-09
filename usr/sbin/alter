@@ -229,7 +229,7 @@ function alter_gather_bins() {
 
   if [ ! -f "/etc/prelink.conf" ]; then
     message "${MESSAGE_COLOR}Gathering binary directories for altering (this could take a long while)...${DEFAULT_COLOR}"
-    find / -perm +001 2> /dev/null |
+    find / -perm -001 2> /dev/null |
     while read LINE; do
       [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
       grep -q ELF && echo "$LINE"
@@ -284,7 +284,7 @@ function alter_strip_all_do() {
   alter_gather_bins
 
   alter_alter -n smgl-strip '
-    find $(cat /etc/prelink.conf) -perm +001 2> /dev/null |
+    find $(cat /etc/prelink.conf) -perm -001 2> /dev/null |
     while read LINE; do
       [ ! -h "$LINE" ] && file $LINE 2> /dev/null |
       grep -q ELF && echo "$LINE"
