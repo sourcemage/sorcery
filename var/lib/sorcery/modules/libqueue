@@ -157,12 +157,12 @@ if [ "$LIBQUEUE_VERCMP" = newer ]; then
 	}
 '
 else
-  awk_version_compare='function version_cmp(v1, v2) { return v1 != v2 }'
+  awk_version_compare='function version_cmp(v1, v2) { return -(v1 != v2) }'
 fi
 function version_compare_gt() {
   awk "$awk_version_compare"'
 	BEGIN {
-		exit !(version_cmp(ARGV[1], ARGV[2]) > 0)
+		exit !(version_cmp(ARGV[1], ARGV[2]) < 0)
 	}
 ' "$@"
 }
