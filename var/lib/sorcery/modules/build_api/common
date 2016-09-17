@@ -21,7 +21,7 @@
 ## asks the user if they want to edit the custom options
 #---------------------------------------------------------------------
 function run_config_loc () {
-  debug "build_api/common" "Starting run_config_loc() on $SPELL"
+  debug "build_api_common" "Starting run_config_loc() on $SPELL"
   pushd . > /dev/null # may have been somewhere else
   run_hook config_loc pre
   [  -d  "$SOURCE_DIRECTORY"  ]  &&
@@ -200,7 +200,7 @@ function install_pam_confs()  {
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
 function run_spell_success() {
-    debug "build_api/common" "cast of $SPELL-$VERSION was successful"
+    debug "build_api_common" "cast of $SPELL-$VERSION was successful"
 
     local INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
     local MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
@@ -226,7 +226,7 @@ function run_spell_success() {
     pop_install_queue "$SPELL"
 
     # update depends info
-    debug "build_api/common" "Merging depends info"
+    debug "build_api_common" "Merging depends info"
 
     # none of the old values are valid, only the new, uncommitted values are
     remove_depends_status $DEPENDS_STATUS $SPELL
@@ -373,7 +373,7 @@ function run_spell_success() {
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
 function run_spell_failure() {
-    debug "build_api/common" "cast of $SPELL-$VERSION failed"
+    debug "build_api_common" "cast of $SPELL-$VERSION failed"
     local rc=$1
 
     run_hook  FAILURE pre
