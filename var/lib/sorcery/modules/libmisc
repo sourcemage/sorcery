@@ -1698,16 +1698,16 @@ function show_file() {
   local dialog=${2:-yes}
   local msg=${3:-"File not found."}
   if [[ -f $file && -s $file ]]; then
-    case "$(file -b "$file")" in
-      *text*) if [[ $dialog == "yes" ]]; then
+    case $(file -b --mime-type "$file" | sed 's,application/,,') in
+      text/*) if [[ $dialog == "yes" ]]; then
                 eval $DIALOG '--textbox  $1  0  0'
               else
                 cat "$file" | $PAGER
               fi ;;
-      bzip2*) bzcat "$file" | $PAGER ;;
-      gzip*) gzip -cd "$file" | $PAGER ;;
-      xz*|XZ*|LZMA*) xz -cd "$file" | $PAGER ;;
-      7-zip*) 7z -d "$file" | $PAGER ;;
+      x-bzip2) bzcat "$file" | $PAGER ;;
+      x-gzip) gzip -cd "$file" | $PAGER ;;
+      x-xz|x-lzma) xz -cd "$file" | $PAGER ;;
+      x-7z-compressed) 7z -d "$file" | $PAGER ;;
           *) message "Unknown file type."
               return 1 ;;
     esac
