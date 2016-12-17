@@ -208,6 +208,8 @@ function debug()  {
   [[ $DEBUG ]] || return 0
 
   local debugVar="DEBUG_${1}"
+  # bash 4.4 started being really picky - make sure all chars are variable name friendly
+  debugVar=${debugVar//[^a-zA-Z0-9_]/_}
   local i
   if [[ ${!debugVar} != "no" ]] ; then
     echo -n "$1($$): " >>$DEBUG
