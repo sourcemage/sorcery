@@ -661,14 +661,10 @@ function older()  {
 ## @Stdout grep results
 #-----
 function show_from()  {
-  local mode string
+  local mode=str string
 
-  if [[ -z $2 ]]; then
-    string=$1
-  else
-    mode=$1
-    string=$2
-  fi
+  case "$1" in -regex) mode=${1#-}; shift ;; esac
+  string=$1
 
   if [[ -z $string ]]; then
     error_message "${PROBLEM_COLOR}Missing search string parameter!$DEFAULT_COLOR"
@@ -677,26 +673,30 @@ function show_from()  {
 
   cd $INSTALL_LOGS
 
-  local matches=$(
-    find . -type f -printf "%f\n" |
-    # we use grep -e to protect against patterns starting with a dash
-    if [[ $mode == -regex ]]; then
-      xargs grep -e "$string"
-    else
-      # match the string literally, but only those at the end of the line
-      # substr indices start with 1
-      xargs awk -v str="$string" '{ if (substr($0, length($0)-length(str)+1) == str) printf ("%s: %s\n", FILENAME, $0) }'
-    fi |
-    seperate_state_files /dev/stdin /dev/stdout /dev/null | sort
-  )
-
-  if [[ -n $matches ]]; then
-    if [[ $GAZE_VERBOSE != false ]]; then
-      echo "$matches"
-    fi
-    return 1
-  fi
-  return 0
+  find . -type f -printf "%f\n" |
+  xargs awk -v str="$string" -v verbose="$GAZE_VERBOSE" -v isregex="$mode" \
+    -v xclude="^(${LOG_DIRECTORY#$STATE_ROOT}|${STATE_DIRECTORY#$STATE_ROOT})" \
+    '	BEGIN {
+		E["\["];E["\]"];E["\("];E["\)"];E["\{"];E["\}"]
+		E["\."];E["\\"];E["\*"];E["\+"];E["\?"];E["\|"];E["\^"];E["\$"]
+		verbose = (verbose != "false")
+		isregex = (isregex == "regex")
+		whole = isregex ? (str ~ /^\^/ && str ~ /\$$/) : (str ~ /^\//)
+		if (!isregex) str = (whole ? "^" : "/") escape(str) "$"
+	}
+	function escape(s) {
+		for (i in E) gsub(i, i, s)
+		return s
+	}
+	$0 ~ str && $0 !~ xclude {
+		found = 1
+		if (!verbose) exit
+		printf("%s: %s\n", FILENAME, $0)
+		if (whole) nextfile
+	}
+	END {
+		exit (!found)
+	}'
 }
 
 #-----
