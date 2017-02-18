@@ -677,15 +677,26 @@ function show_from()  {
   xargs awk -v str="$string" -v verbose="$GAZE_VERBOSE" -v isregex="$mode" \
     -v xclude="^(${LOG_DIRECTORY#$STATE_ROOT}|${STATE_DIRECTORY#$STATE_ROOT})" \
     '	BEGIN {
-		E["\["];E["\]"];E["\("];E["\)"];E["\{"];E["\}"]
-		E["\."];E["\\"];E["\*"];E["\+"];E["\?"];E["\|"];E["\^"];E["\$"]
 		verbose = (verbose != "false")
 		isregex = (isregex == "regex")
 		whole = isregex ? (str ~ /^\^/ && str ~ /\$$/) : (str ~ /^\//)
 		if (!isregex) str = (whole ? "^" : "/") escape(str) "$"
 	}
 	function escape(s) {
-		for (i in E) gsub(i, i, s)
+		gsub(/\\/, "\\\\", s)
+		gsub(/\[/, "\\[", s)
+		gsub(/\]/, "\\]", s)
+		gsub(/\(/, "\\(", s)
+		gsub(/\)/, "\\)", s)
+		gsub(/\{/, "\\{", s)
+		gsub(/\}/, "\\}", s)
+		gsub(/\./, "\\.", s)
+		gsub(/\*/, "\\*", s)
+		gsub(/\+/, "\\+", s)
+		gsub(/\?/, "\\?", s)
+		gsub(/\|/, "\\|", s)
+		gsub(/\^/, "\\^", s)
+		gsub(/\$/, "\\$", s)
 		return s
 	}
 	$0 ~ str && $0 !~ xclude {
