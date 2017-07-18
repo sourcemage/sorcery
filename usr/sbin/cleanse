@@ -575,8 +575,7 @@ function cleanse_fix()
   CURNR=0
 
   if [ $FIX == quick ] ; then
-    TOTALNR=0 #counting them like this doesn't seem to take substantial time
-    for unused in $SPELLS ; do let TOTALNR++ ; done
+    TOTALNR=${#SPELLS[@]}
     for SPELL in $SPELLS ; do
       let CURNR++
       if cleanse_fix_run_checks $SPELL $CURNR $TOTALNR; then
@@ -782,12 +781,9 @@ function cleanse_fix_init_ldd_check()  {
   local SPELL
   local I_LOG
   local size count
-  let size=0
   let count=0
   message "Doing initialization for the ldd check"
-  for SPELL in $* ; do
-    let size++
-  done
+  size=$#
   for SPELL in $* ; do
     I_LOG=$INSTALL_LOGS/$SPELL-$(private_installed_version  $SPELL)
     hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort -u|tr '\n' :)"
