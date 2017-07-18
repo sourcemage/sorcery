@@ -943,7 +943,7 @@ function sources()  { (
 ) }
 
 #---------------------------------------------------------------------
-## @param spell
+## @param spell...
 ## @Stdout filelist
 ## Returns a list of each source file used by a spell.  Most have only
 ## one, but xfree86 for example splits the sources into three separate
@@ -951,18 +951,11 @@ function sources()  { (
 ##
 #---------------------------------------------------------------------
 function source_urls()  { (
-
-  local i srcVar
-
-  if  [  -z  "$SOURCE"  ];  then
-    codex_set_current_spell_by_name  $1
-  fi
-  get_spell_files_and_urls|while read -a line; do
-    unset line[0]
-    echo "${line[*]}"
+  while [ $# -gt 0 ]; do
+    codex_set_current_spell_by_name "$1"
+    get_spell_files_and_urls | awk '{print $2}'
+    shift
   done
-
-
 ) }
 
 
