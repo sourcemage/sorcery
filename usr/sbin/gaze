@@ -2422,18 +2422,18 @@ parse()  {
           tablet)  shift; gaze_tablet $1 $2              ;;
         activity)  display $ACTIVITY_LOG                 ;;
             from)  shift; show_from "$@"                 ;;
-           newer)  newer             $2                  ;;
-           older)  older             $2                  ;;
+           newer)  shift; newer      "$1"                ;;
+           older)  shift; older      "$1"                ;;
          sources)  shift; sources "$@"                   ;;
      source_urls)  shift; source_urls  "$@"              ;;
-        grimoire)  shift; gaze_catalog $@                ;;
+        grimoire)  shift; gaze_catalog "$@"              ;;
        grimoires)  gaze_show_grimoires                   ;;
           search)  shift; gaze_search "$@"               ;;
-        provides)  shift; gaze_provides $@               ;;
+        provides)  shift; gaze_provides "$@"             ;;
          depends)  shift; gaze_show_depends  "$@"        ;;
     dependencies)  shift; gaze_show_dependencies  "$@"   ;;
          orphans)  show_orphans | sort                   ;;
-         history)  show_spell_component HISTORY  "$2"    ;;
+         history)  shift; show_spell_component HISTORY  "$1"    ;;
      website|url)  shift; gaze_show_website           $@ ;;
       maintainer)  shift; show_maintainer             $@ ;;
        installed)  shift; gaze_show_installed         $@ ;;
@@ -2446,34 +2446,36 @@ parse()  {
        checkmd5s)  shift; gaze_md5check               $@ ;;
             time)  shift; gaze_time                   $@ ;;
      time-system)  shift; gaze_time_system            $@ ;;
-    compile)  if  [  -n  "$3"        ];  then
-                  VERSION=$3
+         compile)
+              shift
+              if    [  -n  "$2"        ];  then
+                  VERSION="$2"
               elif  [  -z  "$VERSION"  ];  then
-                  codex_set_current_spell_by_name  $2
+                  codex_set_current_spell_by_name  "$1"
               fi
-              display  $COMPILE_LOGS/$SPELL-$VERSION$EXTENSION   \
+              display  "$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"   \
                        "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
-        install) [[ -n $3 ]] && VERSION="$3"
+        install) shift; [[ -n "$2" ]] && VERSION="$2"
                  gaze_install $SPELL $VERSION ;;
-   install-full) [[ -n $3 ]] && VERSION="$3"
+   install-full) shift; [[ -n "$2" ]] && VERSION="$2"
                  gaze_install $SPELL $VERSION full ;;
-  install-spell) [[ -n $3 ]] && VERSION="$3"
+  install-spell) shift; [[ -n "$2" ]] && VERSION="$2"
                  gaze_install $SPELL $VERSION spell ;;
 
-    sum)  [  -n  "$SPELL"  ]                         &&
+            sum)  [  -n  "$SPELL"  ]                 &&
           checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
           checksum  "$INSTALL_LOGS/*"
           ;;
 
 
-    md5sum)  [  -n  "$SPELL"  ]                             &&
+         md5sum)  [  -n  "$SPELL"  ]                        &&
              md5sum_files  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
              md5sum_files  "$INSTALL_LOGS/*"
              ;;
 
-   voyeur)  shift  1;  gaze_activate_voyeur  $@  ;;
+   voyeur)  shift;  gaze_activate_voyeur "$@"  ;;
 
  install-queue)  if [[ -s $INSTALL_QUEUE ]]; then
                    $PAGER $INSTALL_QUEUE
