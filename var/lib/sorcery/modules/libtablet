@@ -742,8 +742,8 @@ function tablet_check_repair_file() {
 ## @param file that will hold the cache
 #---------------------------------------------------------------------
 function tablet_create_version_cache() {
-  [[ -f $1 ]] && return 0
-  local file=$1
+  [[ -f "$1" ]] && return 0
+  local file="$1"
   local page_dir
   local spell version patchlevel security_patch updated
   local rc=0
@@ -756,13 +756,8 @@ function tablet_create_version_cache() {
       tablet_get_patchlevel $page_dir patchlevel > /dev/null
       tablet_get_security_patch $page_dir security_patch > /dev/null
       tablet_get_updated $page_dir updated > /dev/null
-      echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
-    elif [[ $spell == alter ]]; then
-      version=$(installed_version alter)
-      echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
-    elif [[ $spell == smgl-prelink || $spell == smgl-strip ]]; then
+    elif [[ $spell == alter || $spell == smgl-prelink || $spell == smgl-strip ]]; then
       version=$(installed_version $spell)
-      echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
     else
       error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
                     "please run cleanse --tablet and retry. If some spells" \
@@ -772,6 +767,7 @@ function tablet_create_version_cache() {
       rc=1
       break
     fi
+    echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
   done > "$file"
 
   if [[ ${#ok_spells[@]} != $(wc -l < $file) ]]; then
@@ -779,7 +775,7 @@ function tablet_create_version_cache() {
     if [[ $rc == 0 && -n $bad ]]; then
       message "Spells with missing or corrupt tablet pages: $bad"
     fi
-    rm $file
+    rm "$file"
     return 1
   fi
 
