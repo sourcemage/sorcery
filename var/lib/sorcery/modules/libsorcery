@@ -1004,62 +1004,56 @@ function prune()  {
   message "${MESSAGE_COLOR}Generating list of files to keep...${DEFAULT_COLOR}"
   local SOURCE_KEEP="$TMP_DIR/prune-keep-source"
   local CACHE_KEEP="$TMP_DIR/prune-keep-cache"
-  rm -rf $CACHE_KEEP
-  rm -rf $SOURCE_KEEP
-  generate_keep_list  $SOURCE_KEEP $CACHE_KEEP $1
+  rm -rf "$CACHE_KEEP"
+  rm -rf "$SOURCE_KEEP"
+  generate_keep_list  "$SOURCE_KEEP" "$CACHE_KEEP" $1
 
   message "${MESSAGE_COLOR}Cleaning up source cache" \
           "(${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
   local SOURCE_RM="$TMP_DIR/prune.rm.source"
-  find $SOURCE_CACHE -follow -mindepth 1 -maxdepth 1 -type f|
+  find "$SOURCE_CACHE" -follow -mindepth 1 -maxdepth 1 -type f|
   awk -F/ 'BEGIN {
-             while ( getline < ARGV[1] ) {
-               keep[$NF] = 1;
-             }
-             while ( getline < ARGV[2] ) {
-               if ( keep[$NF] != 1 ) {
-                 print $0;
-               }
-             }
-           }' $SOURCE_KEEP - |sort -u > $SOURCE_RM
-  if test -s $SOURCE_RM ; then
-    NUM_NO_KEEP=$(cat $SOURCE_RM|wc -l)
+             while ( getline < ARGV[1] )
+               keep[$NF]
+             while ( getline < ARGV[2] )
+               if (!($NF in keep))
+                 print
+           }' "$SOURCE_KEEP" - |sort -u > "$SOURCE_RM"
+  if [ -s "$SOURCE_RM" ]; then
+    NUM_NO_KEEP=$(< "$SOURCE_RM" wc -l)
 
     message "There are $NUM_NO_KEEP files that can be removed"
     if query "Edit the list?" "n" ; then
-      edit_file $SOURCE_RM
+      edit_file "$SOURCE_RM"
     fi
     if query "Remove the files?" "y" ; then
-      cat $SOURCE_RM|xargs rm
+      < "$SOURCE_RM" xargs rm
     fi
   fi
 
   message "${MESSAGE_COLOR}Cleaning up install cache" \
           "(${DEFAULT_COLOR}$INSTALL_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
   local CACHE_RM="$TMP_DIR/prune.rm.cache"
-  find $INSTALL_CACHE -mindepth 1 -maxdepth 1 -type f|
+  find "$INSTALL_CACHE" -mindepth 1 -maxdepth 1 -type f|
   awk -F/ 'BEGIN {
-             while ( getline < ARGV[1] ) {
-               keep[$NF] = 1;
-             }
-             while ( getline < ARGV[2] ) {
-               if ( keep[$NF] != 1 ) {
-                 print $0;
-               }
-             }
-           }' $CACHE_KEEP - |sort -u > $CACHE_RM
-  if test -s $CACHE_RM ; then
-    NUM_NO_KEEP=$( cat $CACHE_RM | wc -l )
+             while ( getline < ARGV[1] )
+               keep[$NF]
+             while ( getline < ARGV[2] )
+               if (!($NF in keep))
+                 print
+           }' "$CACHE_KEEP" - |sort -u > "$CACHE_RM"
+  if [ -s "$CACHE_RM" ]; then
+    NUM_NO_KEEP=$(< "$CACHE_RM" wc -l)
     message "There are $NUM_NO_KEEP files that can be removed"
     if query "Edit the list?" "n" ; then
-      edit_file $CACHE_RM
+      edit_file "$CACHE_RM"
     fi
     if query "Remove the files?" "y" ; then
-      cat $CACHE_RM|xargs rm
+      < "$CACHE_RM" xargs rm
     fi
   fi
 
-  rm  -f  $SOURCE_KEEP $CACHE_KEEP $SOURCE_RM $CACHE_RM
+  rm  -f  "$SOURCE_KEEP" "$CACHE_KEEP" "$SOURCE_RM" "$CACHE_RM"
 
 }
 
