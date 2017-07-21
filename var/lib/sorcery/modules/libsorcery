@@ -962,14 +962,14 @@ function source_urls()  { (
 ##
 #---------------------------------------------------------------------
 function generate_keep_list()  {
-  local source_keep=$1
-  local cache_keep=$2
-  local type=$3
-  if [[ $type == installed_only ]] ; then
+  local source_keep="$1"
+  local cache_keep="$2"
+  local type="$3"
+  if [[ "$type" == installed_only ]] ; then
     get_all_spells_with_status ok |
     sort -u |
     while read spell; do
-      codex_find_spell_by_name $spell
+      codex_find_spell_by_name "$spell"
     done
   else
     codex_get_all_spells
@@ -977,7 +977,7 @@ function generate_keep_list()  {
   (
   echo sorcery-$SORCERY_BRANCH.tar.bz2
   while read SPELL_DIRECTORY ; do
-    codex_set_current_spell_quick  $SPELL_DIRECTORY &>/dev/null
+    codex_set_current_spell_quick "$SPELL_DIRECTORY" &>/dev/null
     sources 2>/dev/null
     ls $INSTALL_CACHE/$SPELL-$VERSION-* 1>&2 2>/dev/null
     unset VERSION SPELL ${!SOURCE*}
@@ -1006,7 +1006,7 @@ function prune()  {
   local CACHE_KEEP="$TMP_DIR/prune-keep-cache"
   rm -rf "$CACHE_KEEP"
   rm -rf "$SOURCE_KEEP"
-  generate_keep_list  "$SOURCE_KEEP" "$CACHE_KEEP" $1
+  generate_keep_list  "$SOURCE_KEEP" "$CACHE_KEEP" "$1"
 
   message "${MESSAGE_COLOR}Cleaning up source cache" \
           "(${DEFAULT_COLOR}$SOURCE_CACHE${MESSAGE_COLOR})...${DEFAULT_COLOR}"
