@@ -352,7 +352,8 @@ function pass_one()  {
     spells=( $SPELLS )
     hash_reset deps_only
     hash_reset looked_at
-    for ((i=0;$i<${#spells[@]}; i++)); do
+    local i=0
+    while [[ $i < ${#spells[@]} ]]; do
       if [[ "${spells[$i]}" ]] &&
          ! [[ $(hash_get looked_at "${spells[$i]}") ]] ; then
         hash_put looked_at "${spells[$i]}" done
@@ -363,6 +364,7 @@ function pass_one()  {
         spells=( ${spells[@]} $new_spells )
         unset new_spells
       fi
+      let i++
     done
     SPELLS_TO_CAST=$(hash_get_table_fields "deps_only"|tr '\n' ' ')
     hash_reset deps_only
