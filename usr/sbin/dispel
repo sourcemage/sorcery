@@ -39,6 +39,8 @@ Optional Parameters:
 --total-dispel          Remove everything including config files even
                         if they were modified.
 --noqueue               Don't try to remove the spell from the install queue
+--protect-files <glob>  Protect files matching this pattern relative to
+                        INSTALL_ROOT (no leading slash).
 
 The following parameters effect dependency following, if they are not
 specified the default action is to do no dependency following. For
@@ -81,10 +83,10 @@ EOF
 ## @param Previous version
 #-----
 downgrade()  {
-  if [ "$SUSTAIN" = off ]; then
-    resurrect --nosustain $1 -v "$2"
+  if [[ $SUSTAIN == off ]]; then
+    resurrect --protect-files "$PROTECT_FILES" --nosustain $1 -v "$2"
   else
-    resurrect $1 -v "$2"
+    resurrect --protect-files "$PROTECT_FILES" $1 -v "$2"
   fi
   DISPEL_EXIT_STATUS=$?
 }
@@ -149,6 +151,13 @@ process_parameters()  {
      --debug-dispel)  DEBUG_DISPEL=yes ;;
      --total-dispel)  TOTAL_DISPEL=yes ;;
           --noqueue)  DEQUEUE=off ;;
+    --protect-files)  if [[ $# -lt 2 ]]; then
+                        message  "${PROBLEM_COLOR}Missing argument to --protect-files!${DEFAULT_COLOR}"
+                        help
+                      fi
+                      PROTECT_FILES=$2
+                      shift
+                      ;;
                   *)  help ;;
     esac
     shift
@@ -179,6 +188,7 @@ strip_parameters()  {
       --non-orphan) shift ;;
       --recast-parent) shift ;;
       --dispel-parent) shift ;;
+      --protect-files) shift ;;
     esac
     shift
   done
@@ -222,7 +232,7 @@ dispel_parents_list_borkers() {
 ## has already been dispelled.
 #---------------------------------------------------------------------
 dispel_spell_wrapper() {
-  dispel_spell $1 &&
+  dispel_spell $1 "$PROTECT_FILES" &&
   hash_put ALL_DISPELS $1 yes
 }
 
