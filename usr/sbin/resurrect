@@ -33,6 +33,8 @@ Optional Parameters:
 --nosustain                  turn off dispel protection for vital spells
                                (you usually don't want to do this)
 -V, --voyeur <on|off>        toggle voyeur mode (default on)
+--protect-files <glob>       Protect files matching this pattern relative to
+                             INSTALL_ROOT (no leading slash).
 -h, --help                   will just print this help
 
 You can invoke resurrect with spell names only or also specify the desired
@@ -121,7 +123,7 @@ do_resurrect() {
 
   if spell_installed $spell; then
     message "Dispelling $spell $(installed_version $spell) ..."
-    dispel_spell $spell
+    dispel_spell $spell "$PROTECT_FILES"
     if [[ $? != 0 ]]; then
       error_message "$error_base the dispel failed.$DEFAULT_COLOR"
       return 1
@@ -189,7 +191,7 @@ direct_resurrect() {
 
   if spell_installed $spell; then
     message "Dispelling $spell $(installed_version $spell) ..."
-    dispel_spell $spell
+    dispel_spell $spell "$PROTECT_FILES"
     if [[ $? != 0 ]]; then
       error_message "$error_base the dispel failed.$DEFAULT_COLOR"
       return 1
@@ -235,7 +237,7 @@ verify_parameters() {
     if [[ ${1:0:1} == "-" ]]; then
       case "$1" in
                       --latest|-l|--from|-f) true ;;
-        --check|-c|--version|-v|--nosustain) true ;;
+        --check|-c|--version|-v|--nosustain|--protect-files) true ;;
                                 --voyeur|-V) list_find "on off" "$2" || help ;;
                                 --help|-h|*) help ;;
       esac
@@ -272,6 +274,13 @@ main() {
                            shift
                            ;;
               --nosustain) SUSTAIN="off" ;;
+          --protect-files) if [[ $# -lt 2 ]]; then
+                             message  "${PROBLEM_COLOR}Missing argument to --protect-files!${DEFAULT_COLOR}"
+                             help
+                           fi
+                           PROTECT_FILES=$2
+                           shift
+                           ;;
                         *) help ;;
       esac
     else

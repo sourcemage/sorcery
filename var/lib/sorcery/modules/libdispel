@@ -125,10 +125,12 @@ reap_depends()  {
 ## Second argument is a file containing md5 sums of those files, used
 ## to detect if a config file has been modified.  Config files are any
 ## files in /etc or any of its sub-directories.
+## Third, optional, argument is a shell pattern expanding to a list
+## of files to protect from the reaper.
 ##
 #---------------------------------------------------------------------
 reaper()  {
-#  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
+#  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG" "$DISPEL_PROTECT_FILES"
 
   debug  "libdispel" "Running reaper() on $1"
 
@@ -137,14 +139,33 @@ reaper()  {
   fi
 
   local MD5S=$2
+  local PROT_PAT=$3
 
   local UNIQUE="$$.$RANDOM"
   local REAPER_FILES="$TMP_DIR/reaper.$UNIQUE.files"
   local REAPER_DIRS="$TMP_DIR/reaper.$UNIQUE.dirs"
   local REAPER_SYMS="$TMP_DIR/reaper.$UNIQUE.syms"
   local REAPER_SPECIAL="$TMP_DIR/reaper.$UNIQUE.special"
+  local REAPER_PROTECT="$TMP_DIR/reaper.$UNIQUE.protect"
 
-  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS  $REAPER_PROTECT
+
+  # Need the protected files in a variable for quick checking,
+  # could invoke grep on the file (slower?).
+  local PROTECT
+  touch $REAPER_PROTECT
+  local PROTECT_LOG="$INSTALL_ROOT/var/log/sorcery/protected/$SPELL-$VERSION"
+  if [[ -n "$PROT_PAT" ]]; then
+    (
+      cd "$INSTALL_ROOT/" &&
+      for f in $PROT_PAT;
+      do
+        [[ -e "$f" ]] && printf "%s\n" "$INSTALL_ROOT/$f"
+      done 2>/dev/null
+    ) > $REAPER_PROTECT
+  fi
+  PROTECT=$(<$REAPER_PROTECT)
+  mkdir -p "$(dirname "$PROTECT_LOG")" || return $?
 
   # convert from TRACK_ROOT to / for protected filtering,
   # then to INSTALL_ROOT.
@@ -154,6 +175,11 @@ reaper()  {
   filter_protected                                    |
   log_adjuster /dev/stdin /dev/stdout filterable root |
   while read ITEM; do
+    if [[ -n "$PROTECT" ]] && list_find "$PROTECT" "$ITEM"; then
+      message  "${MESSAGE_COLOR}protecting: ${FILE_COLOR}${ITEM}${DEFAULT_COLOR}"
+      printf "%s\n" "$ITEM" | sed "s:^$INSTALL_ROOT::" >> "$PROTECT_LOG"
+      continue
+    fi
     if   test -h  "$ITEM"; then echo "$ITEM" >> $REAPER_SYMS
     elif test -f  "$ITEM"; then echo "$ITEM" >> $REAPER_FILES
     elif test -d  "$ITEM"; then echo "$ITEM" >> $REAPER_DIRS
@@ -182,7 +208,7 @@ reaper()  {
   [ -f $REAPER_DIRS ] && rmdir $(sort -r $REAPER_DIRS) 2>/dev/null
   [ -f $REAPER_FILES ] && rmdir $(get_dirnames < $REAPER_FILES |uniq|sort -r) 2>/dev/null
 
-  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS $REAPER_SPECIAL
+  rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS $REAPER_SPECIAL $REAPER_PROTECT
 }
 
 #---------------------------------------------------------------------
@@ -319,6 +345,7 @@ post_remove() {
 dispel_spell() {
 
     local SPELL=$1
+    local DISPEL_PROTECT_FILES=$2
     run_hook dispel pre
     # fake dispel, only remove sorcery metadata
     if [[ $DEBUG_DISPEL ]] ; then
@@ -342,7 +369,7 @@ dispel_spell() {
       # this function messes with the environment a lot leave it in a subshell
       load_spell $SPELL           &&
       pre_remove                  &&
-      reaper  $INST_LOG  $MD5_LOG &&
+      reaper  $INST_LOG  $MD5_LOG "$DISPEL_PROTECT_FILES" &&
       post_remove                 &&
       reap_state_files $INST_LOG  &&
       reap_spell_config_stage     &&
