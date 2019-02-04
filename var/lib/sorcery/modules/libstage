@@ -103,7 +103,7 @@ function stage_install_files()
 function stage_install_directory()
 {
   local DIR=$1
-  local stat=( $(stat --printf "%a\n%U\n%G\n" "$STAGE_DIRECTORY/TRANSL/$DIR" ) )
+  local stat=( $(stat -c '%a %U %G' "$STAGE_DIRECTORY/TRANSL/$DIR" ) )
   local PERMISSION=${stat[0]}
   local OWNER=${stat[1]}
   local GROUP=${stat[2]}
@@ -128,7 +128,7 @@ function stage_install_directory()
 function stage_install_file()
 {
   local FILE=$1
-  local stat=( $(stat --printf "%a\n%U\n%G\n%h\n%i\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local stat=( $(stat -c '%a %U %G %h %i' "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
   local PERMISSION=${stat[0]}
   local OWNER=${stat[1]}
   local GROUP=${stat[2]}
@@ -194,7 +194,7 @@ function stage_install_fifo()
 {
   local FILE=$1
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
-  local stat=( $(stat --printf "%a\n%U\n%G\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local stat=( $(stat -c '%a %U %G' "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
   local PERMISSION=${stat[0]}
   local OWNER=${stat[1]}
   local GROUP=${stat[2]}
@@ -225,7 +225,7 @@ function stage_install_fifo()
 function stage_install_char_block()
 {
   local FILE=$1
-  local stat=( $(stat --printf "%a\n%U\n%G\n%t\n%T\n" "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
+  local stat=( $(stat -c '%a %U %G %t %T' "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
   local PERMISSION=${stat[0]}
   local OWNER=${stat[1]}
   local GROUP=${stat[2]}
