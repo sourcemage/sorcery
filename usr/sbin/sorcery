@@ -333,9 +333,9 @@ update_pkgs() {
 
   message  "${CHECK_COLOR}Updating ... please wait ... ${DEFAULT_COLOR}"
 
-  local UPDATE_SCRIPT=$TMP_DIR/sorcery.update
-  rm -rf $UPDATE_SCRIPT
-  cat  << EOF >  $UPDATE_SCRIPT
+  local UPDATE_SCRIPT="$TMP_DIR"/sorcery.update
+  rm -rf "$UPDATE_SCRIPT"
+  cat  << EOF >  "$UPDATE_SCRIPT"
 #!/bin/bash
 ############################################################
 # Copyright 2001 by Kyle Sallee                            #
@@ -377,9 +377,9 @@ EOF
 
   make_restore_script
 
-  chmod  100     $RESTORE_SCRIPT
-  chmod  100     $UPDATE_SCRIPT
-  exec           bash  $UPDATE_SCRIPT  $1
+  chmod  100     "$RESTORE_SCRIPT"
+  chmod  100     "$UPDATE_SCRIPT"
+  exec           bash  "$UPDATE_SCRIPT"  "$1"
   # run it via bash to bypass /tmp mounted with noexec option
 
 
@@ -392,8 +392,8 @@ function make_restore_script() {
 # actually have their values filed in at script generation time
 # everything else must be back-quoted to work properly
 
-  rm -f $RESTORE_SCRIPT
-  cat  << EOF >  $RESTORE_SCRIPT
+  rm -f "$RESTORE_SCRIPT"
+  cat  << EOF > "$RESTORE_SCRIPT"
 #!/bin/bash
 ############################################################
 # This helper script /tmp/sorcery.restore can              #
@@ -1967,8 +1967,7 @@ verify_parameters() {
 
 
 main() {
-
-  rm  -f  $UPDATE_SCRIPT
+  rm  -f  "$UPDATE_SCRIPT"
 
   if ! [ "$1" ]; then
     main_menu
@@ -2005,7 +2004,7 @@ if [ "$UID" = 0 ]; then
   init_hooks
   main  "$@"
   rc=$?
-  cleanup_tmp_dir $TMP_DIR
+  cleanup_tmp_dir "$TMP_DIR"
   exit $rc
 else
   echo  "Enter the root password, please."

@@ -314,33 +314,31 @@ function md5sum_files() {
 #-----
 function alien()  {
 
-  if [[ $GAZE_VERBOSE != false ]] ; then
+  if ! [ "$GAZE_VERBOSE" = false ]; then
     message  "In a few minutes I will print files found on this disk"
     message  "that were not installed by sorcery.  This is not a"
     message  "security feature!  Files could still be lurking"
     message  "undetected on this box."
   fi
 
-  rm    -f  $TMP_DIR/gaze.found
-  rm    -f  $TMP_DIR/gaze.known
+  rm -f "$TMP_DIR/gaze.found" "$TMP_DIR/gaze.known"
 
-  [[ $GAZE_VERBOSE != false ]] &&
+  ! [ "$GAZE_VERBOSE" = false ] &&
   message  "Discovering installed files..."
-  { cat $SORCERY_INSTALL_LOG ; find $INSTALL_LOGS/ -type f|xargs cat ; }  |
-    files  |  sort  >  $TMP_DIR/gaze.known
+  {
+    cat "$SORCERY_INSTALL_LOG"
+    find "$INSTALL_LOGS/" -type f -exec cat {} +
+  } | files | sort >  "$TMP_DIR/gaze.known"
 
-  [[ $GAZE_VERBOSE != false ]] &&
+  ! [ "$GAZE_VERBOSE" = false ] &&
   message  "Discovering ambient files..."
-  find $GAZE_ALIEN_PATHS 2>/dev/null | files | filter "$EXCLUDED" | sort >$TMP_DIR/gaze.found
+  find $GAZE_ALIEN_PATHS 2>/dev/null | files | filter "$EXCLUDED" | sort >"$TMP_DIR/gaze.found"
 
-  diff  -B  -a  -d  $TMP_DIR/gaze.found  $TMP_DIR/gaze.known  |
-  grep  -v  "^> "                                     |
-  grep      "^< "                                     |
-  cut  -c  3-                                         |
+  diff  -B  -a  -d  "$TMP_DIR/gaze.found"  "$TMP_DIR/gaze.known"  |
+  awk 'sub(/^< /, "") { print }' |
   filter  "$PROTECTED"
 
-  rm  -f  $TMP_DIR/gaze.found
-  rm  -f  $TMP_DIR/gaze.known
+  rm -f "$TMP_DIR/gaze.found" "$TMP_DIR/gaze.known"
 
 }
 

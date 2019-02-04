@@ -223,7 +223,7 @@ function cast_spell()  { (
   # either case it blocks until downloading is complete by the presence of
   # a ${download_log}.done file. If SEPARATE is set, then all downloading
   # is done first, so there is no need to wait for it to complete.
-  if [[ ! $SEPARATE ]] ; then
+  if ! [ "$SEPARATE" ]; then
     show_downloading $SPELL
   fi
 
@@ -423,15 +423,15 @@ function pass_two()  {
   if ! query "Do you want to cast these spells?" "y" ; then
     message "Ok, quitting cast. Figure out what you want."
     # conflicts are already registered, but they weren't removed, so don't show them
-    :> $CONFLICT_LIST
+    :> "$CONFLICT_LIST"
     return 1
   fi
 
   echo
 
-  rm -f $TMP_DIR/pass_three.done # don't return until this file exists
+  rm -f "$TMP_DIR/pass_three.done" # don't return until this file exists
   MINUS_K=yes
-  if  [[  $SEPARATE   ]] ; then
+  if [ "$SEPARATE" ]; then
     ( CAST_PASS="three"
       depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
       if [[ $SCREEN_NAME ]] ; then
@@ -474,7 +474,7 @@ function pass_two()  {
   while ! test -e $TMP_DIR/pass_three.done; do
     sleep 5
     let i+=5
-    if [[ $i -gt 60 ]] ; then
+    if [ $i -gt 60 ] ; then
       message "Download pass did not finish, killing it off."
       # this is rather violent, but job control in bash lame and there's
       # no other way to kill everything off effectively :-(
@@ -544,7 +544,7 @@ function pass_three()  {
     fi
   fi
 
-  if  [[  $SEPARATE   ]] ; then
+  if [ "$SEPARATE" ]; then
     summon_spell "$SPELL" &> "$download_log"
   else
     lock_file   $download_log

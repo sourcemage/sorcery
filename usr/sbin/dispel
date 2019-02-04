@@ -81,7 +81,7 @@ EOF
 ## @param Previous version
 #-----
 function downgrade()  {
-  if [[ $SUSTAIN == off ]]; then
+  if [ "$SUSTAIN" = off ]; then
     resurrect --nosustain $1 -v "$2"
   else
     resurrect $1 -v "$2"
@@ -95,70 +95,68 @@ function downgrade()  {
 #-----
 function process_parameters()  {
   while  [  -n  "$1"  ];  do
-    if  echo  ""  $1  |  grep  -q  "^ -";  then
-      case  $1  in
+    case "$1" in
+              [!-]*) ;;
          -e|--exile)
-            if [[ -z $2 ]]; then
+            if ! [ "$2" ]; then
               message  "${PROBLEM_COLOR}Missing parameters!${DEFAULT_COLOR}"
               help
             fi
-            EXILE="yes"; shift 1
+            EXILE="yes"
             ;;
      -d|--downgrade)
-            if [[ -z $2 ]]; then
+            if ! [ "$2" ]; then
               message  "${PROBLEM_COLOR}Missing parameters!${DEFAULT_COLOR}"
               help
             fi
-            DOWNGRADE_SPELL=$2
-            if [[ ${3:0:1} != - ]]; then
-              DOWNGRADE_VERSION=$3
+            DOWNGRADE_SPELL="$2"
+            if ! [ "${3:0:1}" = - ]; then
+              DOWNGRADE_VERSION="$3"
               shift
             fi
-            shift 2
+            shift
             ;;
-           --noreap)  REAP="off";         shift  1  ;;
-  --no-reap-depends)  NO_REAP_DEPENDS="on";  shift  1  ;;
-        --nosustain)  SUSTAIN="off";      shift  1  ;;
-       --notriggers)  TRIGGER="off";      shift  1  ;;
-            --child)  validate_param $2 ORPHAN_DEFAULT
-                      validate_param $2 NONORPHAN_DEFAULT
-                      shift ;;
-           --orphan)  validate_param $2 ORPHAN_DEFAULT
-                      shift ;;
-       --non-orphan)  validate_param $2 NONORPHAN_DEFAULT
-                      shift ;;
+           --noreap)  REAP="off" ;;
+  --no-reap-depends)  NO_REAP_DEPENDS="on" ;;
+        --nosustain)  SUSTAIN="off" ;;
+       --notriggers)  TRIGGER="off" ;;
+            --child)  validate_param "$2" ORPHAN_DEFAULT
+                      validate_param "$2" NONORPHAN_DEFAULT
+                      ;;
+           --orphan)  validate_param "$2" ORPHAN_DEFAULT
+                      ;;
+       --non-orphan)  validate_param "$2" NONORPHAN_DEFAULT
+                      ;;
         --user-deps)  validate_param "$ORPHAN_MENU_DEFAULT" ORPHAN_DEFAULT
                       validate_param "$NONORPHAN_MENU_DEFAULT" NONORPHAN_DEFAULT
                       validate_param "$RECAST_PARENT_MENU_DEFAULT" \
                                      RECAST_PARENT_DEFAULT
                       validate_param "$DISPEL_PARENT_MENU_DEFAULT" \
                                      DISPEL_PARENT_DEFAULT
-                      shift 1 ;;
+                      ;;
   --user-child-deps)  validate_param "$ORPHAN_MENU_DEFAULT" ORPHAN_DEFAULT
                       validate_param "$NONORPHAN_MENU_DEFAULT" NONORPHAN_DEFAULT
-                      shift ;;
-    --recast-parent)  validate_param $2 RECAST_PARENT_DEFAULT
-                      shift ;;
-    --dispel-parent)  validate_param $2 DISPEL_PARENT_DEFAULT
-                      shift ;;
+                      ;;
+    --recast-parent)  validate_param "$2" RECAST_PARENT_DEFAULT
+                      ;;
+    --dispel-parent)  validate_param "$2" DISPEL_PARENT_DEFAULT
+                      ;;
  --user-parent-deps)  validate_param "$RECAST_PARENT_MENU_DEFAULT" \
                                      RECAST_PARENT_DEFAULT
                       validate_param "$DISPEL_PARENT_MENU_DEFAULT" \
                                      DISPEL_PARENT_DEFAULT
-                      shift ;;
-     --debug-dispel)  DEBUG_DISPEL=yes ; shift 1 ;;
-     --total-dispel)  TOTAL_DISPEL=yes ; shift 1 ;;
-          --noqueue)  DEQUEUE=off; shift  1  ;;
-                  *)  help                       ;;
-      esac
-    else
-      shift
-   fi
+                      ;;
+     --debug-dispel)  DEBUG_DISPEL=yes ;;
+     --total-dispel)  TOTAL_DISPEL=yes ;;
+          --noqueue)  DEQUEUE=off ;;
+                  *)  help ;;
+    esac
+    shift
   done
 }
 
 function validate_param() {
-  case $1 in
+  case "$1" in
     ask-yes|ask-no|ignore|always)  eval "$2=\"$1\"" ;;
     *) message "\"$1\" is not a valid option, use ask-yes, ask-no," \
                "ignore or always"
@@ -172,31 +170,17 @@ function validate_param() {
 ## @Args Parameters
 #-----
 function strip_parameters()  {
-  while  [  -n  "$1"  ];  do
-    if  echo  "" $1  |  grep  -q  "^ -";  then
-      case  $1  in
-            -e|--exile)  shift  1  ;;
-        -d|--downgrade)  shift  2; [[ ${3:0:1} == - ]] || shift ;;
-              --noreap)  shift  1  ;;
-     --no-reap-depends)  shift  1  ;;
-           --nosustain)  shift  1  ;;
-          --notriggers)  shift  1  ;;
-               --child)  shift  2  ;;
-              --orphan)  shift  2  ;;
-          --non-orphan)  shift  2  ;;
-     --user-child-deps)  shift  1  ;;
-       --recast-parent)  shift  2  ;;
-       --dispel-parent)  shift  2  ;;
-    --user-parent-deps)  shift  1  ;;
-        --debug-dispel)  shift  1  ;;
-        --total-dispel)  shift  1  ;;
-             --noqueue)  shift  1  ;;
-                     *)  shift  1  ;;
-      esac
-    else
-      echo -n "$1 "
-      shift
-   fi
+  while ! [ $# = 0 ]; do
+    case "$1" in
+      [!-]*) echo -n "$1 " ;;
+      -d|--downgrade) shift 2 ;;
+      --child) shift ;;
+      --orphan) shift ;;
+      --non-orphan) shift ;;
+      --recast-parent) shift ;;
+      --dispel-parent) shift ;;
+    esac
+    shift
   done
 }
 
@@ -583,24 +567,23 @@ function main() {
   # handle downgrading specially, since we also want to pass some of the flags
   # but can't rely on input being ordered correctly
   # having this block here allows process_parameters to be used for input verification
-  if [[ -n $DOWNGRADE_SPELL ]]; then
-    downgrade $DOWNGRADE_SPELL $DOWNGRADE_VERSION
+  if [ "$DOWNGRADE_SPELL" ]; then
+    downgrade "$DOWNGRADE_SPELL" "$DOWNGRADE_VERSION"
   fi
   SPELLS=`strip_parameters  "$@"`
 
-  if [[ $NONORPHAN_DEFAULT ]] ||
-     [[ $ORPHAN_DEFAULT ]] ; then
+  if [ "$NONORPHAN_DEFAULT" ] || [ "$ORPHAN_DEFAULT" ]; then
     CHILD_DEPS=yes
     DO_DEPENDS=yes
   fi
 
-  if [[ $RECAST_PARENT_DEFAULT ]] ||
-     [[ $DISPEL_PARENT_DEFAULT ]] ; then
+  if [ "$RECAST_PARENT_DEFAULT" ] ||
+     [ "$DISPEL_PARENT_DEFAULT" ] ; then
     PARENT_DEPS=yes
     DO_DEPENDS=yes
   fi
-  if [[ $DO_DEPENDS ]] ; then
-    while [[ $SPELLS ]] ; do
+  if [ "$DO_DEPENDS" ]; then
+    while [ "$SPELLS" ]; do
       debug dispel "recomputing depends tree"
       compute_installed_depends down_deps all
       compute_reverse_installed_depends up_deps all
@@ -618,9 +601,9 @@ function main() {
 
 . /etc/sorcery/config
 
-if    [  $#      ==  0  ];  then  help  |  $PAGER
-elif  [[  $1 == -h  ]]  ||  [[  $1 == --help  ]] ; then help
-elif  [  "$UID"  ==  0  ];  then
+if [ $# = 0 ] || [ "$1" = -h ] || [  "$1" = --help ]; then
+  help
+elif [ "$UID" = 0 ]; then
   mk_tmp_dirs dispel
   # FIXME: not sure if this is the right place for it
   init_hooks
