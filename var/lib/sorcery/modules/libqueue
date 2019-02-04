@@ -175,7 +175,7 @@ function find_updates() {
   local tmp_queue=$1
   local recheck_queue=$2
 
-  awk -v i=$VERSION_STATUS -v verbose=$VERBOSE_QUEUING "$awk_version_compare"'
+  awk -v i="$VERSION_STATUS" -v verbose="$VERBOSE_QUEUING" "$awk_version_compare"'
     # decide what to print - just the spell or also the reason
     function needs_update(               reasons, diff) {
       if (verbose == "on") {
@@ -207,10 +207,8 @@ function find_updates() {
       }
     }
 
-    {
-      if ( ! ($1 in map)) {
-        map[$1]=$0;
-      }
+    !($1 in map) {
+      map[$1] = $0
     }
 
     END {

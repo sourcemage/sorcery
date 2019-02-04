@@ -32,13 +32,11 @@
 ##
 #---------------------------------------------------------------------
 function url_git_crack() {
-
-  URL=`url_strip_prefix "$1" git`
-  GIT_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  GIT_ROOT=git://$GIT_ROOT
-  local GIT_DIRECTORY_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  GIT_DIRECTORY=`echo $GIT_DIRECTORY_TAG | cut -d : -f2`
-  local GIT_TAGNAME=`echo $GIT_DIRECTORY_TAG | cut -d : -f3`
+  URL=$(url_strip_prefix "$1" git)
+  GIT_ROOT=git://$(sed "s#\(^[^/]*[^:]*\):.*#\1#" <<< "$URL")
+  local GIT_DIRECTORY_TAG=$(sed "s#^[^/]*[^:]*\(.*\)#\1#" <<< "$URL")
+  GIT_DIRECTORY=$(cut -d : -f2 <<< "$GIT_DIRECTORY_TAG")
+  local GIT_TAGNAME=$(cut -d : -f3 <<< "$GIT_DIRECTORY_TAG")
   GIT_TAG=${GIT_TAGNAME:=master}
 
 }
