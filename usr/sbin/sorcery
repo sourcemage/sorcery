@@ -1943,17 +1943,25 @@ sorcery_queue_remove() {
 ## user is asked for the su password to avoid futile su-ing.
 #---------------------------------------------------------------------
 verify_parameters() {
-  [[ -z $1 ]] && return 0
-
-  case $1 in
-    -u|update|-s|system-update|-g|upgrade) true ;;
-                  -q|queue|queue-security) true ;;
-                           -Z|queue-newer) true ;;
-       -r|rebuild|-rr|rebuild-reconfigure) true ;;
-      add-queue|remove-queue|review-queue) true ;;
-                hold|unhold|exile|unexile) true ;;
-                                 default*) true ;;
-                                        *) help ;;
+  case "$1" in
+    -v|--version|version)
+      cat /etc/sorcery/version
+      exit 0
+      ;;
+    '' | \
+	-u | update | \
+	-s | system-update | \
+	-g | upgrade | \
+        -q | queue | \
+	queue-security | \
+        -Z | queue-newer | \
+	-r | rebuild | \
+	-rr | rebuild-reconfigure | \
+	add-queue | remove-queue | review-queue | \
+        hold | unhold | \
+	exile | unexile | \
+        default*) ;;
+    *) help ;;
   esac
 }
 
@@ -1962,10 +1970,10 @@ main() {
 
   rm  -f  $UPDATE_SCRIPT
 
-  if [ -z $1 ]; then
+  if ! [ "$1" ]; then
     main_menu
   else
-    case  $1  in
+    case "$1" in
             -u|update)  update_sorcery                          ;;
      -s|system-update)  update_pkgs  autoupdate                 ;;
            -g|upgrade)  update_pkgs  upgrade                    ;;
@@ -1979,22 +1987,19 @@ main() {
          remove-queue) shift; sorcery_queue_remove "$@"         ;;
                  hold) shift; sorcery_hold_spells   "$@"        ;;
                unhold) shift; sorcery_unhold_spells "$@"        ;;
-                exile) shift; set_exiled $@                     ;;
-              unexile) shift; set_unexiled $@                   ;;
+                exile) shift; set_exiled "$@"                   ;;
+              unexile) shift; set_unexiled "$@"                 ;;
               default*) shift; sorcery_cli_defaults "$@"        ;;
-
-       -h|--help|help)  help                                    ;;
- -v|--version|version)  echo $SORCERY_VERSION                   ;;
-                    *)  help                                    ;;
     esac
   fi
 
 }
 
 . /etc/sorcery/config
-if  [  "$UID"  ==  0  ];  then
-  DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
+verify_parameters "$@"
 
+if [ "$UID" = 0 ]; then
+  DIALOG='$DIALOGPROG  --backtitle "Sorcery Spell Management Utility" --stdout'
   SORCERY_VERSION=`cat /etc/sorcery/version`
   mk_tmp_dirs sorcery
   init_hooks
@@ -2003,20 +2008,8 @@ if  [  "$UID"  ==  0  ];  then
   cleanup_tmp_dir $TMP_DIR
   exit $rc
 else
-  if [[ $1 == -h ]] || [[ $1 == --help ]] || [[ $1 == help ]]; then
-    help
-  else
-    if [[ $1 == -v ]] || [[ $1 == --version ]] || [[ $1 == version ]]; then
-      cat /etc/sorcery/version
-    else
-      # validate the rest of the parameters before su-ing
-      verify_parameters "$@"
-
-      echo  "Enter the root password, please."
-      PARAMS=$(consolidate_params "$@")
-      exec su -c "sorcery $PARAMS" root
-    fi
-  fi
+  echo  "Enter the root password, please."
+  exec su -c "sorcery $(consolidate_params "$@")" root
 fi
 
 
