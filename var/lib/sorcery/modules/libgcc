@@ -34,8 +34,12 @@
 ## @return 1 otherwise
 #---------------------------------------------------------------------
 function real_using_gcc()  {
+  : ${CC:=gcc}
+  # Check if it's GCC we're using
+  case "$CC" in *gcc);; *) return 1;; esac
+
   local needed_version=${1%+}
-  local installed_version=$(gcc -dumpversion)
+  local installed_version=$("$CC" -dumpversion)
 
   if [[ "$needed_version" == "$1" ]]; then
     grep -qE "^$(esc_str $needed_version)(\.0)*$" <<< "$installed_version"
