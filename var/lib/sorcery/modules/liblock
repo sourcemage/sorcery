@@ -78,17 +78,16 @@ trylock_resources()
 
     debug "trylock_resources" "lockfile=${lockfile}"
 
-    [[ -d $LOCK_DIR ]] || mkdir -p "$LOCK_DIR"
+    [ -e "$lockfile/$$" ] && return
 
-    if [[ -d ${lockfile} ]] || ! mkdir "${lockfile}" 2>/dev/null; then
-    # we try to remove stale locks here and try again
-        sleep 0.1
-        global_clean_resources
-        if ! mkdir "${lockfile}" 2>/dev/null; then
-            return 1
-        fi
+    mkdir -p "$LOCK_DIR"
+    if ! mkdir "${lockfile}" 2>/dev/null; then
+      # we try to remove stale locks here and try again
+      sleep 0.1
+      global_clean_resources
+      mkdir "${lockfile}" 2>/dev/null || return
     fi
-    [[ -e ${lockfile}/$$ ]] || ln -s /proc/$$ "${lockfile}/$$"
+    ln -sf /proc/$$ "${lockfile}/$$"
     return 0
 }
 
