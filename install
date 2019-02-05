@@ -4,18 +4,15 @@
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
 # encapsulates the filters necessary to strip CVS files and EMACS temporary files
 function install__find_non_volatile() {
-  find "$@" -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*'
+  find "$@" \( -name CVS -o -name .svn -o -name .arch-id \) -prune -o \
+       \! -name '.#*' \! -name '*~' \
+       \! -type d
 }
 function install__find_for_log() {
-  find "$@" -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*'|
-  while read line; do echo /$line; done
+  install__find_non_volatile | sed 's:^:/:'
 }
 
-if [[ $1 ]] ; then
-  INSTALL_ROOT=$1
-else
-  INSTALL_ROOT=""
-fi
+INSTALL_ROOT="$1"
 # First clean out all libraries.
 echo "Cleaning out all old sorcery libraries..."
 SORCERY_LIBS=${INSTALL_ROOT}/var/lib/sorcery/modules
