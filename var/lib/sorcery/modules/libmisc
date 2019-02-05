@@ -195,6 +195,24 @@ function error_message() {
 
 #---------------------------------------------------------------------
 ## @param type
+##
+## Enters debug messages from stdin if the type of debug message != 'no'
+##
+## The 'type' is usually the name of the file the debug statement
+## comes from. i.e. DEBUG_liblock, DEBUG_libsorcery, DEBUG_cast etc.
+##
+#---------------------------------------------------------------------
+debug_stream()  {
+  local debugVar="DEBUG_${1//[!a-zA-Z0-9_]/_}"
+  if ! [ "$DEBUG" ] || [ "${!debugVar}" = "no" ]; then
+    cat > /dev/null
+  else
+    awk -vpfx="$1($$): $2:" '{print pfx, $0; fflush()}' >> "$DEBUG"
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param type
 ## @param message
 ##
 ## Enters a debug message if the type of debug message != 'no'
