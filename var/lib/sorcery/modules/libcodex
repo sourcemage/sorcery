@@ -811,17 +811,15 @@ function find_providers()  {
 ##
 #---------------------------------------------------------------------
 function codex_cache_spell_lookup()  {
-  local SECTION
   local spell="$1"
   shift
-  while [ $# -gt 0 ] ; do
-   debug "libcodex" "looking up $spell in ${1}'s cache"
-    codex_check_cache $1
-    SECTION=`grep -m 1 "^$spell " $1/$SPELL_INDEX_FILE | cut -d' ' -f2`
-    [[ $SECTION ]] && echo "$SECTION/$spell" && return
-    shift
-  done
-  return 1
+  debug "libcodex" "looking up $spell in the caches of: $*"
+  codex_check_cache "$@"
+  awk -vidx="/$SPELL_INDEX_FILE" -vOFS=/ -vspell="$spell" '
+	BEGIN { for (i in ARGV) ARGV[i] = ARGV[i] idx }
+	found = $1 == spell { print $2, $1; exit }
+	END { exit !found }
+    ' "$@"
 }
 
 
