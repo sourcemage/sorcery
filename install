@@ -1,23 +1,6 @@
 #!/bin/bash
 
-# install compat
-if ! type install >/dev/null 2>/dev/null; then
-  install() {
-    local o=0 g=0 m=644
-    while case "$1" in
-	    -o|-g|-m) eval ${1#-}'="$2"'; shift;;
-	    -p|-D) ;; # always
-	    *) false ;;
-	    esac
-    do shift; done
-    mkdir -p "${2%/*}"
-    rm -f "$2"
-    cp "$1" "$2"
-    chmod "$m" "$2"
-    chown "$o:$g" "$2"
-    touch -r "$1" "$2"
-  }
-fi
+. ./var/lib/sorcery/modules/liboscompat
 
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
