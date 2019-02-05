@@ -827,22 +827,29 @@ function codex_cache_spell_lookup()  {
 
 #---------------------------------------------------------------------
 ## @param grimoire-path
+## @param [grimoire-path ...]
 ## @Stdout error if cache doesn't exist after creation
 ## Checks that the cache exists. if it doesn't exist, make it.
 ## If it still doesn't exist, the barf an error
 ##
 #---------------------------------------------------------------------
 function codex_check_cache()  {
-  codex_is_canonicalized $1 || return 1
-  [[ -x $1 ]] || return 1
-
-  if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
+  ret=0
+  while ! [ $# = 0 ]; do
+    if ! codex_is_canonicalized "$1" || ! [ -x "$1" ]; then
+      ret=1
+      continue
+    fi
+    if ! [ -f "$1/$SPELL_INDEX_FILE" ] || ! [ -f "$1/$PROVIDE_INDEX_FILE" ]; then
       codex_create_cache
-  fi
-  if ! [ -f $1/$SPELL_INDEX_FILE ] || ! [ -f $1/$PROVIDE_INDEX_FILE ]; then
-    error_message "${PROBLEM_COLOR}Eeek, $1 is not a grimoire!${DEFAULT_COLOR}"
-    exit 1
-  fi
+    fi
+    if ! [ -f "$1/$SPELL_INDEX_FILE" ] || ! [ -f "$1/$PROVIDE_INDEX_FILE" ]; then
+      error_message "${PROBLEM_COLOR}Eeek, $1 is not a grimoire!${DEFAULT_COLOR}"
+      exit 1
+    fi
+    shift
+  done
+  return "$ret"
 }
 
 #---------------------------------------------------------------------
