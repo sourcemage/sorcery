@@ -1451,17 +1451,8 @@ function set_architecture() {
   fi
 
   # Find the specfile to use
-  local find_compat=0
-  find --version|grep -q 'version 4\.1\(\.\|$\)' && find_compat=1
   for specdir in ${ARCH_SPECS[@]} ; do
-    if [[ $find_compat == 1 ]] ; then
-      # older find still exists run in slower compatibility mode
-      SPECFILE=$(find ${specdir} -perm -400 -type f -name "$arch" -print 2>/dev/null)
-    else
-      # -L so symlinks work, -type f so it won't match dirs, -quit so it
-      # stops searching when it finds the answer
-      SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "$arch" -print -quit 2>/dev/null)
-    fi
+    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "$arch" 2>/dev/null | sed q)
     [ $SPECFILE ] && break
   done
   if [[ ! $SPECFILE ]] ; then
@@ -1470,7 +1461,7 @@ function set_architecture() {
     message "Please run sorcery afterwards and pick another architecture!$DEFAULT_COLOR"
     echo
     sleep 2
-    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "null" -print -quit 2>/dev/null)
+    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "null" 2>/dev/null | sed q)
   fi
   debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
 
