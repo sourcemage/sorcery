@@ -1436,19 +1436,9 @@ function set_architecture() {
   local arch=${1}
 
   # If no arch is specified, see if this is a cross-install, if so, set arch to
-  # the target arch
-  if  [[ ! $arch ]] &&
-      [[ $CROSS_INSTALL == on ]] &&
-      [[ $TARGET ]]
-  then
-    debug "libmisc" "set_architecture: using cross-install's target arch"
-    arch=${arch:-$TARGET}
-  fi
-
-  # If no arch given and this isn't a cross-install, then default to the ARCHITECTURE var
-  if ! [[ $arch ]] ; then
-    arch=$ARCHITECTURE
-  fi
+  # the target arch; otherwise default to the ARCHITECTURE var
+  [ "$CROSS_INSTALL" = on ] || TARGET=
+  : ${arch:=${TARGET:-$ARCHITECTURE}}
 
   # Find the specfile to use
   for specdir in ${ARCH_SPECS[@]} ; do
