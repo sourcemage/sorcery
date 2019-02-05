@@ -1458,14 +1458,12 @@ function set_architecture() {
   unset SMGL_COMPAT_ARCHS
   explode "${SPECFILE#$specdir/}" '/' SMGL_COMPAT_ARCHS
 
-    unset ARCHITECTURE
-    # Reverse the array so that the most specific arch is first
-    j=0
-    for(( i=${#SMGL_COMPAT_ARCHS[@]}-1; i>=0; i--)) ; do
-      ARCHITECTURE[j++]=${SMGL_COMPAT_ARCHS[i]}
-    done
+  # Reverse the array so that the most specific arch is first
+  ARCHITECTURE=(
+    $(for i in "${SMGL_COMPAT_ARCHS[@]}"; do echo "$i"; done | tac)
+  )
 
-    source "$SPECFILE"
+  source "$SPECFILE"
 }
 
 #---------------------------------------------------------------------
