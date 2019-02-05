@@ -179,22 +179,16 @@ clean_resources()
 #---------------------------------------------------------------------
 global_clean_resources()
 {
-  if [ -d "${LOCK_DIR}" ]; then
-    # we remove old locks (>1 minute) that are not owned by any process.
-    find "${LOCK_DIR}" -maxdepth 1 -mindepth 1 -mmin +1 -type d -empty -exec rmdir {} \;
+  [ -d "$LOCK_DIR" ] || return 0
 
-    # we remove locks that are owned by dead processes
-    find "${LOCK_DIR}" -maxdepth 2 -mindepth 2 | \
-
-    while read file; do
-      # check if the process still exist (we use procfs mounted on /proc)
-      if [ ! -d "${file}" ]; then
-          debug "global_clean_resources" "removing stale lock ${file}"
-          rm -f "${file}" 2>/dev/null &&
-          rmdir $(smgl_dirname "${file}") 2>/dev/null
-      fi
-    done
-  fi
+  # Release locks from dead processes
+  find -L "$LOCK_DIR" -mindepth 2 -maxdepth 2 \
+       -type l -print -exec rm -f {} + |
+  debug_stream global_clean_resources 'removing stale lock'
+  # Try to clean up empty locks
+  2>/dev/null \
+   find "$LOCK_DIR" -d -mindepth 1 -maxdepth 1 -type d \
+   -exec rmdir {} +
 }
 
 #---------------------------------------------------------------------
