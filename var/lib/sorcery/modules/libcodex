@@ -1005,10 +1005,11 @@ function codex_create_version_cache () {
 #---------------------------------------------------------------------
 function codex_does_service_exist()
 {
-   local SERVICE="$@"
-    for GRIMOIRE in $(codex_get_all_grimoires); do
-        grep -qE '^'$SERVICE' ' "$GRIMOIRE/$PROVIDE_INDEX_FILE" && return 0
-    done
+  awk -v idx="/$PROVIDE_INDEX_FILE" -v service="$1" '
+	found = $1 == service { exit }
+	END { exit !found }
+	BEGIN { for (i in ARGV) ARGV[i] = ARGV[i] idx }
+  ' $(codex_get_all_grimoires)
 }
 
 
