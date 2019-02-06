@@ -283,17 +283,15 @@ process_sub_depends() {
 
 __comp_depends_aux() {
   #$2==hash table to fill
-  local pattern="required|optional"
-  if [ "$3" ]; then
-    pattern="$pattern|runtime|suggest"
-  fi
   touch "$DEPENDS_STATUS" "$SPELL_STATUS" >/dev/null 2>&1
   lock_file "$DEPENDS_STATUS"
   lock_file "$SPELL_STATUS"
   while read a b; do
     hash_put "$2" "$a" "$b"
   done < <(
-    awk -F: -v reverse="$1" -v pattern="$pattern" -v status="${4:-on}" '
+    awk -F: -v reverse="$1" \
+	-v pattern="required|optional${3:+|runtime|suggest}" \
+	-v status="${4:-on}" '
 	FNR == 1 { file++ }
 	file == 1 {
 		if ($3 == status && $4 ~ pattern) {
