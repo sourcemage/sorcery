@@ -15,7 +15,7 @@
 ## Checks for a TRIGGERS file in SCRIPT_DIRECTORY, and if it is
 ## executable, runs it.
 #---------------------------------------------------------------------
-function run_triggers() {
+run_triggers() {
   debug "libtriggers" "Starting run_triggers() on $SPELL"
 
   run_spell_file TRIGGERS triggers
@@ -29,7 +29,7 @@ function run_triggers() {
 ## triggers.
 ##
 #---------------------------------------------------------------------
-function remove_triggers ()
+remove_triggers()
 {
   debug "libtriggers" "remove_triggers - $*"
 
@@ -51,7 +51,7 @@ function remove_triggers ()
 ## optional. If omitted, the value of SPELL will be used.
 ##
 #---------------------------------------------------------------------
-function trigger ()
+trigger()
 {
   debug "libtriggers" "trigger - $*"
 
@@ -67,7 +67,7 @@ function trigger ()
 #---------------------------------------------------------------------
 ## Get the triggerees of a given spell event and action
 #---------------------------------------------------------------------
-function get_triggerees() {
+get_triggerees() {
   local spell=$1
   local event=$2
   local each
@@ -85,7 +85,7 @@ function get_triggerees() {
 ## Get the run_script triggers from $spell on $target when theres a
 ## $action
 #---------------------------------------------------------------------
-function get_run_script_triggers() {
+get_run_script_triggers() {
   local spell=$1
   local event=$2
   local target=$3
@@ -104,7 +104,7 @@ function get_run_script_triggers() {
 ## the trigger and action exist.
 ##
 #---------------------------------------------------------------------
-function set_trigger ()
+set_trigger()
 { #1==trigger to set, $2==spell that triggers it, $3=action, $4==(optional)spell this is for
 
   debug "libtriggers" "set_trigger - $*"
@@ -147,7 +147,7 @@ function set_trigger ()
 ## Used by spells to make adding triggerse nice.
 ##
 #---------------------------------------------------------------------
-function real_on_cast () {
+real_on_cast() {
   set_trigger "on_cast" "$1" "$2"
 }
 
@@ -159,7 +159,7 @@ function real_on_cast () {
 ## Used by spells to make adding triggerse nice.
 ##
 #---------------------------------------------------------------------
-function real_on_pre_cast() {
+real_on_pre_cast() {
   set_trigger "on_pre_cast" "$1" "$2"
 }
 
@@ -171,7 +171,7 @@ function real_on_pre_cast() {
 ## Used by spells to make adding triggers nice.
 ##
 #---------------------------------------------------------------------
-function real_on_dispel () {
+real_on_dispel() {
   set_trigger "on_dispel" "$1" "$2"
 }
 
@@ -183,12 +183,12 @@ function real_on_dispel () {
 ## Used by spells to make adding triggerse nice.
 ##
 #---------------------------------------------------------------------
-function real_on_pre_dispel () {
+real_on_pre_dispel() {
   set_trigger "on_pre_dispel" "$1" "$2"
 }
 
 
-function do_trigger () {
+do_trigger() {
   TRIGGER=()
   explode "$1" ":" TRIGGER
   local DC="$DEFAULT_COLOR"

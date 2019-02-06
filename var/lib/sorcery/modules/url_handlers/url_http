@@ -26,13 +26,13 @@
 ## echoes the download handler - wget
 ##
 #---------------------------------------------------------------------
-function url_http_bucketize() {
+url_http_bucketize() {
   echo $HTTP_DL_HANDLER
 }
-function url_ftp_bucketize() {
+url_ftp_bucketize() {
   echo $HTTP_DL_HANDLER
 }
-function url_https_bucketize() {
+url_https_bucketize() {
   echo $HTTP_DL_HANDLER
 }
 
@@ -43,7 +43,7 @@ function url_https_bucketize() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_http_verify() {
+url_http_verify() {
   local  URL=$1
   local hints="$2"
   local check_certificate
@@ -70,7 +70,7 @@ function url_http_verify() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_https_verify() {
+url_https_verify() {
   url_http_verify  "$@"
 }
 
@@ -88,7 +88,7 @@ function url_https_verify() {
 ## @Implementation_note if the file is in the directory listing.
 ##
 #---------------------------------------------------------------------
-function url_ftp_verify() {
+url_ftp_verify() {
   local  URL=$1
 
   if  [  -n  "$URL"  ];  then
@@ -114,13 +114,13 @@ function url_ftp_verify() {
 ##
 ## Gets the hostname out of the url
 #---------------------------------------------------------------------
-function url_http_hostname() {
+url_http_hostname() {
   echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
 }
-function url_https_hostname() {
+url_https_hostname() {
   url_http_hostname $1
 }
-function url_ftp_hostname() {
+url_ftp_hostname() {
   url_http_hostname $1
 }
 
@@ -131,13 +131,13 @@ function url_ftp_hostname() {
 ## we can take advantage of its multi-A record handling
 ##
 #---------------------------------------------------------------------
-function url_http_netselect() {
+url_http_netselect() {
   netselect -t 3 -s 1000 "$@" 2>/dev/null
 }
-function url_https_netselect() {
+url_https_netselect() {
   netselect -t 3 -s 1000 "$@" 2>/dev/null
 }
-function url_ftp_netselect() {
+url_ftp_netselect() {
   netselect -t 3 -s 1000 "$@" 2>/dev/null
 }
 
@@ -150,7 +150,7 @@ function url_ftp_netselect() {
 ## @param a list of urls
 ## @stdout the expanded form of those urls
 #-------------------------------------------------------------------------
-function url_http_expand() {
+url_http_expand() {
   local A=$'\a'
   local URL rep tgt my_hostname each
   # put the requested url first
@@ -173,7 +173,7 @@ function url_http_expand() {
   done
 }
 
-function url_ftp_expand() {
+url_ftp_expand() {
   url_http_expand "$@"
 }
 # note that there is no https_expand

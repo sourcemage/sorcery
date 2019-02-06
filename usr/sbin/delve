@@ -9,7 +9,7 @@
 ## @Author Andrew Stitt
 #---------------------------------------------------------------------
 
-function help() {
+help() {
 
   cat  <<  EOF
 Delve allows the running of single spell files in the build/install phase
@@ -78,7 +78,7 @@ EOF
 ## Loads OPTS and all the other log files to provide the appropriate
 ## environment for spell files
 #---------------------------------------------------------------------------
-function delve_log_helper() {
+delve_log_helper() {
 
   if ! [[ "$__DELVE_IN_CAST" ]] ; then
     # must declare OPTS before sourcing config
@@ -118,7 +118,7 @@ function delve_log_helper() {
 ## if the BUILD_API number is not found in the parameter list complain
 ## and return 1
 #---------------------------------------------------------------------------
-function delve_is_valid_step() {
+delve_is_valid_step() {
   local STEP=$1
   local found
   shift
@@ -135,19 +135,19 @@ function delve_is_valid_step() {
   return 0
 }
 
-function delve_pre_build() {
+delve_pre_build() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step PRE_BUILD 1 2 || return 1
   run_pre_build
 }
 
-function delve_config_loc() {
+delve_config_loc() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step config_loc 1 2 || return 1
   run_config_loc
 }
 
-function delve_build() {
+delve_build() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 1 2 || return 1
   delve_log_helper
@@ -158,7 +158,7 @@ function delve_build() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
-function delve_pre_install() {
+delve_pre_install() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step PRE_INSTALL 2 || return 1
   delve_log_helper
@@ -169,7 +169,7 @@ function delve_pre_install() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
-function delve_install() {
+delve_install() {
   debug "delve" "Running $FUNCNAME"
 
   delve_is_valid_step INSTALL 2 || return 1
@@ -205,7 +205,7 @@ function delve_install() {
   return $rc
 }
 
-function delve_install_extras() {
+delve_install_extras() {
   debug "delve" "Running $FUNCNAME"
 
   delve_is_valid_step INSTALL_EXTRAS 2 || return 1
@@ -240,7 +240,7 @@ function delve_install_extras() {
   return $rc
 }
 
-function delve_post_build() {
+delve_post_build() {
   debug "delve" "Running $FUNCNAME"
 
   delve_is_valid_step POST_BUILD 1 || return 1
@@ -257,7 +257,7 @@ function delve_post_build() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
-function delve_post_install() {
+delve_post_install() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step POST_INSTALL 1 2 || return 1
   delve_log_helper
@@ -268,7 +268,7 @@ function delve_post_install() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
-function delve_transfer() {
+delve_transfer() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step TRANSFER 2 || return 1
   delve_log_helper
@@ -279,7 +279,7 @@ function delve_transfer() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
-function delve_final() {
+delve_final() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step FINAL 2 || return 1
   delve_log_helper
@@ -293,13 +293,13 @@ function delve_final() {
 
 }
 
-function delve_triggers() {
+delve_triggers() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step TRIGGERS 1 2 || return 1
   run_triggers
 }
 
-function delve_spell_success() {
+delve_spell_success() {
   debug "delve" "Running $FUNCNAME"
   SUCCESS_LIST=/dev/null
   cd /
@@ -307,7 +307,7 @@ function delve_spell_success() {
   run_spell_success
 }
 
-function delve_spell_failure() {
+delve_spell_failure() {
   debug "delve" "Running $FUNCNAME"
   FAILED_LIST=/dev/null
   delve_log_helper
@@ -320,7 +320,7 @@ function delve_spell_failure() {
 ## @global BUILD_API
 ## fill in the states from begin to end from the given BUILD_API
 #---------------------------------------------------------------------------
-function delve_make_continuation() {
+delve_make_continuation() {
   local begin=$1
   local end=$2
   local API1="start PRE_BUILD config_loc BUILD POST_BUILD POST_INSTALL TRIGGERS end"
@@ -362,7 +362,7 @@ function delve_make_continuation() {
 #---------------------------------------------------------------------------
 ## fills in STATES, continue_start, continue_end, and FORCE as applicable
 #---------------------------------------------------------------------------
-function process_parameters() {
+process_parameters() {
   for param in $@ ; do
     case $param in
         -f|--force) FORCE=on ;;
@@ -398,7 +398,7 @@ function process_parameters() {
 ## This is obviously the main function of delve, it loads the spell
 ## figures out what states to run and then loops through them.
 #---------------------------------------------------------------------------
-function main() {
+main() {
 
   local STATES STATE
   local FORCE ALL SPELL

@@ -17,7 +17,7 @@
 ## print horribly unhelpful helpscreen
 ##
 #---------------------------------------------------------------------
-function help() {
+help() {
   cat  <<  EOF
 
 Scribe is a utility for controlling the grimoires in your codex,
@@ -61,7 +61,7 @@ EOF
 #---------------------------------------------------------------------
 ## Common error messag when downloading a grimoire fails.
 #---------------------------------------------------------------------
-function scribe_download_fail_error_msg() {
+scribe_download_fail_error_msg() {
   error_message "${PROBLEM_COLOR}Error downloading grimoire..."
   error_message "${MESSAGE_COLOR}Grimoire tarballs are located at:" \
                 "${FILE_COLOR}$CODEX_TARBALL_URL${DEFAULT_COLOR}"
@@ -72,7 +72,7 @@ function scribe_download_fail_error_msg() {
 #---------------------------------------------------------------------
 ## Unpackage a grimoire tarball and make sure it worked
 #---------------------------------------------------------------------
-function unpackage_grimoire_tarball() {
+unpackage_grimoire_tarball() {
   local tarball=$1
   local grimoire=$2
   local grim_name=$3
@@ -98,7 +98,7 @@ function unpackage_grimoire_tarball() {
 ## Given an rsync url, make sure it has a / on the end of it
 ## so downloading works.
 #---------------------------------------------------------------------
-function sanitize_rsync_url() {
+sanitize_rsync_url() {
   # add a / to the end, if one isnt there, if the user types
   # rsync://sourcemage.org::codex/games instead of
   # rsync://sourcemage.org::codex/games/ strange things happen
@@ -112,7 +112,7 @@ function sanitize_rsync_url() {
 #---------------------------------------------------------------------
 ## Validate a grimoire tree using a manifest
 #---------------------------------------------------------------------
-function scribe_validate_tree_common() {
+scribe_validate_tree_common() {
   local scribe_target=$1
   local grim_name=$2
   local grimoire=$3
@@ -143,7 +143,7 @@ function scribe_validate_tree_common() {
 ## scribe_add grimoire [ from location] [grimoire [ from location]] ...
 ##
 #---------------------------------------------------------------------
-function scribe_add() {
+scribe_add() {
   $STD_DEBUG
   #For each item listed add it
   if ! [ -d $CODEX_ROOT ] ; then
@@ -206,7 +206,7 @@ function scribe_add() {
 ## @param location to download from (optional), if empty use $CODEX_URL
 ##
 #---------------------------------------------------------------------
-function scribe_add_update_worker() {
+scribe_add_update_worker() {
   $STD_DEBUG
   local grimoire=$1
   local from=$2
@@ -352,7 +352,7 @@ function scribe_add_update_worker() {
 ## @param grimoire names, if none all grimoires
 ##
 #---------------------------------------------------------------------
-function scribe_fix() {
+scribe_fix() {
   local grim grimoire grimoires
   if [[ $@ ]] ; then
     grimoires=$@
@@ -397,7 +397,7 @@ function scribe_fix() {
 ## @param force, if one fix without prompting the user
 ##
 #---------------------------------------------------------------------
-function scribe_fix_metadata() {
+scribe_fix_metadata() {
   local URL grimoire_dir grimoire_name
 
   if ! grimoire_dir=$(codex_find_grimoire $1) ; then
@@ -427,7 +427,7 @@ function scribe_fix_metadata() {
 ## Display installed grimoires
 ##
 #---------------------------------------------------------------------
-function scribe_index() {
+scribe_index() {
   local idx grimoire grimoire_name
 
   echo ""
@@ -458,7 +458,7 @@ function scribe_index() {
 ## @param Names of grimoires to localize
 ##
 #---------------------------------------------------------------------
-function scribe_localize() {
+scribe_localize() {
   local grimoire path
   for grimoire in $@; do
     scribe_localize_sub yes &&
@@ -476,7 +476,7 @@ function scribe_localize() {
 ## @param yes/no state of grimoire localization
 ##
 #---------------------------------------------------------------------
-function scribe_localize_sub() {
+scribe_localize_sub() {
     path=$(codex_find_grimoire $grimoire)
     if [ -z "$path" ]; then
       error_message "${PROBLEM_COLOR}No such grimoire:" \
@@ -495,7 +495,7 @@ function scribe_localize_sub() {
 ## @param grimoire names, if none all grimoires
 ##
 #---------------------------------------------------------------------
-function scribe_reindex() {
+scribe_reindex() {
   local paths=""
   local grimoire grimoires grim
   if [[ "$@" ]] ; then
@@ -528,7 +528,7 @@ function scribe_reindex() {
 ## @param grimoire names, if none all grimoires
 ##
 #---------------------------------------------------------------------
-function scribe_reindex_keyword() {
+scribe_reindex_keyword() {
   local paths=""
   local grimoire grimoires grim
   if [[ "$@" ]] ; then
@@ -559,7 +559,7 @@ function scribe_reindex_keyword() {
 ##
 ## TODO: merge scribe_reindex_* functions?
 #---------------------------------------------------------------------
-function scribe_reindex_version() {
+scribe_reindex_version() {
   local paths=""
   local grimoire grimoires grim
   if [[ $@ ]] ; then
@@ -589,7 +589,7 @@ function scribe_reindex_version() {
 ## @param grimoires to remove
 ##
 #---------------------------------------------------------------------
-function scribe_remove() {
+scribe_remove() {
   #remove all listed grimoires
   local grimoire grim
   for grim in $@; do
@@ -626,7 +626,7 @@ function scribe_remove() {
 ## @param grimoire2
 ##
 #---------------------------------------------------------------------
-function scribe_set(){
+scribe_set(){
   local grim1=$1 grimoire1
   local grim2=$2 grimoire2
   local idx1 idx2
@@ -673,7 +673,7 @@ function scribe_set(){
 ## @param grimoire2
 ##
 #---------------------------------------------------------------------
-function scribe_swap() {
+scribe_swap() {
   local grim1=$1 grimoire1
   local grim2=$2 grimoire2
   local idx1 idx2
@@ -702,7 +702,7 @@ function scribe_swap() {
 ## @param grimoire names, if none all grimoires
 ##
 #---------------------------------------------------------------------
-function scribe_update() {
+scribe_update() {
   local grimoires grimoire grim from rc
   rc=0
   if [[ $@ ]] ; then
@@ -782,7 +782,7 @@ function scribe_update() {
 ## @param Names of grimoires to unlocalize
 ##
 #---------------------------------------------------------------------
-function scribe_unlocalize() {
+scribe_unlocalize() {
   local grimoire path
   for grimoire in $@; do
     scribe_localize_sub $grimiore no &&
@@ -799,7 +799,7 @@ function scribe_unlocalize() {
 ## @param command line args
 ##
 #---------------------------------------------------------------------
-function find_function()  {
+find_function()  {
   case  $1  in
                       a|ad|add) FUNCTION="add" ;;
                       f|fi|fix) FUNCTION="fix" ;;
@@ -822,7 +822,7 @@ function find_function()  {
 ##
 ## start the ride.
 #---------------------------------------------------------------------
-function main() {
+main() {
   #move to the tmp folder in case we create junk
   cd  /tmp
 

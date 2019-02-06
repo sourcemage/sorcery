@@ -11,7 +11,7 @@
 ##  This is used by cast to exclude files it's modified from the md5 list.
 ##
 #---------------------------------------------------------------------
-function libtrack_init() {
+libtrack_init() {
   [[ $__MODIFIED_FILES ]] || export __MODIFIED_FILES="$TMP_DIR/modified_files"
 }
 
@@ -23,7 +23,7 @@ function libtrack_init() {
 ## files that exist.
 ##
 #---------------------------------------------------------------------
-function exists()  {
+exists()  {
   local item
   while read item; do
     [[ -e $item ]] && echo $item
@@ -39,7 +39,7 @@ function exists()  {
 ## installwatch is running.
 ##
 #---------------------------------------------------------------------
-function real_track_manual()  {
+real_track_manual()  {
   if  [[ -z "$STAGED_INSTALL" || $STAGED_INSTALL == off ]] &&
       [[ -z "$INSTALLWATCHFILE" && -z "$INSTW_LOGFILE" ]] ;  then
     echo "Can't tell installwatch to manually track... installwatch isn't running."
@@ -54,7 +54,7 @@ function real_track_manual()  {
 ## make a file, check to see if it exists, check to see if the
 ## contents of the file is what we made it
 #--------------------------------------------------------------------
-function run_castfs_sanity()
+run_castfs_sanity()
 {
   export CASTFS_LOGFILE=${CASTFS_DBGLOG}
   export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
@@ -93,7 +93,7 @@ function run_castfs_sanity()
 ## Starts Translation Stage Root
 ##
 #---------------------------------------------------------------------
-function real_invoke_stage_root()
+real_invoke_stage_root()
 {
   export CASTFS_LOGFILE=${CASTFS_DBGLOG}
   export CASTFS_DBGLVL=${CASTFS_DEBUG_LEVEL}
@@ -120,7 +120,7 @@ function real_invoke_stage_root()
 ## Stops Translation Stage Root
 ##
 #---------------------------------------------------------------------
-function real_devoke_stage_root()
+real_devoke_stage_root()
 {
   unset CASTFS_LOGFILE
   unset CASTFS_DBGLVL
@@ -136,7 +136,7 @@ function real_devoke_stage_root()
 ## Prepare Stage Root
 ##
 #---------------------------------------------------------------------
-function prepare_stage_root()
+prepare_stage_root()
 {
   mk_source_dir "${STAGE_DIRECTORY}" &&
   mk_source_dir "${STAGE_DIRECTORY}/TRANSL" &&
@@ -148,7 +148,7 @@ function prepare_stage_root()
 ## Destroy Stage Root
 ##
 #---------------------------------------------------------------------
-function destroy_stage_root()
+destroy_stage_root()
 {
   rm_source_dir $STAGE_DIRECTORY
 }
@@ -158,7 +158,7 @@ function destroy_stage_root()
 ## Sets up installwatch.
 ##
 #---------------------------------------------------------------------
-function real_invoke_installwatch()  {
+real_invoke_installwatch()  {
   if [[ -e $INSTALLWATCH_SO ]]; then
     export  INSTALLWATCHFILE=$IW_LOG
     export  INSTW_LOGFILE=$IW_LOG
@@ -171,12 +171,12 @@ function real_invoke_installwatch()  {
 ## Stops using installwatch
 ##
 #---------------------------------------------------------------------
-function real_devoke_installwatch()  {
+real_devoke_installwatch()  {
   unset  LD_PRELOAD
   unset  INSTALLWATCHFILE INSTW_LOGFILE
 }
 
-function is_castfs_installed()
+is_castfs_installed()
 {
   local loc
   if smgl_which castfs loc >/dev/null 2>&1 &&
@@ -199,7 +199,7 @@ function is_castfs_installed()
 ## Parses the installwatch log for files installed by a spell.
 ##
 #---------------------------------------------------------------------
-function parse_iw()  {
+parse_iw()  {
   local INPUT=$1
 
   # it is EXTREMELY IMPORTANT that this variable contains an actual
@@ -218,7 +218,7 @@ function parse_iw()  {
 ## Creates the install log containing all files installed by the spell.
 ##
 #---------------------------------------------------------------------
-function create_install_log()  {
+create_install_log()  {
   debug  "libtrack" "$FUNCNAME on $SPELL"
   local INPUT=$1
   local OUTPUT=$2
@@ -255,7 +255,7 @@ function create_install_log()  {
 ## @param output log file
 ##
 #---------------------------------------------------------------------
-function create_stage_install_log()  {
+create_stage_install_log()  {
   debug  "libtrack" "$FUNCNAME on $SPELL"
   local input="$1"
   local output="$2"
@@ -272,7 +272,7 @@ function create_stage_install_log()  {
 #---------------------------------------------------------------------
 ## Makes a list of files with the md5sum
 #---------------------------------------------------------------------
-function create_md5list() {
+create_md5list() {
   local INPUT=$1
   local OUTPUT=$2
   debug  "libtrack" "$FUNCNAME on $SPELL"
@@ -291,7 +291,7 @@ function create_md5list() {
 #---------------------------------------------------------------------
 ## External api to note config files
 #---------------------------------------------------------------------
-function real_note_config_file() {
+real_note_config_file() {
   if check_if_modified "$1"; then
     mark_file_modified "$1"
   fi
@@ -302,7 +302,7 @@ function real_note_config_file() {
 ## Notes that a file was previously modified so that its md5 is
 ## deliberatly munged
 #---------------------------------------------------------------------
-function mark_file_modified() {
+mark_file_modified() {
   [[ "$1" ]] || return 1
   [[ $__MODIFIED_FILES ]] || export __MODIFIED_FILES="$TMP_DIR/modified_files"
   echo "^$1\$" >> $__MODIFIED_FILES
@@ -313,7 +313,7 @@ function mark_file_modified() {
 ## @param file to check
 ## @param md5 file (optional)
 #---------------------------------------------------------------------
-function check_if_modified() {
+check_if_modified() {
   local to=$1
   local md5_log=$2
   if ! [[ $2 ]] ; then
@@ -339,7 +339,7 @@ function check_if_modified() {
 ## @param archive name
 ## @param upvar
 #---------------------------------------------------------------------
-function construct_cache_name() {
+construct_cache_name() {
   local name=$1
   if [[ -n $ARCHIVEBIN ]]; then
     # just use the bin, currently there is no need for another extension
@@ -355,7 +355,7 @@ function construct_cache_name() {
 ## @param archive name (can be right trimmed, globbing will be done)
 ## @param upvar (optional)
 #---------------------------------------------------------------------
-function find_cache() {
+find_cache() {
   debug "libtrack" "$FUNCNAME $@"
   local filename=$1
   local real_name
@@ -391,7 +391,7 @@ function find_cache() {
 ## @param compressed archive name
 ##
 #---------------------------------------------------------------------
-function create_cache_archive()  {
+create_cache_archive()  {
 
   debug  "libtrack" "$FUNCNAME on $SPELL"
   if    [  "$ARCHIVE"  ==  "off"  ]; then
@@ -441,10 +441,10 @@ function create_cache_archive()  {
 ## this is to filter the install log from one form to another
 ## for install_root/track_root conversions
 #---------------------------------------------------------------------
-function install_log_filter() {
+install_log_filter() {
   sed "s:^$1:$2:"
 }
-function md5_log_filter() {
+md5_log_filter() {
   sed "s:  $1:  $2:"
 }
 
@@ -481,7 +481,7 @@ function md5_log_filter() {
 ## to filterable format just requires removing whatever the expected prefix is.
 ## </pre>
 #---------------------------------------------------------------------
-function log_adjuster() {
+log_adjuster() {
   local input=$1
   local output=$2
   local informat=$3
@@ -580,7 +580,7 @@ function log_adjuster() {
 ## @param filename for state files, possibly /dev/stdout or /dev/stderr don't use the same stream for both types.
 ##
 #---------------------------------------------------------------------
-function seperate_state_files() {
+seperate_state_files() {
   local REAL_LOG_DIR=${LOG_DIRECTORY#$STATE_ROOT}
   local REAL_STATE_DIR=${STATE_DIRECTORY#$STATE_ROOT}
 
@@ -618,7 +618,7 @@ function seperate_state_files() {
 ## are usually going to be different between forks so the liklihood
 ## of a collision is greatly reduced.
 #---------------------------------------------------------------------
-function make_safe_dir() { (
+make_safe_dir() { (
   RANDOM=$(date "+%N")
   local TMP_SSF=$TMP_DIR/$RANDOM
   while ! mkdir "$TMP_SSF" &> /dev/null; do

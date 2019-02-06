@@ -8,7 +8,7 @@
 #---------------------------------------------------------------------
 
 
-function help() {
+help() {
 cat << EOF
 
 Invoke gaze with desired command followed by arguments.
@@ -146,7 +146,7 @@ EOF
 #-----
 ## override column so that we can pass -q to not columnate.
 #-----
-function maybe_column()  {
+maybe_column()  {
   if [ -n "$GAZE_VERBOSE" ]; then
     cat
   else
@@ -160,7 +160,7 @@ function maybe_column()  {
 ## is quite handy.
 ## @param snapshot file
 #-----
-function import_snapshot_old()  {
+import_snapshot_old()  {
   message "${PROBLEM_COLOR}This behaviour is deprecated and can be removed at any time!$DEFAULT_COLOR"
 
           SNAPSHOT=$1
@@ -202,7 +202,7 @@ function import_snapshot_old()  {
 #-----
 ## Construct and echo a filename to save a snapshot in.
 #-----
-function mk_snapshot_filename() {
+mk_snapshot_filename() {
   echo "snapshot-$HOSTNAME-$(date -u +%Y%m%d).tar$EXTENSION"
 }
 
@@ -211,7 +211,7 @@ function mk_snapshot_filename() {
 ## See <@function import_snapshot>
 ## @param snapshot file
 #-----
-function export_snapshot()  {
+export_snapshot()  {
   local snapshot=$1
 
   if [[ $UID != 0 ]]; then
@@ -244,7 +244,7 @@ function export_snapshot()  {
 ## install queue.
 ## @param snapshot file
 #-----
-function import_snapshot()  {
+import_snapshot()  {
   if [[ $UID != 0 ]]; then
     error_message "${PROBLEM_COLOR}gaze import needs to be run as root, aborting...$DEFAULT_COLOR"
     exit 1
@@ -291,7 +291,7 @@ function import_snapshot()  {
 ## Is this used anywhere?
 ## @param File with list of files the sum
 #-----
-function checksum() {
+checksum() {
   for FILE in `cat $1 | files`; do
     sum -s  $FILE
   done
@@ -302,7 +302,7 @@ function checksum() {
 ## Is this used anywhere?
 ## @param File with list of files the sum
 #-----
-function md5sum_files() {
+md5sum_files() {
   for FILE in `cat $1 | files`; do
     md5sum  "$FILE"
   done
@@ -312,7 +312,7 @@ function md5sum_files() {
 ## Find all files on the system not installed by a spell
 ## This can be quite time consuming.
 #-----
-function alien()  {
+alien()  {
 
   if ! [ "$GAZE_VERBOSE" = false ]; then
     message  "In a few minutes I will print files found on this disk"
@@ -348,7 +348,7 @@ function alien()  {
 ## @param Grimoire name
 ## @Stdout catalog
 #-----
-function gaze_catalog()  {
+gaze_catalog()  {
 
   local grimoire
   {
@@ -396,7 +396,7 @@ function gaze_catalog()  {
 ## @param Grimoire
 ## @Stdout HTML Catalog
 #-----
-function gaze_catalog_html()  {
+gaze_catalog_html()  {
 
   local grimoire COLS=4
 
@@ -575,7 +575,7 @@ function gaze_catalog_html()  {
 ## @param File to display
 ## @param Message to display if file doesn't exist
 #-----
-function display()  {
+display()  {
   local file=$(FUZZ=on guess_filename "$1")
   show_file "$file" no "$2"
 }
@@ -584,7 +584,7 @@ function display()  {
 ## List spells created more recently than the given date
 ## @param Date
 #-----
-function newer()  {
+newer()  {
 
   local DATE=$1
   local COMPUTE
@@ -629,7 +629,7 @@ function newer()  {
 ## List spells created less recently than the given date
 ## @param Date
 #-----
-function older()  {
+older()  {
 
   DATE=$1
   if  [  -n  "$DATE"  ];  then
@@ -658,7 +658,7 @@ function older()  {
 ## @param Search string
 ## @Stdout grep results
 #-----
-function show_from()  {
+show_from()  {
   local mode=str string
 
   case "$1" in -regex) mode=${1#-}; shift ;; esac
@@ -713,7 +713,7 @@ function show_from()  {
 ## @param Component
 ## @param Spell
 #-----
-function show_spell_component()  {
+show_spell_component()  {
 
   local        COMPONENT=$1
   local       SPELL_NAME=$2
@@ -737,7 +737,7 @@ function show_spell_component()  {
 ## @param (optional) Type pf search (-name or -short)
 ## @param words to search for
 #-----------------------------------------------------------------------
-function gaze_search() {
+gaze_search() {
     case $1 in
 
      -name) shift; real_name_search  "$@"  ;;
@@ -755,7 +755,7 @@ function gaze_search() {
 ## @Args Patterns
 ##
 #-----------------------------------------------------------------------
-function real_name_search() {
+real_name_search() {
     local pattern
 
     for pattern in "$@"; do
@@ -787,7 +787,7 @@ function real_name_search() {
 ## @Args Patterns
 ##
 #-----------------------------------------------------------------------
-function real_short_search() {
+real_short_search() {
     local pattern
 
     for pattern in "$@"; do
@@ -836,7 +836,7 @@ function real_short_search() {
 ## @Args Patterns
 ##
 #-----------------------------------------------------------------------
-function real_long_search()  {
+real_long_search()  {
   local pattern
 
   for pattern in "$@"; do
@@ -910,7 +910,7 @@ local spell
 ## Watches a specific exhibisionist
 ## @param PID of exhibitionist
 #-----
-function specific_voyeur()
+specific_voyeur()
 {
   if ! [ -d "/tmp/liblock-0/cast.$1" ]
   then
@@ -925,7 +925,7 @@ function specific_voyeur()
 ## Watches the first exhibisionist found
 ## @param PID of exhibitionist
 #-----
-function any_voyeur()
+any_voyeur()
 {
   # We happily assume no spell names contain "cast."
   local FILE=`find /tmp/liblock-0 -maxdepth 1 -mindepth 1 -name "cast.*" |
@@ -941,7 +941,7 @@ function any_voyeur()
 ## Start waiting for an exhibisionist.
 ## @param (optional) Not sure if this is used... specifies a section or something
 #-----
-function gaze_activate_voyeur()  {
+gaze_activate_voyeur()  {
 
   if  [  -n  "$1"  ]  &&
       !  find_section  $1  >  /dev/null
@@ -974,7 +974,7 @@ function gaze_activate_voyeur()  {
 #-----
 ## Show spells that have no other spell depending on them
 #-----
-function show_orphans()  {
+show_orphans()  {
   local spell each
   compute_reverse_installed_depends my_hash all
   for each in $(get_all_spells_with_status ok); do
@@ -988,7 +988,7 @@ function show_orphans()  {
 #-----
 ## Show spells that have other spell depending on them
 #-----
-function show_non_orphans()  {
+show_non_orphans()  {
   local spell each
   compute_reverse_installed_depends my_hash all
   for each in $(get_all_spells_with_status ok); do
@@ -1007,7 +1007,7 @@ function show_non_orphans()  {
 ## @param Spell
 ##
 #---------------------------------------------------------------------
-function gaze_show_website()  {
+gaze_show_website()  {
 
   for spell in $@; do
     if  codex_set_current_spell_by_name  $spell;  then
@@ -1043,7 +1043,7 @@ function gaze_show_website()  {
 ## @param section
 ##
 #---------------------------------------------------------------------
-function show_maintainer()  {
+show_maintainer()  {
 
   local section="$1"
 
@@ -1078,7 +1078,7 @@ function show_maintainer()  {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_show_section()  {
+gaze_show_section()  {
 
   local SECTION_NAME
 
@@ -1107,7 +1107,7 @@ function gaze_show_section()  {
 ## @param Section
 ##
 #---------------------------------------------------------------------
-function gaze_show_section_version_table()  {
+gaze_show_section_version_table()  {
 
    local  SPELLS=`codex_get_spells_in_section $1`
 
@@ -1137,7 +1137,7 @@ function gaze_show_section_version_table()  {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_show_spell_version_table()  {
+gaze_show_spell_version_table()  {
 
   (
     echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
@@ -1164,7 +1164,7 @@ function gaze_show_spell_version_table()  {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_show_version()  {
+gaze_show_version()  {
 
   local SPELLS_AND_SECTIONS=$@
   local SPELLS=
@@ -1210,7 +1210,7 @@ function gaze_show_version()  {
 ## @param Spell
 ##
 #---------------------------------------------------------------------
-function gaze_show_versions()  {
+gaze_show_versions()  {
   (
     echo "Grimoire|Section|Spell|Grimoire Version|Installed Version"
     echo "--------|-------|-----|----------------|-----------------"
@@ -1261,7 +1261,7 @@ function gaze_show_versions()  {
 ## @param Spell
 ##
 #---------------------------------------------------------------------
-function gaze_show_patchlevels()  {
+gaze_show_patchlevels()  {
 
   local SPELL=$1
 
@@ -1318,7 +1318,7 @@ function gaze_show_patchlevels()  {
 ## @param Section
 ##
 #---------------------------------------------------------------------
-function gaze_show_section_license_table()  {
+gaze_show_section_license_table()  {
 
    local  SPELLS=`codex_get_spells_in_section $1`
 
@@ -1346,7 +1346,7 @@ function gaze_show_section_license_table()  {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_show_spell_license_table()  {
+gaze_show_spell_license_table()  {
 
   (
     echo  "Spell|License(s)"
@@ -1371,7 +1371,7 @@ function gaze_show_spell_license_table()  {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_show_license_table()  {
+gaze_show_license_table()  {
   (
     echo  "Abbr|License Full Name|URL"
     echo  "----|-----------------|---"
@@ -1392,7 +1392,7 @@ function gaze_show_license_table()  {
 ## Shows lising of installed grmoires by grimoire name only.
 ##
 #---------------------------------------------------------------------
-function gaze_show_grimoires()  {
+gaze_show_grimoires()  {
 
   ! [[ $GAZE_VERBOSE == false ]] &&  echo -n "Installed Grimoires: "
   echo $(codex_get_all_grimoires | get_basenames)
@@ -1409,7 +1409,7 @@ function gaze_show_grimoires()  {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_show_license()  {
+gaze_show_license()  {
 
   local SPELLS_AND_SECTIONS_AND_LICENSES=$@
   local SPELLS=
@@ -1458,7 +1458,7 @@ function gaze_show_license()  {
 ## @param ...
 ##
 #-----
-function gaze_show_installed() {
+gaze_show_installed() {
 
   local total_rc=0
   if [ -z  "$1" ]
@@ -1487,7 +1487,7 @@ function gaze_show_installed() {
 ## @param ...
 ##
 #-----
-function gaze_show_short_description() {
+gaze_show_short_description() {
 
   for spell in $@; do
     if codex_find_spell_by_name $spell > /dev/null; then
@@ -1514,7 +1514,7 @@ function gaze_show_short_description() {
 ## @param ...
 ##
 #-----
-function gaze_show_long_description() {
+gaze_show_long_description() {
 
   for spell in $@; do
     if codex_find_spell_by_name $spell > /dev/null; then
@@ -1546,7 +1546,7 @@ function gaze_show_long_description() {
 ## @param ...
 ##
 #-----
-function gaze_show_where() {
+gaze_show_where() {
 
   local SHOW_PATH
   if [[ $1 == "-path" ]]; then
@@ -1579,7 +1579,7 @@ function gaze_show_where() {
 ## @param The given spell
 ##
 #-----
-function gaze_show_depends() {
+gaze_show_depends() {
     local fast all=yes
     while true; do
         if [[ $1 == --fast ]] ; then
@@ -1612,7 +1612,7 @@ function gaze_show_depends() {
 ## @param (optional) depth to recurse for
 ##
 #-----
-function gaze_show_dependencies() {
+gaze_show_dependencies() {
     local FOUND SPELL NO_OPTIONALS
 
     while true; do
@@ -1668,7 +1668,7 @@ function gaze_show_dependencies() {
         sub_depends() {
             return 0
         }
-        repeat () {
+        repeat() {
             local CHAR="$1" COUNT="$2"
 
             while (( COUNT-- )); do echo -en "$CHAR"; done
@@ -1685,7 +1685,7 @@ function gaze_show_dependencies() {
 # real_config_query_list should set $1 to something reasonable:
         real_config_query_list() { eval "$1='$3'"; }
 
-        recurse () {
+        recurse() {
             local name=$1 DEPTH=$2 WHAT=$3
             local found_before=""
 
@@ -1695,7 +1695,7 @@ function gaze_show_dependencies() {
 
 
             [[ $MAX_DEPTH ]] && [[ $DEPTH -ge $MAX_DEPTH ]] && return 1
-            grep () {
+            grep() {
                local foo
                smgl_which grep foo &&
                $foo "$@"
@@ -1731,7 +1731,7 @@ function gaze_show_dependencies() {
 ## Display the size all installed spell use and the largest among them
 ##
 #-----
-function gaze_show_size_all () {
+gaze_show_size_all() {
   local each date status version install_log
   local current_spell=0 current_size=0 current_info
   local max_size=0 max_spell total_size=0 total_files=0
@@ -1776,7 +1776,7 @@ function gaze_show_size_all () {
 ## @param ...
 ##
 #-----
-function gaze_show_size () {
+gaze_show_size() {
     local spell each
 
     if [[ $1 == "-all" ]]; then
@@ -1822,7 +1822,7 @@ function gaze_show_size () {
 ##        log including sorcery state files
 ##
 #---------------------------------------------------------------------
-function gaze_install() {
+gaze_install() {
   local SPELL=$1
   local VERSION=$2
   local TYPE=$3
@@ -1850,7 +1850,7 @@ function gaze_install() {
 ## used by system_info()
 ##
 #---------------------------------------------------------------------
-function figure_installed()
+figure_installed()
 {
   local version
   version=$(installed_version  $1)
@@ -1868,7 +1868,7 @@ function figure_installed()
 ## @param command (info, depends, sub_depends, spell_config, rsub_depends, roots, dirs, all)
 ## @Stdout information of spell from tablet
 #---------------------------------------------------------------------
-function gaze_tablet() {
+gaze_tablet() {
   local spell=$1
   local command=$2
   local spell spell_directory spell_depends section_name version
@@ -1969,7 +1969,7 @@ function gaze_tablet() {
 ## displays various information about a Source Mage system
 ##
 #---------------------------------------------------------------------
-function gaze_system_info()
+gaze_system_info()
 {
   local base_system
   local cur_spell
@@ -2221,7 +2221,7 @@ function gaze_system_info()
 ## @param describe - how is that staus described in english
 ##
 #---------------------------------------------------------------------
-function gaze_show_spells_by_status () {
+gaze_show_spells_by_status() {
     message -n "${MESSAGE_COLOR}The following spells are set to"
     message -n "${DEFAULT_COLOR} $2:"
     message    "${SPELL_COLOR}"
@@ -2239,7 +2239,7 @@ function gaze_show_spells_by_status () {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_time() {
+gaze_time() {
 
   local diff time sum=0 err_sum=() n=0 spell type
   if [[ $1 == -* ]]; then
@@ -2293,7 +2293,7 @@ function gaze_time() {
 ## @param ...
 ##
 #---------------------------------------------------------------------
-function gaze_time_full() {
+gaze_time_full() {
   local spell
 
   for spell in "$@"; do
@@ -2315,7 +2315,7 @@ function gaze_time_full() {
 ## @param type - see gaze_time
 ##
 #---------------------------------------------------------------------
-function gaze_time_system() {
+gaze_time_system() {
   local type orphans
 
   while [[ $1 == -* ]]; do

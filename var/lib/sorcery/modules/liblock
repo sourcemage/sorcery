@@ -203,7 +203,7 @@ global_clean_resources()
 ## @Blocking
 ##
 #---------------------------------------------------------------------
-function lock_file()
+lock_file()
 {
   debug "liblock" "$FUNCNAME - $*"
   lock_resources file "$1"
@@ -217,7 +217,7 @@ function lock_file()
 ## Unlocks a file so that another process can lock and modify it.
 ##
 #---------------------------------------------------------------------
-function unlock_file()
+unlock_file()
 {
   debug "liblock" "$FUNCNAME - $*"
   unlock_resources file "$1"
@@ -240,7 +240,7 @@ function unlock_file()
 ## @return 0 If successful
 ## @return 1 If not successful
 #---------------------------------------------------------------------
-function lock_start_transaction()
+lock_start_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
   local NUMTRANS transaction_file file="$1"
@@ -284,7 +284,7 @@ function lock_start_transaction()
 ## Before this func is called, the files remain unchanged.
 ##
 #---------------------------------------------------------------------
-function lock_commit_transaction()
+lock_commit_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
   local TMP_FILE unlockList=""
@@ -331,7 +331,7 @@ function lock_commit_transaction()
 ## ignored/undone.
 ##
 #---------------------------------------------------------------------
-function lock_kill_transaction()
+lock_kill_transaction()
 {
   debug "liblock" "$FUNCNAME - $*"
   local TMP_FILE string
@@ -357,7 +357,7 @@ function lock_kill_transaction()
 ## however counter_down and counter_check will clean up after misbehaving
 ## processes.
 #---------------------------------------------------------------------
-function counter_up() {
+counter_up() {
   local counterfile="$1.$2"
   # we replace / with ^
   counterfile="${LOCK_DIR}/${counterfile//\//^}"
@@ -373,7 +373,7 @@ function counter_up() {
 ## @param Type of resource
 ## @param Name of resource
 #---------------------------------------------------------------------
-function counter_down() {
+counter_down() {
   local counterfile="$1.$2"
   local foo each
   # we replace / with ^
@@ -396,7 +396,7 @@ function counter_down() {
 ## @param Name of resource
 ##
 #---------------------------------------------------------------------
-function counter_reset() {
+counter_reset() {
   local counterfile="$1.$2"
   local foo each
   # we replace / with ^
@@ -416,7 +416,7 @@ function counter_reset() {
 ## Also cleans stale items
 ##
 #---------------------------------------------------------------------
-function counter_check() {
+counter_check() {
   local counterfile="$1.$2"
   # we replace / with ^
   counterfile="${LOCK_DIR}/${counterfile//\//^}"
@@ -441,7 +441,7 @@ function counter_check() {
 ## Caller must hold a lock on the file
 ##
 #---------------------------------------------------------------------
-function counter_clean() {
+counter_clean() {
   for each in $(cat $1) ; do
     ps -A|grep -q $each && echo $each
   done

@@ -31,7 +31,7 @@
 ## @Global HG_TAG
 ##
 #---------------------------------------------------------------------
-function url_hg_http_crack() {
+url_hg_http_crack() {
   URL=$(url_strip_prefix "$1" hg_http)
   HG_ROOT=$(echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#")
   HG_ROOT=http://$HG_ROOT
@@ -47,7 +47,7 @@ function url_hg_http_crack() {
 ## echoes the download handler - hg
 ##
 #---------------------------------------------------------------------
-function url_hg_http_bucketize() {
+url_hg_http_bucketize() {
   echo hg
 }
 
@@ -58,7 +58,7 @@ function url_hg_http_bucketize() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_hg_http_verify() {
+url_hg_http_verify() {
   local URL HG_ROOT item
   url_hg_http_crack $1
   for item in URL HG_ROOT; do
@@ -73,7 +73,7 @@ function url_hg_http_verify() {
 ##
 ## Gets the hostname out of the url
 #---------------------------------------------------------------------
-function url_hg_http_hostname() {
+url_hg_http_hostname() {
   echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
 }
 
@@ -83,7 +83,7 @@ function url_hg_http_hostname() {
 ## Gets a netselect type output for the url
 ##
 #---------------------------------------------------------------------
-function url_hg_http_netselect() {
+url_hg_http_netselect() {
   local tmp_hostname url_speed each
 
   for each in "$@" ; do

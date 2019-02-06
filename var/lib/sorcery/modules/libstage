@@ -10,7 +10,7 @@
 ## Main for installing staged spell called imediatly after devoking
 ## installwatch and stage root
 #---------------------------------------------------------------------
-function transfer_staged_spell()
+transfer_staged_spell()
 {
   stage_install_ordinary
 
@@ -40,7 +40,7 @@ function transfer_staged_spell()
   unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
 }
 
-function filter_spell_configs()
+filter_spell_configs()
 {
   filter_generic "$*" configs $CONFIGS codex
 }
@@ -49,7 +49,7 @@ function filter_spell_configs()
 ## Install config files to a staged location on the system or if
 ## they are also excluded, just install them normally.
 #---------------------------------------------------------------------
-function stage_install_configs()
+stage_install_configs()
 {
   local spell_configs=$(get_all_package_files | filter_spell_configs -v)
 
@@ -68,7 +68,7 @@ function stage_install_configs()
 #---------------------------------------------------------------------
 ## Install non-configs in the stage root
 #---------------------------------------------------------------------
-function stage_install_ordinary()
+stage_install_ordinary()
 {
   message "${MESSAGE_COLOR}Installing ordinary files${DEFAULT_COLOR}"
   get_all_package_files        |
@@ -80,7 +80,7 @@ function stage_install_ordinary()
 ## @Stdout list of files installed by package
 ## lists all files the package installs relative to /
 #---------------------------------------------------------------------
-function get_all_package_files()
+get_all_package_files()
 {
   # no point in using -printf "/%P\n" since it would cause a difference:
   # the searchpath is now returned as empty; there it would be /
@@ -91,7 +91,7 @@ function get_all_package_files()
 ## @Stdin list of files to install
 ## install the files from the stage directory to the system
 #---------------------------------------------------------------------
-function stage_install_files()
+stage_install_files()
 {
   local file
   while read file ; do
@@ -100,7 +100,7 @@ function stage_install_files()
   done
 }
 
-function stage_install_directory()
+stage_install_directory()
 {
   local DIR=$1
   local stat=( $(stat -c '%a %U %G' "$STAGE_DIRECTORY/TRANSL/$DIR" ) )
@@ -125,7 +125,7 @@ function stage_install_directory()
   fi
 }
 
-function stage_install_file()
+stage_install_file()
 {
   local FILE=$1
   local stat=( $(stat -c '%a %U %G %h %i' "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
@@ -167,7 +167,7 @@ function stage_install_file()
   esac
 }
 
-function stage_install_symlink()
+stage_install_symlink()
 {
   local FILE=$1
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
@@ -190,7 +190,7 @@ function stage_install_symlink()
   esac
 }
 
-function stage_install_fifo()
+stage_install_fifo()
 {
   local FILE=$1
   local SAVE=$CONFIG_STAGE_DIRECTORY/$FILE.$(date +%Y%m%d%H%M%S)
@@ -222,7 +222,7 @@ function stage_install_fifo()
   esac
 }
 
-function stage_install_char_block()
+stage_install_char_block()
 {
   local FILE=$1
   local stat=( $(stat -c '%a %U %G %t %T' "$STAGE_DIRECTORY/TRANSL/$FILE" ) )
@@ -259,7 +259,7 @@ function stage_install_char_block()
 ## install the file from the stage root to the system does check for
 ## dir so that the file can be moved
 #---------------------------------------------------------------------
-function stage_install_list()
+stage_install_list()
 {
   if [[ -h $STAGE_DIRECTORY/TRANSL/$1 ]]
   then
@@ -293,7 +293,7 @@ function stage_install_list()
 ## @param file
 ## @param spell  owner of the file, so we don't need to look that up
 #--------------------------------------------------------------------
-function recursive_config_stage_cleanup()
+recursive_config_stage_cleanup()
 {
   local file=$1 dirname
   local spell=$2

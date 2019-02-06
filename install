@@ -5,12 +5,12 @@
 #
 # For unknown reasons `$filter=...; find . $filter` doesn't work, so this function
 # encapsulates the filters necessary to strip CVS files and EMACS temporary files
-function install__find_non_volatile() {
+install__find_non_volatile() {
   find "$@" \( -name CVS -o -name .svn -o -name .arch-id \) -prune -o \
        \! -name '.#*' \! -name '*~' \
        \! -type d
 }
-function install__find_for_log() {
+install__find_for_log() {
   install__find_non_volatile | sed 's:^:/:'
 }
 

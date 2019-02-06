@@ -17,7 +17,7 @@
 ## into the build api that it is specified to use. (ie split BUILD or
 ## no split BUILD).
 #---------------------------------------------------------------------
-function load_build_api() {
+load_build_api() {
 
   debug "libcast" "Starting load_build_api"
 
@@ -38,7 +38,7 @@ function load_build_api() {
 #---------------------------------------------------------------------
 ## Load the grimoire and section level FUNCTIONS file
 #---------------------------------------------------------------------
-function load_functions_file() {
+load_functions_file() {
   # the following allows spell writers to override certain functions
   # in the build pipeline
   USE_FUNCTIONS=${USE_FUNCTIONS:-on}
@@ -58,7 +58,7 @@ function load_functions_file() {
 ## Spells use this for compatibility checking. It is supposed to be
 ## lighter-weight than FUNCTIONS.
 #---------------------------------------------------------------------
-function load_libcompat() {
+load_libcompat() {
   [ -x $GRIMOIRE/libcompat ] && . $GRIMOIRE/libcompat
   [ -x $SECTION_DIRECTORY/libcompat ] && . $SECTION_DIRECTORY/libcompat
   return 0
@@ -70,7 +70,7 @@ function load_libcompat() {
 ## CONFIGURE/DEPENDS to PRE_BUILD, BUILD, COMPILE, INSTALL, etc.
 ## @Globals $SPELL_CONFIG $DEPENDS_CONFIG
 #---------------------------------------------------------------------
-function prepare_spell_config()  {
+prepare_spell_config()  {
 
   SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
   if  !  [  -x  $SPELL_CONFIG  ];  then
@@ -92,7 +92,7 @@ function prepare_spell_config()  {
 ## @return 1 if the user chooses not to dispel the conflicting spell
 ## @return 1 or if there was a problem parsing the CONFLICTS file
 #---------------------------------------------------------------------
-function query_conflicts() {
+query_conflicts() {
   debug "build_api_common" "Starting query_conflicts() on $SPELL"
   local ignore_conflict=$1
   local output=${2:-$CONFLICT_LIST}
@@ -136,7 +136,7 @@ function query_conflicts() {
 ## @param spell whose conflicts to dispel
 ## @param file containing the list of conflicts
 #---------------------------------------------------------------------
-function dispel_conflicts() {
+dispel_conflicts() {
   local spell=$1
   local conflict_list=${2:-$CONFLICT_LIST}
   local conflict
@@ -162,7 +162,7 @@ function dispel_conflicts() {
 ## @return 0 if there are no security problem or the user acknowledges them.
 ## @return 1 if the user decides not to accept the security concerns
 #---------------------------------------------------------------------
-function run_security() {
+run_security() {
     debug "build_api_common" "Starting run_security() on $SPELL"
     local rc=0
     if [[ -f $SCRIPT_DIRECTORY/SECURITY ]]; then
@@ -181,7 +181,7 @@ function run_security() {
     return $rc
 }
 
-function query_custom_cflags() {
+query_custom_cflags() {
   if [[ $PER_SPELL_CFLAGS == on ]]; then
     query "Would you like to set custom optimizations for this spell?" n ||
       return 0
@@ -234,7 +234,7 @@ function query_custom_cflags() {
 ## of FOO_ENABLED and FOO_DISABLED should be exactly equivalent to
 ## FOO_INSTALLED. FOO_ENABLED and FOO_DISABLED have an empty intersection set.
 #---------------------------------------------------------------------
-function query_services() {
+query_services() {
   local XINETD_SCRIPTS
   local INIT_SCRIPTS
   local btmp xtmp itmp
@@ -430,7 +430,7 @@ function query_services() {
 ## @return nothing of importance, returns through a pointer
 ## @stdout a menu sans question, the caller needs to present the question
 #---------------------------------------------------------------------
-function dual_service_query() {
+dual_service_query() {
   local service=$1
   local returnvar=$2
   local XY=$3
@@ -483,7 +483,7 @@ function dual_service_query() {
 ## @return true if yes false if no
 ## @stdout a query supplied by the caller
 #---------------------------------------------------------------------
-function service_query() {
+service_query() {
   local service=$1
   local question=$2
   local L1=$3
@@ -516,7 +516,7 @@ function service_query() {
 ## Internal wrapper around the task of adding a persistent variable
 ## then storing something in it, or unsetting whatever used to be in it
 #---------------------------------------------------------------------
-function service_store() {
+service_store() {
   local VARNAME=$1
   local list=$2
   persistent_add $VARNAME
@@ -531,7 +531,7 @@ function service_store() {
 #---------------------------------------------------------------------
 ## Installs the scripts selected from query_services
 #---------------------------------------------------------------------
-function install_xinetd() {
+install_xinetd() {
   if  [[  $XINETD_INSTALLED  ]] ; then
     local install_dir=$INSTALL_ROOT/etc/xinetd.d
     mkdir  -p  $install_dir
@@ -565,7 +565,7 @@ function install_xinetd() {
 ## this includes setting the disabled field appropriately and
 ## not trampling on pre-existing files by default
 #---------------------------------------------------------------------
-function install_xinetd_sub() {
+install_xinetd_sub() {
   local file=$1
   local bfile
   smgl_basename "$1" bfile
@@ -600,7 +600,7 @@ function install_xinetd_sub() {
 #---------------------------------------------------------------------
 ## Handles the logic of enabling or disabling of an xinetd script
 #---------------------------------------------------------------------
-function set_xinetd_state() {
+set_xinetd_state() {
   local file=$1
   local state=$2
   if grep -q "\s*disable" $file ; then
@@ -617,7 +617,7 @@ function set_xinetd_state() {
 ## executable bit if the user specified that the init.d script should be
 ## started at bootup.
 #---------------------------------------------------------------------
-function install_initd() {
+install_initd() {
   if  [[  $INIT_INSTALLED  ]] ; then
     local install_dir=$INSTALL_ROOT/etc/init.d
     mkdir  -p  $install_dir
@@ -650,7 +650,7 @@ function install_initd() {
 ## Gets the cast lock for us and ensures that we've waited for all
 ## solo/non-solo casts to complete
 #---------------------------------------------------------------------
-function acquire_cast_lock() {
+acquire_cast_lock() {
   # locking - blocks normal spells if a solo cast is running,
   # solo casts if any cast is running
   message "${MESSAGE_COLOR}Waiting for any${DEFAULT_COLOR}${FILE_COLOR}" \
@@ -678,7 +678,7 @@ function acquire_cast_lock() {
 ## Takes the compile log and stuffs it into
 ## our compile log directory.
 #---------------------------------------------------------------------
-function create_compile_log()  {
+create_compile_log()  {
   local tmp_log=$C_LOG.2
 
   message  "${MESSAGE_COLOR}Creating compile log"                  \
@@ -720,7 +720,7 @@ function create_compile_log()  {
 ## Prompts the user to view the compile log
 ## and deletes the temporary files too
 #---------------------------------------------------------------------
-function view_compile_log()  {
+view_compile_log()  {
 
     debug "libcast" "In view_compile_log, C_LOG=$C_LOG"
     report $C_LOG  "Compile log"
@@ -731,7 +731,7 @@ function view_compile_log()  {
 ## Pawns the work off to <@function var.lib.sorcery.modules.libsorcery,report>
 ## @Globals INST_LOG
 #---------------------------------------------------------------------
-function report_install()  {
+report_install()  {
 
   debug "libcast" "In report_install, INST_LOG=$INST_LOG"
   report  $INST_LOG  "Install log"
@@ -742,7 +742,7 @@ function report_install()  {
 ## @TODO This function is dumb. It should be fixed.
 ## @param download log file name
 #---------------------------------------------------------------------
-function show_download_progress()  {
+show_download_progress()  {
   [[ $SCREEN_NAME ]] && return
   local download_log=$1
 
@@ -767,7 +767,7 @@ function show_download_progress()  {
 ## @TODO fix the old style ad-hoc IPC
 ## @param Spell to show the download progress for
 #---------------------------------------------------------------------
-function show_downloading()  {
+show_downloading()  {
 
   local SPELL=$1
   local download_log=$(get_spell_dl_log $SPELL)
@@ -795,7 +795,7 @@ function show_downloading()  {
 ## @param Spell
 ## @Stdout file name
 #---------------------------------------------------------------------
-function get_spell_dl_log() {
+get_spell_dl_log() {
   echo "$TMP_DIR/download.$1"
 }
 

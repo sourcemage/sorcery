@@ -7,7 +7,7 @@
 # alter handles post-spell spell handling                  #
 ############################################################
 
-function alter_alter() {
+alter_alter() {
 
   if [ -z "$1" ]; then
     cat <<EOF > /dev/stderr && return 1
@@ -83,7 +83,7 @@ EOF
 
 }
 
-function alter_md5_mend() {
+alter_md5_mend() {
 
   SINGLE=       #grab a single conflict only instead of all conflicts
   STORE_BASE=${STORE_BASE:=/var/log/sorcery/tmp} # */tmp are often small
@@ -189,7 +189,7 @@ function alter_md5_mend() {
 
 }
 
-function alter_gather_md5s() {
+alter_gather_md5s() {
 
   [ -n "$MASTER_MD5S" ] && return 0
 
@@ -212,7 +212,7 @@ function alter_gather_md5s() {
 
 }
 
-function alter_md5mend() {
+alter_md5mend() {
 
   [ -z "$1" ] && echo "Please provide spells to mend as arguments" > /dev/stderr && return 1
 
@@ -225,7 +225,7 @@ function alter_md5mend() {
 
 }
 
-function alter_gather_bins() {
+alter_gather_bins() {
 
   if [ ! -f "/etc/prelink.conf" ]; then
     message "${MESSAGE_COLOR}Gathering binary directories for altering (this could take a long while)...${DEFAULT_COLOR}"
@@ -241,7 +241,7 @@ function alter_gather_bins() {
 
 }
 
-function alter_pre_link() {
+alter_pre_link() {
 
   ARGS="$@"
 
@@ -259,7 +259,7 @@ function alter_pre_link() {
 
 }
 
-function alter_prelink {
+alter_prelink() {
 
   if gaze -q installed prelink | grep -q 'not installed'; then
     cast prelink || (
@@ -277,7 +277,7 @@ function alter_prelink {
 
 }
 
-function alter_strip_all_do() {
+alter_strip_all_do() {
 
   ARGS="$@"
 
@@ -312,7 +312,7 @@ function alter_strip_all_do() {
 
 }
 
-function alter_strip_do() {
+alter_strip_do() {
 
   SPELL="$1"; shift
   ARGS="$@"
@@ -354,7 +354,7 @@ function alter_strip_do() {
 
 }
 
-function alter_strip_all {
+alter_strip_all() {
 
   if [ -z "$1" ]; then
     alter_strip_all_do
@@ -365,7 +365,7 @@ function alter_strip_all {
 
 }
 
-function alter_strip {
+alter_strip() {
 
   if [ -z "$1" ]; then
     alter_strip_do
@@ -376,7 +376,7 @@ function alter_strip {
 
 }
 
-function alter_about() {
+alter_about() {
 
 cat <<EOF | less && exit 0
 alter: about: alter is a utility to modify and add to spells' installs.
@@ -512,7 +512,7 @@ EOF
 
 }
 
-function main() {
+main() {
 
   [ -z "$1" ] && cat <<EOF > /dev/stderr && exit 1
 alter: usage:
@@ -551,7 +551,7 @@ EOF
 
 }
 
-function verify_parameters()
+verify_parameters()
 {
   while [[ $# -gt 0 ]]; do
     case "$1" in

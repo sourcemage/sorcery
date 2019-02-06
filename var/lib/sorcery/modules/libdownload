@@ -66,7 +66,7 @@ fi
 ##
 ##
 #-------------------------------------------------------------------------
-function dl_get_bucket() {
+dl_get_bucket() {
   $STD_DEBUG
   local handler=$1
   local target=$2
@@ -92,7 +92,7 @@ function dl_get_bucket() {
   return 1
 }
 
-function dl_command_check() {
+dl_command_check() {
   local cmd
   smgl_which $1 cmd
   if ! [[ $cmd ]] || ! test -x $cmd ; then
@@ -108,7 +108,7 @@ function dl_command_check() {
 ## it should eventually be a seperate, userdefinable script, with
 ## this as the default of course
 #-------------------------------------------------------------------------
-function dl_connect()  {
+dl_connect()  {
 
   [[ $INTERNET_AUTOCONNECT == on ]] || return 0
 
@@ -157,7 +157,7 @@ function dl_connect()  {
 ## this clever function disconnects us if we aren't downloading something
 ## the heuristic is rather poor.
 #-------------------------------------------------------------------------
-function dl_disconnect()  {
+dl_disconnect()  {
 
   [[ $INTERNET_AUTOCONNECT == on ]] || return 0
 
@@ -175,7 +175,7 @@ function dl_disconnect()  {
 
 
 
-function disconnect_script() {
+disconnect_script() {
 cat > $1 << EOF
 
 . /etc/sorcery/config

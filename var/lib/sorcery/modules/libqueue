@@ -14,7 +14,7 @@
 ## install queue.
 ##
 #---------------------------------------------------------------------
-function update_install_queue()  {
+update_install_queue()  {
   local line spell curr_version curr_updated page_dir info curr_patchlevel
   local curr_sec_patch count size
   local tmp_queue=$TMP_DIR/install_queue
@@ -55,7 +55,7 @@ function update_install_queue()  {
 ## reasons and creates an install queue.
 ##
 #---------------------------------------------------------------------
-function update_security_install_queue()  {
+update_security_install_queue()  {
   local line spell page_dir info curr_sec_patch=0
   local tmp_queue=$TMP_DIR/install_queue
   local recheck_queue=$TMP_DIR/recheck_queue
@@ -103,7 +103,7 @@ function update_security_install_queue()  {
 ## Find all spells that need to be updated due to security reasons.
 ## Checks the version caches and compares them to the installed one.
 #---------------------------------------------------------------------
-function find_security_updates() {
+find_security_updates() {
   local tmp_queue=$1
   local recheck_queue=$2
 
@@ -159,7 +159,7 @@ if [ "$LIBQUEUE_VERCMP" = newer ]; then
 else
   awk_version_compare='function version_cmp(v1, v2) { return -(v1 != v2) }'
 fi
-function version_compare_gt() {
+version_compare_gt() {
   awk "$awk_version_compare"'
 	BEGIN {
 		exit !(version_cmp(ARGV[1], ARGV[2]) < 0)
@@ -171,7 +171,7 @@ function version_compare_gt() {
 ## Find all spells that need to be updated (for any reason).
 ## Checks the version caches and compares them to the installed one.
 #---------------------------------------------------------------------
-function find_updates() {
+find_updates() {
   local tmp_queue=$1
   local recheck_queue=$2
 
@@ -228,7 +228,7 @@ function find_updates() {
 ## Frontend routine to encapsulate whether or not a spell needs updating
 ## Used by lazy dependency resolution
 #---------------------------------------------------------------------
-function does_spell_need_update() {
+does_spell_need_update() {
   local spell=$1
   local tmp_queue=$TMP_DIR/install_queue
   local recheck_queue=$TMP_DIR/recheck_queue
@@ -246,7 +246,7 @@ function does_spell_need_update() {
 ## use the version cache and is also needed for checking multiversioned
 ## spells.
 #---------------------------------------------------------------------
-function does_spell_need_update_slow() {
+does_spell_need_update_slow() {
   local spell=$1
   local curr_version=$2
   local curr_updated=$3
@@ -295,7 +295,7 @@ function does_spell_need_update_slow() {
 ## Common code between update_install_queue,
 ## update_security_install_queue and does_spell_need_update
 #---------------------------------------------------------------------
-function update_install_queue_sub()  {
+update_install_queue_sub()  {
   local tmp_queue=$1
   local recheck_queue=$2
   local type=$3
@@ -354,7 +354,7 @@ function update_install_queue_sub()  {
 #---------------------------------------------------------------------
 ## Slow higher-level check if a spell needs to be updated
 #---------------------------------------------------------------------
-function update_install_queue_slow()  {
+update_install_queue_slow()  {
   local spell=$1
   # this is in a subshell because the caller may not want to actually load
   # the spell yet
@@ -372,7 +372,7 @@ function update_install_queue_slow()  {
 ## List files in install queue, give user chance to modify it.
 ##
 #---------------------------------------------------------------------
-function list_install_queue() {
+list_install_queue() {
   if [[ -f $INSTALL_QUEUE ]]; then
     lock_file $INSTALL_QUEUE
 
@@ -401,7 +401,7 @@ function list_install_queue() {
 ## Display the history of the install queue for review
 ##
 #---------------------------------------------------------------------
-function install_queue_history() {
+install_queue_history() {
   local spell
   # we can't use read, since the loop needs a normal stdin
   for spell in $(< $INSTALL_QUEUE); do
@@ -429,7 +429,7 @@ function install_queue_history() {
 ## line of the queue is removed, and returned.
 ##
 #---------------------------------------------------------------------
-function pop_queue() {
+pop_queue() {
   local item found
   local exit_code=0
 
@@ -464,7 +464,7 @@ function pop_queue() {
 ## queue before being added at the end.
 ##
 #---------------------------------------------------------------------
-function push_queue() {
+push_queue() {
   local t_file
 
   pop_queue "$1" "$2"
@@ -482,7 +482,7 @@ function push_queue() {
 ## the casting of the queue not have to recast completed spells).
 ##
 #---------------------------------------------------------------------
-function pop_install_queue() {
+pop_install_queue() {
 
   pop_queue  $INSTALL_QUEUE  "$1"
 
@@ -495,7 +495,7 @@ function pop_install_queue() {
 ## remove queue.
 ##
 #---------------------------------------------------------------------
-function push_install_queue() {
+push_install_queue() {
 
   pop_queue   $REMOVE_QUEUE    "$1"
   pop_queue   $INSTALL_QUEUE   "$1"
@@ -511,7 +511,7 @@ function push_install_queue() {
 ## install queue.
 ##
 #---------------------------------------------------------------------
-function push_remove_queue() {
+push_remove_queue() {
 
   pop_queue   $INSTALL_QUEUE  "$1"
   pop_queue   $REMOVE_QUEUE   "$1"

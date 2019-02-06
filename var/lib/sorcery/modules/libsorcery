@@ -18,7 +18,7 @@
 ## branch.
 ##
 #---------------------------------------------------------------------
-function update_sorcery_scripts() {
+update_sorcery_scripts() {
 
   local BRANCH=$1
 
@@ -135,7 +135,7 @@ function update_sorcery_scripts() {
 ## use to run proccesses at.
 ##
 #---------------------------------------------------------------------
-function set_nice()  {
+set_nice()  {
 
   PROMPT="Please enter the process priority sorcery should run at."
 
@@ -155,7 +155,7 @@ function set_nice()  {
 ## use to run proccesses with.
 ##
 #---------------------------------------------------------------------
-function set_umask()  {
+set_umask()  {
 
   PROMPT="Please enter the permissions mask sorcery should run with."
 
@@ -176,8 +176,7 @@ function set_umask()  {
 ## Displays and the contents of the file given as the first argument.
 ##
 #---------------------------------------------------------------------
-function report() {
-
+report() {
   if  !  [  -f  $1  ];  then  return;  fi
 
   run_hook REPORT
@@ -201,7 +200,7 @@ function report() {
 ## filename with a different extension exists.
 ##
 #---------------------------------------------------------------------
-function guess_filename()  {
+guess_filename()  {
 
   local filename=$1
 
@@ -232,7 +231,7 @@ function guess_filename()  {
 ## check if the file exists, or one with a similar compression exists
 ## @param file
 #-------------------------------------------------------------------------
-function file_exists()  {
+file_exists()  {
   guess_filename  $1  >  /dev/null
 }
 
@@ -243,7 +242,7 @@ function file_exists()  {
 ## Also runs ldconfig with the saved libraries.
 ##
 #---------------------------------------------------------------------
-function save_libraries()  {
+save_libraries()  {
 
   if    [  -z  "$SOURCE_DIRECTORY"  ]
   then  return
@@ -296,7 +295,7 @@ function save_libraries()  {
 ## Also runs ldconfig with the saved libraries.
 ##
 #---------------------------------------------------------------------
-function save_binaries()  {
+save_binaries()  {
   local dir
   if    [  -z  "$SOURCE_DIRECTORY"  ]
   then  return
@@ -345,7 +344,7 @@ function save_binaries()  {
 ## Runs default ldconfig to stop using the saved libraries
 ##
 #---------------------------------------------------------------------
-function release_saved_libraries()  {
+release_saved_libraries()  {
   ldconfig
 }
 
@@ -355,7 +354,7 @@ function release_saved_libraries()  {
 ## Recovers from a CTRL-C while casting a spell
 ##
 #---------------------------------------------------------------------
-function spell_recover()  {
+spell_recover()  {
 
   debug  "libsorcery" "Running spell_recover()"
 
@@ -379,7 +378,7 @@ function spell_recover()  {
 ## Returns the section a spell is in.
 ##
 #---------------------------------------------------------------------
-function find_section()  {
+find_section()  {
 
   debug  "libsorcery" "Running find_section() on $1"
 
@@ -397,7 +396,7 @@ function find_section()  {
 ## Reads a list from standard input, and prints out each entry that is
 ## a directory (and not a symbolic link to a directory).
 #---------------------------------------------------------------------
-function directories() {
+directories() {
   local item
   while read item; do
     if [[ -d $item ]] && ! [[ -h $item ]]; then
@@ -414,7 +413,7 @@ function directories() {
 ## a file (and not a symbolic link to a file).
 ##
 #---------------------------------------------------------------------
-function files()  {
+files()  {
   local item
   while read item; do
     if [[ -f $item ]] && ! [[ -h $item ]]; then
@@ -431,7 +430,7 @@ function files()  {
 ## a symbolic linke
 ##
 #---------------------------------------------------------------------
-function symlinks()  {
+symlinks()  {
   local item
   while read item; do
     if [[ -h $item ]]; then
@@ -451,7 +450,7 @@ function symlinks()  {
 ## Used to filter out excluded or protected files from install logs.
 ##
 #---------------------------------------------------------------------
-function filter() {
+filter() {
   local thing RID_LIST NOT_RID_LIST
   local files each invert
   for each in $@; do
@@ -508,7 +507,7 @@ function filter() {
 ## Used to filter in config files from install logs.
 ##
 #---------------------------------------------------------------------
-function filter_in() {
+filter_in() {
   local thing RID_LIST NOT_RID_LIST
   local files each
   for each in $@; do
@@ -547,7 +546,7 @@ function filter_in() {
   fi
 }
 
-function filter_generic() {
+filter_generic() {
   local args=$1
   local filter_name=$2
   local system_filter=$3
@@ -576,19 +575,19 @@ function filter_generic() {
   fi
 }
 
-function filter_volatiles() {
+filter_volatiles() {
   filter_generic "$*" volatiles $VOLATILES
 }
 
-function filter_configs() {
+filter_configs() {
   filter_generic "$*" configs $CONFIGS
 }
 
-function filter_excluded() {
+filter_excluded() {
   filter_generic "$*" excluded $EXCLUDED
 }
 
-function filter_protected() {
+filter_protected() {
   filter_generic "$*" protected $PROTECTED
 }
 
@@ -600,7 +599,7 @@ function filter_protected() {
 ## Given a list of files from standard input, returns the directory
 ## of each file.
 #---------------------------------------------------------------------
-function dirnames()  {
+dirnames()  {
   get_dirnames "$@"
 }
 
@@ -613,7 +612,7 @@ function dirnames()  {
 ## athlon-xp, athlon-mp, powerpc, speedy, tiny, risky, strip
 ##
 #---------------------------------------------------------------------
-function optimize()  {
+optimize()  {
   debug "libsorcery" "In optimize()"
 
   unset  CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
@@ -684,7 +683,7 @@ function optimize()  {
 ## @Stdout history
 ## Display the history of the grimoire given for review
 #---------------------------------------------------------------------
-function grimoire_history() {
+grimoire_history() {
 
   local grimoire="$1"
   if [ -e $grimoire/ChangeLog ] ; then
@@ -706,7 +705,7 @@ function grimoire_history() {
 ## Display the history of sorcery for review
 ##
 #---------------------------------------------------------------------
-function sorcery_history() {
+sorcery_history() {
   local date="`cat "$STATE_DIRECTORY/sorcery.lastupdate" 2> /dev/null`"
   [ -z "$date" ] && date="20030818"
   local datedash="`echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,'`"
@@ -722,7 +721,7 @@ function sorcery_history() {
 ## Get the new changes from passed changelog argument
 ##
 #---------------------------------------------------------------------
-function get_new_changes() {
+get_new_changes() {
     local msg="$1"
     local date="$2"
     local changelog="$(awk -v date="$date" -F'[- ]' -- '/^[0-9]/{if (($1 $2 $3) < date) exit}{print}' "$3")"
@@ -747,7 +746,7 @@ function get_new_changes() {
 ## Pager with timeouts, cannot be used from a pipe.
 ## Invokes a subshell in case there are other background jobs running
 #---------------------------------------------------------------------
-function timeout_pager() { (
+timeout_pager() { (
   $PAGER "$@" &
   sleep 1
   for ((i=0;i<PAGER_TIMEOUT*10;i++)) ; do
@@ -769,7 +768,7 @@ function timeout_pager() { (
 ## Attempt to fix any spells that may be broken.
 ##
 #---------------------------------------------------------------------
-function fix_installed_spells()  {
+fix_installed_spells()  {
 
   local ANSWER=
 
@@ -786,7 +785,7 @@ function fix_installed_spells()  {
 ## Returns a list of the log files for each spell.
 ##
 #---------------------------------------------------------------------
-function log_list()  {
+log_list()  {
   local spell version
   while read spell version; do
     # the install and md5sum logs are not compressed
@@ -805,7 +804,7 @@ function log_list()  {
 ## Removes stale logs.
 ##
 #---------------------------------------------------------------------
-function clean_logs()  {
+clean_logs()  {
   debug  "libsorcery" "Running clean_logs()"
   local file
 
@@ -828,7 +827,7 @@ function clean_logs()  {
 ## Updates the activity log.
 ##
 #---------------------------------------------------------------------
-function activity_log() {
+activity_log() {
   local date command spell version outcome info
 
   lock_file $ACTIVITY_LOG
@@ -848,7 +847,7 @@ function activity_log() {
 ## Executes the spell's DETAILS file.
 ##
 #---------------------------------------------------------------------
-function run_details() {
+run_details() {
   debug "libsorcery" "starting run_details for $SPELL"
   if  !  codex_set_current_spell_by_name  $SPELL;  then
     local  GRIMOIRES=`codex_get_all_grimoires`
@@ -868,7 +867,7 @@ function run_details() {
 ## needed to fully unset a DETAILS (afk 4/21/04)
 ##
 #---------------------------------------------------------------------
-function unset_details()  {
+unset_details()  {
 
   local TEMP=""
   local VARS="SPELL VERSION SOURCE_DIRECTORY WEB_SITE UPDATED ENTERED SHORT"
@@ -894,7 +893,7 @@ function unset_details()  {
 ## THIS FUNCTION IS DEPRECIATED AND SHOULD NOT BE CALLED FOR ANY REASON
 ##
 #---------------------------------------------------------------------
-function boost() {
+boost() {
 
   debug  "libsorcery" "Running boost() on $SPELL THIS IS DEPRECIATED"
   echo "Running boost() on $SPELL THIS IS DEPRECIATED, please contact the spell's maintainer and ask them to remove this call"
@@ -907,7 +906,7 @@ function boost() {
 ## Given a list of source files, returns true if each file exists.
 ##
 #---------------------------------------------------------------------
-function verify_source() {
+verify_source() {
   local source_file
   for source_file in $@; do
     if ! guess_filename $SOURCE_CACHE/$source_file > /dev/null; then
@@ -931,7 +930,7 @@ function verify_source() {
 ## source files.
 ##
 #---------------------------------------------------------------------
-function sources()  { (
+sources()  { (
   while [ $# -gt 0 ]; do
     codex_set_current_spell_by_name "$1"
     get_spell_files
@@ -947,7 +946,7 @@ function sources()  { (
 ## source files.
 ##
 #---------------------------------------------------------------------
-function source_urls()  { (
+source_urls()  { (
   while [ $# -gt 0 ]; do
     codex_set_current_spell_by_name "$1"
     get_spell_files_and_urls | awk '{print $2}'
@@ -961,7 +960,7 @@ function source_urls()  { (
 ## Returns a list of files that should not be pruned.
 ##
 #---------------------------------------------------------------------
-function generate_keep_list()  {
+generate_keep_list()  {
   local source_keep="$1"
   local cache_keep="$2"
   local type="$3"
@@ -995,7 +994,7 @@ function generate_keep_list()  {
 ## Removes unnecessary files from the source cache and install cache.
 ##
 #---------------------------------------------------------------------
-function prune()  {
+prune()  {
 
   debug  "libsorcery" "Running prune()"
   local NO_KEEP
@@ -1064,7 +1063,7 @@ function prune()  {
 ## Adds /var/lib/sorcery/build to the C<PATH> if necessary.
 ##
 #---------------------------------------------------------------------
-function invoke_build_dir() {
+invoke_build_dir() {
 
   # This merits some explaination:
   #
@@ -1123,7 +1122,7 @@ function invoke_build_dir() {
 ## are missing.
 ##
 #---------------------------------------------------------------------
-function verify_sources()  {
+verify_sources()  {
   verify_source $(sources $SPELL)
 }
 
@@ -1135,7 +1134,7 @@ function verify_sources()  {
 ## in dialog menu (either gzip/bzip).
 ##
 #---------------------------------------------------------------------
-function set_compression_type() {
+set_compression_type() {
 
   local B_HELP="bzip2 compression (slow, small files)"
   local P_HELP="parallel bzip2 compression (slow unless on SMP, small files)"
@@ -1209,7 +1208,7 @@ function set_compression_type() {
 ## the extension is .gz, .tgz, .bz2, .zip, .rpm, .Z, .xz, .7z or .lzma.
 ##
 #---------------------------------------------------------------------
-function filename_indicates_compression()  {
+filename_indicates_compression()  {
   grep -qE "^.*\.(gz|tgz|bz2|zip|Z|rpm|xz|7z|lzma)$" <<< "$1"
 }
 
@@ -1217,7 +1216,7 @@ function filename_indicates_compression()  {
 ## Check that we have all the passed grimoires and use them to
 ## override the default selection (all)
 #---------------------------------------------------------------------
-function override_grimoires() {
+override_grimoires() {
   local grimoires=$1
   local grimoire
 
@@ -1241,7 +1240,7 @@ function override_grimoires() {
 ## Sets the most appropriate params for PAGER
 ## @Globals PAGER
 #---------------------------------------------------------------------
-function set_pager() {
+set_pager() {
   if [[ -z $PAGER ]]; then
     if real_spell_ok less; then
       # pager info

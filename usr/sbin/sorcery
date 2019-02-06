@@ -385,7 +385,7 @@ EOF
 
 }
 
-function make_restore_script() {
+make_restore_script() {
 # note the lines:
 #SORCERY_SPOOL=${SOURCE_CACHE}
 #SORCERY_BRANCH=${SORCERY_BRANCH}
@@ -429,7 +429,7 @@ EOF
 }
 
 
-update_sorcery () {
+update_sorcery() {
 
     make_restore_script
 
@@ -450,12 +450,12 @@ update_sorcery () {
 }
 
 
-update_queue () {
+update_queue() {
     update_install_queue
     list_install_queue
 }
 
-update_security_queue () {
+update_security_queue() {
     update_security_install_queue
     list_install_queue
 }
@@ -910,7 +910,7 @@ I off . . . . . - . - . . - . . . - .
 
 }
 
-function gpg_download_menu() {
+gpg_download_menu() {
   local CHECK CHECKS
   local INT_TITLE="GnuPG Signature Checking Selection Menu"
   local INT_HELP="Enable/Disable GnuPG signature checking here"
@@ -942,7 +942,7 @@ function gpg_download_menu() {
   fi
 }
 
-function vrf_select_hashes() {
+vrf_select_hashes() {
   local DIALOG_TITLE="Select the source hashes you would like to use"
   local DIALOG_HELP="Select the source hashes you would like to consider valid hashes"
   local DEFAULT_LIST=$(gpg_get_hashes)
@@ -1025,7 +1025,7 @@ function vrf_select_hashes() {
   return 0
 }
 
-function vrf_select_level()  {
+vrf_select_level()  {
   local DIALOG_TITLE="Source Verification Level Checking"
   local DIALOG_HELP="Select the minimum level for source verification"
   local DIALOG_LIST=""
@@ -1148,7 +1148,7 @@ that should receive reports from this box."  \
 
 }
 
-function service_defaults() {
+service_defaults() {
   local INSTALL_INIT_HELP="Install init.d scripts by default?"
   local ENABLE_INIT_HELP="If an init.d script is being installed, also enable it by default?"
   local INSTALL_XINETD_HELP="Install xinetd scripts by default?"
@@ -1198,7 +1198,7 @@ function service_defaults() {
   fi
 }
 
-function parallel_compilation_menu() {
+parallel_compilation_menu() {
   local RESULTS KEY rc
   local TITLE="Parallel/Distributed Compilation Options Menu"
   local HELP="Number of make jobs is\n((length of DISTCC_HOSTS)*JOBS_PER_HOST+EXTRA_JOBS)\nIf distcc is disabled by a spell, then the number of make jobs is EXTRA_JOBS, it is recommended that you dont set it to zero. If the number of jobs totals to zero make will run an unlimited number of jobs."
@@ -1478,7 +1478,7 @@ sorcery_devel_settings()   {
 
 }
 
-function set_dl_handler() {
+set_dl_handler() {
   local W_HELP="Use wget to download from urls using the http/ftp/https protocols"
   local A_HELP="Use aria2 to download from urls using the http/ftp/https protocols"
   local C_HELP="Use cURL to download from urls using the http/ftp/https protocols"
@@ -1798,7 +1798,7 @@ main_menu()  {
 ##
 ## cli function
 #---------------------------------------------------------------------
-sorcery_hold_spells () {
+sorcery_hold_spells() {
     set_held $@
 }
 
@@ -1810,7 +1810,7 @@ sorcery_hold_spells () {
 ##
 ## cli function
 #---------------------------------------------------------------------
-sorcery_unhold_spells () {
+sorcery_unhold_spells() {
     set_unheld $@
 }
 
@@ -1822,7 +1822,7 @@ sorcery_unhold_spells () {
 ##
 ## cli function
 #---------------------------------------------------------------------
-sorcery_cli_defaults () {
+sorcery_cli_defaults() {
   local cmd=$1
   shift
   case $cmd in
@@ -1840,7 +1840,7 @@ sorcery_cli_defaults () {
 ##
 ## cli function
 #---------------------------------------------------------------------
-sorcery_add_defaults () {
+sorcery_add_defaults() {
     if [ $# -ne 3 ] ; then
       message "${PROBLEM_COLOR}Wrong number of arguments.${DEFAULT_COLOR}"
       help
@@ -1881,7 +1881,7 @@ sorcery_add_defaults () {
 ##
 ## cli function
 #---------------------------------------------------------------------
-sorcery_search_defaults () {
+sorcery_search_defaults() {
   # it wont hurt to look in both
   if [[ -z $1 ]]; then
     cat $DEFAULT_DEPENDS $DEFAULT_PROVIDERS 2>/dev/null
@@ -1898,7 +1898,7 @@ sorcery_search_defaults () {
 ##
 ## cli function
 #---------------------------------------------------------------------
-sorcery_remove_defaults () {
+sorcery_remove_defaults() {
   remove_default_depends $DEFAULT_DEPENDS "$@"
   remove_default_provider $DEFAULT_PROVIDERS "$@"
 }

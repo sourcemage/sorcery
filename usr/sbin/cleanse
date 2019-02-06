@@ -34,7 +34,7 @@
 ## @param A switch that was not understood (optional)
 ## @Stdout Usage statement
 #--------------------
-function usage()
+usage()
 {
   local s="cleanse"
 cat << EOF
@@ -93,7 +93,7 @@ EOF
 ## @Args  --nofix           Same as --fix, but won't recast.
 ## @Args  --nofix_quick     Same as --nofix, but doesn't check dependent spells
 #---------------------
-function args()
+args()
 {
   local rc
   let rc=0
@@ -167,7 +167,7 @@ function args()
   return ${rc:-0}
 }
 
-function verify_parameters()
+verify_parameters()
 {
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -191,7 +191,7 @@ function verify_parameters()
 ## @Stdout Misc output and questions
 ## @Stdin Answers to questions
 #-------------------
-function delint()
+delint()
 {
   message "Delinting..."
   local cond='$3=="on"'
@@ -266,7 +266,7 @@ function delint()
   message "Delint done."
 }
 
-function generic_remove_duplicate() {
+generic_remove_duplicate() {
   local LINE
   local tmp=$TMP_DIR/delint.$2.dup
   message "Pass $3 (duplicate $2 entries)"
@@ -280,7 +280,7 @@ function generic_remove_duplicate() {
   done
 }
 
-function generic_remove_stale() {
+generic_remove_stale() {
   message "Pass $3 (stale $2 entries)"
   local tmp=$TMP_DIR/delint.$2.stale
   local t
@@ -313,7 +313,7 @@ function generic_remove_stale() {
 ## @Stdout  questions about what to do about problems
 ## @Stdin  responses to queries
 #---------------------
-function prune_depends()
+prune_depends()
 {
   message "Pruning..."
   local action=""
@@ -452,7 +452,7 @@ function prune_depends()
 ## Find packages entries that are corrupted, or non-existant
 ## @Stdout Misc status output
 #----------------------
-function packages()
+packages()
 {
   local spell t LINE
   message "Fixing packages..."
@@ -513,7 +513,7 @@ function packages()
 ## @Returns May return non zero if there was a problem.
 ##
 #-----------------------------
-function cleanse_fix()
+cleanse_fix()
 {
 
   local FIX=$1
@@ -620,7 +620,7 @@ function cleanse_fix()
   return 0
 }
 
-function cleanse_fix_depends() {
+cleanse_fix_depends() {
   local SPELL=$1
   # run the makefile to get the proper order
   local FIX_ORDER=$($REAL_MAKE -s -f $MAKEFILE $1  2>/dev/null| grep -v "^$SPELL\$")
@@ -654,7 +654,7 @@ function cleanse_fix_depends() {
 ## @return 0 if spell is fixed 1 if not
 ##
 #----------------------------
-function cleanse_fix_spell() {
+cleanse_fix_spell() {
   local SPELL=$1
   if spell_held $SPELL ; then
     HOPELESS="${HOPELESS}${SPELL}"$'\n'
@@ -683,7 +683,7 @@ function cleanse_fix_spell() {
 ## @return Should return 0 if all the checks completed
 ##
 #--------------------------
-function cleanse_fix_run_checks()  {
+cleanse_fix_run_checks()  {
   local SPELL=$1
   if [ $# -eq 1 ] ;then
     set_term_title "Checking $SPELL"
@@ -715,7 +715,7 @@ function cleanse_fix_run_checks()  {
 ## @return 1 At least one file was found missing
 ##
 #-----------------------
-function cleanse_fix_find_check()  {
+cleanse_fix_find_check()  {
   if  [ "$FIND_CHECK" == "off" ] ; then
     return 0
   fi
@@ -774,7 +774,7 @@ function cleanse_fix_find_check()  {
 ## they dont know where they are
 ##
 #-----------------------
-function cleanse_fix_init_ldd_check()  {
+cleanse_fix_init_ldd_check()  {
   if  [ "$LDD_CHECK" == "off" ] ;  then
     return 0
   fi
@@ -800,7 +800,7 @@ function cleanse_fix_init_ldd_check()  {
 ## @return 1 At least one library isnt happy
 ##
 #-----------------------
-function cleanse_fix_ldd_check()  { (
+cleanse_fix_ldd_check()  { (
   if  [ "$LDD_CHECK" == "off" ] ;  then
     return 0
   fi
@@ -872,7 +872,7 @@ function cleanse_fix_ldd_check()  { (
 ## @return 1 At least one symlink doesnt have its target
 ##
 #-----------------------
-function cleanse_fix_sym_check() {
+cleanse_fix_sym_check() {
   if [ "$SYM_CHECK" == "off" ] ; then
     return 0
   fi
@@ -931,7 +931,7 @@ function cleanse_fix_sym_check() {
 ## @return 1 At least one md5sum is wrong
 ##
 #-----------------------
-function cleanse_fix_md5sum_check() {
+cleanse_fix_md5sum_check() {
 
   if  [ "$MD5SUM_CHECK" == "off" ] ; then
     return 0

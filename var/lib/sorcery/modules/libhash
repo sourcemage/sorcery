@@ -54,7 +54,7 @@
 ## variable names with those characters.
 ##
 #---------------------------------------------------------------------
-function hash_build_variable_name() {
+hash_build_variable_name() {
   local ___TABLE="$1"
   local ___FIELD="$2"
 
@@ -94,7 +94,7 @@ function hash_build_variable_name() {
 ## most likely reverses hash_build_field_name
 ##
 #---------------------------------------------------------------------
-function hash_unbuild_field_name() {
+hash_unbuild_field_name() {
   local ___TABLE="$2"
   local ___FIELD=${1#$___TABLE}
   ___FIELD=${___FIELD%_*}
@@ -122,7 +122,7 @@ function hash_unbuild_field_name() {
 ## Saves the value in the specified table/field.
 ##
 #---------------------------------------------------------------------
-function hash_put() {
+hash_put() {
   local VARIABLE_NAME
   hash_build_variable_name "$1" "$2" VARIABLE_NAME
   eval "${VARIABLE_NAME}=\"\${3}\""
@@ -140,7 +140,7 @@ function hash_put() {
 ## string.
 ##
 #---------------------------------------------------------------------
-function hash_get() {
+hash_get() {
   local VARIABLE_NAME
   hash_build_variable_name "$1" "$2" VARIABLE_NAME
   echo "${!VARIABLE_NAME}"
@@ -157,7 +157,7 @@ function hash_get() {
 ## empty string is returned.
 ##
 #---------------------------------------------------------------------
-function hash_get_ref() {
+hash_get_ref() {
   local VARIABLE_NAME
   hash_build_variable_name "$1" "$2" VARIABLE_NAME
   eval "$3=\${!VARIABLE_NAME}"
@@ -171,7 +171,7 @@ function hash_get_ref() {
 ## Appends the value to the specified table/field.
 ##
 #---------------------------------------------------------------------
-function hash_append() {
+hash_append() {
   local VARIABLE_NAME
   local old_value
   local sep=${4:-" "}
@@ -193,7 +193,7 @@ function hash_append() {
 ## the variables through make.
 ##
 #---------------------------------------------------------------------
-function hash_export() {
+hash_export() {
   local VARIABLE_NAME
   hash_build_variable_name $1 "" VARIABLE_NAME
   # make sure the hash has something in it before trying to export it
@@ -208,7 +208,7 @@ function hash_export() {
 ## Unsets field. Deletes value.
 ##
 #---------------------------------------------------------------------
-function hash_unset() {
+hash_unset() {
   local VARIABLE_NAME
   hash_build_variable_name "$1" "$2" VARIABLE_NAME
   unset ${VARIABLE_NAME}
@@ -222,7 +222,7 @@ function hash_unset() {
 ## The reverse of hash_append, it removes an item from the field's value.
 ##
 #---------------------------------------------------------------------
-function hash_unset_part() {
+hash_unset_part() {
   local VARIABLE_NAME
   local old_value
   local item=$3
@@ -244,7 +244,7 @@ function hash_unset_part() {
 ## Unsets all fields in a table.
 ##
 #---------------------------------------------------------------------
-function hash_reset()  {
+hash_reset()  {
   local TABLE_NAME
   hash_build_variable_name "$1" '' TABLE_NAME
   eval "local VARIABLES=\"\${!${TABLE_NAME}*}\""
@@ -260,7 +260,7 @@ function hash_reset()  {
 ## optional delimiter. If no delimiter is give, \n will be used.
 ##
 #---------------------------------------------------------------------
-function hash_get_table()  {
+hash_get_table()  {
 
   local TABLE_NAME
   hash_build_variable_name "$1" '' TABLE_NAME
@@ -285,7 +285,7 @@ function hash_get_table()  {
 ## used.
 ##
 #---------------------------------------------------------------------
-function hash_get_table_fields()  {
+hash_get_table_fields()  {
 
   local TABLE_NAME
   hash_build_variable_name "$1" '' TABLE_NAME
@@ -309,7 +309,7 @@ function hash_get_table_fields()  {
 ## and is not intended for regular use.
 ##
 #---------------------------------------------------------------------
-function hash_debug_dump() {
+hash_debug_dump() {
   local TABLE_NAME
   local FIELD
   local value

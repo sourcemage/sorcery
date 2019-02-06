@@ -31,7 +31,7 @@
 ##    mk_source_dir  /tmp/newdir
 ## </pre>
 #---------------------------------------------------------------------
-function real_mk_source_dir() {
+real_mk_source_dir() {
 
   debug  "libgrimoire" "Running mk_source_dir() on ${1:-SOURCE_DIRECTORY} with size ${2:-2g}"
 
@@ -60,7 +60,7 @@ function real_mk_source_dir() {
 ## given.
 ##
 #---------------------------------------------------------------------
-function real_rm_source_dir() {
+real_rm_source_dir() {
 
   local dead_dir="${1:-$SOURCE_DIRECTORY}"
   dead_dir=$(readlink -f "$dead_dir")
@@ -114,7 +114,7 @@ function real_rm_source_dir() {
 ## handle failures when using multiple jobs.
 ##
 #---------------------------------------------------------------------
-function make() {
+make() {
 
   local JOBS=""
 
@@ -170,7 +170,7 @@ function make() {
 ## @param Spell
 ## @Stdout file name
 #---------------------------------------------------------------------
-function install_desktop_files() {
+install_desktop_files() {
   debug "libgrimoire" "Running install_desktop_files() on $SPELL"
   local each file
   local target_dir
@@ -201,7 +201,7 @@ function install_desktop_files() {
 ## Returns the current version of the given spell
 ##
 #---------------------------------------------------------------------
-function real_installed_version()  {
+real_installed_version()  {
   spell_ok $1 || return
   private_installed_version "$@"
 }
@@ -214,7 +214,7 @@ function real_installed_version()  {
 ## Behavior is undefined is spell is not installed.
 ##
 #---------------------------------------------------------------------
-function private_installed_version()  {
+private_installed_version()  {
   awk -F: -v spell="$1" '$1 == spell { print $4; exit }' $SPELL_STATUS 2>/dev/null
 }
 
@@ -226,7 +226,7 @@ function private_installed_version()  {
 ## returns the given spellname if it is installed
 ##
 #---------------------------------------------------------------------
-function real_conflicts() {
+real_conflicts() {
   debug  "libgrimoire" "Running conflicts() on $1. Default query answer $2."
 
   if spell_ok $1; then
@@ -245,7 +245,7 @@ function real_conflicts() {
 ## See ask_continue_with_rejected for second part of this function.
 ##
 #---------------------------------------------------------------------
-function warn_rejected()
+warn_rejected()
 {
   message "${MESSAGE_COLOR}This spell is considered${PROBLEM_COLOR}" \
           "rejected${DEFAULT_COLOR}${MESSAGE_COLOR} because of the"   \
@@ -267,7 +267,7 @@ function warn_rejected()
 ## anyway. (defaults to NO), unless running in UNATTEND_SAFE mode.
 ##
 #---------------------------------------------------------------------
-function ask_continue_with_rejected()
+ask_continue_with_rejected()
 {
   if spell_installed "$SPELL" && [ -e $SCRIPT_DIRECTORY/UNATTEND_SAFE ]; then
     message "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${MESSAGE_COLOR} is" \

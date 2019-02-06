@@ -38,7 +38,7 @@
 ## tasks. It invokes the cast_engine on each requested spell and cleans
 ## up any left-over pending triggers.
 #------------------------------------------------------------------------
-function depengine_entry_point() {
+depengine_entry_point() {
   $STD_DEBUG
   local spell_list=$1
   local need_cast_list=$2
@@ -94,7 +94,7 @@ function depengine_entry_point() {
 ## @param Spell to cast
 ## @param In trigger flag, default 0. If 1 and a depends loop exists back-off and fail gracefully.
 #------------------------------------------------------------------------
-function depengine_cast_engine() {
+depengine_cast_engine() {
   $STD_DEBUG
   local spell=$1
   local in_trigger=${2:-0}
@@ -158,7 +158,7 @@ function depengine_cast_engine() {
 ## @global dependent spells even if another one fails.
 ##
 #------------------------------------------------------------------------
-function recurse_depends() {
+recurse_depends() {
   $STD_DEBUG
   local spell=$1
   local in_trigger=${2:-0}
@@ -243,7 +243,7 @@ function recurse_depends() {
 ## Attempt to run all this spell's triggers. Some triggers may not be
 ## runable at this time, or it may be better to run them later.
 #------------------------------------------------------------------------
-function execute_triggers() {
+execute_triggers() {
   $STD_DEBUG
   local spell=$1
   local failed=$2
@@ -343,7 +343,7 @@ function execute_triggers() {
 #------------------------------------------------------------------------
 ## frontend to cast spells, unregisters pending triggers if any
 #------------------------------------------------------------------------
-function dpgn_cast_spell_front() {
+dpgn_cast_spell_front() {
   if ! [[ $CAST_PASS ]] ; then
     message "ERROR: Missing cast pass variable!!"
     exit 1
@@ -374,27 +374,27 @@ function dpgn_cast_spell_front() {
 #------------------------------------------------------------------------
 ## set the spell color
 #------------------------------------------------------------------------
-function dpgn_set_spell_color() {
+dpgn_set_spell_color() {
   hash_put state_hash $1 $2
 }
 #------------------------------------------------------------------------
 ## get the spell color
 #------------------------------------------------------------------------
-function dpgn_get_spell_color() {
+dpgn_get_spell_color() {
   hash_get state_hash $1
 }
 
 #------------------------------------------------------------------------
 ## Mark this spell as a pending trigger
 #------------------------------------------------------------------------
-function dpgn_register_pending_trigger() {
+dpgn_register_pending_trigger() {
   hash_put pending_triggers $1 1
 }
 
 #------------------------------------------------------------------------
 ## determine if a trigger is pending or not
 #------------------------------------------------------------------------
-function dpgn_is_pending_trigger_registered() {
+dpgn_is_pending_trigger_registered() {
   local pending
   hash_get_ref pending_triggers $1 pending
   [[ $pending == 1 ]]
@@ -403,14 +403,14 @@ function dpgn_is_pending_trigger_registered() {
 #------------------------------------------------------------------------
 ## mark spell as no longer needing a trigger
 #------------------------------------------------------------------------
-function dpgn_unregister_pending_trigger() {
+dpgn_unregister_pending_trigger() {
   hash_unset pending_triggers $1
 }
 
 #------------------------------------------------------------------------
 ## return all the pending triggers
 #------------------------------------------------------------------------
-function dpgn_get_all_pending_triggers() {
+dpgn_get_all_pending_triggers() {
   hash_get_table_fields pending_triggers
 }
 

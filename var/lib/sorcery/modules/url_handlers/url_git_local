@@ -31,7 +31,7 @@
 ## @Global GIT_TAG
 ##
 #---------------------------------------------------------------------
-function url_git_local_crack() {
+url_git_local_crack() {
   URL=$(url_strip_prefix "$1" git_local)
   GIT_ROOT=$(sed "s#\(^[^/]*[^:]*\):.*#\1#" <<< "$URL")
   local GIT_DIRECTORY_TAG=$(sed "s#^[^/]*[^:]*\(.*\)#\1#" <<< "$URL")
@@ -46,7 +46,7 @@ function url_git_local_crack() {
 ## echoes the download handler - git
 ##
 #---------------------------------------------------------------------
-function url_git_local_bucketize() {
+url_git_local_bucketize() {
   echo git
 }
 
@@ -57,7 +57,7 @@ function url_git_local_bucketize() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_git_local_verify() {
+url_git_local_verify() {
   local  URL GIT_ROOT GIT_DIRECTORY GIT_TAG item
   url_git_local_crack $1
   for item in URL GIT_ROOT; do
@@ -72,7 +72,7 @@ function url_git_local_verify() {
 ##
 ## Gets the hostname out of the url
 #---------------------------------------------------------------------
-function url_git_local_hostname() {
+url_git_local_hostname() {
   echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
 }
 

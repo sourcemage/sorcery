@@ -26,7 +26,7 @@
 ## @stdout message when gpg is not installed
 ##
 #---------------------------------------------------------------------
-function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
+gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
 
   local signature=$1
   local file=$2
@@ -78,7 +78,7 @@ function gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
 ## @return 0 on success, 1 on failure
 ## @stdout full path to sorcery key (if successful)
 #---------------------------------------------------------------------
-function gpg_get_sorcery_key() {
+gpg_get_sorcery_key() {
   local branch=${1:-$SORCERY_BRANCH}
   local key=$GPG_KEY_DIR/sorcery-$branch.gpg
   test -f $key || return 1
@@ -92,7 +92,7 @@ function gpg_get_sorcery_key() {
 ## @return 0 on success, 1 on failure
 ## @stdout full path to grimoire key (if successful)
 #---------------------------------------------------------------------
-function gpg_get_grimoire_key() {
+gpg_get_grimoire_key() {
   local branch=$1
   local key=$GPG_KEY_DIR/grimoire-$branch.gpg
   test -f $key || return 1
@@ -115,7 +115,7 @@ function gpg_get_grimoire_key() {
 ##
 ## @stdout possibly a failure message depending on what happens (nothing is output on success)
 #---------------------------------------------------------------------
-function gpg_verify_grimoire() {
+gpg_verify_grimoire() {
   if [[ "$GPG_VERIFY_GRIMOIRE" != on ]] ; then
     return 201
   fi
@@ -152,7 +152,7 @@ function gpg_verify_grimoire() {
 
 
 
-function verify_grimoire_tree() {
+verify_grimoire_tree() {
   local grimoire_name=$1
   local grimoire_dir=$2
 
@@ -214,7 +214,7 @@ function verify_grimoire_tree() {
 ##
 ## @stdout possibly a failure message depending on what happens (nothing is output on success)
 #---------------------------------------------------------------------
-function gpg_verify_sorcery() {
+gpg_verify_sorcery() {
   if [[ "$GPG_VERIFY_SORCERY" != on ]] ; then
     return 201
   fi
@@ -248,7 +248,7 @@ function gpg_verify_sorcery() {
 ##
 ## @stdout possibly a failure message depending on what happens (nothing is output on success)
 #---------------------------------------------------------------------
-function gpg_verify_common() {
+gpg_verify_common() {
   # download the signature
   local FILENAME=$1
   local SOURCE_URL=$2
@@ -295,7 +295,7 @@ function gpg_verify_common() {
 ## @stdout going on, or possibly a query asking the user if they want
 ## @stdout to continue even though gpg verification failed.
 #---------------------------------------------------------------------
-function gpg_user_query() {
+gpg_user_query() {
   local rc=$1
   if [[ $rc == 0 ]] ; then
     message "${MESSAGE_COLOR}gpg signature verified!${DEFAULT_COLOR}"
@@ -338,7 +338,7 @@ function gpg_user_query() {
 ## installed and supports the specified hash function.
 ##
 #---------------------------------------------------------------------
-function gpg_hashsum() {
+gpg_hashsum() {
   local algorithm=$1
   local file=$2
   LC_ALL=C.UTF-8 gpg --print-md "$algorithm" "$file"| tr -d '\n '  |cut -f2 -d:|
@@ -352,7 +352,7 @@ function gpg_hashsum() {
 ##
 ## This assumes the caller has already verified that gpg is installed.
 #---------------------------------------------------------------------
-function gpg_get_hashes() {
+gpg_get_hashes() {
   LC_ALL=C.UTF-8 gpg --version 2> /dev/null | awk -F: '/^Hash/ { gsub(","," ",$2); print tolower($2); }'
 }
 
@@ -363,7 +363,7 @@ function gpg_get_hashes() {
 ## @param algorithm to use, this can be anything supported by gpg
 ## @param regular expression of files to ignore
 #---------------------------------------------------------------------
-function verify_against_manifest() {
+verify_against_manifest() {
   local dir=$1
   local manifest=$2
   local algorithm=$3
@@ -416,7 +416,7 @@ function verify_against_manifest() {
 #---------------------------------------------------------------------
 ## Verify a grimoire tree and ignore files sorcery adds post-download
 #---------------------------------------------------------------------
-function verify_grimoire_against_manifest() {
+verify_grimoire_against_manifest() {
   verify_against_manifest $1 $2 $3 \
                           '^ *2 \./\(GRIMOIRE\|codex\.index\|provides\.index\)$'
 }
@@ -425,7 +425,7 @@ function verify_grimoire_against_manifest() {
 ## Ask the user what they want to do if verification of a grimoire tree
 ## fails.
 #---------------------------------------------------------------------
-function grimoire_tree_user_query() {
+grimoire_tree_user_query() {
   local grimoire_name=$1
   message "${PROBLEM_COLOR}Verification of the grimoire tree" \
           "${DEFAULT_COLOR}${SPELL_COLOR}$grimoire_name${DEFAULT_COLOR}" \

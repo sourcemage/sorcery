@@ -22,7 +22,7 @@
 ## This runs through the phase 4 pipeline of building and installing
 ## a spell for BUILD_API 1.
 #---------------------------------------------------------------------
-function run_build_spell() {
+run_build_spell() {
   debug "build_api1" "run_build_spell"
   C_LOG=$TMP_DIR/$SPELL.compile.log
   C_FIFO=/dev/stdout
@@ -80,7 +80,7 @@ function run_build_spell() {
 ## source directories. If a PRE_BUILD file exists in SCRIPT_DIRECTORY
 ## and is executable it is run in preference to the default_pre_build.
 #---------------------------------------------------------------------
-function run_pre_build() {
+run_pre_build() {
 
   debug "build_api1" "run_pre_build()"
   message  "${MESSAGE_COLOR}Building"  \
@@ -100,7 +100,7 @@ function run_pre_build() {
 ## settings that need to be on, eventually gets around to running
 ## BUILD or default_build, then does other things it shouldn't do.
 #---------------------------------------------------------------------
-function run_build()  {
+run_build()  {
 
   debug "build_api1" "Starting run_build()"
 
@@ -142,7 +142,7 @@ function run_build()  {
 ## executable, runs it. This file is run after BUILD and before
 ## POST_INSTALL. Its purpose is to bookend BUILD and shutoff installwatch.
 #---------------------------------------------------------------------
-function run_post_build() {
+run_post_build() {
 
   debug "build_api1" "Starting run_post_build()"
   run_spell_file POST_BUILD post_build
@@ -158,7 +158,7 @@ function run_post_build() {
 ## executable, runs it. This file is used for extra files that need
 ## to be installed, but not tracked by installwatch.
 #---------------------------------------------------------------------
-function run_post_install() {
+run_post_install() {
 
   debug "build_api1" "Starting run_post_install()"
   run_spell_file INSTALL install
@@ -170,7 +170,7 @@ function run_post_install() {
 ## Creates the source directory and unpacks the source package into it.
 ## Used if no PRE_BUILD script is found for a spell.
 #---------------------------------------------------------------------
-function real_default_sorcery_pre_build() {
+real_default_sorcery_pre_build() {
 
   debug "build_api1" "Starting real_default_sorcery_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -197,7 +197,7 @@ function real_default_sorcery_pre_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_sorcery_build() {
+real_default_sorcery_build() {
 
   debug "build_api1" "Starting real_default_sorcery_build()"
   OPTS="$OPTS --build=${BUILD}"
@@ -226,7 +226,7 @@ function real_default_sorcery_build() {
 ## Used if no POST_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function real_default_sorcery_post_build() {
+real_default_sorcery_post_build() {
 
   debug "build_api1" "Starting real_default_sorcery_post_build()"
 

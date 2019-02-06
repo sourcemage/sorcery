@@ -7,7 +7,7 @@
 
 [[ -x /usr/bin/mail && $MAIL_REPORTS == on ]] || return 0
 
-function mail_cast_final_hook() {
+mail_cast_final_hook() {
   {
     echo "---Success---"
     cat $SUCCESS_LIST | column
@@ -24,11 +24,11 @@ function mail_cast_final_hook() {
   } | mail -s "Final report" $SORCERER
 }
 
-function mail_post_FAILURE_hook() {
+mail_post_FAILURE_hook() {
   date -u | mail -s "Compile log" -a $C_LOG $SORCERER 2>/dev/null
 }
 
-function mail_post_SUCCESS_hook() {
+mail_post_SUCCESS_hook() {
   date -u | mail -s "Compile log" -a $C_LOG $SORCERER  2>/dev/null
   date -u | mail -s "Install log" -a $INST_LOG $SORCERER 2>/dev/null
 }

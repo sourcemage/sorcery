@@ -23,7 +23,7 @@
 ## @Example add_depends kdelibs alsa-driver on optional --with-alsa --without-alsa
 ##
 #---------------------------------------------------------------------
-function add_depends()
+add_depends()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
   debug "libstate" "add_depends() - $*"
 
@@ -71,7 +71,7 @@ function add_depends()
 ## @return 2 on error
 ##
 #---------------------------------------------------------------------
-function search_depends_status_exact()
+search_depends_status_exact()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
 
   local depends_status=$1
@@ -108,7 +108,7 @@ function search_depends_status_exact()
 ## @param off arg (optional)
 ##
 #---------------------------------------------------------------------
-function search_depends_status_simple()
+search_depends_status_simple()
 { # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
 
     local depends_status=$1
@@ -138,7 +138,7 @@ function search_depends_status_simple()
 ## Prints out the matching line(s)
 ##
 #---------------------------------------------------------------------
-function search_depends_status()
+search_depends_status()
 { # $1=depends file $2=spell, $3=(opt)depends
 
   [[ -z $2 ]] && return 1
@@ -172,7 +172,7 @@ function search_depends_status()
 ##
 ## Prints out one line of output
 #---------------------------------------------------------------------
-function get_depends_options()
+get_depends_options()
 { # $1=depends_status $2=spell
 
   local depends_status=$1
@@ -205,7 +205,7 @@ function get_depends_options()
 ## @param off arg
 ##
 #---------------------------------------------------------------------
-function remove_depends_status()
+remove_depends_status()
 { # $1=depends file $2=spell, $3=(OPT)depends, $4=(OPT)on/off, $5=(OPT)optional/required, $6=(OPT)on arg, $7=(OPT)off arg
 
    local depends_status=$1
@@ -239,7 +239,7 @@ function remove_depends_status()
 ## @param dependency
 ##
 #---------------------------------------------------------------------
-function toggle_depends_status() {
+toggle_depends_status() {
   local depends_status=$1
   shift
 
@@ -266,7 +266,7 @@ function toggle_depends_status() {
 ## @param on/off
 ##
 #---------------------------------------------------------------------
-function change_spell_provider() {
+change_spell_provider() {
   local depends_status=$1
   shift
 
@@ -297,7 +297,7 @@ function change_spell_provider() {
 ## @param variable name to put the filename name in (pass by reference)
 ##
 #---------------------------------------------------------------------
-function get_uncommitted_depends_file() {
+get_uncommitted_depends_file() {
     local SPELL=$1
     local temp_spell_depends
     hash_get_ref "uncommitted_hash" $SPELL temp_spell_depends
@@ -323,7 +323,7 @@ function get_uncommitted_depends_file() {
 ## @param spell
 ## @param variable name to put the filename in
 #---------------------------------------------------------------------
-function get_uncommitted_sub_depends_file() {
+get_uncommitted_sub_depends_file() {
   local SPELL=$1
   local upvar=$2
   local __tmp
@@ -343,7 +343,7 @@ function get_uncommitted_sub_depends_file() {
 ## @param spell
 ## @param variable name to put the filename in
 #---------------------------------------------------------------------
-function get_uncommitted_rsub_depends_file() {
+get_uncommitted_rsub_depends_file() {
   local SPELL=$1
   local upvar=$2
   local __tmp
@@ -364,7 +364,7 @@ function get_uncommitted_rsub_depends_file() {
 ## @param sub-dependee
 ## @param sub-depends
 #---------------------------------------------------------------------
-function add_sub_depends() {
+add_sub_depends() {
   $STD_DEBUG
   remove_sub_depends "$@" || return 1
   local file=$1
@@ -384,7 +384,7 @@ function add_sub_depends() {
 ## @param sub-dependee (optional)
 ## @param sub-depends (optional)
 #---------------------------------------------------------------------
-function search_sub_depends() {
+search_sub_depends() {
   $STD_DEBUG
   local file=$1
   shift
@@ -407,7 +407,7 @@ function search_sub_depends() {
 ## @param sub-dependee
 ## @param sub-depends
 #---------------------------------------------------------------------
-function remove_sub_depends() {
+remove_sub_depends() {
   $STD_DEBUG
   local file=$1
   shift
@@ -454,7 +454,7 @@ function remove_sub_depends() {
 ## @param on/off
 ##
 #---------------------------------------------------------------------
-function add_default_depends() {
+add_default_depends() {
         debug "libstate" "add_default_depends() - $*"
 
         #already here
@@ -498,7 +498,7 @@ function add_default_depends() {
 ## @param on/off/spell
 ##
 #---------------------------------------------------------------------
-function remove_default_depends() {
+remove_default_depends() {
 
         local file=$1
         shift
@@ -525,7 +525,7 @@ function remove_default_depends() {
 ## @param on/off/spell
 ##
 #---------------------------------------------------------------------
-function search_default_depends() {
+search_default_depends() {
 
         local default_depends=$1
         shift
@@ -555,7 +555,7 @@ function search_default_depends() {
 ## @param on/off
 ##
 #---------------------------------------------------------------------
-function add_default_provider() {
+add_default_provider() {
   debug "libstate" "add_default_depends() - $*"
 
   #already here
@@ -585,11 +585,11 @@ function add_default_provider() {
 
 # these are the same, as their countparts but are here for completeness
 # and incase they do someday diverge
-function remove_default_provider() {
+remove_default_provider() {
   remove_default_depends "$@"
 }
 
-function search_default_provider() {
+search_default_provider() {
   search_default_depends "$@"
 }
 
@@ -600,7 +600,7 @@ function search_default_provider() {
 ## Removes the spell info from the passed file ($VERSION_STATUS)
 ##
 #---------------------------------------------------------------------
-function remove_version_cache()  {
+remove_version_cache()  {
   local file=$1
   lock_start_transaction "$file" t_file
   sed -i "/^$2 /d" $t_file
@@ -619,7 +619,7 @@ function remove_version_cache()  {
 ## adds the info to the passed file (usually $VERSION_STATUS)
 ##
 #---------------------------------------------------------------------
-function add_version_cache()  {
+add_version_cache()  {
   local file=$1
   shift
   remove_version_cache "$file" $1
@@ -641,7 +641,7 @@ function add_version_cache()  {
 ## @param (if spell) version
 ##
 #---------------------------------------------------------------------
-function add_spell_status()
+add_spell_status()
 { #$1=spell, $2=action, $3=version, OR $1=action.
 
   local spell action version date
@@ -669,7 +669,7 @@ function add_spell_status()
 ## adds the spell to the /var/state/sorcery/packages file
 ##
 #---------------------------------------------------------------------
-function add_spell()  {
+add_spell()  {
   remove_spell  $1
   add_spell_status $1 $2 $3
 }
@@ -685,7 +685,7 @@ function add_spell()  {
 ## Prints out the matching line(s)
 ##
 #---------------------------------------------------------------------
-function search_spell_status() {
+search_spell_status() {
   [[ -z $2 ]] && return 1
   local spell_status=$1
   shift
@@ -718,7 +718,7 @@ function search_spell_status() {
 ## @return 0 for all other cases ( even when spell is not found )
 ##
 #---------------------------------------------------------------------
-function query_spell_status()
+query_spell_status()
 { #$1=spell, $2=(OPT)version
 
   local return_var __status
@@ -745,7 +745,7 @@ function query_spell_status()
 ##
 ## @return 0 if the given spell's status is "installed"
 #---------------------------------------------------------------------
-function real_spell_installed() {
+real_spell_installed() {
   local status
   query_spell_status "$1" status
   [[ $status == installed ]]
@@ -758,7 +758,7 @@ function real_spell_installed() {
 ## @return 0 if the given spell's status is "held"
 ##
 #---------------------------------------------------------------------
-function real_spell_held()      {
+real_spell_held()      {
   local status
   query_spell_status "$1" status
   [[ $status == held ]]
@@ -770,7 +770,7 @@ function real_spell_held()      {
 ##
 ## @return 0 if the given spell's status is "installed" or "held"
 #---------------------------------------------------------------------
-function real_spell_ok() {
+real_spell_ok() {
   local status
   query_spell_status "$1" status
   [[ $status == installed ]] || [[ $status == held ]]
@@ -783,7 +783,7 @@ function real_spell_ok() {
 ##
 ## @return 0 if any provider of $1 is installed
 #---------------------------------------------------------------------
-function real_provider_ok() {
+real_provider_ok() {
   for spell in $(search_depends_status_exact $DEPENDS_STATUS '.*' ".*($1)" \
                  'on' '.*'  '.*' |cut -f2 -d:|cut -f1 -d\(|sort -u); do
     spell_ok $spell && return 0
@@ -801,7 +801,7 @@ function real_provider_ok() {
 ## @return 0 if a dependency from $1 on $2 is enabled, 1 otherwise.
 ## @stdout the provider name(s)
 #---------------------------------------------------------------------
-function real_get_spell_provider() {
+real_get_spell_provider() {
   local dep_status
   if [[ $3 ]] ; then
     dep_status=$DEPENDS_STATUS
@@ -824,7 +824,7 @@ function real_get_spell_provider() {
 ## @return 0 if a dependency from $1 on $2 is enabled, 1 otherwise.
 ## @stdout the provider name(s)
 #---------------------------------------------------------------------
-function real_is_depends_enabled() {
+real_is_depends_enabled() {
   local dep_status
   if [[ $3 ]] ; then
     dep_status=$DEPENDS_STATUS
@@ -842,7 +842,7 @@ function real_is_depends_enabled() {
 ##  @return 0 if the given spell's status is "exiled"
 ##
 #---------------------------------------------------------------------
-function real_spell_exiled()    {
+real_spell_exiled()    {
   local status
   query_spell_status "$1" status
   [[ $status == exiled ]]
@@ -854,7 +854,7 @@ function real_spell_exiled()    {
 ## Removes all specified offending entries in SPELL_STATUS
 ##
 #---------------------------------------------------------------------
-function remove_spell_status()
+remove_spell_status()
 { #$1=spell to remove status of
 
   lock_start_transaction "$SPELL_STATUS" tSPELL_STATUS
@@ -870,7 +870,7 @@ function remove_spell_status()
 ## if C<EXILE> is set, the spell is changed to "exiled" in the file.
 ##
 #---------------------------------------------------------------------
-function remove_spell()  {
+remove_spell()  {
   debug  "libsorcery" "Running remove_spell() on $1"
   remove_spell_status $1
   if  [  -n  "$EXILE"  ];  then
@@ -885,7 +885,7 @@ function remove_spell()  {
 ## SPELL_STATUS doesn't have to mentioned in libsorcery
 ##
 #---------------------------------------------------------------------
-function all_spell_status()
+all_spell_status()
 {
   lock_file "$SPELL_STATUS"
   cat $SPELL_STATUS
@@ -898,7 +898,7 @@ function all_spell_status()
 ## sets &lt;spells&gt;'s status to held
 ##
 #---------------------------------------------------------------------
-function set_held () {
+set_held() {
     local t_status
     lock_start_transaction "$SPELL_STATUS" t_status
     for to_hold in $@; do
@@ -913,7 +913,7 @@ function set_held () {
 ## sets &lt;spells&gt;'s status to exiled
 ##
 #---------------------------------------------------------------------
-function set_exiled () {
+set_exiled() {
     local TO_DISPELL=""
     local TO_EXILE
     local MY_STATUS
@@ -953,7 +953,7 @@ function set_exiled () {
 ## resets <spells>'s 'exiled' status
 ##
 #---------------------------------------------------------------------
-function set_unexiled () {
+set_unexiled() {
     local MY_STATUS
     local TO_UNEXILE
     for TO_UNEXILE in $@; do
@@ -973,7 +973,7 @@ function set_unexiled () {
 ## sets <spells>'s status to installed
 ##
 #---------------------------------------------------------------------
-function set_unheld () {
+set_unheld() {
     local t_status
     lock_start_transaction "$SPELL_STATUS" t_status
     for to_hold in $@; do
@@ -989,7 +989,7 @@ function set_unheld () {
 ## returns all spells that are in that status
 ##
 #---------------------------------------------------------------------
-function get_all_spells_with_status () {
+get_all_spells_with_status() {
   local status=$1
   lock_file $SPELL_STATUS
   if [[ $status != ok ]]; then
@@ -1011,7 +1011,7 @@ function get_all_spells_with_status () {
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
-function modify_local_config() {
+modify_local_config() {
     debug "libstate" "modify_local_config() - $*"
     modify_config $LOCAL_CONFIG "$@"
 }
@@ -1028,7 +1028,7 @@ function modify_local_config() {
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
-function modify_config()  {
+modify_config()  {
 
   debug "libstate" "modify_config() - $*"
   local FILE=$1
@@ -1090,7 +1090,7 @@ function modify_config()  {
 ## variable and value rather than the equals sign.
 ##
 #---------------------------------------------------------------------
-function remove_config()  {
+remove_config()  {
 
   debug "libstate" "remove_config() - $*"
   local FILE=$1

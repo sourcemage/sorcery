@@ -80,7 +80,7 @@ EOF
 ## @param Spell
 ## @param Previous version
 #-----
-function downgrade()  {
+downgrade()  {
   if [ "$SUSTAIN" = off ]; then
     resurrect --nosustain $1 -v "$2"
   else
@@ -93,7 +93,7 @@ function downgrade()  {
 ## Parse the dispel script's parameters
 ## @Args Parameters
 #-----
-function process_parameters()  {
+process_parameters()  {
   while  [  -n  "$1"  ];  do
     case "$1" in
               [!-]*) ;;
@@ -155,7 +155,7 @@ function process_parameters()  {
   done
 }
 
-function validate_param() {
+validate_param() {
   case "$1" in
     ask-yes|ask-no|ignore|always)  eval "$2=\"$1\"" ;;
     *) message "\"$1\" is not a valid option, use ask-yes, ask-no," \
@@ -169,7 +169,7 @@ function validate_param() {
 ## This is a silly way to do it
 ## @Args Parameters
 #-----
-function strip_parameters()  {
+strip_parameters()  {
   while ! [ $# = 0 ]; do
     case "$1" in
       [!-]*) echo -n "$1 " ;;
@@ -187,7 +187,7 @@ function strip_parameters()  {
 #---------------------------------------------------------------------
 ## Display what dependencies were removed
 #---------------------------------------------------------------------
-function dispel_parents_list_borkers() {
+dispel_parents_list_borkers() {
   local parent=$1
   local optional_borkers=$2
   local runtime_borkers=$3
@@ -221,7 +221,7 @@ function dispel_parents_list_borkers() {
 ## Frontend to do common things for dispelling (keep a note of what
 ## has already been dispelled.
 #---------------------------------------------------------------------
-function dispel_spell_wrapper() {
+dispel_spell_wrapper() {
   dispel_spell $1 &&
   hash_put ALL_DISPELS $1 yes
 }
@@ -234,7 +234,7 @@ function dispel_spell_wrapper() {
 ## list of spells removed.
 ## The caller is expected to call this in a loop until nothing is returned.
 #---------------------------------------------------------------------
-function dispel_children() {
+dispel_children() {
   local spells=$1
 
   local our_children
@@ -308,7 +308,7 @@ function dispel_children() {
 ## @param       Question to ask the user
 ## @param       quad-option (always, ask-yes, ask-no, ignore)
 #---------------------------------------------------------------------
-function dispel_child_query() {
+dispel_child_query() {
   local SPELL=$1
   local MESSAGE=$2
   local QUERY=$3
@@ -341,7 +341,7 @@ function dispel_child_query() {
 ## @param       Question to ask the user
 ## @param       quad-option (always, ask-yes, ask-no, ignore)
 #---------------------------------------------------------------------
-function dispel_parent_query() {
+dispel_parent_query() {
   local QUERY=$1
   local DEFAULT=$2
   local query_default
@@ -369,7 +369,7 @@ function dispel_parent_query() {
 ## dis-associate with all its children (fix upward dep tree)
 ## remove spell from the downward tree
 #---------------------------------------------------------------------
-function remove_from_dep_trees() {
+remove_from_dep_trees() {
   debug dispel "$FUNCNAME $@"
   local spell=$1
   local down_dep_hash=$2
@@ -396,7 +396,7 @@ function remove_from_dep_trees() {
 ## where a spell is removed and spells that depend on it are broken. For
 ## example xorg borks blackbox.
 #---------------------------------------------------------------------
-function get_borked_parents() {
+get_borked_parents() {
   local spell=$1
   local up_dep_hash=$2
   local parent parents
@@ -416,7 +416,7 @@ function get_borked_parents() {
 ##
 ## @param        List of spells to remove on this iteration.
 #---------------------------------------------------------------------
-function dispel_depends_engine() {
+dispel_depends_engine() {
 
   local CURR_SPELLS SPELL
   for  SPELL  in  $1;  do
@@ -561,7 +561,7 @@ function dispel_depends_engine() {
 ## Main loop for dispel
 ## @Args Parameters
 #---------------------------------------------------------------------
-function main() {
+main() {
 
   process_parameters        "$@"
   # handle downgrading specially, since we also want to pass some of the flags

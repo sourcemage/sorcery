@@ -19,7 +19,7 @@
 ## careful using this function!
 ##
 #---------------------------------------------------------------------
-function reap_regular_files()  {
+reap_regular_files()  {
   debug "libsorcery" "reap_regular_files()"
   local FILE
   while read FILE; do
@@ -36,7 +36,7 @@ function reap_regular_files()  {
 ## C<reap_modified_file> is called.  Otherwise, the file is deleted.
 ##
 #---------------------------------------------------------------------
-function reap_config_files()  {
+reap_config_files()  {
   debug "libsorcery" "reap_config_files()"
   local FILE md5
   while  read  FILE;  do
@@ -70,7 +70,7 @@ function reap_config_files()  {
 ## C<PRESERVE> is on, the file will not be moved.
 ##
 #---------------------------------------------------------------------
-function reap_modified_file()  {
+reap_modified_file()  {
   local SAVE
   message  "${FILE_COLOR}${1}${DEFAULT_COLOR}"
   message  "${MESSAGE_COLOR}was previously modified by SA?"
@@ -88,7 +88,7 @@ function reap_modified_file()  {
 #---------------------------------------------------------------------
 ## Removes spell config stages if there are any
 #---------------------------------------------------------------------
-function reap_spell_config_stage()  {
+reap_spell_config_stage()  {
   lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
   # it's locked - we also don't have to care about the unlikely "current" stage
   rm -fr "$CONFIG_STAGE_DIRECTORY/$SPELL"
@@ -98,7 +98,7 @@ function reap_spell_config_stage()  {
 #---------------------------------------------------------------------
 ## Removes depends entries for what the spell depends on
 #---------------------------------------------------------------------
-function reap_depends()  {
+reap_depends()  {
   # save the old depends data as abandoned stuff so its seen later on
   # recasts as the default
   mkdir -p $ABANDONED_DEPENDS
@@ -127,7 +127,7 @@ function reap_depends()  {
 ## files in /etc or any of its sub-directories.
 ##
 #---------------------------------------------------------------------
-function reaper()  {
+reaper()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
   debug  "libdispel" "Running reaper() on $1"
@@ -191,7 +191,7 @@ function reaper()  {
 ## First argument is a file containing install log, removes state files
 ##
 #---------------------------------------------------------------------
-function reap_state_files()  {
+reap_state_files()  {
 #  Example:  reaper "$INSTALL_LOG"  "$MD5_LOG"
 
   debug  "libdispel" "Running reap_state_files() on $1"
@@ -237,7 +237,7 @@ function reap_state_files()  {
 ## @return true Can be dispelled
 ## @return false Cannot be dispelled
 #-----
-function dispel_not_possible()  {
+dispel_not_possible()  {
 
   if  ! spell_ok $SPELL ; then
     message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"              \
@@ -251,7 +251,7 @@ function dispel_not_possible()  {
 #-----
 ## Does the sustained checks for spells
 #-----
-function dispel_sustained()  {
+dispel_sustained()  {
 
   if  [  "$SUSTAIN"  ==  "on"  ]  &&
       grep  -q  "^$SPELL$"  $SUSTAINED
@@ -268,7 +268,7 @@ function dispel_sustained()  {
 ## Find out where a spell is located
 ## @Globals SPELL
 #-----
-function load_spell()  {
+load_spell()  {
   local SPELL=$1
   if tablet_set_spell $SPELL ; then
     load_functions_file
@@ -294,7 +294,7 @@ function load_spell()  {
 #-----
 ## Run the PRE_REMOVE script if it exists
 #-----
-function pre_remove() {
+pre_remove() {
   debug  "libdispel" "pre_remove()"
   if  [[ $SCRIPT_DIRECTORY ]] ; then
     run_spell_file PRE_REMOVE pre_remove
@@ -305,7 +305,7 @@ function pre_remove() {
 #-----
 ## Run the POST_REMOVE script if it exists.
 #-----
-function post_remove() {
+post_remove() {
   debug  "libdispel" "post_remove()"
   if  [[ $SCRIPT_DIRECTORY ]] ; then
     run_spell_file POST_REMOVE post_remove
@@ -316,7 +316,7 @@ function post_remove() {
 #---------------------------------------------------------------------
 ## Dispel a spell
 #---------------------------------------------------------------------
-function dispel_spell() {
+dispel_spell() {
 
     local SPELL=$1
     run_hook dispel pre
@@ -372,7 +372,7 @@ function dispel_spell() {
 ## Set one of always, ask_yes, ask_no, and ignore to on based
 ## on the value of default, leave the remaining as off.
 #---------------------------------------------------------------------
-function dispel_depends_value_to_items() {
+dispel_depends_value_to_items() {
   always=off
   ask_yes=off
   ask_no=off
@@ -395,7 +395,7 @@ function dispel_depends_value_to_items() {
 ## Present a radiolist menu with the quad-options for one of various
 ## dependency following options.
 #---------------------------------------------------------------------
-function dispel_depends_menu_template() {
+dispel_depends_menu_template() {
   local TITLE=$1
   local DEFAULT_NAME=$2
   local DEFAULT=$3
@@ -421,7 +421,7 @@ function dispel_depends_menu_template() {
 #---------------------------------------------------------------------
 ## Present menus for each of the four dependency following options.
 #---------------------------------------------------------------------
-function dispel_depends_defaults_menu() {
+dispel_depends_defaults_menu() {
   dispel_depends_menu_template \
                "Default action for orphaned spells"   \
                "ORPHAN_MENU_DEFAULT" "$ORPHAN_MENU_DEFAULT"

@@ -40,14 +40,14 @@ scribbler add-grimoire to-grimoire
 EOF
 }
 
-function scribbler_remove() {
+scribbler_remove() {
   rm -rfv $SPELL_DIRECTORY
   # remove empty sections
   rmdir $(smgl_dirname $SPELL_DIRECTORY)
   scribe reindex $3
 }
 
-function scribbler_add_grimoire() {
+scribbler_add_grimoire() {
   local grimoire=$1
 
   TO_GRIMOIRE_DIRECTORY=$(codex_canonicalize_grimoire_name $grimoire) &&
@@ -57,7 +57,7 @@ function scribbler_add_grimoire() {
   scribe localize $TO_GRIMOIRE_DIRECTORY
 }
 
-function scribbler_add() {
+scribbler_add() {
   ##  Set and validate (and possibly create) the to-grimoire name
   if ! TO_GRIMOIRE_DIRECTORY=$(codex_find_grimoire $4) ; then
     message "${PROBLEM_COLOR}The grimoire you specified" \
@@ -111,7 +111,7 @@ function scribbler_add() {
 }
 
 
-function validate_and_parse_args() {
+validate_and_parse_args() {
   ##  This script needed some sanity checking...
   if [ "${1}" == "" ]; then
     usage
@@ -163,7 +163,7 @@ function validate_and_parse_args() {
   fi
 }
 
-function main() {
+main() {
   mk_tmp_dirs scribbler
 
   ##  Get to the root of the issue

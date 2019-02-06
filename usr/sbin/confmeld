@@ -8,7 +8,7 @@
 #-----
 ## Help... hmm... I wonder what it does...
 #-----
-function help()
+help()
 {
   cat << EOF
 Melds the staged config files from $CONFIG_STAGE_DIRECTORY
@@ -46,7 +46,7 @@ EOF
 ##
 ## @stdout a list of all configs in the config stage root
 #--------------------------------------------------------------------
-function all_config_files()
+all_config_files()
 {
   find $CONFIG_STAGE_DIRECTORY -type f
 }
@@ -56,7 +56,7 @@ function all_config_files()
 ##
 ## @stdout a list of all uniq configs in the stage directory
 #--------------------------------------------------------------------
-function all_uniq_config_files()
+all_uniq_config_files()
 {
   all_config_files |
   sed "s#^$CONFIG_STAGE_DIRECTORY/[^/]*/[^/]*##" |
@@ -68,7 +68,7 @@ function all_uniq_config_files()
 ##
 ## @stdout list of spells that have staged configs
 #--------------------------------------------------------------------
-function all_spells_with_staged_configs()
+all_spells_with_staged_configs()
 {
   all_config_files |
   sed "s#$CONFIG_STAGE_DIRECTORY/*##g" |
@@ -78,7 +78,7 @@ function all_spells_with_staged_configs()
 #-----
 ## override column so that we can pass -q to not columnate. Adapted from gaze
 #-----
-function maybe_column()  {
+maybe_column()  {
   if [[ $USE_COLUMN == no ]]; then
     cat
   else
@@ -91,7 +91,7 @@ function maybe_column()  {
 ##
 ## @stdout list of spells that have staged configs
 #--------------------------------------------------------------------
-function list_spells_with_staged_configs()
+list_spells_with_staged_configs()
 {
   local spells=$(all_spells_with_staged_configs)
 
@@ -108,7 +108,7 @@ function list_spells_with_staged_configs()
 ##
 ## @stdout list of staged configs
 #--------------------------------------------------------------------
-function list_staged_configs()
+list_staged_configs()
 {
   local configs=$(all_uniq_config_files)
 
@@ -125,7 +125,7 @@ function list_staged_configs()
 ##
 ## @stdout list of spells and their staged configs
 #--------------------------------------------------------------------
-function list_all()
+list_all()
 {
   local spell config
   for spell in $(all_spells_with_staged_configs); do
@@ -146,7 +146,7 @@ function list_all()
 ## @param upvar for spell success time
 ## @param upvar for actual path to file
 #--------------------------------------------------------------------
-function parse_stage_config_path()
+parse_stage_config_path()
 {
   local file=$1
   local __tmp __spell __sdate __path
@@ -164,7 +164,7 @@ function parse_stage_config_path()
 ##
 ## @param action
 #--------------------------------------------------------------------
-function override_changed_config_menu()
+override_changed_config_menu()
 {
 
   case $1 in
@@ -183,7 +183,7 @@ function override_changed_config_menu()
 ## Final check for removing empty spell directories, so the stage dir
 ## is left clean
 #--------------------------------------------------------------------
-function final_cleanup()
+final_cleanup()
 {
   find "$CONFIG_STAGE_DIRECTORY" -mindepth 1 -maxdepth 2 \
        -type d -exec rmdir {} + 2>/dev/null
@@ -194,7 +194,7 @@ function final_cleanup()
 ##
 ## @param config
 #--------------------------------------------------------------------
-function merge_single_file()
+merge_single_file()
 {
   local file=$1 spell sdate target nice_date
 
@@ -221,7 +221,7 @@ function merge_single_file()
 ## @param spell/config
 ## @param ...
 #--------------------------------------------------------------------
-function confmeld_partial()
+confmeld_partial()
 {
   local thing config configs rc=0
 
@@ -250,7 +250,7 @@ function confmeld_partial()
 #--------------------------------------------------------------------
 ## merge all the staged configs
 #--------------------------------------------------------------------
-function confmeld_all()
+confmeld_all()
 {
   local spell
 
@@ -262,7 +262,7 @@ function confmeld_all()
   final_cleanup
 }
 
-function process_parameters()
+process_parameters()
 {
   local subroutine arguments
   local mode=$1
@@ -297,7 +297,7 @@ function process_parameters()
 ## If there's no arguments get all the config files and start installing
 ## them to the system using install_config_file
 #--------------------------------------------------------------------
-function main()
+main()
 {
   local target spell sdate
   local last_spell=""

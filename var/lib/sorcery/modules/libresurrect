@@ -14,7 +14,7 @@
 ## @param spellname
 ## determines if a particular version of a spell can be resurrected
 #---------------------------------------------------------------------
-function can_resurrect()  {
+can_resurrect()  {
   debug "libresurrect" "can_resurrect - $*"
   local SPELL=$1
   local VERSION=$2
@@ -65,7 +65,7 @@ function can_resurrect()  {
 ##
 ## FIXME: some of the informative message calls might work better as debug messages
 #------------------------------------------------------------------------
-function resurrect_spell()  { (
+resurrect_spell()  { (
   debug "libresurrect" "resurrect - $*"
   local SPELL=$1
   local VERSION=$2
@@ -322,7 +322,7 @@ function resurrect_spell()  { (
 ) }
 
 
-function resurrect_sub() {
+resurrect_sub() {
   # 10) if theres a PRE_RESURRECT run it or fail/rollback
   if test -x $SCRIPT_DIRECTORY/PRE_RESURRECT ; then
     run_hook PRE_RESURRECT pre
@@ -427,7 +427,7 @@ function resurrect_sub() {
 ## @param to          File to replace
 ## @param savetime    Backup time if necessary (optional, defaults to $(date +'%Y%m%d%H%M')
 #------------------------------------------------------------------------
-function real_install_config_file() {
+real_install_config_file() {
   if [[ ! $1 ]] || [[ ! $2 ]] ; then
     message "${PROBLEM_COLOR}Missing values for arguments \"$1\" or \"$2\"" \
             "$DEFAULT_COLOR"
@@ -456,7 +456,7 @@ function real_install_config_file() {
 ## @param savetime      Backup time if necessary
 ## @param md5_log       MD5 log for previous version of the spell, must be in root form
 #------------------------------------------------------------------------
-function internal_install_config_file() {
+internal_install_config_file() {
   local from=$1
   local to=$2
   local savetime=$3
@@ -522,7 +522,7 @@ function internal_install_config_file() {
 ## choice 2 is currently the default, someday there will be a menu to
 ## choose what the default will be
 #------------------------------------------------------------------------
-function real_handle_changed_config() {
+real_handle_changed_config() {
   local from=$1
   local to=$2
   local savetime=$3
@@ -573,7 +573,7 @@ function real_handle_changed_config() {
 
 }
 
-function resurrect_success() {
+resurrect_success() {
 
   local INSTALL_LOG=$INSTALL_LOGS/$SPELL-$VERSION
   local MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
@@ -669,7 +669,7 @@ function resurrect_success() {
 }
 
 
-function resurrect_fail() {
+resurrect_fail() {
   message  "${PROBLEM_COLOR}Resurrect failed for spell:" \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} version" \
            "${VERSION_COLOR}${VERSION}${DEFAULT_COLOR}"

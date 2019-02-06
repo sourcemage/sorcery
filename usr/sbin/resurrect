@@ -10,7 +10,7 @@
 ##
 #---------------------------------------------------------------------
 
-function help() {
+help() {
   cat << EOF
 Resurrects the spell(s) if there is a cache available.
 
@@ -47,7 +47,7 @@ EOF
   exit 1
 }
 
-function do_resurrect() {
+do_resurrect() {
   local spell=$1
   local requested_version=$USE_VERSION
   local cache
@@ -138,7 +138,7 @@ function do_resurrect() {
 ## inspecting the cache's contents, the filename cannot be reliably
 ## used instead.
 #---------------------------------------------------------------------
-function direct_resurrect() {
+direct_resurrect() {
   local cache=$1
   local tmp spell date version
   local error_base="${PROBLEM_COLOR}Unable to resurrect $FILE_COLOR$cache"
@@ -205,7 +205,7 @@ function direct_resurrect() {
 ## Pretty print if the spells can be resurrected or not
 ## Does all the checks it can do without trying a resurrect
 #---------------------------------------------------------------------
-function is_resurrectable() {
+is_resurrectable() {
   local spell=$1
   local msg_base="$SPELL_COLOR$spell$DEFAULT_COLOR cannot be resurrected because"
 
@@ -230,7 +230,7 @@ function is_resurrectable() {
 ## Make sure the parameters are ok. Used for verification before the
 ## user is asked for the su password to avoid futile su-ing.
 #---------------------------------------------------------------------
-function verify_parameters() {
+verify_parameters() {
   while [[ -n $1 ]]; do
     if [[ ${1:0:1} == "-" ]]; then
       case "$1" in
@@ -249,7 +249,7 @@ function verify_parameters() {
 ## specified, the -l option is ignored. If -f is specified, -v and -l
 ## are ignored. If -c is specified, everything else is ignored.
 #---------------------------------------------------------------------
-function main() {
+main() {
   local arguments resurrectee USE_LATEST USE_VERSION use_from check rc=0
 
   while [[ -n $1 ]]; do

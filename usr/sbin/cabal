@@ -13,7 +13,7 @@
 ## @Stdout The names of the machines in the cabal
 ## @Globals CABAL_NAMES CABAL
 #------------------
-function read_cabal_names()  {
+read_cabal_names()  {
 
   mkdir  -p  $CABAL_DIRECTORY
 
@@ -29,7 +29,7 @@ function read_cabal_names()  {
 ## Overwrite the cabal name file with new member names
 ## @Globals CABAL_NAMES MAX_CABALS
 #--------------------
-function write_cabal_names()  {
+write_cabal_names()  {
 
   rm  -f  $CABAL_NAMES
   for  ((  COUNT=0;  COUNT != ${#CABALS[@]};  COUNT++  ));   do
@@ -44,7 +44,7 @@ function write_cabal_names()  {
 ## @Stdout Names of each cabal member
 ## @NOTE MAX_CABAL can be eliminated
 #---------------------
-function print_cabal_names()  {
+print_cabal_names()  {
 
 eval ${DIALOG}  '--textbox  ${CABAL_NAMES}  0  0'
 
@@ -59,7 +59,7 @@ eval ${DIALOG}  '--textbox  ${CABAL_NAMES}  0  0'
 ## @Stdout <number>\n<cabal name or "Undefined"> for all cabal members
 ## @NOTE Dito about MAX_CABALS
 #---------------------
-function print_cabal_numbers_names()  {
+print_cabal_numbers_names()  {
 
   for  ((  COUNT = 0;  COUNT  !=  MAX_CABALS;  COUNT++  ));  do
     echo  "$COUNT"
@@ -76,7 +76,7 @@ function print_cabal_numbers_names()  {
 ## @Stdout dialog output
 ## @Stderr Cabal member selection
 #-----------------------
-function select_cabal()  {
+select_cabal()  {
 
   eval $DIALOG  '--title         "Cabal Selection Menu"  \
            --ok-label      "Select"                \
@@ -91,7 +91,7 @@ function select_cabal()  {
 #----------------------
 ## Edit the file about selected members
 #----------------------
-function edit_cabals()  {
+edit_cabals()  {
 
   while  SELECTED=`select_cabal`
   do     edit_file  "$CABAL_DIRECTORY/$SELECTED"
@@ -102,7 +102,7 @@ function edit_cabals()  {
 #---------------------
 ## Show contents of a member's info file
 #---------------------
-function show_cabals()  {
+show_cabals()  {
 
   while  SELECTED=`select_cabal`
   do     show_file  "$CABAL_DIRECTORY/$SELECTED"
@@ -113,7 +113,7 @@ function show_cabals()  {
 #--------------------
 ## Generate SSH key for a cabal member
 #--------------------
-function generate_cabal_key()  {
+generate_cabal_key()  {
 
   while  SELECTED=`select_cabal`
   do
@@ -131,7 +131,7 @@ function generate_cabal_key()  {
 }
 
 
-function all_cabal_keys()  {
+all_cabal_keys()  {
 
   for  KEY  in  `ls  $CABAL_KEYS/*  |
                  grep  -v  "\.pub"`
@@ -142,7 +142,7 @@ function all_cabal_keys()  {
 }
 
 
-function distribute_cabal_key()  {
+distribute_cabal_key()  {
 
   while  SELECTED=`select_cabal`
   do
@@ -172,7 +172,7 @@ function distribute_cabal_key()  {
 }
 
 
-function revoke_cabal_key()  {
+revoke_cabal_key()  {
 
   while  SELECTED=`select_cabal`
   do
@@ -224,7 +224,7 @@ name_cabals()  {
 }
 
 
-function set_max_cabals()  {
+set_max_cabals()  {
 
   PROMPT="Please enter the maximum number of cabals"
 
@@ -240,7 +240,7 @@ function set_max_cabals()  {
 }
 
 
-function cabal_name_menu()  {
+cabal_name_menu()  {
 
   while
 
@@ -270,7 +270,7 @@ function cabal_name_menu()  {
 }
 
 
-function cabal_key_menu()  {
+cabal_key_menu()  {
 
   while
 
@@ -304,7 +304,7 @@ enable root login without password prompts"
 }
 
 
-function cabal_content_menu()  {
+cabal_content_menu()  {
 
   while
 
@@ -334,7 +334,7 @@ function cabal_content_menu()  {
 }
 
 
-function select_order()  {
+select_order()  {
 
   eval $DIALOG  '--title  "Order Selection Menu"  \
            --menu  ""  0 0 0                \
@@ -344,7 +344,7 @@ function select_order()  {
 }
 
 
-function cabal_admin_menu()  {
+cabal_admin_menu()  {
 
   while
 
@@ -381,7 +381,7 @@ function cabal_admin_menu()  {
 }
 
 
-function cabal_copy()  {
+cabal_copy()  {
 
   SOURCE_MESSAGE='"Please enter source files and directories."'
     DEST_MESSAGE='"Please enter destination directory."'
@@ -418,7 +418,7 @@ function cabal_copy()  {
 }
 
 
-function cabal_execute()  {
+cabal_execute()  {
 
   COMMAND_MESSAGE="Please enter command to be execute remotely on cabal."
 
@@ -456,7 +456,7 @@ function cabal_execute()  {
 }
 
 
-function cabal_output()  {
+cabal_output()  {
 
   if  [  -d  $CABAL_OUTPUT  ];  then
     for  FILE  in  `ls  $CABAL_OUTPUT`;  do
@@ -469,7 +469,7 @@ function cabal_output()  {
 }
 
 
-function cabal_enchantment_menu()  {
+cabal_enchantment_menu()  {
 
   while
 
@@ -504,7 +504,7 @@ copies"
 }
 
 
-function cabal_menu()  {
+cabal_menu()  {
 
   while
 

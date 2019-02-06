@@ -31,7 +31,7 @@
 ## @Global GIT_TAG
 ##
 #---------------------------------------------------------------------
-function url_git_http_crack() {
+url_git_http_crack() {
   URL=$(url_strip_prefix "$1" git_http)
   GIT_ROOT=http://$(sed "s#\(^[^/]*[^:]*\):.*#\1#" <<< "$URL")
   local GIT_DIRECTORY_TAG=$(sed "s#^[^/]*[^:]*\(.*\)#\1#" <<< "$URL")
@@ -46,7 +46,7 @@ function url_git_http_crack() {
 ## echoes the download handler - git
 ##
 #---------------------------------------------------------------------
-function url_git_http_bucketize() {
+url_git_http_bucketize() {
   echo git
 }
 
@@ -57,7 +57,7 @@ function url_git_http_bucketize() {
 ## OR if the url is an empty string.
 ##
 #---------------------------------------------------------------------
-function url_git_http_verify() {
+url_git_http_verify() {
   local URL GIT_ROOT item
   url_git_http_crack $1
   for item in URL GIT_ROOT; do
@@ -72,7 +72,7 @@ function url_git_http_verify() {
 ##
 ## Gets the hostname out of the url
 #---------------------------------------------------------------------
-function url_git_http_hostname() {
+url_git_http_hostname() {
   echo $1|sed 's:^.*//\([^/]*\).*$:\1:'
 }
 
@@ -82,7 +82,7 @@ function url_git_http_hostname() {
 ## Gets a netselect type output for the url
 ##
 #---------------------------------------------------------------------
-function url_git_http_netselect() {
+url_git_http_netselect() {
   local tmp_hostname url_speed each
 
   for each in "$@" ; do

@@ -76,7 +76,7 @@
 ## @param Spell to prepare
 ## @Globals SCRIPT_DIRECTORY
 #---------------------------------------------------------------------
-function run_prepare()
+run_prepare()
 {
   local SPELL=$1
 
@@ -100,7 +100,7 @@ function run_prepare()
 ## during this phase of things, right now its a placeholder
 ## @param Spell
 #---------------------------------------------------------------------
-function run_other() {
+run_other() {
   local SPELL=$1
   # ask the questions about xinetd/initd script installation
   persistent_load &&
@@ -122,7 +122,7 @@ function run_other() {
 ## Run the spell's CONFIGURE script if it exists
 ## @param Spell to configure
 #---------------------------------------------------------------------
-function run_configure() {
+run_configure() {
   local SPELL=$1
   debug "cast" "run_configure() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
@@ -140,7 +140,7 @@ function run_configure() {
 ## Run a spell's DEPENDS if it exists
 ## @param Spell
 #---------------------------------------------------------------------
-function run_depends() {
+run_depends() {
   local SPELL=$1
   debug "cast" "run_depends() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
@@ -158,7 +158,7 @@ function run_depends() {
 ## Run a spell's UP_TRIGGERS if it exists
 ## @param Spell
 #---------------------------------------------------------------------
-function run_up_triggers() {
+run_up_triggers() {
   local SPELL=$1
   debug "cast" "run_up_triggers() - SCRIPT_DIRECTORY = $SCRIPT_DIRECTORY"
 
@@ -176,7 +176,7 @@ function run_up_triggers() {
 ## These come from the live sub-depends table and from spells that
 ## have already been processed
 #---------------------------------------------------------------------
-function run_our_sub_depends() {
+run_our_sub_depends() {
   $STD_DEBUG
   local sub_depends pair
   # do all sub-depends on us from live-table first, they get priority
@@ -210,7 +210,7 @@ function run_our_sub_depends() {
 #---------------------------------------------------------------------
 ## run any sub-depends that we requested on behalf of the sub-dependee
 #---------------------------------------------------------------------
-function run_other_sub_depends() {
+run_other_sub_depends() {
   $STD_DEBUG
   local this_spell=$1
   local SPELL sub_dependee sub_depends pair
@@ -248,7 +248,7 @@ function run_other_sub_depends() {
 ## Expects the sub-dependee to be loaded.
 ## If the spell does not have a SUB_DEPENDS file, it is a failure.
 #---------------------------------------------------------------------
-function process_sub_depends() {
+process_sub_depends() {
   $STD_DEBUG
   local requester=$1
   local sub_dependee=$2
@@ -281,7 +281,7 @@ function process_sub_depends() {
 
 ######################END CALLS TO OUTSIDE WORLD########################
 
-function __comp_depends_aux() {
+__comp_depends_aux() {
   #$2==hash table to fill
   local pattern="required|optional"
   if [ "$3" ]; then
@@ -322,7 +322,7 @@ function __comp_depends_aux() {
 ## Then evaluate the output, thus filling a libhash with dependency info.
 ## @param Name of hash table to put dependencies
 #---------------------------------------------------------------------
-function compute_installed_depends() {
+compute_installed_depends() {
   __comp_depends_aux 0 "$@"
 }
 
@@ -333,7 +333,7 @@ function compute_installed_depends() {
 ## Then evaluate the output, thus filling a libhash with dependency info.
 ## @param Name of hash table to fill with dependencies
 #---------------------------------------------------------------------
-function compute_reverse_installed_depends() {
+compute_reverse_installed_depends() {
   __comp_depends_aux 1 "$@"
 }
 
@@ -358,7 +358,7 @@ function compute_reverse_installed_depends() {
 ## @param Hashtable name for spells with problem in resolution (or something)
 ## @param Hashtable name for spells which cannot cast
 #---------------------------------------------------------------------
-function compute_uninstalled_depends()
+compute_uninstalled_depends()
 {
 
   # $1=table to place spells in
@@ -415,7 +415,7 @@ function compute_uninstalled_depends()
 ## No functions except libdepends functions should use this.
 ## @param Spell
 #---------------------------------------------------------------------
-function private_run_depends()
+private_run_depends()
 {
   debug "libdepends" "$FUNCNAME - $*"
   local SPELL=$1
@@ -500,7 +500,7 @@ function private_run_depends()
 ## rebuild it.
 ## @param Spell
 #---------------------------------------------------------------------
-function private_should_cast()
+private_should_cast()
 {
   local each
   # order is important here...
@@ -539,7 +539,7 @@ function private_should_cast()
 ## @param Spell name
 ## Find all the spells that depend on the spell given as $1
 #---------------------------------------------------------------------
-function private_upward_depends() {
+private_upward_depends() {
   if [[ "$RECAST_UP" ]] ; then
     local tmp
     # Note, use the reverse depends tree for this when we get a chance
@@ -581,7 +581,7 @@ private_recast_optionals_sub() {
 ## dependency disabled, ask if the user wants to recast the spell.
 ## Also finds disabled features that the current spell is a provider of.
 #---------------------------------------------------------------------
-function private_recast_optionals() {
+private_recast_optionals() {
   if [[ $RECAST_OPTIONALS ]] && [[ $RECAST_OPTIONALS != ignore ]] ; then
     local spell j enabled
     let j=${#NEW_UP_DEPENDS[*]}
@@ -635,7 +635,7 @@ function private_recast_optionals() {
 ##
 ## Called by real_depends and real_runtime_depends
 #---------------------------------------------------------------------
-function real_generic_required_depends()
+real_generic_required_depends()
 {
   local failure_ok=$1
   local article=$2
@@ -755,7 +755,7 @@ function real_generic_required_depends()
 ## Passthrough to real_generic_required_depends, specifies the
 ## parts that differ from runtime depends
 #---------------------------------------------------------------------
-function real_depends() {
+real_depends() {
   real_generic_required_depends "no" "a" "dependency" "required" "$@"
 }
 
@@ -763,7 +763,7 @@ function real_depends() {
 ## Passthrough to real_generic_required_depends, specifies the
 ## parts that differ from required depends
 #---------------------------------------------------------------------
-function real_runtime_depends() {
+real_runtime_depends() {
   real_generic_required_depends "yes" "a" "runtime dependency" "runtime" "$@"
 }
 
@@ -778,7 +778,7 @@ function real_runtime_depends() {
 ##
 ## Called by real_depends and real_runtime_depends
 #---------------------------------------------------------------------
-function real_generic_optional_depends()
+real_generic_optional_depends()
 {
   local failure_ok=$1
   local article=$2
@@ -903,7 +903,7 @@ function real_generic_optional_depends()
 ## Passthrough to real_generic_optional_depends, specifies the
 ## parts that differ from suggest depends
 #---------------------------------------------------------------------
-function real_optional_depends() {
+real_optional_depends() {
   real_generic_optional_depends "no" "an" "optional dependency" "optional" "$@"
 }
 
@@ -911,7 +911,7 @@ function real_optional_depends() {
 ## Passthrough to real_generic_required_depends, specifies the
 ## parts that differ from optional depends
 #---------------------------------------------------------------------
-function real_suggest_depends() {
+real_suggest_depends() {
   real_generic_optional_depends "yes" "a" "suggested dependency" "suggest" "$@"
 }
 
@@ -923,7 +923,7 @@ function real_suggest_depends() {
 ## @param Enabled options
 ## @param Description
 #---------------------------------------------------------------------
-function work_depends_provider()
+work_depends_provider()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
@@ -1019,7 +1019,7 @@ function work_depends_provider()
 ## @param Spell
 ## @param enabled options
 #---------------------------------------------------------------------
-function work_depends_spell()
+work_depends_spell()
 {
   debug "libdepends" "$FUNCNAME - $@"
 
@@ -1051,7 +1051,7 @@ function work_depends_spell()
 ## @param  description
 ## Handles optional dependency on a provider.
 #---------------------------------------------------------------------
-function work_optional_depends_provider()
+work_optional_depends_provider()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
@@ -1177,7 +1177,7 @@ function work_optional_depends_provider()
 ## h/H is pressed. Type of query is chosen in sorcery feature menu.
 ##
 #---------------------------------------------------------------------
-function optional_depends_query()  {
+optional_depends_query()  {
   local _response
   local spell_name=$1
   local time_to_answer=$PROMPT_DELAY
@@ -1225,7 +1225,7 @@ function optional_depends_query()  {
 ## @param  description
 ## Handles optional dependency on a spell.
 #---------------------------------------------------------------------
-function work_optional_depends_spell()
+work_optional_depends_spell()
 {
 
   debug "libdepends" "$FUNCNAME - $@"
@@ -1340,7 +1340,7 @@ function work_optional_depends_spell()
 ## Present a list to the user complete with info about whats installed
 ## and what isnt and allow a default value to be used
 #---------------------------------------------------------------------
-function select_provider()
+select_provider()
 {
     local returnvar=$1
     local default=$2
@@ -1393,7 +1393,7 @@ function select_provider()
 ## Create a trigger on ourself effecting the target spell,
 ## shorthand for putting a TRIGGERS file in the target spell.
 #---------------------------------------------------------------------
-function real_up_trigger() {
+real_up_trigger() {
   message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
            "${CHECK_COLOR}triggers a${DEFAULT_COLOR}" \
            "${SPELL_COLOR}${2}${DEFAULT_COLOR}" \
@@ -1410,7 +1410,7 @@ function real_up_trigger() {
 ## Register a trigger, when $SPELL is cast, a $ACTION is executed
 ## on $TARGET
 #---------------------------------------------------------------------
-function private_up_trigger() {
+private_up_trigger() {
   local SPELL=$1
   local TARGET=$2
   local ACTION=$3
@@ -1437,7 +1437,7 @@ function private_up_trigger() {
 ## This queues the sub-depends for later processing, if the sub-dependee
 ## does not already support the sub-depends.
 #---------------------------------------------------------------------
-function real_sub_depends() {
+real_sub_depends() {
   $STD_DEBUG
   local requester=$SPELL
   local sub_dependee=$1
@@ -1504,7 +1504,7 @@ function real_sub_depends() {
 ## if the spell was already looked at and didnt need processing, then
 ## it'll get re-processed (assuming the caller also did a depends on it)
 #---------------------------------------------------------------------
-function real_force_depends() {
+real_force_depends() {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
   local check
   hash_get_ref "depends_looked_at" "$1" check
@@ -1523,7 +1523,7 @@ function real_force_depends() {
 ## @param Spell
 ## @param on/off
 #---------------------------------------------------------------------
-function private_common_depends()
+private_common_depends()
 {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
   add_depends $spell_depends "$SPELL" "$@"
@@ -1547,7 +1547,7 @@ function private_common_depends()
 ## Default trigger checking function. Asks user if they want to
 ## run the trigger.
 #---------------------------------------------------------------------
-function real_default_sorcery_trigger_check() {
+real_default_sorcery_trigger_check() {
   message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
            "${CHECK_COLOR}triggers a" \
            "${SPELL_COLOR}${ACTION}${DEFAULT_COLOR}" \
@@ -1559,7 +1559,7 @@ function real_default_sorcery_trigger_check() {
 #---------------------------------------------------------------------
 ## Inspects each trigger, asks the user if they want to run it.
 #---------------------------------------------------------------------
-function private_add_triggerees() {
+private_add_triggerees() {
 
   # add the spells that we trigger to the $spells list
   # having duplicate items is okay
@@ -1600,7 +1600,7 @@ function private_add_triggerees() {
 #---------------------------------------------------------------------
 ## Adds the dependency to the hastable
 #---------------------------------------------------------------------
-function private_add_depends()
+private_add_depends()
 {
   debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
   hash_append "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
@@ -1636,7 +1636,7 @@ function private_add_depends()
 ## Determine if spell should be lazily updated, possible asks the user
 ## what to do.
 #---------------------------------------------------------------------
-function want_lazy_update() {
+want_lazy_update() {
   if [[ $LAZY_DEPENDS_UPDATES ]] && [[ $LAZY_DEPENDS_UPDATES != ignore ]] ; then
     if does_spell_need_update "$1" ; then
       depends_message "$1" "needs updating"
@@ -1652,7 +1652,7 @@ function want_lazy_update() {
   return 1
 }
 
-function depends_message() {
+depends_message() {
   if [[ $# -ge 2 ]] ; then
     message -n "${SPELL_COLOR}${1}${DEFAULT_COLOR}" \
                "${CHECK_COLOR}${2}${DEFAULT_COLOR}"
@@ -1672,7 +1672,7 @@ function depends_message() {
 ## @param Spell name
 ## Removes a dependency and its dependees from the to_cast list.
 #---------------------------------------------------------------------
-function private_remove_dependees()
+private_remove_dependees()
 {
   local spell=$1
   local removed_list dependee dependees
@@ -1730,7 +1730,7 @@ function private_remove_dependees()
 ## @param Spell name
 ## Does the actual removal
 #---------------------------------------------------------------------
-function private_discard_spell()
+private_discard_spell()
 {
   local spell=$1
   local failed=$2
@@ -1764,7 +1764,7 @@ function private_discard_spell()
 ## Find all the spells already processed that depend on the spell given as $1
 ## Unlike private_upward_depends, this one works with the uncommitted info
 #---------------------------------------------------------------------
-function uncommitted_upward_depends() {
+uncommitted_upward_depends() {
   local _spell=$1
   local _upvar=$2
   local candidate _dependees _deps
@@ -1787,7 +1787,7 @@ function uncommitted_upward_depends() {
 ## Sets a spell's aux. config info.
 ## @Globals SPELL
 #---------------------------------------------------------------------
-function run_spell_config()
+run_spell_config()
 {
 
   SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
@@ -1806,7 +1806,7 @@ function run_spell_config()
 ## @Param fast -- if set only show spells, not full depends db entries
 ## @Param all - if set returns also runtime dependencies
 #---------------------------------------------------------------------
-function real_show_up_depends()
+real_show_up_depends()
 {
     local i=0
     local MAX_DEPTH=$2

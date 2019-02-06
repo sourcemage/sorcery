@@ -24,7 +24,7 @@
 ## This runs through the phase 4 pipeline of building and installing
 ## a spell for BUILD_API 2.
 #---------------------------------------------------------------------
-function run_build_spell() {
+run_build_spell() {
   debug "build_api2" "run_build_spell"
 
   local CHROOT_CHECK=""
@@ -125,7 +125,7 @@ function run_build_spell() {
 ## source directories. If a PRE_BUILD file exists in SCRIPT_DIRECTORY
 ## and is executable it is run in preference to the default_pre_build.
 #---------------------------------------------------------------------
-function run_pre_build() {
+run_pre_build() {
 
   debug "build_api2" "run_pre_build()"
   message  "${MESSAGE_COLOR}Preparing" \
@@ -145,7 +145,7 @@ function run_pre_build() {
 ## settings that need to be on, eventually gets around to running
 ## BUILD or default_build.
 #---------------------------------------------------------------------
-function run_build()  {
+run_build()  {
 
   debug "build_api2" "Starting run_compile()"
 
@@ -184,7 +184,7 @@ function run_build()  {
 ## Turns all the various logs back on that were turned off from after
 ## run_build finished, then runs PRE_INSTALL or default_pre_install
 #---------------------------------------------------------------------
-function run_pre_install() {
+run_pre_install() {
   debug "build_api2" "Starting run_pre_install()"
 
   if [ -f $S_PWD ] ; then
@@ -210,7 +210,7 @@ function run_pre_install() {
 ## around an execed bash shell, this is needed for installwatch to
 ## stage root properly
 #---------------------------------------------------------------------
-function run_install() {
+run_install() {
   debug "build_api2" "Starting run_install()"
 
   if [[ $STAGED_INSTALL == on ]]; then
@@ -240,7 +240,7 @@ function run_install() {
   fi
 }
 
-function run_install_extras() {
+run_install_extras() {
 
   debug "build_api2" "Starting run_install_extras()"
   run_spell_file INSTALL_EXTRAS install_extras
@@ -255,7 +255,7 @@ function run_install_extras() {
 ## around an execed bash shell, this is needed for installwatch to
 ## stage root properly
 #---------------------------------------------------------------------
-function run_post_install() {
+run_post_install() {
   debug "build_api2" "Starting run_post_install()"
   persistent_load &&
   if [[ $STAGED_INSTALL != off ]]
@@ -272,7 +272,7 @@ function run_post_install() {
 ## Checks against STAGED_INSTALL and installs the staged spell
 ## accordingly
 #--------------------------------------------------------------------
-function run_transfer() {
+run_transfer() {
   if [[ "$STAGED_INSTALL" != "off" ]]
   then
     message "${MESSAGE_COLOR}Installing"              \
@@ -287,7 +287,7 @@ function run_transfer() {
 ## executable, runs it. This file is used for extra files that need
 ## to be installed, but not tracked by installwatch.
 #---------------------------------------------------------------------
-function run_final() {
+run_final() {
 
   debug "build_api2" "Starting run_final()"
   run_spell_file FINAL final
@@ -299,7 +299,7 @@ function run_final() {
 ## Used if no PRE_BUILD script is found for a spell.
 ##
 #---------------------------------------------------------------------
-function real_default_sorcery_pre_build() {
+real_default_sorcery_pre_build() {
 
   debug "libgrimoire" "default_pre_build() - SOURCE=$SOURCE SOURCE_DIRECTORY=$SOURCE_DIRECTORY"
   mk_source_dir        $SOURCE_DIRECTORY  &&
@@ -322,7 +322,7 @@ function real_default_sorcery_pre_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_sorcery_build() {
+real_default_sorcery_build() {
   debug "build_api2" "real_default_sorcery_build"
 
   OPTS="$OPTS --build=${BUILD}"
@@ -350,7 +350,7 @@ function real_default_sorcery_build() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_sorcery_pre_install() {
+real_default_sorcery_pre_install() {
   debug "build_api2" "Starting real_default_sorcery_pre_install"
   prepare_install >&3
 }
@@ -364,7 +364,7 @@ function real_default_sorcery_pre_install() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function real_default_sorcery_install() {
+real_default_sorcery_install() {
   debug "build_api2" "Starting real_default_sorcery_install"
   make    install
 }
@@ -377,7 +377,7 @@ function real_default_sorcery_install() {
 ##
 ## This is identical to api1's post_build
 #---------------------------------------------------------------------
-function real_default_sorcery_install_extras() {
+real_default_sorcery_install_extras() {
 
   debug "build_api2" "Starting real_default_sorcery_install_extras"
   install_xinetd
@@ -392,7 +392,7 @@ function real_default_sorcery_install_extras() {
 
 }
 
-function real_default_sorcery_transfer() {
+real_default_sorcery_transfer() {
 
   debug "build_api2" "Starting real_default_sorcery_transfer"
   transfer_staged_spell

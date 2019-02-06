@@ -16,7 +16,7 @@
 ## Outputs file as that is the dl handler for file:// urls
 ##
 #---------------------------------------------------------------------
-function url_default_bucketize() {
+url_default_bucketize() {
   url_get_prefix $1
 }
 
@@ -26,7 +26,7 @@ function url_default_bucketize() {
 ## Outputs the url with the prefix removed
 ##
 #---------------------------------------------------------------------
-function url_default_crack() {
+url_default_crack() {
   local prefix=$(url_get_prefix $1)
   [[ $prefix ]] || return 1
   url_strip_prefix "$1" $prefix
@@ -35,7 +35,7 @@ function url_default_crack() {
 #---------------------------------------------------------------------
 ##=item url_default_expand
 #---------------------------------------------------------------------
-function url_default_expand() {
+url_default_expand() {
   echo "$@"
 }
 
@@ -46,7 +46,7 @@ function url_default_expand() {
 ## True if url_crack returns true
 ##
 #---------------------------------------------------------------------
-function url_default_is_valid() {
+url_default_is_valid() {
   url_crack $1 >/dev/null
 }
 
@@ -56,7 +56,7 @@ function url_default_is_valid() {
 ## Always returns true
 ##
 #---------------------------------------------------------------------
-function url_default_verify() {
+url_default_verify() {
   true
 }
 
@@ -66,7 +66,7 @@ function url_default_verify() {
 ## Outputs localhost
 ##
 #---------------------------------------------------------------------
-function url_default_hostname() {
+url_default_hostname() {
   echo localhost
 }
 
@@ -76,7 +76,7 @@ function url_default_hostname() {
 ## Fake netselect return 0 for each url
 ##
 #---------------------------------------------------------------------
-function url_default_netselect() {
+url_default_netselect() {
   local each
   for each in $@ ; do
     echo "0 $each"

@@ -20,7 +20,7 @@
 ## Produces "a" "string" "to" "explode".
 ## </pre>
 #---------------------------------------------------------------------
-function explode()
+explode()
 { # $1==string to explode, $2==delimiter, $3==name of array to put it in
 
   [[ "$3" ]] || return 1
@@ -55,7 +55,7 @@ function explode()
 ## files before compiling.  See the sed man page for more information.
 ##
 #---------------------------------------------------------------------
-function real_sedit()  {
+real_sedit()  {
   sed -i "$1" "$2"
 }
 
@@ -68,7 +68,7 @@ function real_sedit()  {
 ## Argument is a string to check if the string contains all digits or
 ## not
 #--------------------------------------------------------------------
-function isdigit() {
+isdigit() {
   echo "$1" | grep '^[0-9][0-9]*$' >> /dev/null 2>&1
 }
 
@@ -80,7 +80,7 @@ function isdigit() {
 ##
 ## Argument is a string to check if it contains all chars a-zA-Z
 #--------------------------------------------------------------------
-function isalpha() {
+isalpha() {
   echo "$1" | grep '^[A-Za-z][A-Za-z]*$' >> /dev/null 2>&1
 }
 
@@ -100,7 +100,7 @@ function isalpha() {
 ## Returns true or false based on the answer given.
 ##
 #---------------------------------------------------------------------
-function real_query()  {
+real_query()  {
   debug "libmisc" "Running query() with the following arguments: '$1' and '$2'"
   local _response
   run_hook real_query
@@ -134,7 +134,7 @@ function real_query()  {
 ## Asks user for string, with default answer and timeout (like query)
 ##
 #---------------------------------------------------------------------
-function real_query_string () {
+real_query_string() {
 
     debug  "libmisc" "Running question() with the following arguments: '$1' and '$2'"
 
@@ -170,7 +170,7 @@ function real_query_string () {
 ## @Stdout message
 ## echo's the given arguments if SILENT is not set.
 #---------------------------------------------------------------------
-function real_message()    {
+real_message()    {
   if  [  !  -n  "$SILENT"  ];  then
     if  [  "$1"  ==  "-n"  ];  then
       shift  1
@@ -189,7 +189,7 @@ function real_message()    {
 ## @Stderr message
 ## echo's the given arguments if SILENT is not set.
 #---------------------------------------------------------------------
-function error_message() {
+error_message() {
   real_message "$@" 1>&2
 }
 
@@ -221,7 +221,7 @@ debug_stream()  {
 ## comes from. i.e. DEBUG_liblock, DEBUG_libsorcery, DEBUG_cast etc.
 ##
 #---------------------------------------------------------------------
-function debug()  {
+debug()  {
 
   [[ $DEBUG ]] || return 0
 
@@ -246,7 +246,7 @@ function debug()  {
 ## Displays progress spinner like the one in fsck.
 ##
 #---------------------------------------------------------------------
-function progress_spinner()  {
+progress_spinner()  {
   let  PROGRESS_SPINNER=$PROGRESS_SPINNER+1
   if ((  PROGRESS_SPINNER > ${#PROGRESS_SPINNER_CHARS}-1  )); then
     PROGRESS_SPINNER=0;
@@ -265,7 +265,7 @@ function progress_spinner()  {
 ## Or just a dot in the dot format
 ##</pre>
 #---------------------------------------------------------------------
-function progress_bar()  {
+progress_bar()  {
 debug "libmisc" "progress_bar - $*"
   local percent i len num_dash
 
@@ -338,7 +338,7 @@ debug "libmisc" "progress_bar - $*"
 ## Clears the current line and puts the cursor at the begining of it.
 ##
 #---------------------------------------------------------------------
-function clear_line()  {
+clear_line()  {
 
   echo -en '\r\033[2K'
   return 0
@@ -373,7 +373,7 @@ function clear_line()  {
 ## One would run it by calling: run_hook SUCCESS post
 ##
 #---------------------------------------------------------------------
-function init_hooks()  {
+init_hooks()  {
   debug "libmisc" "init_hooks - starting"
   # check if we were called already
   declare -F hook_marker &>/dev/null && return 0
@@ -447,7 +447,7 @@ function init_hooks()  {
 ## @optional_param hook_order pre|post
 ##
 #---------------------------------------------------------------------
-function run_hook() {
+run_hook() {
   local spell_file="$1"
   local hook_order="$2"
   local rc=$3
@@ -473,7 +473,7 @@ function run_hook() {
 ## argument.  If EDITOR is not set, "nano -w" is used.
 ##
 #---------------------------------------------------------------------
-function edit_file()  {
+edit_file()  {
 
   ${EDITOR:-nano -w} $1
 
@@ -491,7 +491,7 @@ function edit_file()  {
 ## be treated literaly.
 ##
 #---------------------------------------------------------------------
-function esc_str()
+esc_str()
 {
   if [[ $1 == ".*" ]]; then
     if [[ -z $2 ]]; then
@@ -519,7 +519,7 @@ function esc_str()
 ## Does NOT escape strings matching "\.\*(.*".
 ##
 #---------------------------------------------------------------------
-function esc_provider_str()
+esc_provider_str()
 {
   local _escaped
   # the pattern is intentionally not quoted, so glob matching occurs
@@ -542,7 +542,7 @@ function esc_provider_str()
 ##  PARAMS=$(consolidate_params "$@")
 ##  su -c "$0 $PARAMS" root
 #---------------------------------------------------------------------
-function consolidate_params() {
+consolidate_params() {
   local param
   for param in "$@"; do
     # add and remove a dummy space, so echo parameters can be used as values
@@ -558,7 +558,7 @@ function consolidate_params() {
 ## and outputs their base names.
 ##
 #---------------------------------------------------------------------
-function get_basenames() {
+get_basenames() {
   local directory
   while read directory; do
     smgl_basename "$directory"
@@ -573,7 +573,7 @@ function get_basenames() {
 ## and outputs their directory names.
 ##
 #---------------------------------------------------------------------
-function get_dirnames() {
+get_dirnames() {
   local path_name
   while read path_name; do
     smgl_dirname "$path_name"
@@ -589,7 +589,7 @@ function get_dirnames() {
 ## Checks whether the passed directory exists and if not, tries to
 ## create it, first checking if it already exists as something else.
 #---------------------------------------------------------------------
-function ensure_dir() {
+ensure_dir() {
   if ! [[ -d $1 ]]; then
     if [[ -e $1 ]]; then
       message "${PROBLEM_COLOR}$1 exists, but is not a directory!" \
@@ -619,7 +619,7 @@ function ensure_dir() {
 ##  In stdin mode, if the string does not terminate with the delimiter, the last
 ##  token will be ignored.
 #----------------------------------------------------------------------
-function iterate()
+iterate()
 { # $1=callback+args, $2=separator, $3=(opt)string
 #  debug "libmisc" "iterate - $@"
 
@@ -663,7 +663,7 @@ function iterate()
 ## item in return_var
 ##
 #---------------------------------------------------------------------
-function select_list()
+select_list()
 {
     local i
     local foo temp number
@@ -699,7 +699,7 @@ function select_list()
 ## @param message to print out for the query
 ## @param default answer
 #---------------------------------------------------------------------
-function select_list_sub() {
+select_list_sub() {
   local returnvar=$1
   local hashname=$2
   local msgstr=$3
@@ -725,7 +725,7 @@ function select_list_sub() {
 ## are separated by spaces
 ##
 #---------------------------------------------------------------------
-function real_list_remove () {
+real_list_remove() {
     local var=$1
     shift
 
@@ -749,7 +749,7 @@ function real_list_remove () {
 ## separated by spaces
 ##
 #---------------------------------------------------------------------
-function real_list_add () {
+real_list_add() {
   local var=$1
   shift
   local i
@@ -785,7 +785,7 @@ function real_list_add () {
 ## other list_* functions. Use the ${var[*]} form when passing arrays
 ##
 #---------------------------------------------------------------------
-function real_list_find () {
+real_list_find() {
   local item token
   [[ "$1" ]] || return 1
   local input=$1
@@ -810,7 +810,7 @@ function real_list_find () {
 ## of the variable to read
 ##
 #---------------------------------------------------------------------
-function real_persistent_read() {
+real_persistent_read() {
   local exfile pfile tb_dir
   local varin=$2
   local varout=$3
@@ -832,7 +832,7 @@ function real_persistent_read() {
 ## Adds variable names to the list of persistent variables
 ##
 #---------------------------------------------------------------------
-function real_persistent_add () {
+real_persistent_add() {
   if [[ $PROTECT_SORCERY ]] ; then
     for each in "$@" ; do
       if is_sorcery_var $each; then
@@ -856,7 +856,7 @@ function real_persistent_add () {
 ## Removes variable names from the list of persistent variables
 ##
 #---------------------------------------------------------------------
-function real_persistent_remove () {
+real_persistent_remove() {
     list_remove PERSISTENT_VARIABLES "$@"
 }
 
@@ -865,7 +865,7 @@ function real_persistent_remove () {
 ## Loads persistent variables stored in file "$SPELL_CONFIG"
 ##
 #---------------------------------------------------------------------
-function real_persistent_load () {
+real_persistent_load() {
     local PERSISTENT_LOADING=yes
     local PERSISTENT_FILE=${1:-$SPELL_CONFIG.p}
     lock_file "$PERSISTENT_FILE"
@@ -884,7 +884,7 @@ function real_persistent_load () {
 ## variables
 ##
 #---------------------------------------------------------------------
-function real_persistent_save () {
+real_persistent_save() {
     local VAR
     local TMP
     local file=$SPELL_CONFIG.p
@@ -907,7 +907,7 @@ function real_persistent_save () {
 ## ( for example from 'gaze what' )
 ##
 #---------------------------------------------------------------------
-function real_persistent_clear () {
+real_persistent_clear() {
     local VAR
     for VAR in $PERSISTENT_VARIABLES; do
         unset "$VAR"
@@ -930,7 +930,7 @@ function real_persistent_clear () {
 ## function and are not working with variables directly
 ##
 #---------------------------------------------------------------------
-function config_get_option () {
+config_get_option() {
   if [[ $PROTECT_SORCERY ]] ; then
     if is_sorcery_var $1; then
       complain_sorcery_var $1
@@ -962,7 +962,7 @@ function config_get_option () {
 ## when cast -r is run, this makes the new persistent config clean
 ## but allows us to provide the user defaults from the last cast.
 #---------------------------------------------------------------------
-function config_get_last_option() {
+config_get_last_option() {
   if [[ $PROTECT_SORCERY ]] ; then
     if is_sorcery_var $1; then
       complain_sorcery_var $1
@@ -1008,7 +1008,7 @@ function config_get_last_option() {
 ## working with variables directly
 ##
 #---------------------------------------------------------------------
-function config_set_option () {
+config_set_option() {
     persistent_add $1
     eval "$1=\"$2\""
 }
@@ -1025,7 +1025,7 @@ function config_set_option () {
 ## Return variable is also marked as persistent
 ##
 #---------------------------------------------------------------------
-function real_config_query () {
+real_config_query() {
     local ANSWER
     if config_get_option "$1" ANSWER; then
         # option allready ANSWERed in config
@@ -1064,7 +1064,7 @@ function real_config_query () {
 ##
 ## Return variable is also marked as persistent
 #---------------------------------------------------------------------
-function real_config_query_option () {
+real_config_query_option() {
     local ANSWER key
 
     # If the option exists
@@ -1110,7 +1110,7 @@ function real_config_query_option () {
 ## Return variable is also marked as persistent
 ##
 #---------------------------------------------------------------------
-function real_config_query_string () {
+real_config_query_string() {
     local ANSWER
 
     if config_get_option "$1" ANSWER; then
@@ -1138,7 +1138,7 @@ function real_config_query_string () {
 ## Return variable is also marked as persistent
 ##
 #---------------------------------------------------------------------
-function real_config_query_list () {
+real_config_query_list() {
   local ANSWER
   local VARIABLE="$1"
   local QUESTION="$2"
@@ -1176,14 +1176,14 @@ function real_config_query_list () {
 ## This is the number portion of SOURCE[[:digit:]], eg '', "2", "3", etc.
 ## A prefix may be given and it will be prepended to each result value.
 #---------------------------------------------------------------------
-function real_get_source_nums() {
+real_get_source_nums() {
   local foo
   compgen -v SOURCE |
   grep '^SOURCE[0-9]*$'|sort -u|
   while read foo; do echo "${1}${foo/SOURCE/}"; done
 }
 
-function get_spell_files() {
+get_spell_files() {
   for src in $(real_get_source_nums SOURCE); do
     echo ${!src}
   done
@@ -1199,7 +1199,7 @@ function get_spell_files() {
 ## existing function, false otherwise.
 ##
 #---------------------------------------------------------------------
-function misc_is_function()  {
+misc_is_function()  {
   local  FUNCTION_NAME=$1
   [[ "$(type -t $FUNCTION_NAME)" == "function" ]]
 }
@@ -1212,7 +1212,7 @@ function misc_is_function()  {
 ## @param Filename to read as input, a pipe may not be used.
 ## @param Base directory to remove directories up to (usually $INSTALL_ROOT)
 #---------------------------------------------------------------------
-function remove_files_and_dirs() {
+remove_files_and_dirs() {
     cat $1 | while read file; do
       if [[ ! -d $file ]]; then
         rm -f $file
@@ -1239,7 +1239,7 @@ function remove_files_and_dirs() {
 ## even in subprocesses called through make.
 ## @param name of the script needing the tmp dir
 #---------------------------------------------------------------------
-function mk_tmp_dirs() {
+mk_tmp_dirs() {
   debug "$FUNCNAME" "Making tmp dirs for $$"
   local SCRIPT_NAME=$1 STATS tmp
   SCRIPT_NAME=${SCRIPT_NAME:-misc}
@@ -1296,7 +1296,7 @@ function mk_tmp_dirs() {
 }
 
 # emergency exit function if we fail to make a TMP_DIR
-function mk_tmp_dir_error() {
+mk_tmp_dir_error() {
     message "Failed to make temporary dir, this" \
             "might be due to a security attack,\nplease" \
             "check the permissions of $1. Bailing out..." 2>/dev/null
@@ -1314,7 +1314,7 @@ function mk_tmp_dir_error() {
 ## Marches through $PATH looking for the executable specified
 ##
 #---------------------------------------------------------------------
-function smgl_which() {
+smgl_which() {
   local target=$1 location
   local BREAK
   function smgl_which_sub() {
@@ -1344,7 +1344,7 @@ function smgl_which() {
 ## @param variable to return path in (pass by reference)
 ##
 #---------------------------------------------------------------------
-function find_make() {
+find_make() {
   local ___REAL_MAKE
   smgl_which make ___REAL_MAKE
   rc=$?
@@ -1360,7 +1360,7 @@ function find_make() {
 #---------------------------------------------------------------------
 ## @param tmp_dir, should begin with /tmp/sorcery
 #---------------------------------------------------------------------
-function cleanup_tmp_dir() {
+cleanup_tmp_dir() {
   local TMP_DIR=$1
   if  [  ${TMP_DIR:0:13} ==  "/tmp/sorcery/"  ];  then
     rm -rf $TMP_DIR
@@ -1388,7 +1388,7 @@ function cleanup_tmp_dir() {
 ## in some circumstances and not others, and one uses it where its safe,
 ## someone will forget and start using it in places that arent safe...
 #---------------------------------------------------------------------
-function is_sorcery_var() {
+is_sorcery_var() {
   local vars="TOP_LEVEL DISPLAY PATH TMP_DIR SAFE_CAST \
   FAILED_LIST SUCCESS_LIST SPELL SPELLS spells MAKEFILE DEPS_ONLY \
   CAST_PASS download_log IW_LOG OPTS SOLO QUIET INSTALL_QUEUE \
@@ -1411,7 +1411,7 @@ function is_sorcery_var() {
 ## @stdout Complain vehemently that a variable name is used by sorcery and
 ## @stdout the user should file a bug because a spell is using the variable
 #---------------------------------------------------------------------
-function complain_sorcery_var() {
+complain_sorcery_var() {
   message "${PROBLEM_COLOR}WARNING: ATTEMPTING TO USE" \
           "${DEFAULT_COLOR}${SPELL_COLOR}\"$1\"" \
            "${DEFAULT_COLOR}${PROBLEM_COLOR}AS A SPELL VARIABLE."
@@ -1443,7 +1443,7 @@ function complain_sorcery_var() {
 ## SMGL_COMPAT_ARCHS. The result is an array from most specific arch to least
 ## specific. $ARCHITECTURE does not change meaning since $A == ${A[0]}.
 #-------------------------------------------------------------------
-function set_architecture() {
+set_architecture() {
 
   $STD_DEBUG
   local specdir
@@ -1493,7 +1493,7 @@ function set_architecture() {
 ## Creates functions with identical bodies. It is useful if you need
 ## to override a bunch of functions which have already been defined.
 #---------------------------------------------------------------------
-function define_functions() {
+define_functions() {
   local funcName
   local funcContent="$1"
   shift
@@ -1524,7 +1524,7 @@ function define_functions() {
 ## }
 ## </pre>
 #---------------------------------------------------------------------
-function upvar() {
+upvar() {
   # This makes eval see things as name=$2,
   # which makes leading/trailing whitespace and special chars magically work.
   eval "$1=\$2"
@@ -1534,14 +1534,14 @@ function upvar() {
 #---------------------------------------------------------------------
 ## Like uniq, but doesnt require a sorted list, implemented in awk.
 #---------------------------------------------------------------------
-function awkuniq() {
+awkuniq() {
   awk '!($0 in seen) { seen[$0]; print }'
 }
 
 #---------------------------------------------------------------------
 ## Dirname written in bash, optionally uses an upvar (making it forkless).
 #---------------------------------------------------------------------
-function smgl_dirname() {
+smgl_dirname() {
   local __dir=() __dirname i __last_dir
 
   # Pull of any trailing /'s, there could be more than/one///
@@ -1587,7 +1587,7 @@ function smgl_dirname() {
 ## basename written in bash, optionally uses upvar (making it forkless).
 ## Does not have ability to remove file extension like the real basename.
 #---------------------------------------------------------------------
-function smgl_basename() {
+smgl_basename() {
   local __base=$1
   local __last_base
 
@@ -1617,7 +1617,7 @@ function smgl_basename() {
 ## TODO: remove grimoire functions libgcc gcc_prepend_path and use
 ## this one
 #--------------------------------------------------------------------
-function envar_prepend_path()
+envar_prepend_path()
 {
   if test -z $2
   then
@@ -1631,7 +1631,7 @@ function envar_prepend_path()
 ## Appends the input to the notice log, prepending the spell name as a
 ## title, appending a newline and teeing the input back unchanged.
 #---------------------------------------------------------------------
-function append_to_notice_log() {
+append_to_notice_log() {
   local notice_log=$TMP_DIR/notice_log
   local tmp_log=$TMP_DIR/tmp_notice_log
 
@@ -1651,7 +1651,7 @@ function append_to_notice_log() {
 ##
 ## @param reason
 #---------------------------------------------------------------------
-function log_failure_reason() {
+log_failure_reason() {
   [[ -z $CAST_BACKUPDIR ]] && return 1
 
   # delve has a different TMP_DIR, so we can't use it
@@ -1672,7 +1672,7 @@ function log_failure_reason() {
 ##
 ## @param upvar
 #---------------------------------------------------------------------
-function get_failure_reason() {
+get_failure_reason() {
   local failure_reason_log=$CAST_BACKUPDIR/failure_reason_log
   local _upvar=$1
   local _reason
@@ -1692,7 +1692,7 @@ function get_failure_reason() {
 ## @param use dialog (optional)
 ## @param message to print on error (optional)
 #---------------------------------------------------------------------
-function show_file() {
+show_file() {
   local file=$1
   local dialog=${2:-yes}
   local msg=${3:-"File not found."}
@@ -1728,7 +1728,7 @@ function show_file() {
 ## TERM=screen
 ##
 #---------------------------------------------------------------------
-function set_term_title()
+set_term_title()
 {
   case $TERM in
     xterm*|rxvt) echo -ne "\e]0;$@\007" ;;

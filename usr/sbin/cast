@@ -10,7 +10,7 @@
 #-----
 ## Help... hmm... I wonder what it does...
 #-----
-function help() {
+help() {
 
   cat  <<  EOF
 
@@ -89,7 +89,7 @@ EOF
 ## @Globals INSTALL_QUEUE
 ##
 #---------------------------------------------------------------------
-function process_parameters()  {
+process_parameters()  {
 
   local n
   while  [  -n  "$1"  ];  do
@@ -140,7 +140,7 @@ function process_parameters()  {
 ## Goes through arguments and prints spells or parameters that are no
 ## switches rather.
 #---------------------------------------------------------------------
-function strip_parameters()  {
+strip_parameters()  {
   local x n
 
   while  [  -n  "$1"  ];  do
@@ -188,7 +188,7 @@ function strip_parameters()  {
 ## Look for optional parameter and use default otherwise
 ## specify via upvar how much to shift parameters
 #---------------------------------------------------------------------
-function get_option() {
+get_option() {
   local param=$1
   local default=$2
   local answer=$3
@@ -208,7 +208,7 @@ function get_option() {
 ## have been taken care of and we are allowed to cast this.
 ## @Globals SPELL
 #---------------------------------------------------------------------
-function cast_spell()  { (
+cast_spell()  { (
 
   debug "cast" "Casting spell [$SPELL]"
   run_hook cast_start_spell
@@ -304,7 +304,7 @@ function cast_spell()  { (
 ## Do dependency resolution. Takes the spells in the $SPELLS variable
 ## and resolves them. A superset list is created called $SPELLS_TO_CAST
 #---------------------------------------------------------------------
-function pass_one()  {
+pass_one()  {
   #  This pass does configuration and dependency identification.
   debug "cast" "Starting pass_one()"
 
@@ -407,7 +407,7 @@ function pass_one()  {
 ## Depending on SEPARATE it starts pass three in the background
 ## or not.
 #---------------------------------------------------------------------
-function pass_two()  {
+pass_two()  {
   #  This pass downloads required sources.
   #  And starts the make process
   debug "cast" "Starting pass_two()"
@@ -501,7 +501,7 @@ function pass_two()  {
 ## (Is being called by make)
 ## If in screen mode it also execs a tail to the summon window
 #---------------------------------------------------------------------
-function pass_three()  {
+pass_three()  {
   debug "cast" "pass_three - $*"
   unset CAST_PASS
   trap "exit 1" INT TERM
@@ -570,7 +570,7 @@ function pass_three()  {
 ## If resurrect or cast_spell returned 0 it calls trigger "cast"
 ## (Is being called by make)
 #---------------------------------------------------------------------
-function pass_four()  {
+pass_four()  {
 
   debug "cast" "pass_four - $*"
   local do_resurrect=no
@@ -620,7 +620,7 @@ function pass_four()  {
 ## CHECK_TRIGGERS_FAILURE
 ## Does report generation.
 #---------------------------------------------------------------------
-function pass_five()  {
+pass_five()  {
 
   debug "cast" "Function : pass_five"
   local rc=0
@@ -776,7 +776,7 @@ function pass_five()  {
 ##
 ## Starts the passes and sets CAST_PASS accordingly.
 #---------------------------------------------------------------------
-function pass_zero()  {
+pass_zero()  {
 
   debug "cast" "Starting pass_zero()"
   debug "pass_zero" "Starting passes 1,2,3,4 with : '$*'"
@@ -795,7 +795,7 @@ function pass_zero()  {
 ## That function is being called when the process receives
 ## SIGINT. It then calls cleanup.
 #---------------------------------------------------------------------
-function int_trap()
+int_trap()
 {
   message "${PROBLEM_COLOR}SIGINT${DEFAULT_COLOR}"
   message "Cleaning up as well as I can..."
@@ -811,7 +811,7 @@ function int_trap()
 #---------------------------------------------------------------------
 ## Used for cleaning up. Deleting some files and $TMP_DIR.
 #---------------------------------------------------------------------
-function cast_cleanup() {
+cast_cleanup() {
   $STD_DEBUG
   cleanup_tmp_dir $TMP_DIR
   rmdir $CAST_BACKUPDIR 2>/dev/null
@@ -827,7 +827,7 @@ function cast_cleanup() {
 ## which are then being reported. Then the passes are being started
 ## according to CAST_PASS
 #---------------------------------------------------------------------
-function main()  {
+main()  {
   debug "cast" "main() - $*"
   local T_SPELLS
   process_parameters        "$@"

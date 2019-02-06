@@ -3,7 +3,7 @@
 #-----
 ## Output a short message about using libscreen
 #-----
-function screen_quick_intro() {
+screen_quick_intro() {
   message "${MESSAGE_COLOR}Using screen mode. Watch the bottom for notices."
   message "${MESSAGE_COLOR}Press ^A-n and ^A-p to cycle through windows."
   message "${MESSAGE_COLOR}Screen help is available with ^A-? (control-a ?)${DEFAULT}"
@@ -18,7 +18,7 @@ function screen_quick_intro() {
 ## It execs a screen session with the specified name, with the specified
 ## arguments.
 #-----
-function screen_start() {
+screen_start() {
   $STD_DEBUG
   local name="$1"
   local screen
@@ -37,7 +37,7 @@ function screen_start() {
 ## a command in a screen.
 ## The .!!| args to exec were determined by trial and error. ::: didn't work.
 #-----
-function screen_command() {
+screen_command() {
   $STD_DEBUG
   local name="$1"
   shift
@@ -61,7 +61,7 @@ function screen_command() {
 ## Only one of each type is allowed to exist at once
 ## They are actualy window numbers in disguise
 #-----
-function screen_new_window() {
+screen_new_window() {
   $STD_DEBUG
   local screen_name="$1"
   local win_num="$2"
@@ -79,7 +79,7 @@ function screen_new_window() {
 ## Doesn't work properly since screen doesn't like being run in the bg.
 ## Default escape code is ^A.
 #-----
-function screen_attach() {
+screen_attach() {
   $STD_DEBUG
   screen -r "$1" $SCREEN_KEY &
 }
@@ -88,7 +88,7 @@ function screen_attach() {
 ## @param Screen session name
 ## Detaches the named screen session from the tty.
 #-----
-function screen_detach() {
+screen_detach() {
   $STD_DEBUG
   screen -x "$1" -X detach
 }
@@ -99,7 +99,7 @@ function screen_detach() {
 ## Kills the window in the session. Also notifies the user that the window was
 ## closed
 #-----
-function screen_kill_window() {
+screen_kill_window() {
   $STD_DEBUG
   screen -x "$1" -p "$2" -X kill
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -113,7 +113,7 @@ function screen_kill_window() {
 ## @param New name
 ## Give an existing window a new name
 #-----
-function screen_name_window() {
+screen_name_window() {
   $STD_DEBUG
   screen -x "$1" -p "$2" -X title "$3"
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -124,7 +124,7 @@ function screen_name_window() {
 ## Give aname to the current window.
 ## There are race conditions aplenty if you're not careful
 #-----
-function screen_name_curr_window() {
+screen_name_curr_window() {
   $STD_DEBUG
   screen -x "$1" -X title "$2"
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -135,7 +135,7 @@ function screen_name_curr_window() {
 ## @param Message
 ## Notify the user of something happening using the status bar
 #-----
-function screen_notify() {
+screen_notify() {
   $STD_DEBUG
   screen -x "$1" -X echo "$@"
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -147,7 +147,7 @@ function screen_notify() {
 ## Sets a window to be monitored. The user will be informed of any activity
 ## in the window.
 #-----
-function screen_monitor_window() {
+screen_monitor_window() {
   $STD_DEBUG
   screen -x "$1" -p "$2" -X monitor on
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -158,7 +158,7 @@ function screen_monitor_window() {
 ## @param Window to monitor
 ## Stops a window from being monitored
 #-----
-function screen_unmonitor_window() {
+screen_unmonitor_window() {
   $STD_DEBUG
   screen -x "$1" -p "$2" -X monitor off
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -169,7 +169,7 @@ function screen_unmonitor_window() {
 ## @param Window to switch to
 ## Changes the window the user sees
 #-----
-function screen_switch_window() {
+screen_switch_window() {
   $STD_DEBUG
   screen -x "$1" -X select "$2"
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -179,7 +179,7 @@ function screen_switch_window() {
 ## @param Screen session name
 ## Ends the screen session. Should end all processes running in the screen.
 #-----
-function screen_quit() {
+screen_quit() {
   $STD_DEBUG
   screen -x "$1" -X quit
 }
@@ -191,7 +191,7 @@ function screen_quit() {
 ## Moves a window to a new number
 ## If something is already at that number, it swaps them
 #-----
-function screen_move_window() {
+screen_move_window() {
   $STD_DEBUG
   screen -x "$1" -p "$2" -X number "$3"
   sleep $SCREEN_ANTI_RACE_SLEEP
@@ -202,7 +202,7 @@ function screen_move_window() {
 ## @param Delay in seconds
 ## Sets the time screen shows messages for
 #-----
-function screen_set_msgwait() {
+screen_set_msgwait() {
   $STD_DEBUG
   screen -x "$1" -X msgwait $2
   sleep $SCREEN_ANTI_RACE_SLEEP

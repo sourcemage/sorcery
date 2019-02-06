@@ -20,7 +20,7 @@
 ## pokes around for a configure or src/configure and if it exists
 ## asks the user if they want to edit the custom options
 #---------------------------------------------------------------------
-function run_config_loc () {
+run_config_loc () {
   debug "build_api_common" "Starting run_config_loc() on $SPELL"
   pushd . > /dev/null # may have been somewhere else
   run_hook config_loc pre
@@ -85,7 +85,7 @@ function run_config_loc () {
 ## If the spell is not installed (or held) the spell is not dispelled.
 ##
 #---------------------------------------------------------------------
-function real_prepare_install() { (
+real_prepare_install() { (
 
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
@@ -114,7 +114,7 @@ save_bin_lib_paths
 ## dispelled
 ##
 #--------------------------------------------------------------------
-function save_bin_lib_paths()
+save_bin_lib_paths()
 {
   # TODO this is a dirty hack we need to remove it
   if test -d "$SOURCE_DIRECTORY/old.binaries" ; then
@@ -136,7 +136,7 @@ function save_bin_lib_paths()
 ## them as part of the spell
 ##
 #---------------------------------------------------------------------
-function real_gather_docs()  { (
+real_gather_docs()  { (
 
   if  [  "$GATHER_DOCS"  ==  "on"  ]; then
 
@@ -176,7 +176,7 @@ function real_gather_docs()  { (
 ## Copies pam configuration files to /etc/pam.d/
 ##
 #---------------------------------------------------------------------
-function install_pam_confs()  {
+install_pam_confs()  {
 
   debug  "libgrimoire" "Running install_pam_confs() on $SPELL"
 
@@ -199,7 +199,7 @@ function install_pam_confs()  {
 ## Stuff that should be done if run_build_spell succeeds
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
-function run_spell_success() {
+run_spell_success() {
     debug "build_api_common" "cast of $SPELL-$VERSION was successful"
 
     local INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
@@ -372,7 +372,7 @@ function run_spell_success() {
 ## Stuff that should be done if run_build_spell fails
 ## This is intended to be overridable at some point
 #---------------------------------------------------------------------
-function run_spell_failure() {
+run_spell_failure() {
     debug "build_api_common" "cast of $SPELL-$VERSION failed"
     local rc=$1
 

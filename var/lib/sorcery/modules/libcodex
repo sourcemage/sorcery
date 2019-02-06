@@ -71,7 +71,7 @@
 ## CODEX_ROOT is the default grimoire location
 ## NOTE: one can specify partial paths
 #---------------------------------------------------------------------
-function codex_canonicalize_grimoire_name() {
+codex_canonicalize_grimoire_name() {
   local grimoire=$1
   if [ "${grimoire:0:1}" == "/" ] ; then
     # already a full path
@@ -101,7 +101,7 @@ function codex_canonicalize_grimoire_name() {
   # do nothing and preserve return code
 }
 
-function codex_is_canonicalized() {
+codex_is_canonicalized() {
   if [ ${1:0:1} != "/" ] ; then
     message "$1 is not canonicalized!!"
     message "If you see this please contact the sorcery team"
@@ -129,7 +129,7 @@ function codex_is_canonicalized() {
 ## </pre>
 ##
 #---------------------------------------------------------------------
-function codex_find_grimoire() {
+codex_find_grimoire() {
   local cfg_lookup=$1
   local cfg_grimoire
   local use_refs=no
@@ -178,7 +178,7 @@ function codex_find_grimoire() {
 ## This function does not currently delete duplicate entries.
 ##
 #---------------------------------------------------------------------
-function codex_add_grimoire() {
+codex_add_grimoire() {
   local  NEW_GRIMOIRE=$1
   local  POSITION=$2
   local  OVERWRITE=$3
@@ -255,7 +255,7 @@ function codex_add_grimoire() {
 ## Removes the specified grimoire from the list of grimoires.
 ##
 #---------------------------------------------------------------------
-function codex_remove_grimoire() {
+codex_remove_grimoire() {
   local  GRIMOIRE_TO_DELETE="$1"
 
   codex_is_canonicalized $GRIMOIRE_TO_DELETE || return 1
@@ -289,7 +289,7 @@ function codex_remove_grimoire() {
 ## Then reloads the list
 ##
 #---------------------------------------------------------------------
-function codex_remove_duplicates() {
+codex_remove_duplicates() {
 
   local  GRIMOIRES=`codex_get_all_grimoires`
   local  CURRENT_GRIMOIRE=0
@@ -330,7 +330,7 @@ function codex_remove_duplicates() {
 ## in the argument list. Grimoire names need not be canonicalized
 ##
 #---------------------------------------------------------------------
-function codex_set_grimoires() {
+codex_set_grimoires() {
 
   local NEW_GRIMOIRE
   local GRIMOIRE_COUNT=0
@@ -356,7 +356,7 @@ function codex_set_grimoires() {
 ## @Stdout all grimoires in the codex.
 ##
 #---------------------------------------------------------------------
-function codex_get_all_grimoires() {
+codex_get_all_grimoires() {
   debug "libcodex" "codex_get_all_grimoires()"
   echo "${GRIMOIRE_DIR[*]}" | tr '[\t ]' '\n'
   return $?
@@ -367,7 +367,7 @@ function codex_get_all_grimoires() {
 ##
 ## returns true if the grimoire is set local, false otherwise.
 #---------------------------------------------------------------------
-function codex_is_local () {(
+codex_is_local() {(
   local g_name=$1 idx
 
   codex_find_grimoire $g_name grimoire idx
@@ -395,7 +395,7 @@ function codex_is_local () {(
 ## listed.
 ##
 #---------------------------------------------------------------------
-function codex_find_section_by_name() {
+codex_find_section_by_name() {
   local SECTION_NAME="$1"
   local GRIMOIRE=''
 
@@ -419,7 +419,7 @@ function codex_find_section_by_name() {
 ## @Stdout all section names from all grimoires.
 ##
 #---------------------------------------------------------------------
-function codex_get_all_section_names() {
+codex_get_all_section_names() {
   codex_get_all_sections | get_basenames
 }
 
@@ -430,7 +430,7 @@ function codex_get_all_section_names() {
 ## @Stdout all sections from all grimoires or only from the specified grimoires.
 ##
 #---------------------------------------------------------------------
-function codex_get_all_sections() {
+codex_get_all_sections() {
   if [[ $# -gt 0 ]]; then
     codex_get_sections $@
   else
@@ -445,7 +445,7 @@ function codex_get_all_sections() {
 ## Relies on a wider-scope function <@function codex_get_sections>.
 ##
 #---------------------------------------------------------------------
-function codex_get_section_names() {
+codex_get_section_names() {
   codex_is_canonicalized $1 || return 1
   codex_get_sections "$1" | get_basenames
 }
@@ -456,7 +456,7 @@ function codex_get_section_names() {
 ## @Stdout Lists all sections in the specified grimoire directories.
 ##
 #---------------------------------------------------------------------
-function codex_get_sections() {
+codex_get_sections() {
   debug "libcodex" "codex_get_sections() - $@"
   local GRIMOIRE
 
@@ -485,7 +485,7 @@ function codex_get_sections() {
 ## @return 1 otherwise
 ##
 #---------------------------------------------------------------------
-function codex_is_directory_a_spell() {
+codex_is_directory_a_spell() {
   [ -x "$1/DETAILS" ]
 }
 
@@ -498,7 +498,7 @@ function codex_is_directory_a_spell() {
 ## @return 1 othterwise
 ##
 #---------------------------------------------------------------------
-function codex_does_spell_exist() {
+codex_does_spell_exist() {
   local i
   local retValue=0
   [[ "$#" -lt 1 ]] && return 1
@@ -523,7 +523,7 @@ function codex_does_spell_exist() {
 ## spell.  If an invalid spell name is provided, nothing is listed.
 ##
 #---------------------------------------------------------------------
-function codex_find_spell_by_name() {
+codex_find_spell_by_name() {
 
   debug "libcodex" "codex_find_spell_by_name - $*"
 
@@ -539,7 +539,7 @@ function codex_find_spell_by_name() {
 ## Nothing is listed if the section doesn't include any spells.
 ##
 #---------------------------------------------------------------------
-function codex_get_spells_in_section() {
+codex_get_spells_in_section() {
   debug "libcodex" "codex_get_spells_in_section - $*"
   codex_is_canonicalized "$1" || return 1
   local section="$(smgl_basename $1)"
@@ -561,7 +561,7 @@ function codex_get_spells_in_section() {
 ## if the section doesn't include any spells.
 ##
 #---------------------------------------------------------------------
-function codex_get_spell_names() {
+codex_get_spell_names() {
   codex_get_spells_in_section "$1" | get_basenames
 }
 
@@ -578,7 +578,7 @@ function codex_get_spell_names() {
 ## @NOTE are listed.
 ##
 #---------------------------------------------------------------------
-function codex_get_all_spells() {
+codex_get_all_spells() {
   local section
   for section in `codex_get_all_sections $@`; do
     codex_get_spells_in_section $section
@@ -593,7 +593,7 @@ function codex_get_all_spells() {
 ## there are no spells with the given name.
 ##
 #---------------------------------------------------------------------
-function codex_get_spell_section() {
+codex_get_spell_section() {
   codex_find_spell_by_name "$1" | get_dirnames
 }
 
@@ -607,7 +607,7 @@ function codex_get_spell_section() {
 ## are no spells with the given name, nothing is listed.
 ##
 #---------------------------------------------------------------------
-function codex_get_spell_section_name() {
+codex_get_spell_section_name() {
   codex_find_spell_by_name "$1" | get_dirnames | get_basenames
 }
 
@@ -619,7 +619,7 @@ function codex_get_spell_section_name() {
 ## Unets all these global variables.
 ##
 #---------------------------------------------------------------------
-function codex_clear_current_spell()  {
+codex_clear_current_spell()  {
   unset GRIMOIRE SECTION SECTION_DIRECTORY SPELL  \
   SPELL_DIRECTORY SCRIPT_DIRECTORY SPELL_DESCRIPTION \
   VERSION SHORT UPDATED WEB_SITE ENTERED MAINTAINER \
@@ -637,7 +637,7 @@ function codex_clear_current_spell()  {
 ## Assumes the directory passed in is a valid spell directory.
 ##
 #---------------------------------------------------------------------
-function codex_set_current_spell()  {
+codex_set_current_spell()  {
 
   debug "libcodex" "runing codex_set_current_spell"
 
@@ -674,7 +674,7 @@ function codex_set_current_spell()  {
 ## Load just the very basics for a spell, skip build api, libcompat
 ## and other debug stuff. Intended for use in tight loops.
 #---------------------------------------------------------------------
-function codex_set_current_spell_quick()  {
+codex_set_current_spell_quick()  {
   codex_clear_current_spell
 
   codex_get_spell_paths $1
@@ -691,7 +691,7 @@ function codex_set_current_spell_quick()  {
 ## Setup the various spell paths associated with a spell without
 ## loading it.
 #---------------------------------------------------------------------
-function codex_get_spell_paths() {
+codex_get_spell_paths() {
   SPELL_DIRECTORY=$1
   SCRIPT_DIRECTORY=$1
   if test -e $SPELL_DIRECTORY/SCRIBBLED ; then
@@ -722,7 +722,7 @@ function codex_get_spell_paths() {
 ## @return 1 if the given name is not a spell.
 ##
 #---------------------------------------------------------------------
-function codex_set_current_spell_by_name()  {
+codex_set_current_spell_by_name()  {
   debug "libcodex" "codex_set_current_spell_by_name -- $1"
   local SPELL_NAME=`codex_find_spell_by_name "$1"`
   debug "libcodex" $SPELL_NAME
@@ -737,7 +737,7 @@ function codex_set_current_spell_by_name()  {
 ##                   NS-PLUGIN-COMPATIBLE
 ##
 #---------------------------------------------------------------------
-function codex_find_spell_provides() {
+codex_find_spell_provides() {
   local spell="$1"
   local feature grimoire
   local features=$(
@@ -771,7 +771,7 @@ function codex_find_spell_provides() {
 ## the category in the first grimoire the spell is seen in (because that
 ## is the only one that will be cast) otherwise it is not listed.
 #---------------------------------------------------------------------
-function find_providers()  {
+find_providers()  {
   local feature="$1"
   local provider GRIMOIRE spell_path
   local providers=$(
@@ -810,7 +810,7 @@ function find_providers()  {
 ## This will return only the first match found.
 ##
 #---------------------------------------------------------------------
-function codex_cache_spell_lookup()  {
+codex_cache_spell_lookup()  {
   local spell="$1"
   shift
   debug "libcodex" "looking up $spell in the caches of: $*"
@@ -831,7 +831,7 @@ function codex_cache_spell_lookup()  {
 ## If it still doesn't exist, the barf an error
 ##
 #---------------------------------------------------------------------
-function codex_check_cache()  {
+codex_check_cache()  {
   ret=0
   while ! [ $# = 0 ]; do
     if ! codex_is_canonicalized "$1" || ! [ -x "$1" ]; then
@@ -856,8 +856,7 @@ function codex_check_cache()  {
 ## is asked for.
 ##
 #---------------------------------------------------------------------
-function codex_create_cache()  {
-
+codex_create_cache()  {
   debug "libcodex" "codex_create_cache - $*"
   local list="$*"
   [[ $list ]] || list="${GRIMOIRE_DIR[*]}"
@@ -876,7 +875,7 @@ function codex_create_cache()  {
 #---------------------------------------------------------------------
 ## Create in-memory spell lookup table for named grimoires.
 #---------------------------------------------------------------------
-function codex_create_in_memory_cache() {
+codex_create_in_memory_cache() {
   local list
   if [[ $1 == -i ]] ; then
     list=$SPELL_STATUS
@@ -915,7 +914,7 @@ function codex_create_in_memory_cache() {
 #---------------------------------------------------------------------
 ## Creae in-memory spell lookup table for all known grimoires.
 #---------------------------------------------------------------------
-function codex_create_in_memory_cache_all() {
+codex_create_in_memory_cache_all() {
   codex_create_in_memory_cache "$@" $(codex_get_all_grimoires)
 }
 
@@ -929,7 +928,7 @@ function codex_create_in_memory_cache_all() {
 ## Prints every file matching file-name in grimoire
 ##
 #---------------------------------------------------------------------
-function codex_find_in_grimoire () {
+codex_find_in_grimoire() {
     find "$1" -follow -maxdepth 3 -mindepth 3 -perm /700 -name "$2"
 }
 
@@ -941,7 +940,7 @@ function codex_find_in_grimoire () {
 ## shell /home/martin/p4/grimoire/shell-term-fm/sash
 ##
 #---------------------------------------------------------------------
-function codex_list_provides () {
+codex_list_provides() {
     grimoire=$1
 
     for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
@@ -955,7 +954,7 @@ function codex_list_provides () {
 ## Creates keyword index
 ##
 #---------------------------------------------------------------------
-function codex_create_keyword_cache () { (
+codex_create_keyword_cache() { (
     grimoire=$1
 
     for file in $(codex_find_in_grimoire "$grimoire" "DETAILS"); do
@@ -973,7 +972,7 @@ function codex_create_keyword_cache () { (
 ## Multiversioned spells will a dummy entry. Persistent
 ## variables are ignored.
 #---------------------------------------------------------------------
-function codex_create_version_cache () {
+codex_create_version_cache() {
   xargs < <(codex_find_in_grimoire "$1" DETAILS) \
   awk -F"[\"'= ]+" '
 	function p(v) { return v in f ? f[v] : 0 }
@@ -1003,7 +1002,7 @@ function codex_create_version_cache () {
 ## @return 1 otherwise
 ## checks if servicename exists.
 #---------------------------------------------------------------------
-function codex_does_service_exist()
+codex_does_service_exist()
 {
   awk -v idx="/$PROVIDE_INDEX_FILE" -v service="$1" '
 	found = $1 == service { exit }
@@ -1022,7 +1021,7 @@ function codex_does_service_exist()
 ## CODEX_FOUND_SPELL   is set if a spell was found
 ##
 #---------------------------------------------------------------------
-function codex_find_spell_or_section_by_name()  {
+codex_find_spell_or_section_by_name()  {
     local SPELL_OR_SECTION="$1"
 
     CODEX_FOUND_SECTION=""
@@ -1044,7 +1043,7 @@ function codex_find_spell_or_section_by_name()  {
 ## empty string if the directory is not a valid spell.
 ##
 #---------------------------------------------------------------------
-function codex_get_spell_description()  {
+codex_get_spell_description()  {
   local width=$(stty size | cut -d' ' -f2)
   codex_is_directory_a_spell  "$1"  &&  .  "$1/DETAILS" | fmt -w $width -s
 }
