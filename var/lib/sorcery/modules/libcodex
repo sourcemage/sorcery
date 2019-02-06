@@ -858,17 +858,19 @@ codex_check_cache()  {
 #---------------------------------------------------------------------
 codex_create_cache()  {
   debug "libcodex" "codex_create_cache - $*"
-  local list="$*"
-  [[ $list ]] || list="${GRIMOIRE_DIR[*]}"
+  [ $# = 0 ] && set -- "${GRIMOIRE_DIR[@]}"
+  while [ $# != 0 ]; do
+    codex_find_in_grimoire "$1" "DETAILS" |
+    awk -F/ '{
+	spell = $(NF-1)
+	sub(/[/][^/]+[/][^/]+$/,"")
+	print spell, $0
+}' |
+    sort > "$1/$SPELL_INDEX_FILE"
 
-  for i in $list ; do
-    codex_find_in_grimoire $i "DETAILS" | \
-    sed 's@\(.*\)/\([^/]*\)/DETAILS@\2 \1@' | \
-    sort > $i/$SPELL_INDEX_FILE
-
-    codex_list_provides $i > "$i/$PROVIDE_INDEX_FILE"
+    codex_list_provides "$1" > "$1/$PROVIDE_INDEX_FILE"
+    shift
   done
-
 }
 
 
