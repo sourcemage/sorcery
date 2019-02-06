@@ -151,11 +151,10 @@ url_ftp_netselect() {
 ## @stdout the expanded form of those urls
 #-------------------------------------------------------------------------
 url_http_expand() {
-  local A=$'\a'
   local URL rep tgt my_hostname each
   # put the requested url first
-  echo "$@"
-  for URL in $@ ; do
+  echo "$*"
+  for URL in "$@"; do
     my_hostname=$(url_hostname ${URL})
     # a mirror is listed in the mirror listings as either
     # ftp://foo.somemirror.org/stuff
@@ -164,12 +163,17 @@ url_http_expand() {
     # note neither ends in a '/' but one has a '/' at the end of the
     # hostname, the other has an end of line. The \(/\|\$\) stuff matches
     # either
-    for each in $(grep -lr "://$my_hostname\(/\|\$\)" --exclude-dir=config $MIRRORS); do
-      rep=$(grep "://$my_hostname\(/\|\$\)" $each|awk '{print $NF; exit 0; }')
-      for tgt in $(awk '{print $NF}' $each|grep -v '^Custom$'); do
-         echo ${URL}|sed "s$A${rep}$A${tgt}$A"
-      done
-    done |grep -v $my_hostname
+    find "$MIRRORS" -name config -prune -type f -exec \
+	 awk -vurl="$URL" -vhost="://$my_hostname(/|\$)" '
+		FNR == 1 {
+			if (matched) for (i in mirrors) {
+				t = url; sub(host, i, t); print t
+			}
+			split("", mirrors); matched = 0
+		}
+		$NF ~ host { matched++; next }
+		{ mirrors[$NF] }
+	' {} +
   done
 }
 
