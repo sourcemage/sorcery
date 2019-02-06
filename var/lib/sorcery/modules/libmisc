@@ -69,7 +69,7 @@ function real_sedit()  {
 ## not
 #--------------------------------------------------------------------
 function isdigit() {
-  echo $1 | grep '[[:digit:]]+' >> /dev/null 2>&1
+  echo "$1" | grep '^[0-9][0-9]*$' >> /dev/null 2>&1
 }
 
 #--------------------------------------------------------------------
@@ -81,7 +81,7 @@ function isdigit() {
 ## Argument is a string to check if it contains all chars a-zA-Z
 #--------------------------------------------------------------------
 function isalpha() {
-  echo $1 | grep '[[:alpha:]]+' >> /dev/null 2>&1
+  echo "$1" | grep '^[A-Za-z][A-Za-z]*$' >> /dev/null 2>&1
 }
 
 #---------------------------------------------------------------------
@@ -733,7 +733,7 @@ function real_list_remove () {
 
     for i in $@; do
         eval "$var=\`echo \" \$$var \" | sed  \
-               -e \"s/[[:space:]]\\+/ /g\"   \
+               -e \"s/[\t\v\f\r ]\\+/ /g\" \
                -e \"s/ $i / /g\"             \
                -e \"s/^ *//\"                \
                -e \"s/ *$//\"\`"
@@ -1179,7 +1179,7 @@ function real_config_query_list () {
 function real_get_source_nums() {
   local foo
   compgen -v SOURCE |
-  grep '^SOURCE[[:digit:]]*$'|sort -u|
+  grep '^SOURCE[0-9]*$'|sort -u|
   while read foo; do echo "${1}${foo/SOURCE/}"; done
 }
 

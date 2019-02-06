@@ -375,7 +375,8 @@ function pass_one()  {
       message "${MESSAGE_COLOR}None of the spells have dependencies" \
               "to cast:${DEFAULT_COLOR}"
       message "---------------------------"
-      message "${PROBLEM_COLOR}${parents}" | tr '[:blank:]' '\n' | sort | column
+      message "${PROBLEM_COLOR}$(sort <<< "${parents//[\t ]/
+}" | column)"
       message "${DEFAULT_COLOR}"
       exit 1
     fi
@@ -417,7 +418,8 @@ function pass_two()  {
 
   message "${MESSAGE_COLOR}Spells are to be cast:${DEFAULT_COLOR}"
   message "---------------------------"
-  message "${SPELL_COLOR}${SPELLS_TO_CAST}" | tr '[:blank:]' '\n' | column
+  message "${SPELL_COLOR}$(sort <<< "${SPELLS_TO_CAST//[\t ]/
+}"|column)"
   message "${DEFAULT_COLOR}"
 
   if ! query "Do you want to cast these spells?" "y" ; then

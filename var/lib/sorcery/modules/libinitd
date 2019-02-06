@@ -69,12 +69,12 @@ function _init_make_backup()
 #---------------------------------------------------------------------
 function _init_get_conf_files()
 {
-
-  sed -n -f - $1 <<EOF
-s!^\.\s\s*/etc/sysconfig/\([^[:space:]]*\).*!\1!p
-s!^source\s\s*/etc/sysconfig/\([^[:space:]]*\).*!\1!p
-EOF
-
+  awk '
+	( $1 == "." || $1 == "source") &&
+	match($2, /^[/]etc[/]sysconfig[/]/) {
+		print substr($2, RLENGTH + 1)
+	}
+  ' "$1"
 }
 
 
@@ -88,7 +88,7 @@ function _init_merge_config_file()
 {
 
   # Get newly added options
-  local new_opts=$( sed -n -e 's/[[:space:]]*\([[:alnum:]_]*\)=.*/\1/p' $1 $2 |
+  local new_opts=$( sed -n -e 's/[\t\v\f\r ]*\([A-Za-z0-9_]*\)=.*/\1/p' $1 $2 |
                           sort | uniq -u )
 
   # for now the file is always modified...
@@ -113,7 +113,7 @@ function _init_merge_config_file()
 
 # The variable we're looking for has come, add it to the hold space and
 # then print everything, quit when done...
-/^[[:space:]]*$opt=/ { H ; x ; p; q; }
+/^[\t\v\f\r ]*$opt=/ { H ; x ; p; q; }
 
 # Default action, append line to hold space
 H
@@ -176,7 +176,7 @@ function init_prepare_install()
   local old_provides="$2"
   local result_list="$3"
   local script_path="$SCRIPT_DIRECTORY/init.d/$service"
-  local script_provides=$( grep '^[[:space:]]*PROVIDES' $script_path )
+  local script_provides=$( grep '^[\t\v\f\r ]*PROVIDES' $script_path )
   script_provides=$( eval "( ${script_provides:=:} ; echo \$PROVIDES ; )" )
 
   [ -z "$script_provides" ] && return
@@ -208,7 +208,7 @@ function init_install()
   local enable_script="$1"
   local script_name="$2"
   local script_path="$SCRIPT_DIRECTORY/init.d/$script_name"
-  local script_runlevel=$( grep '^[[:space:]]*RUNLEVEL' $script_path )
+  local script_runlevel=$( grep '^[\t\v\f\r ]*RUNLEVEL' $script_path )
   script_runlevel=$( eval "( $script_runlevel ; echo \$RUNLEVEL )" )
 
   [ "$script_runlevel" = "s" ] && script_runlevel="S"
@@ -265,7 +265,7 @@ function init_post_install()
       mark_file_modified "$INSTALL_ROOT/etc/sysconfig/facilities"
       IFS=":"
       set $sp   # $1 - script name, $2 - facility
-      if ! sedit "s/^\([[:space:]]*$2\)=.*/\1=$1/" \
+      if ! sedit "s/^\([\t\v\f\r ]*$2\)=.*/\1=$1/" \
             $INSTALL_ROOT/etc/sysconfig/facilities ; then
         message -n "${PROBLEM_COLOR}Unable to modify facilities file to make "
         message "$1 provider of $2.${DEFAULT_COLOR}"
