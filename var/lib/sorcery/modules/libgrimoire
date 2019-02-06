@@ -229,12 +229,9 @@ private_installed_version()  {
 real_conflicts() {
   debug  "libgrimoire" "Running conflicts() on $1. Default query answer $2."
 
-  if spell_ok $1; then
-    if [[ $2 == y ]]; then
-      echo "$1:y"
-    else
-      echo "$1:n"
-    fi
+  if spell_ok "$1"; then
+    case "$2" in y) a=y;; *) a=n;; esac
+    echo "$1:$a"
   fi
 }
 
