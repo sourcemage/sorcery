@@ -149,8 +149,8 @@ run_build()  {
 
   debug "build_api2" "Starting run_compile()"
 
-  echo  "Compile log for $SPELL $VERSION Built on `date  -u`"  >  $C_LOG
-  echo  "Using gcc version: `gcc -dumpversion`" >> $C_LOG
+  echo  "Compile log for $SPELL $VERSION Built on $(date  -u)"  >  $C_LOG
+  echo  "Using gcc version: $(gcc -dumpversion)" >> $C_LOG
   message  "${MESSAGE_COLOR}Building"  \
            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" >&3
 
@@ -188,7 +188,7 @@ run_pre_install() {
   debug "build_api2" "Starting run_pre_install()"
 
   if [ -f $S_PWD ] ; then
-    cd "`cat $S_PWD`"
+    cd "$(cat $S_PWD)"
   elif [ -d $SOURCE_DIRECTORY ] ; then
     cd "$SOURCE_DIRECTORY"
   else
@@ -197,7 +197,7 @@ run_pre_install() {
 
   run_spell_file PRE_INSTALL pre_install
   local rc=$?
-  echo  "Compile log for $SPELL $VERSION Completed Build on `date  -u`"  >>  $C_LOG
+  echo  "Compile log for $SPELL $VERSION Completed Build on $(date  -u)"  >>  $C_LOG
   pwd > $S_PWD
   return $rc
 }
@@ -223,7 +223,7 @@ run_install() {
   fi
 
   if [ -f $S_PWD ] ; then
-    cd "`cat $S_PWD`"
+    cd "$(cat $S_PWD)"
   elif [ -d $SOURCE_DIRECTORY ] ; then
     cd "$SOURCE_DIRECTORY"
   else

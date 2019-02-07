@@ -185,7 +185,7 @@ codex_add_grimoire() {
 
   codex_is_canonicalized $NEW_GRIMOIRE || return 1
 
-  local  GRIMOIRES=`codex_get_all_grimoires`
+  local  GRIMOIRES=$(codex_get_all_grimoires)
 
   local  CURRENT_GRIMOIRE
   local  GRIMOIRE_COUNT=0
@@ -260,7 +260,7 @@ codex_remove_grimoire() {
 
   codex_is_canonicalized $GRIMOIRE_TO_DELETE || return 1
 
-  local  GRIMOIRES=`codex_get_all_grimoires`
+  local  GRIMOIRES=$(codex_get_all_grimoires)
 
   lock_start_transaction "$GRIMOIRE_LIST" tGRIMOIRE_LIST
   touch  $GRIMOIRE_LIST
@@ -291,7 +291,7 @@ codex_remove_grimoire() {
 #---------------------------------------------------------------------
 codex_remove_duplicates() {
 
-  local  GRIMOIRES=`codex_get_all_grimoires`
+  local  GRIMOIRES=$(codex_get_all_grimoires)
   local  CURRENT_GRIMOIRE=0
   local  GRIMOIRE_COUNT=0
   local  SEEN_GRIMOIRES=""
@@ -399,7 +399,7 @@ codex_find_section_by_name() {
   local SECTION_NAME="$1"
   local GRIMOIRE=''
 
-  for GRIMOIRE in `codex_get_all_grimoires`; do
+  for GRIMOIRE in $(codex_get_all_grimoires); do
     if [ -d "$GRIMOIRE/$SECTION_NAME" ] ; then
       debug "libcodex" "codex_find_section_by_name() - found section $GRIMOIRE/$SECTION_NAME"
       if [[ -z $2 ]]; then
@@ -434,7 +434,7 @@ codex_get_all_sections() {
   if [[ $# -gt 0 ]]; then
     codex_get_sections $@
   else
-    codex_get_sections `codex_get_all_grimoires`
+    codex_get_sections $(codex_get_all_grimoires)
   fi
 }
 
@@ -527,7 +527,7 @@ codex_find_spell_by_name() {
 
   debug "libcodex" "codex_find_spell_by_name - $*"
 
-  codex_cache_spell_lookup $1 `codex_get_all_grimoires`
+  codex_cache_spell_lookup $1 $(codex_get_all_grimoires)
 
 }
 
@@ -580,7 +580,7 @@ codex_get_spell_names() {
 #---------------------------------------------------------------------
 codex_get_all_spells() {
   local section
-  for section in `codex_get_all_sections $@`; do
+  for section in $(codex_get_all_sections $@); do
     codex_get_spells_in_section $section
   done
 }
@@ -724,7 +724,7 @@ codex_get_spell_paths() {
 #---------------------------------------------------------------------
 codex_set_current_spell_by_name()  {
   debug "libcodex" "codex_set_current_spell_by_name -- $1"
-  local SPELL_NAME=`codex_find_spell_by_name "$1"`
+  local SPELL_NAME=$(codex_find_spell_by_name "$1")
   debug "libcodex" $SPELL_NAME
 
   [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  $SPELL_NAME
@@ -1032,7 +1032,7 @@ codex_find_spell_or_section_by_name()  {
     codex_find_section_by_name $SPELL_OR_SECTION CODEX_FOUND_SECTION
     [  -n  "$CODEX_FOUND_SECTION"  ]  &&  return
 
-    CODEX_FOUND_SPELL=`codex_find_spell_by_name $SPELL_OR_SECTION`
+    CODEX_FOUND_SPELL=$(codex_find_spell_by_name $SPELL_OR_SECTION)
     [  -n  "$CODEX_FOUND_SPELL"  ]    &&  return
 
     return 1

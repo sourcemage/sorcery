@@ -57,11 +57,11 @@ url_svn_ssh_bucketize() {
 #---------------------------------------------------------------------
 url_svn_ssh_crack() {
 
-  URL=`url_strip_prefix "$1" svn_ssh`
-  SVN_ROOT=svn+ssh://`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
-  local SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2`
-  local SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
+  URL=$(url_strip_prefix "$1" svn_ssh)
+  SVN_ROOT=svn+ssh://$(echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#")
+  local SVN_MODULE_TAG=$(echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#")
+  SVN_MODULE=$(echo $SVN_MODULE_TAG | cut -d : -f2)
+  local SVN_TAGNAME=$(echo $SVN_MODULE_TAG | cut -d : -f3)
   SVN_TAG=${SVN_TAGNAME:=HEAD}
 
 }

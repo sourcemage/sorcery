@@ -93,7 +93,7 @@ select_cabal()  {
 #----------------------
 edit_cabals()  {
 
-  while  SELECTED=`select_cabal`
+  while  SELECTED=$(select_cabal)
   do     edit_file  "$CABAL_DIRECTORY/$SELECTED"
   done
 
@@ -104,7 +104,7 @@ edit_cabals()  {
 #---------------------
 show_cabals()  {
 
-  while  SELECTED=`select_cabal`
+  while  SELECTED=$(select_cabal)
   do     show_file  "$CABAL_DIRECTORY/$SELECTED"
   done
 
@@ -115,7 +115,7 @@ show_cabals()  {
 #--------------------
 generate_cabal_key()  {
 
-  while  SELECTED=`select_cabal`
+  while  SELECTED=$(select_cabal)
   do
 
     mkdir  -p   $CABAL_KEYS
@@ -133,8 +133,8 @@ generate_cabal_key()  {
 
 all_cabal_keys()  {
 
-  for  KEY  in  `ls  $CABAL_KEYS/*  |
-                 grep  -v  "\.pub"`
+  for  KEY  in  $(ls  $CABAL_KEYS/*  |
+                 grep  -v  "\.pub")
   do  echo  "-i"
       echo  "$KEY"
   done
@@ -144,7 +144,7 @@ all_cabal_keys()  {
 
 distribute_cabal_key()  {
 
-  while  SELECTED=`select_cabal`
+  while  SELECTED=$(select_cabal)
   do
 
     mkdir  -p   $CABAL_KEYS
@@ -161,7 +161,7 @@ distribute_cabal_key()  {
     cat    $CABAL_DIRECTORY/$SELECTED  |
     while  read  BOX
     do     cat  $CABAL_KEYS/$SELECTED.pub  |
-           ssh  `all_cabal_keys`           \
+           ssh  $(all_cabal_keys)           \
                 root@$BOX                  \
                 "cat   >>  $AK2;           \
                  sort      $AK2  |         \
@@ -174,7 +174,7 @@ distribute_cabal_key()  {
 
 revoke_cabal_key()  {
 
-  while  SELECTED=`select_cabal`
+  while  SELECTED=$(select_cabal)
   do
 
     mkdir  -p   $CABAL_KEYS
@@ -189,8 +189,8 @@ revoke_cabal_key()  {
 
     cat    $CABAL_DIRECTORY/$SELECTED  |
     while  read  BOX
-    do     REVOKE=KEY="`cat  $CABAL_KEYS/$SELECTED.pub`"
-           ssh  `all_cabal_keys`                   \
+    do     REVOKE=KEY="$(cat  $CABAL_KEYS/$SELECTED.pub)"
+           ssh  $(all_cabal_keys)                   \
                 root@$BOX                          \
                 "grep  -v  "$REVOKE_KEY"  $AK2  |  \
                  sort                  >  $AK2"
@@ -205,15 +205,15 @@ name_cabals()  {
    TITLE="Name Cabals Menu"
     HELP="Please enter cabal's name"
 
-  while  SELECTED=`select_cabal`
+  while  SELECTED=$(select_cabal)
   do
 
-    if  NAME=`$DIALOG  --title         "$TITLE"  \
+    if  NAME=$($DIALOG  --title         "$TITLE"  \
                        --ok-label      "Enter"   \
                        --cancel-label  "Cancel"  \
                        --inputbox                \
                        "$HELP"                   \
-                       0 0 ${CABALS[$SELECTED]}`
+                       0 0 ${CABALS[$SELECTED]})
     then
       CABALS[$SELECTED]="$NAME"
     fi
@@ -228,10 +228,10 @@ set_max_cabals()  {
 
   PROMPT="Please enter the maximum number of cabals"
 
-  if  NEW_MAX=`eval $DIALOG  '--ok-label  "Commit"  \
+  if  NEW_MAX=$(eval $DIALOG  '--ok-label  "Commit"  \
                         --inputbox            \
                         "$PROMPT"             \
-                        0 0  "$MAX_CABALS"'`
+                        0 0  "$MAX_CABALS"')
   then
     MAX_CABALS=$NEW_MAX
     modify_local_config "MAX_CABALS" $MAX_CABALS
@@ -249,7 +249,7 @@ cabal_name_menu()  {
     E_HELP="Edit the names of the cabals"
      TITLE="Cabal Name Menu"
 
-    COMMAND=`eval $DIALOG '--title         "$TITLE"            \
+    COMMAND=$(eval $DIALOG '--title         "$TITLE"            \
                      --item-help                         \
                      --ok-label      "Select"            \
                      --cancel-label  "Exit"              \
@@ -257,7 +257,7 @@ cabal_name_menu()  {
                      "$HELP"                             \
                      0 0 0                               \
                      "S"  "Show Cabal Names"  "$S_HELP"  \
-                     "E"  "Edit Cabal Names"  "$E_HELP"'`
+                     "E"  "Edit Cabal Names"  "$E_HELP"')
   do
 
     case  $COMMAND in
@@ -281,7 +281,7 @@ enable root login without password prompts"
     R_HELP="Remove a previously installed cabal key"
      TITLE="Cabal Key Menu"
 
-    COMMAND=`eval $DIALOG '--title         "$TITLE"                 \
+    COMMAND=$(eval $DIALOG '--title         "$TITLE"                 \
                      --item-help                              \
                      --ok-label      "Select"                 \
                      --cancel-label  "Exit"                   \
@@ -290,7 +290,7 @@ enable root login without password prompts"
                      0 0 0                                    \
                      "G"  "Generate    Cabal Key"  "$G_HELP"  \
                      "D"  "Distribute  Cabal Key"  "$D_HELP"  \
-                     "R"  "Revoke      Cabal Key"  "$R_HELP"'`
+                     "R"  "Revoke      Cabal Key"  "$R_HELP"')
   do
 
     case  $COMMAND in
@@ -313,7 +313,7 @@ cabal_content_menu()  {
     E_HELP="Edit the computers which belong to a cabal"
      TITLE="Cabal Content Menu"
 
-    COMMAND=`eval $DIALOG '--title         "$TITLE"       \
+    COMMAND=$(eval $DIALOG '--title         "$TITLE"       \
                      --item-help                    \
                      --ok-label      "Select"       \
                      --cancel-label  "Exit"         \
@@ -321,7 +321,7 @@ cabal_content_menu()  {
                      "$HELP"                        \
                      0 0 0                          \
                      "S"  "Show  Cabal"  "$S_HELP"  \
-                     "E"  "Edit  Cabal"  "$E_HELP"'`
+                     "E"  "Edit  Cabal"  "$E_HELP"')
   do
 
     case  $COMMAND in
@@ -355,7 +355,7 @@ cabal_admin_menu()  {
     K_HELP="Generate and distribute keys for cabals"
      TITLE="Cabal Admin Menu"
 
-    COMMAND=`eval $DIALOG '--title         "$TITLE"                 \
+    COMMAND=$(eval $DIALOG '--title         "$TITLE"                 \
                      --item-help                              \
                      --ok-label      "Select"                 \
                      --cancel-label  "Exit"                   \
@@ -365,7 +365,7 @@ cabal_admin_menu()  {
                      "N"  "Cabal Name       Menu"  "$N_HELP"  \
                      "C"  "Cabal Content    Menu"  "$C_HELP"  \
                      "K"  "Cabal Key        Menu"  "$K_HELP"  \
-                     "M"  "Maximum Cabals:  $MAX_CABALS"   "$M_HELP"'`
+                     "M"  "Maximum Cabals:  $MAX_CABALS"   "$M_HELP"')
 
   do
 
@@ -391,10 +391,10 @@ cabal_copy()  {
     exit 1
   }
 
-       SOURCE=`eval $DIALOG  --inputbox  $SOURCE_MESSAGE  0 0`  &&
-  DESTINATION=`eval $DIALOG  --inputbox  $DEST_MESSAGE    0 0`  &&
-        CABAL=`select_cabal`                                 &&
-        ORDER=`select_order`                                 &&
+       SOURCE=$(eval $DIALOG  --inputbox  $SOURCE_MESSAGE  0 0)  &&
+  DESTINATION=$(eval $DIALOG  --inputbox  $DEST_MESSAGE    0 0)  &&
+        CABAL=$(select_cabal)                                 &&
+        ORDER=$(select_order)                                 &&
 
   case  $ORDER  in
     C)  cat  $CABAL_DIRECTORY/$CABAL  |
@@ -427,9 +427,9 @@ cabal_execute()  {
     exit 1
   }
 
-  COMMAND=`eval $DIALOG  '--inputbox  "$COMMAND_MESSAGE"  0 0'`  &&
-    CABAL=`select_cabal`                                  &&
-    ORDER=`select_order`                                  &&
+  COMMAND=$(eval $DIALOG  '--inputbox  "$COMMAND_MESSAGE"  0 0')  &&
+    CABAL=$(select_cabal)                                  &&
+    ORDER=$(select_order)                                  &&
 
   case  $ORDER  in
     C)  cat  $CABAL_DIRECTORY/$CABAL  |
@@ -459,7 +459,7 @@ cabal_execute()  {
 cabal_output()  {
 
   if  [  -d  $CABAL_OUTPUT  ];  then
-    for  FILE  in  `ls  $CABAL_OUTPUT`;  do
+    for  FILE  in  $(ls  $CABAL_OUTPUT);  do
       echo  "*------- $FILE  Beginning Output -------*"
       cat   $CABAL_OUTPUT/$FILE
       echo  "*------- $FILE  Ending Output -------*"
@@ -480,7 +480,7 @@ cabal_enchantment_menu()  {
 copies"
      TITLE="Enchantment Menu"
 
-    COMMAND=`eval $DIALOG '--title         "$TITLE"   \
+    COMMAND=$(eval $DIALOG '--title         "$TITLE"   \
                      --item-help                \
                      --ok-label      "Select"   \
                      --cancel-label  "Exit"     \
@@ -489,7 +489,7 @@ copies"
                      0 0 0                      \
                      "C"  "Copy"     "$A_HELP"  \
                      "E"  "Execute"  "$E_HELP"  \
-                     "S"  "Show"     "$S_HELP"'`
+                     "S"  "Show"     "$S_HELP"')
 
   do
 
@@ -515,7 +515,7 @@ cabal_menu()  {
     E_HELP="Execute scripts and copy files."
      TITLE="Cabal Menu"
 
-    COMMAND=`eval $DIALOG '--title         "$TITLE"          \
+    COMMAND=$(eval $DIALOG '--title         "$TITLE"          \
                      --item-help                       \
                      --ok-label      "Select"          \
                      --cancel-label  "Exit"            \
@@ -523,7 +523,7 @@ cabal_menu()  {
                      "$HELP"                           \
                      0 0 0                             \
                      "A"  "Administration"  "$A_HELP"  \
-                     "E"  "Enchantment"     "$E_HELP"'`
+                     "E"  "Enchantment"     "$E_HELP"')
 
   do
 
@@ -540,7 +540,7 @@ cabal_menu()  {
 
 if [ -n "${PAGER}" ]
 then
-  PAGER=`which less`
+  PAGER=$(which less)
 fi
 
 DIALOG="${DIALOGPROG} --stdout"

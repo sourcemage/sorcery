@@ -480,7 +480,7 @@ pass_two()  {
       message "Download pass did not finish, killing it off."
       # this is rather violent, but job control in bash lame and there's
       # no other way to kill everything off effectively :-(
-      pids="`ps x | awk -v t="$TMP_DIR" -v p=$$ -- '$0 ~ t && $1 != p {print $1}'`"
+      pids="$(ps x | awk -v t="$TMP_DIR" -v p=$$ -- '$0 ~ t && $1 != p {print $1}')"
       for i in '' '' -9; do
 	 kill $i $pids >/dev/null 2>&1
 	 echo -n .; sleep 1
@@ -649,12 +649,12 @@ pass_five()  {
   touch $CHECK_TRIGGERS_FAILURE
   touch $CONFLICT_LIST
 
-  debug "pass_five" "SUCCESS LIST is : `cat $SUCCESS_LIST 2>/dev/null`"
-  debug "pass_five" "FAILED LIST is : `cat $FAILED_LIST 2>/dev/null`"
-  debug "pass_five" "CONFLICT LIST is : `cat $CONFLICT_LIST 2>/dev/null`"
-  debug "pass_five" "CHECK_TRIGGERS_SUCCESS is : `cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null`"
-  debug "pass_five" "bad_spells is : `hash_get_table_fields bad_spells`"
-  debug "pass_five" "to_cast is : `hash_get_table_fields to_cast`"
+  debug "pass_five" "SUCCESS LIST is : $(cat $SUCCESS_LIST 2>/dev/null)"
+  debug "pass_five" "FAILED LIST is : $(cat $FAILED_LIST 2>/dev/null)"
+  debug "pass_five" "CONFLICT LIST is : $(cat $CONFLICT_LIST 2>/dev/null)"
+  debug "pass_five" "CHECK_TRIGGERS_SUCCESS is : $(cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null)"
+  debug "pass_five" "bad_spells is : $(hash_get_table_fields bad_spells)"
+  debug "pass_five" "to_cast is : $(hash_get_table_fields to_cast)"
 
   if [ -s $SUCCESS_LIST ] ; then
 
@@ -663,7 +663,7 @@ pass_five()  {
     message "Spells installed successfully:"
     message "------------------------------${SPELL_COLOR}"
 
-    for item in `cat $SUCCESS_LIST 2>/dev/null`; do
+    for item in $(cat $SUCCESS_LIST 2>/dev/null); do
       message "$item"
     done | sort | column
 
@@ -675,7 +675,7 @@ pass_five()  {
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that had a check_self trigger succeed:"
     message "---------------------------------------------${SPELL_COLOR}"
-    for item in `cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null`; do
+    for item in $(cat $CHECK_TRIGGERS_SUCCESS 2>/dev/null); do
       message "$item"
     done | sort | column
     message "${DEFAULT_COLOR}"
@@ -685,7 +685,7 @@ pass_five()  {
     message "${DEFAULT_COLOR}"
     message "${MESSAGE_COLOR}Spells that had a check_self trigger fail:"
     message "------------------------------------------${SPELL_COLOR}"
-    for item in `cat $CHECK_TRIGGERS_FAILURE 2>/dev/null`; do
+    for item in $(cat $CHECK_TRIGGERS_FAILURE 2>/dev/null); do
       message "$item"
     done | sort | column
     message "${DEFAULT_COLOR}"
@@ -740,7 +740,7 @@ pass_five()  {
       message "${MESSAGE_COLOR}The install queue is not empty, "
       message "it still contains the following spells: "
       message "---------------------------------------${PROBLEM_COLOR}"
-      for item in `cat $INSTALL_QUEUE 2>/dev/null`; do
+      for item in $(cat $INSTALL_QUEUE 2>/dev/null); do
         message "$item"
       done | sort | column
       message "${DEFAULT_COLOR}"
@@ -854,7 +854,7 @@ main()  {
       exit
     fi
   else
-    SPELLS=`strip_parameters  "$@"`
+    SPELLS=$(strip_parameters  "$@")
   fi
 
   if [[ $OVERRIDE_GRIMOIRES ]] ; then

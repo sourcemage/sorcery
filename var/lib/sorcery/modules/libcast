@@ -195,13 +195,13 @@ query_custom_cflags() {
       # input box returns things of the form "RENAMED CFLAGS -O3 -march=foo ..."
       # the ( ) interprits as an array, then using the magic power of set we
       # get to use shift and $@ to get things done
-      RESULTS=(`eval dialog --stdout ' --extra-label Adjust --inputmenu \
+      RESULTS=($(eval dialog --stdout ' --extra-label Adjust --inputmenu \
                               "Custom Optimizations Menu" \
                                17 50 9 \
                                CFLAGS "$USER_SPELL_CFLAGS" \
                                CXXFLAGS "$USER_SPELL_CXXFLAGS" \
                                LDFLAGS "$USER_SPELL_LDFLAGS" \
-                               CPPFLAGS "$USER_SPELL_CPPFLAGS"'`)
+                               CPPFLAGS "$USER_SPELL_CPPFLAGS"'))
       rc=$?
       [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
       set ${RESULTS[*]}

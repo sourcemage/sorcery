@@ -76,7 +76,7 @@ reap_modified_file()  {
   message  "${MESSAGE_COLOR}was previously modified by SA?"
   case  $PRESERVE  in
      on)  message  "Therefore, it was not reaped."  ;;
-    off)  SAVE="$1.`date  -u  +%Y%m%d`"
+    off)  SAVE="$1.$(date  -u  +%Y%m%d)"
           mv  $1  $SAVE
           message  "Therefore, it was moved to"
           message  "${FILE_COLOR}${SAVE}"  ;;
@@ -177,10 +177,10 @@ reaper()  {
     reap_regular_files
   fi
 
-  [ -f $REAPER_SYMS ] && rm -f `cat $REAPER_SYMS` 2>/dev/null
-  [ -f $REAPER_SPECIAL ] && rm -f `cat $REAPER_SPECIAL` 2>/dev/null
-  [ -f $REAPER_DIRS ] && rmdir `sort -r $REAPER_DIRS` 2>/dev/null
-  [ -f $REAPER_FILES ] && rmdir `get_dirnames < $REAPER_FILES |uniq|sort -r` 2>/dev/null
+  [ -f $REAPER_SYMS ] && rm -f $(cat $REAPER_SYMS) 2>/dev/null
+  [ -f $REAPER_SPECIAL ] && rm -f $(cat $REAPER_SPECIAL) 2>/dev/null
+  [ -f $REAPER_DIRS ] && rmdir $(sort -r $REAPER_DIRS) 2>/dev/null
+  [ -f $REAPER_FILES ] && rmdir $(get_dirnames < $REAPER_FILES |uniq|sort -r) 2>/dev/null
 
   rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS $REAPER_SPECIAL
 }
@@ -220,9 +220,9 @@ reap_state_files()  {
     cat $REAPER_FILES | xargs rm
   fi
 
-  [ -f $REAPER_SYMS ] && rm -f `cat $REAPER_SYMS` 2>/dev/null
-  [ -f $REAPER_DIRS ] && rmdir `sort -r $REAPER_DIRS` 2>/dev/null
-  [ -f $REAPER_FILES ] && rmdir `get_dirnames < $REAPER_FILES |uniq|sort -r` 2>/dev/null
+  [ -f $REAPER_SYMS ] && rm -f $(cat $REAPER_SYMS) 2>/dev/null
+  [ -f $REAPER_DIRS ] && rmdir $(sort -r $REAPER_DIRS) 2>/dev/null
+  [ -f $REAPER_FILES ] && rmdir $(get_dirnames < $REAPER_FILES |uniq|sort -r) 2>/dev/null
 
   rm  -f  $REAPER_FILES  $REAPER_DIRS  $REAPER_SYMS
 
@@ -273,9 +273,9 @@ load_spell()  {
   if tablet_set_spell $SPELL ; then
     load_functions_file
   else
-    SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
+    SCRIPT_DIRECTORY="$(codex_find_spell_by_name $SPELL)"
 
-    VERSION=`private_installed_version  $SPELL`
+    VERSION=$(private_installed_version  $SPELL)
     INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
     MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
     if [[ $SCRIPT_DIRECTORY ]] ; then
@@ -401,18 +401,18 @@ dispel_depends_menu_template() {
   local DEFAULT=$3
   local always ask_yes ask_no ignore rc
   dispel_depends_value_to_items $DEFAULT
-  RESULT=`eval $DIALOG ' --title "$TITLE"   \
+  RESULT=$(eval $DIALOG ' --title "$TITLE"   \
            --radiolist                     \
            ""                              \
            0 0 0                           \
            always  "" $always              \
            ask-yes "" $ask_yes             \
            ask-no  "" $ask_no              \
-           ignore  "" $ignore'`
+           ignore  "" $ignore')
   rc=$?
   if [[ $rc == 0 ]] ; then
     # remove spurious ""
-    RESULT=`echo "${RESULT}" | sed -e 's/^"//' -e 's/"$//'`
+    RESULT=$(echo "${RESULT}" | sed -e 's/^"//' -e 's/"$//')
     modify_local_config $DEFAULT_NAME "$RESULT"
     eval "$DEFAULT_NAME=\"$RESULT\""
   fi

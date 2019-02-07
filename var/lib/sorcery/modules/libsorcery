@@ -28,7 +28,7 @@ update_sorcery_scripts() {
     #This section is to make sure that all sorcery dependencies are cast
     #Keep this outer if until basesystem is in the grimoires properly.
     #(2002/10/13)
-    if [[ `codex_find_spell_by_name basesystem` ]] ; then
+    if [[ $(codex_find_spell_by_name basesystem) ]] ; then
       if ! spell_ok basesystem  ; then
         cast basesystem
       fi &&
@@ -79,7 +79,7 @@ update_sorcery_scripts() {
   tar --owner=root --group=root -xf /dev/stdin  &&
   cd      $SOURCE_DIRECTORY                     &&
 
-  echo `pwd`                                    || return 1
+  pwd                                           || return 1
 
   # last chance to lock
   message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR} ${SPELL_COLOR}all${DEFAULT_COLOR}" \
@@ -107,7 +107,7 @@ update_sorcery_scripts() {
   cd /                                          &&
   unlock_resources "libgrimoire" "install"      &&
 
-  SORCERY_VERSION=`cat /etc/sorcery/version`
+  SORCERY_VERSION=$(cat /etc/sorcery/version)
 
   unlock_resources "solo" "cast"
   unlock_resources "cast" "sorcery"
@@ -139,10 +139,10 @@ set_nice()  {
 
   PROMPT="Please enter the process priority sorcery should run at."
 
-  if  NICE=`eval $DIALOG '  --ok-label  "Commit"  \
+  if  NICE=$(eval $DIALOG '  --ok-label  "Commit"  \
                             --inputbox            \
                             "$PROMPT"             \
-                            0 0  "$NICE"'`
+                            0 0  "$NICE"')
   then
      modify_local_config "NICE" "$NICE"
   fi
@@ -159,10 +159,10 @@ set_umask()  {
 
   PROMPT="Please enter the permissions mask sorcery should run with."
 
-  if  UMASK=`eval $DIALOG '  --ok-label  "Commit"  \
+  if  UMASK=$(eval $DIALOG '  --ok-label  "Commit"  \
                             --inputbox            \
                             "$PROMPT"             \
-                            0 0  "$UMASK"'`
+                            0 0  "$UMASK"')
   then
      modify_local_config "UMASK" "$UMASK"
   fi
@@ -257,7 +257,7 @@ save_libraries()  {
   lock_file "$SAVED"
   rm -rf "$SAVED"
 
-  OLD_VERSION=`installed_version  $SPELL`
+  OLD_VERSION=$(installed_version  $SPELL)
       OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
 
   grep "^/lib/\|^/usr/lib" "$OLD_LOG" |
@@ -310,7 +310,7 @@ save_binaries()  {
   lock_file "$SAVED"
   rm -rf "$SAVED"
 
-  OLD_VERSION=`installed_version  $SPELL`
+  OLD_VERSION=$(installed_version  $SPELL)
       OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
 
   grep "^/bin/\|^/sbin/\|^/usr/bin/\|^/usr/sbin/" "$OLD_LOG" |
@@ -688,7 +688,7 @@ grimoire_history() {
   local grimoire="$1"
   if [ -e $grimoire/ChangeLog ] ; then
     local grimoirename="${grimoire##*/}"
-    local date="`cat "$STATE_DIRECTORY/$grimoirename.lastupdate" 2> /dev/null`"
+    local date="$(cat "$STATE_DIRECTORY/$grimoirename.lastupdate" 2> /dev/null)"
     [ -z "$date" ] && date="20030818"
     local datedash=$(echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,')
     get_new_changes "Viewing history since last update ($datedash) for grimoire --  ${grimoirename}  -- :" "$date" "$grimoire/ChangeLog"
@@ -706,9 +706,9 @@ grimoire_history() {
 ##
 #---------------------------------------------------------------------
 sorcery_history() {
-  local date="`cat "$STATE_DIRECTORY/sorcery.lastupdate" 2> /dev/null`"
+  local date="$(cat "$STATE_DIRECTORY/sorcery.lastupdate" 2> /dev/null)"
   [ -z "$date" ] && date="20030818"
-  local datedash="`echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,'`"
+  local datedash="$(echo "$date" | sed 's,^\(....\)\(..\)\(..\)$,\1-\2-\3,')"
 
   get_new_changes "Viewing history since last update ($datedash) for sorcery :"  "$date" /usr/share/doc/sorcery/ChangeLog
 
@@ -850,7 +850,7 @@ activity_log() {
 run_details() {
   debug "libsorcery" "starting run_details for $SPELL"
   if  !  codex_set_current_spell_by_name  $SPELL;  then
-    local  GRIMOIRES=`codex_get_all_grimoires`
+    local  GRIMOIRES=$(codex_get_all_grimoires)
     message  "${PROBLEM_COLOR}Unable to find spell"        \
              "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${PROBLEM_COLOR}"      \
              "in grimoire(s): $GRIMOIRES ${DEFAULT_COLOR}"
@@ -878,7 +878,7 @@ unset_details()  {
     TEMP=${TEMP}${i}\\n
   done
   # not all SOURCE_* should be deleted (SOURCE_CACHE)
-  VARS="$VARS `echo -e $TEMP | egrep "^SOURCE[0-9]*(_URL|_GPG|_IGNORE)?$"`"
+  VARS="$VARS $(echo -e $TEMP | egrep "^SOURCE[0-9]*(_URL|_GPG|_IGNORE)?$")"
 
   unset $VARS
 }
@@ -1144,7 +1144,7 @@ set_compression_type() {
 
   while
 
-    COMMAND=`eval $DIALOG '  --title "Currently using : $COMPRESSBIN "  \
+    COMMAND=$(eval $DIALOG '  --title "Currently using : $COMPRESSBIN "  \
                              --item-help                                \
                              --ok-label      "Select"                   \
                              --cancel-label  "Exit"                     \
@@ -1155,7 +1155,7 @@ set_compression_type() {
                              "P"  "pbzip2 compression (parallel bzip2)" "$P_HELP"  \
                              "X"  "xz compression"           "$X_HELP"  \
                              "G"  "gzip compression"         "$G_HELP"  \
-                             "T"  "no compression/tar"       "$T_HELP"'`
+                             "T"  "no compression/tar"       "$T_HELP"')
 
   do
     ARCHIVEBIN="tar"

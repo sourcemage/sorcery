@@ -53,7 +53,7 @@ url_http_verify() {
   fi
 
   if [  -n  "$URL"  ]; then
-    if  OUTPUT=`wget --passive-ftp -t 1 -T 30 --spider $check_certificate "$URL" 2>&1`;  then
+    if  OUTPUT=$(wget --passive-ftp -t 1 -T 30 --spider $check_certificate "$URL" 2>&1);  then
       true
     else
       echo  $OUTPUT
@@ -96,7 +96,7 @@ url_ftp_verify() {
     local  DIRECTORY
     smgl_basename $URL FILENAME
     smgl_dirname $URL DIRECTORY
-    local  OUTPUT=`wget --passive-ftp -t 1 -T 30 -O - --spider -S "$DIRECTORY/" 2>&1`
+    local  OUTPUT=$(wget --passive-ftp -t 1 -T 30 -O - --spider -S "$DIRECTORY/" 2>&1)
 
     if real_list_find "$OUTPUT" "$FILENAME";  then
       rm  -f  .listing

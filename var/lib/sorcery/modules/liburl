@@ -81,10 +81,10 @@
 #
 # (2002/09/29) added if so it only loads the stuff once
 if ! [[ $URL_HANDLER_FILES ]] ; then
-  URL_HANDLER_FILES=`ls $SGL_LIBRARY_MODULES/url_handlers/url_*[^~]`
+  URL_HANDLER_FILES=$(ls $SGL_LIBRARY_MODULES/url_handlers/url_*[^~])
   for  url_handler_file  in  $URL_HANDLER_FILES;  do
     [  -x $url_handler_file  ]                               &&
-    URL_PREFIX=`echo $url_handler_file | sed "s/.*\/url_//"` &&
+    URL_PREFIX=$(echo $url_handler_file | sed "s/.*\/url_//") &&
     URL_TYPES[${#URL_TYPES[@]}]=$URL_PREFIX                  &&
     . $url_handler_file
   done

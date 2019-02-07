@@ -64,16 +64,16 @@
 #---------------------------------------------------------------------
 url_svn_crack() {
 
-  URL=`url_strip_prefix "$1" svn`
-  SVN_ROOT=`echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#"`
+  URL=$(url_strip_prefix "$1" svn)
+  SVN_ROOT=$(echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#")
   if list_find "$2" old_svn_compat; then
     SVN_ROOT=http://$SVN_ROOT
   else
     SVN_ROOT=svn://$SVN_ROOT
   fi
-  local SVN_MODULE_TAG=`echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#"`
-  SVN_MODULE=`echo $SVN_MODULE_TAG | cut -d : -f2`
-  local SVN_TAGNAME=`echo $SVN_MODULE_TAG | cut -d : -f3`
+  local SVN_MODULE_TAG=$(echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#")
+  SVN_MODULE=$(echo $SVN_MODULE_TAG | cut -d : -f2)
+  local SVN_TAGNAME=$(echo $SVN_MODULE_TAG | cut -d : -f3)
   SVN_TAG=${SVN_TAGNAME:=HEAD}
 
 }

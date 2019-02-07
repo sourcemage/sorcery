@@ -74,16 +74,16 @@ gaze_checkmd5() {
     then
       if ! filename_indicates_compression "$SOURCE_CACHE/$SOURCE"
       then
-        fMD5=`cat $SOURCE_CACHE/$SOURCE 2> /dev/null | md5sum | cut -d' ' -f1 | head -n 1`
+        fMD5=$(cat $SOURCE_CACHE/$SOURCE 2> /dev/null | md5sum | cut -d' ' -f1 | head -n 1)
       else
         fMD5=$(
-          uncompress $SOURCE_CACHE/$SOURCE `
-            guess_compressor $SOURCE_CACHE/$SOURCE` |
+          uncompress $SOURCE_CACHE/$SOURCE $(
+            guess_compressor $SOURCE_CACHE/$SOURCE) |
           md5sum | cut -d' ' -f1
         )
       fi
     else
-      fMD5="`grep " $SOURCE\$" $PRECACHEDF | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$' | cut -d' ' -f1 | head -n 1`"
+      fMD5="$(grep " $SOURCE\$" $PRECACHEDF | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$' | cut -d' ' -f1 | head -n 1)"
     fi
     if [ -n "$REALSOURCE" ]
     then
@@ -119,9 +119,9 @@ gaze_checkmd5() {
           else
             if test -z "$PRECACHEDB"
             then
-              bMD5="`md5sum $SOURCE_CACHE/$SOURCE | cut -d' ' -f1` | head -n 1"
+              bMD5="$(md5sum $SOURCE_CACHE/$SOURCE | cut -d' ' -f1) | head -n 1"
             else
-              bMD5="`grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$'`"
+              bMD5="$(grep " $SOURCE\$" $PRECACHEDB | grep -Ev '\.[0-9]{14}$' | grep -v '\.asc$')"
             fi
             if test "$tMD5" == "$bMD5"
             then
@@ -132,13 +132,13 @@ gaze_checkmd5() {
             elif test "$tMD5" == "gpg"
             then
               echo -en "${RED}${BOLD}GPGCHECK $SRCDATA"
-            elif test -n "`echo $tMD5 | grep 'gpg$'`"
+            elif test -n "$(echo $tMD5 | grep 'gpg$')"
             then
               echo -en "${RED}${BOLD}GPG-SIGN $SRCDATA"
-            elif test -n "$PRECACHEDB" && test -n "`grep $tMD5 $PRECACHEDF`"
+            elif test -n "$PRECACHEDB" && test -n "$(grep $tMD5 $PRECACHEDF)"
             then
-              MATCHED="`grep "$tMD5" "$PRECACHEDF" | cut -c60- | head -n 1`"
-              if test -n "`echo "$MATCHED" | fgrep "$SOURCE"`"
+              MATCHED="$(grep "$tMD5" "$PRECACHEDF" | cut -c60- | head -n 1)"
+              if test -n "$(echo "$MATCHED" | fgrep "$SOURCE")"
               then
                 echo -en "${RED}${BOLD}MODIFIED $SRCDATA EDIT s/$tMD5/$fMD5/${DEFAULT_COLOR} MATCHES $MATCHED"
               else
@@ -179,24 +179,24 @@ gaze_checkmd5syntax() {
   echo -en "${YELLOW}${BOLD}"
   if test -f $rp/PRE_BUILD ; then
     #echo $rp $sn
-    if test "`grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5`" = "" ; then
+    if test "$(grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5)" = "" ; then
       if test "$sn" != "" ; then
         echo -n "ADD unpack md5 arg to EXISTING PRE_BUILD"
       else
-        if test "`grep default_pre_build $rp/*`" = "" ; then
+        if test "$(grep default_pre_build $rp/*)" = "" ; then
           echo -n "ADD unpack md5 arg to EXISTING PRE_BUILD"
         fi
       fi
     fi
   else
     if test -f $rp/POST_INSTALL ; then
-      if test "`grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5`" = "" ; then
+      if test "$(grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5)" = "" ; then
         if test "$sn" != "" ; then
           echo -n "ADD unpack md5 arg to EXISTING POST_INSTALL or CREATED PRE_BUILD"
         fi
       fi
     elif test -f $rp/BUILD ; then
-      if test "`grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5`" = "" ; then
+      if test "$(grep unpack $rp/* | grep SOURCE$sn[^0-9] | grep MD5)" = "" ; then
         if test "$sn" != "" ; then
           echo -n "INIT unpack md5 arg or default_pre_build to NEW PRE_BUILD"
         fi
@@ -226,7 +226,7 @@ gaze_checkmd5s() {
   spellroot=$1
   SCRIPT_DIRECTORY=$spellroot
   spellpath=$spellroot/DETAILS
-  spellname=`echo $spellroot | sed -e 's!/.*/!!'`
+  spellname=$(echo $spellroot | sed -e 's!/.*/!!')
   unset FORCE_DOWNLOAD
   unset SOURCE
   unset MD5 2> /dev/null
@@ -277,7 +277,7 @@ gaze_md5check() {
 
   source /etc/sorcery/config
 
-  EMPTYMD5="`echo -n | md5sum | cut -d' ' -f1`"
+  EMPTYMD5="$(echo -n | md5sum | cut -d' ' -f1)"
 
   #if CACHED is defined, then use some caches for speedy checking.
   if ! test -z "$CACHED" ; then
@@ -287,7 +287,7 @@ gaze_md5check() {
 
   unset  SECTIONS  SPELLS  UNKNOWN
 
-  [  -z  "$1"  ]  &&  SECTIONS=`codex_get_all_sections`
+  [  -z  "$1"  ]  &&  SECTIONS=$(codex_get_all_sections)
 
   for  spell_or_section  in  $@;  do
 
@@ -301,7 +301,7 @@ gaze_md5check() {
   done
 
   for i in $SECTIONS ; do
-    SPELLS="$SPELLS `codex_get_spells_in_section $i`"
+    SPELLS="$SPELLS $(codex_get_spells_in_section $i)"
   done
 
   for i in $SPELLS ; do

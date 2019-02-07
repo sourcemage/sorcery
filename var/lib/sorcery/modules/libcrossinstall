@@ -24,7 +24,7 @@ install_root_menu() {
 
   while
 
-    COMMAND=`eval $DIALOG '  --title "Install Root Menu"                     \
+    COMMAND=$(eval $DIALOG '  --title "Install Root Menu"                     \
                              --item-help                                     \
                              --ok-label      "Select"                        \
                              --cancel-label  "Exit"                          \
@@ -34,7 +34,7 @@ install_root_menu() {
                              "C"  "Set install cache location"     "$C_HELP" \
                              "I"  "Set install root location"      "$I_HELP" \
                              "S"  "Set state root location"        "$S_HELP" \
-                             "T"  "Set track root location"        "$T_HELP"'`
+                             "T"  "Set track root location"        "$T_HELP"')
 
   do
 
@@ -58,10 +58,10 @@ set_install_cache_menu() {
 
   debug "libcrossinstall" "set_install_cache_menu - is starting..."
   local PROMPT="Please enter the install cache location where cache tarballs will be stored"
-  if  NEW_INSTALL_CACHE=`eval $DIALOG '  --ok-label  "Commit"         \
+  if  NEW_INSTALL_CACHE=$(eval $DIALOG '  --ok-label  "Commit"         \
                                     --inputbox                   \
                                     "$PROMPT"                    \
-                                    0 0  "$INSTALL_CACHE"'`
+                                    0 0  "$INSTALL_CACHE"')
   then
     INSTALL_CACHE=${NEW_INSTALL_CACHE%/}
     remove_config $LOCAL_CONFIG "INSTALL_CACHE"
@@ -78,10 +78,10 @@ set_install_root_menu() {
 
   debug "libcrossinstall" "set_install_root_menu - is starting..."
   local PROMPT="Please enter the install root location where you want file installed"
-  if  NEW_INSTALL_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
+  if  NEW_INSTALL_ROOT=$(eval $DIALOG '  --ok-label  "Commit"         \
                                     --inputbox                   \
                                     "$PROMPT"                    \
-                                    0 0  "$INSTALL_ROOT"'`
+                                    0 0  "$INSTALL_ROOT"')
   then
     INSTALL_ROOT=${NEW_INSTALL_ROOT%/}
     remove_config  $LOCAL_CONFIG "INSTALL_ROOT"
@@ -98,10 +98,10 @@ set_state_root_menu() {
 
   debug "libcrossinstall" "set_state_root_menu - is starting..."
   local PROMPT="Please enter location where you want state files to be"
-  if  NEW_STATE_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
+  if  NEW_STATE_ROOT=$(eval $DIALOG '  --ok-label  "Commit"         \
                                     --inputbox                 \
                                     "$PROMPT"                  \
-                                    0 0  "$STATE_ROOT"'`
+                                    0 0  "$STATE_ROOT"')
   then
     STATE_ROOT=${NEW_STATE_ROOT%/}
     remove_config  $LOCAL_CONFIG "STATE_ROOT"
@@ -118,10 +118,10 @@ set_track_root_menu() {
 
   debug "libcrossinstall" "set_track_root_menu - is starting..."
   local PROMPT="Please enter the location where you want files tracked relative to"
-  if  NEW_TRACK_ROOT=`eval $DIALOG '  --ok-label  "Commit"         \
+  if  NEW_TRACK_ROOT=$(eval $DIALOG '  --ok-label  "Commit"         \
                                     --inputbox                 \
                                     "$PROMPT"                  \
-                                    0 0  "$TRACK_ROOT"'`
+                                    0 0  "$TRACK_ROOT"')
   then
     TRACK_ROOT=${NEW_TRACK_ROOT%/}
     modify_config  $LOCAL_ROOTS_CONFIG "TRACK_ROOT"  "$TRACK_ROOT"
@@ -148,7 +148,7 @@ replicate_sorcery() {
   bzip2  -cdf   $SOURCE                         |
   tar --owner=root --group=root -xf /dev/stdin  &&
   cd      $SOURCE_DIRECTORY                     &&
-  echo `pwd`                                    &&
+  pwd                                           &&
   ./install  $INSTALL_ROOT
   rc=$?
   cd ..
