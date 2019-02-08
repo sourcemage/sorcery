@@ -20,57 +20,33 @@
 ## the proper context. This is merely a safety valve.
 #---------------------------------------------------------------------
 load_spell_file_functions() {
-  for each in $(
-    cat << EOF
-PREPARE:prepare
-CONFIGURE:configure
-DEPENDS:depends
-
-PRE_SUB_DEPENDS:pre_sub_depends
-SUB_DEPENDS:sub_depends
-
-CONFLICTS:conflicts
-
-PRE_BUILD:pre_build
-BUILD:build
-PRE_INSTALL:pre_install
-INSTALL:install
-POST_BUILD:post_build
-INSTALL_EXTRAS:install_extras
-POST_INSTALL:post_install
-TRANSFER:transfer
-FINAL:final
-
-UP_TRIGGERS:up_triggers
-TRIGGERS:triggers
-TRIGGER_CHECK:trigger_check
-
-DOWNLOAD:download
-
-PRE_REMOVE:pre_remove
-POST_REMOVE:post_remove
-
-PRE_RESURRECT:pre_resurrect
-POST_RESURRECT:post_resurrect
-EOF
-); do
-    local NAME=${each%:*}
-    local name=${each#*:}
+  for name in \
+      prepare configure depends \
+      pre_sub_depends sub_depends \
+      conflicts \
+      pre_build build pre_install install post_build install_extras \
+      post_install transfer final \
+      up_triggers triggers trigger_check \
+      download \
+      pre_remove post_remove \
+      pre_resurrect post_resurrect
+  do
 
     # Create the four libapi entry points for each file
-    eval "function default_${name}() {
-      real_default_${name}
-    }"
-    eval "function default_section_${name}() {
-      real_default_section_${name}
-    }"
-    eval "function default_grimoire_${name}() {
-      real_default_grimoire_${name}
-    }"
-    eval "function default_sorcery_${name}() {
-      real_default_sorcery_${name}
-    }"
-
+    eval "
+      function default_${name}() {
+        real_default_${name}
+      }
+      function default_section_${name}() {
+        real_default_section_${name}
+      }
+      function default_grimoire_${name}() {
+        real_default_grimoire_${name}
+      }
+      function default_sorcery_${name}() {
+        real_default_sorcery_${name}
+      }
+    "
 
     # real_default_<file> always refers to the level above in the hierarchy.
     # (section, grimoire or sorcery).
@@ -82,12 +58,14 @@ EOF
     # These two functions run the section/grimoire function and update
     # the real_default_<file> function. Ignore this generic declaration,
     # it is changed at runtime to private_default_<section|grimoire>_generic.
-    eval "function real_default_section_${name}() {
-      false
-    }"
-    eval "function real_default_grimoire_${name}() {
-      false
-    }"
+    eval "
+      function real_default_section_${name}() {
+        false
+      }
+      function real_default_grimoire_${name}() {
+        false
+      }
+    "
 
     # If there isnt a sorcery default function, declare one as "true".
     # Note that, the right thing happens regardless of what order lib files
