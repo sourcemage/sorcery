@@ -325,32 +325,16 @@ gpg_user_query() {
 
 
 #---------------------------------------------------------------------
-## @param algorithm to use
-## @param file to get hashsum of
-## @stdout output is exactly the same format as md5sum/sha1sum, just with
-## @stdout a different hashsum. "hashsum<space><space>filename". The hashsum is
-## @stdout printed with all lowercase letters.
-##
-## This assumes that the caller has already verified that gpg is
-## installed and supports the specified hash function.
-##
-#---------------------------------------------------------------------
-gpg_hashsum() {
-  local algorithm=$1
-  local file=$2
-  LC_ALL=C.UTF-8 gpg --print-md "$algorithm" "$file"| tr -d '\n '  |cut -f2 -d:|
-                                       tr 'A-F' 'a-f'|tr -d '\n'
-  echo "  $file"
-}
-
-#---------------------------------------------------------------------
-## @stdout All the hash algorithms supported by gpg, algorithms printed in
+## @stdout All the hash algorithms available in system, algorithms printed in
 ## @stdout lower case.
 ##
-## This assumes the caller has already verified that gpg is installed.
+#$ This assumes coreutils spell is installed.
+##
 #---------------------------------------------------------------------
-gpg_get_hashes() {
-  LC_ALL=C.UTF-8 gpg --version 2> /dev/null | awk -F: '/^Hash/ { gsub(","," ",$2); print tolower($2); }'
+get_available_hashes() {
+  for hashalg in b2 md5 sha1 sha224 sha256 sha384 sha512; do
+    type "${hashalg}sum" >/dev/null 2>&1 && echo "${hashalg}"
+  done
 }
 
 #---------------------------------------------------------------------
@@ -394,7 +378,7 @@ verify_against_manifest() {
   fi
   local hash r
   while read hashsum file; do
-    local hash=$(gpg_hashsum $algorithm $file 2>/dev/null|cut -f1 -d' ')
+    local hash=$(${algorithm}sum $file 2>/dev/null|cut -f1 -d' ')
     r=$?
     if [[ $hash != $hashsum ]] || [[ $r != 0 ]]; then
       NOT_OK=( $NOT_OK "$file" )

@@ -267,29 +267,6 @@ real_guess_compressor()  {
 real_uncompress() { uncompress_core "$@"; }
 
 
-#---------------------------------------------------------------------
-## @param required spell
-##
-## Returns 200 if the user says not to Abort in the face, otherwise
-##
-#---------------------------------------------------------------------
-unpack_spell_required() {
-  debug "libgrimoire" "Running unpack_spell_required -- $1"
-
-  local x
-  if ! spell_ok "$1" && ! smgl_which $2 x &> /dev/null; then
-    query "This spell has an option to check its integrity via spell "\
-"${SPELL_COLOR}${1}${DEFAULT_COLOR}${QUERY_COLOR} with the $2 command for $3, you might consider installing it. "\
-"Abort?" n &&
-      return 1 ||
-        return 200
-  else
-    return 0
-  fi
-
-}
-
-
 #===================== libunpack newworld ============================
 
 #--------------------------------------------------------------------
@@ -389,7 +366,7 @@ unpack_gpg() {
 
   message "${MESSAGE_COLOR}GPG checking source file $1...${DEFAULT_COLOR}"
 
-  unpack_spell_required gnupg gpg || return "$?"
+  type gpg >/dev/null 2>&1 || return
 
   gpg_verify_signature "$( locate_spell_file "$SFNAME" )" \
                        "$FILENAME" \
@@ -451,19 +428,20 @@ unpack_hash() {
   local HASH
   if [ "$MD5SUM_DL" != "off" ]; then
 
-    if [[ "$ALGORITHM" == md5 ]] || [[ "$ALGORITHM" == sha1 ]] ; then
-      unpack_spell_required coreutils "${ALGORITHM}sum" "$ALGORITHM" ||
-        return "$?"
-      HASH="$(${ALGORITHM}sum "$FILENAME" | cut -d' ' -f1)"
+    case "$ALGORITHM" in md5|sha1)
+      message "${PROBLEM_COLOR}WARNING:${MESSAGE_COLOR} Algorithm"  \
+              "${PROBLEM_COLOR}${ALGORITHM}${MESSAGE_COLOR} is" \
+              "cryptographically weak and may impose\na security threat in" \
+              "the future.\nProceed with caution."
+      ;;
+    esac
+
+    if type "${ALGORITHM}sum" >/dev/null 2>&1;then
+      HASH="$("${ALGORITHM}sum" "$FILENAME" | cut -d' ' -f1)"
     else
-      unpack_spell_required gnupg gpg "$ALGORITHM" || return "$?"
-      if list_find "$(gpg_get_hashes)" $ALGORITHM; then
-        HASH="$(gpg_hashsum "${ALGORITHM}" "$FILENAME" | cut -d' ' -f1)"
-      else
-        message "${PROBLEM_COLOR}Algorithm $ALGORITHM is not"\
-                "known!${DEFAULT_COLOR}"
-        return 200
-      fi
+      message "${PROBLEM_COLOR}Algorithm $ALGORITHM is not" \
+              "known!${DEFAULT_COLOR}"
+      return 200
     fi
     local rc=$?
 

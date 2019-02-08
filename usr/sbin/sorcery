@@ -945,7 +945,7 @@ gpg_download_menu() {
 vrf_select_hashes() {
   local DIALOG_TITLE="Select the source hashes you would like to use"
   local DIALOG_HELP="Select the source hashes you would like to consider valid hashes"
-  local DEFAULT_LIST=$(gpg_get_hashes)
+  local DEFAULT_LIST=$(get_available_hashes)
   local rc=0
   local CHECKS=""
   local check=""
@@ -954,7 +954,7 @@ vrf_select_hashes() {
   if [ -z "$DEFAULT_LIST" ] ; then
     eval $DIALOG '--title "ERROR" \
                   --msgbox        \
-                  "ERROR: gpg isn't installed or isn't in your PATH. Please cast gnupg." 20 20' &&
+                  "ERROR: No known hashing programs found." 20 20' &&
     return 1
   else
     # move old values (named with GPG) to new ones
