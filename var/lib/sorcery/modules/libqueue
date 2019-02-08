@@ -75,11 +75,11 @@ update_security_install_queue()  {
           if codex_set_current_spell_by_name $spell &&
              tablet_find_spell_dir $spell page_dir; then
             tablet_get_security_patch $page_dir curr_sec_patch &&
-            diff=$(( ${SECURITY_PATCH:-0} - $curr_sec_patch ))
-            if (( $diff > 0 )); then
+            diff=$(( SECURITY_PATCH - curr_sec_patch ))
+            if (( diff > 0 )); then
               echo $spell >> $tmp_queue
               clear_line
-              if (( $diff > 1 )); then
+              if (( diff > 1 )); then
                 message "$SPELL_COLOR$spell$DEFAULT_COLOR: Security update ($diff times!)."
               else
                 message "$SPELL_COLOR$spell$DEFAULT_COLOR: Security update."
@@ -262,9 +262,9 @@ does_spell_need_update_slow() {
     tablet_get_security_patch $page_dir curr_sec_patch
   fi
 
-  local diff=$(( ${SECURITY_PATCH:-0} - $curr_sec_patch ))
-  if (( $diff > 0 )); then
-    if (( $diff > 1 )); then
+  local diff=$(( SECURITY_PATCH - curr_sec_patch ))
+  if (( diff > 0 )); then
+    if (( diff > 1 )); then
       message="$message Security update ($diff times!)."
     else
       message="$message Security update."

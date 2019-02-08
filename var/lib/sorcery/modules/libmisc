@@ -296,8 +296,8 @@ debug "libmisc" "progress_bar - $*"
   LAST_PERCENT=$percent
 
 
-  dash_len=$(($len-8))
-  num_dash=$(( $dash_len*$1/$2 ))
+  dash_len=$((len - 8))
+  num_dash=$((dash_len * $1 / $2 ))
 
   #Format: [--->  ] 100%
 
@@ -305,7 +305,7 @@ debug "libmisc" "progress_bar - $*"
   BAR_STRING="["
 
   #The '=' signs
-  for (( i=0 ; i<$num_dash ; i++ )) ; do
+  for (( i = 0 ; i < num_dash ; i++ )) ; do
     BAR_STRING="${BAR_STRING}="
   done
 
@@ -313,7 +313,7 @@ debug "libmisc" "progress_bar - $*"
   [ $num_dash -lt $((dash_len-1)) ] && BAR_STRING="${BAR_STRING}>"
 
   #Fill the rest of the bar up with blanks
-  for (( i++ ; i<$dash_len-1 ; i++ )) ; do
+  for (( i++ ; i < dash_len - 1 ; i++ )) ; do
     BAR_STRING="${BAR_STRING} "
   done
 
@@ -321,7 +321,7 @@ debug "libmisc" "progress_bar - $*"
   BAR_STRING="${BAR_STRING}] ${percent}%"
 
   #Clear the rest of the space
-  for (( i+=3+${#percent} ; i<$len ; i++ )) ; do
+  for (( i += 3 + ${#percent} ; i < len ; i++ )) ; do
     BAR_STRING="${BAR_STRING} "
   done
 

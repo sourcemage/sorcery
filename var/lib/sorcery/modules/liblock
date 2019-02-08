@@ -50,7 +50,7 @@ lock_resources()
 
     while ! trylock_resources "$@";
     do
-      local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
+      local SLEEP=$(( RANDOM % MAX_SLEEP ))
       debug "lock_resources" "process $$ is sleeping ${SLEEP} seconds"
       sleep "${SLEEP}"
     done
@@ -112,7 +112,7 @@ excllock_resources()
   do
     #^^^ look if a lock exists of the given type (ugly code)
     global_clean_resources
-    local SLEEP=$(( ${RANDOM} % ${MAX_SLEEP} ))
+    local SLEEP=$(( RANDOM % MAX_SLEEP ))
     sleep "$SLEEP"
   done
   #theoretically, someone could create a lock now... tiny race
