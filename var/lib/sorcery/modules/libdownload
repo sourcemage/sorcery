@@ -93,9 +93,7 @@ dl_get_bucket() {
 }
 
 dl_command_check() {
-  local cmd
-  smgl_which $1 cmd
-  if ! [[ $cmd ]] || ! test -x $cmd ; then
+  if type "$1" >/dev/null 2>&1; then
     message "${PROBLEM_COLOR}${cmd:-$1} is not installed, please cast it..." \
             "${DEFAULT_COLOR}"
     return 1

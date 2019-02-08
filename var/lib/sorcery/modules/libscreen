@@ -21,14 +21,13 @@ screen_quick_intro() {
 screen_start() {
   $STD_DEBUG
   local name="$1"
-  local screen
   shift
-  if ! smgl_which screen screen > /dev/null  ; then
+  if ! type screen >/dev/null 2>&1; then
     message "Cannot find screen."
     message "Consider fixing the PATH, or disabling screen mode and casting screen."
     exit 1
   fi
-  exec $screen -S "$name" $SCREEN_KEY -c $SCREENRC "$@"
+  exec screen -S "$name" "$SCREEN_KEY" -c "$SCREENRC" "$@"
 }
 
 #-----

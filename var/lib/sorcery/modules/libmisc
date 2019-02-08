@@ -1346,12 +1346,10 @@ smgl_which() {
 #---------------------------------------------------------------------
 find_make() {
   local ___REAL_MAKE
-  smgl_which make ___REAL_MAKE
-  rc=$?
-  if [[ $rc != 0 ]] ; then
+  if smgl_which make ___REAL_MAKE; then
     message "Cannot find make command!!"
     message "Bailing out"
-    return $rc
+    return 1
   fi
   eval "$1=$___REAL_MAKE"
 }
