@@ -617,18 +617,9 @@ seperate_state_files() {
 ## are usually going to be different between forks so the liklihood
 ## of a collision is greatly reduced.
 #---------------------------------------------------------------------
-make_safe_dir() { (
-  RANDOM=$(date "+%N")
-  local TMP_SSF=$TMP_DIR/$RANDOM
-  while ! mkdir "$TMP_SSF" &> /dev/null; do
-    RANDOM=$(date "+%N")
-    TMP_SSF=$TMP_DIR/$RANDOM
-    sleep .1
-    debug "libtrack" "safe dir collision on $TMP_SSF"
-  done
-  echo $TMP_SSF
-  return 0
-) }
+make_safe_dir() {
+  mktemp -d -p "$TMP_DIR"
+}
 
 #---------------------------------------------------------------------
 ## @License
