@@ -337,17 +337,17 @@ tablet_unload_roots() {
 }
 
 tablet_get_tb_version() {
-  local tb_dir=$1
-  if ! [[ $tb_dir ]] ; then
+  local tb_dir="$1"
+  if [ -z "$tb_dir" ] ; then
     error_message "nothing passed in!"
     return 1
   fi
-  if ! test -f $tb_dir/tb_version ||
-     [[ "$(< $tb_dir/tb_version)" == 0 ]] ; then
-    tablet_0_repair $tb_dir || return 1
+  if ! [ -f "$tb_dir"/tb_version ] ||
+     [ "$(< "$tb_dir"/tb_version)" = 0 ]; then
+    tablet_0_repair "$tb_dir" || return 1
   fi
-  local ____tb_version=$(<$tb_dir/tb_version)
-  if test $____tb_version -gt $TABLET_MAX_VERSION; then
+  local ____tb_version=$(<"$tb_dir"/tb_version)
+  if [ "$____tb_version" -gt "$TABLET_MAX_VERSION" ]; then
     error_message "${PROBLEM_COLOR}This sorcery is too old for tablet version" \
             "$tb_version! Please update to the newer version of sorcery" \
             "or recast this spell${DEFAULT_COLOR}"
