@@ -625,19 +625,14 @@ tablet_set_spell() {
 ## Import repair files for all tablet pages
 #---------------------------------------------------------------------
 tablet_import_repair_files() { (
-  local tablet_path=$1
-  local dir rc chapter page
+  local page
 
   codex_create_in_memory_cache_all -i spell_lookup_hash
 
-  shopt -s nullglob # so REPAIR^* evaluates to nothing if no REPAIR files
-
-  for chapter in $tablet_path/* ; do
-    test -d $chapter || continue
-    for page in $chapter/*; do
-      test -d $page || continue
-      tablet_import_repair_files_page "$page" spell_lookup_hash
-    done
+  # iterate through pages ({tabletdir}/{chapters}/{pages})
+  find "$1" -mindepth 2 -maxdepth 2 -type d |
+  while read page; do
+    tablet_import_repair_files_page "$page" spell_lookup_hash
   done
 ) }
 
