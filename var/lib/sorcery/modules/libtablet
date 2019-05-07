@@ -737,53 +737,51 @@ tablet_check_repair_file() {
 ## @param file that will hold the cache
 #---------------------------------------------------------------------
 tablet_create_version_cache() {
-  [[ -f "$1" ]] && return 0
+  [ -f "$1" ] && return 0
   local file="$1"
   local page_dir
   local spell version patchlevel security_patch updated
-  local rc=0
-  local ok_spells=( $(get_all_spells_with_status ok) )
+  local ok_spells="$(mktemp -u)"
 
-  for spell in "${ok_spells[@]}"; do
+  get_all_spells_with_status ok | sort | tee "$ok_spells" |
+  while read spell; do
     # make sure we don't get any rare errors into our carefully crafted list
-    if tablet_find_spell_dir $spell page_dir > /dev/null; then
-      tablet_get_version $page_dir version > /dev/null
-      tablet_get_patchlevel $page_dir patchlevel > /dev/null
-      tablet_get_security_patch $page_dir security_patch > /dev/null
-      tablet_get_updated $page_dir updated > /dev/null
+    if tablet_find_spell_dir "$spell" page_dir > /dev/null; then
+      tablet_get_version "$page_dir" version > /dev/null
+      tablet_get_patchlevel "$page_dir" patchlevel > /dev/null
+      tablet_get_security_patch "$page_dir" security_patch > /dev/null
+      tablet_get_updated "$page_dir" updated > /dev/null
     else
       case "$spell" in
 	alter|smgl-prelink|smgl-strip)
-	  version=$(installed_version $spell)
+	  version=$(installed_version "$spell")
 	  ;;
 	*)
-	  error_message "${PROBLEM_COLOR}Creation of the cache failed at $spell," \
-			"please run cleanse --tablet and retry. If some spells" \
-			"have unfixable tablet pages, recast them.\n" \
-			"If you're ok with slower queueing of everything just run:" \
-			"export OLD_QUEUING_METHOD=1 and you won't be bothered again.$DEFAULT_COLOR"
-	  rc=1
-	  break
+	  continue
 	  ;;
       esac
     fi
     echo "$spell ${version:-0} ${patchlevel:-0} ${security_patch:-0} ${updated:-0}"
   done > "$file"
-  bad=$(awk '
-	BEGIN { for (i in ARGV) bad[ARGV[i]]; split("", ARGV) }
-	{ delete bad[$1] }
-	END { for (i in bad) print i }
-	' "${ok_spells[@]}" < "$file")
-  if [ "$bad" ]; then
-    message "Spells with missing or corrupt tablet pages: $bad"
-    rm "$file"
+  awk -v WARN="$PROBLEM_COLOR" -v NORMAL="$DEFAULT_COLOR" '
+    FNR == 1 { do { bad[$0]; getline } while (FNR > 1) }
+    { delete bad[$1] }
+    END {
+      if (!length(bad)) exit(0)
+      print WARN "Spells with missing or corrupt tablet pages:"
+      for (i in bad) print i
+      print "please run cleanse --tablet and retry. If some spells have " \
+	    "unfixable tablet pages, recast them.\n" \
+	    "If you are ok with slower queueing of everything just run:\n" \
+	    "export OLD_QUEUING_METHOD=1 and you will not be bothered " \
+	    "again." NORMAL
+      exit(1)
+    }
+  ' "$ok_spells" "$file" || {
+    rm "$file" "$ok_spells"
     return 1
-  fi
-
-  # the rc of break 13 still does not match what is documented in bash 4.2.24
-  # (this is why we don't sort directly in the loop and have a separate rc var)
-  sort "$file" > "$TMP_DIR/sorting.$$.tmp"
-  mv "$TMP_DIR/sorting.$$.tmp" "$file"
+  }
+  rm "$ok_spells"
 }
 
 #---------------------------------------------------------------------
