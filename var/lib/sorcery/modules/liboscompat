@@ -18,11 +18,11 @@ if ! type install >/dev/null 2>/dev/null; then
     while case "$1" in
 	    -o|-g|-m) eval ${1#-}'="$2"'; shift;;
 	    -p|-D) ;; # always
-	    -d) eval ${1#-}=1 ;;
+	    -d|-v) eval ${1#-}=1 ;;
 	    *) false ;;
 	    esac
     do shift; done
-    if [ "$d" ]; then
+    if [ -n "$d" ]; then
       mkdir -p "$1"
     else
       mkdir -p "${2%/*}"
