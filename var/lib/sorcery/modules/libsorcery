@@ -278,7 +278,7 @@ save_libraries()  {
 
   done
 
-  ldconfig "$OLD_LIBS"
+  case "$HOST" in *-gnu) ldconfig "$OLD_LIBS";; esac
   unlock_file "$SAVED"
 
   if  [  -z   "$LD_LIBRARY_PATH"  ]
@@ -345,7 +345,7 @@ save_binaries()  {
 ##
 #---------------------------------------------------------------------
 release_saved_libraries()  {
-  ldconfig
+  case "$HOST" in *-gnu) ldconfig;; esac
 }
 
 

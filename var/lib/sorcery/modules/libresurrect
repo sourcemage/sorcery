@@ -356,7 +356,7 @@ resurrect_sub() {
     resurrect_fail 1
     return 1
   }
-  ldconfig # can never be too careful
+  case "$HOST" in *-gnu) ldconfig;; esac # can never be too careful
 
   # 12) carefully install config files (save old ones too), or fail/rollback
   # this is interactive and so we must use iterator
@@ -379,7 +379,7 @@ resurrect_sub() {
     resurrect_fail 1
     return 1
   }
-  ldconfig # paranoia paranoia
+  case "$HOST" in *-gnu) ldconfig;; esac # paranoia paranoia
 
   # 13) remove un-replaced files
   if [[ $installed == yes ]] && test -e $OLD_INSTALL_LOG ; then
@@ -418,7 +418,7 @@ resurrect_sub() {
     }
     run_hook POST_RESURRECT post
   fi
-  ldconfig # can never be too careful
+  case "$HOST" in *-gnu) ldconfig;; esac # can never be too careful
 }
 
 
