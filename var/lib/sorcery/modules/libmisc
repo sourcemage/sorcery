@@ -1480,6 +1480,12 @@ set_architecture() {
     $(for i in "${SMGL_COMPAT_ARCHS[@]}"; do echo "$i"; done | tac)
   )
 
+  # Guess libc ABI; archspecs default to "gnu"
+  if [ -z "$HOST_LIBC" ]; then
+    if command -v ldd && ldd --version 2>&1 | grep -q musl; then
+      HOST_LIBC=musl
+    fi
+  fi >/dev/null
   source "$SPECFILE"
 }
 
