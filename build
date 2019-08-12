@@ -1,7 +1,9 @@
 #!/bin/bash
 
 build__find_non_volatile() {
-  find "$@" -follow -not -type d -and -not -path '*CVS*' -and -not -name '.#*' -and -not -name '*~' -and -not -path '*.svn*' -and -not -path '*.arch-id*' -and -not -path '*{arch}*' -and -not -path '*.bzr*' -and -not -path '*.git*'
+  find "$@" -follow -type d \( \
+    \( -name CVS -o -name .svn -o -name .arch-id -o -name {arch} \
+    -o -name .bzr -o -name .git \) -prune -o -true \) -o -print
 }
 
 branch_dir=$(basename $(pwd))
