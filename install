@@ -10,9 +10,6 @@ install__find_non_volatile() {
        \! -name '.#*' \! -name '*~' \
        \! -type d
 }
-install__find_for_log() {
-  install__find_non_volatile | sed 's:^:/:'
-}
 
 INSTALL_ROOT="$1"
 # First clean out all libraries.
@@ -28,26 +25,24 @@ echo /etc/sorcery/install.log > $SORCERY_INSTALL_LOG
 
 echo "Installing scripts and libraries"
 # Install the executables
-install__find_for_log etc usr/sbin var/lib >> $SORCERY_INSTALL_LOG
-install__find_non_volatile etc usr/sbin var/lib | (
-  while read SCRIPT; do
-    install -o root -g root -m 755 -p -D "${SCRIPT}" "${INSTALL_ROOT}/${SCRIPT}"
-  done
-)
+install__find_non_volatile etc usr/sbin var/lib |
+while read src; do
+  dst="$INSTALL_ROOT/$src" &&
+  install -o 0 -g 0 -m 755 -p -D "$src" "$dst" &&
+  echo "$dst"
+done >> "$SORCERY_INSTALL_LOG"
 
 # Install the man pages
 echo "Installing man pages"
-install__find_for_log usr/share/man |while read line; do
-echo ${line}.gz
-done >> $SORCERY_INSTALL_LOG
-install__find_non_volatile usr/share/man | (
-  while read DOC; do
-    # remove incorrectly installed manuals
-    rm -f $INSTALL_ROOT/${DOC/share\/}
-    install -o root -g root -m 644 -p -D "${DOC}"    "${INSTALL_ROOT}/${DOC}"
-    gzip  --best  -f "${INSTALL_ROOT}/${DOC}"
-  done
-)
+install__find_non_volatile usr/share/man |
+while read doc; do
+  dst="$INSTALL_ROOT/$doc.gz" &&
+  >"$dst" &&
+  chown 0:0 "$dst" &&
+  chmod 644 "$dst" &&
+  gzip -9 < "$doc" > "$dst" &&
+  echo "$dst"
+done >> "$SORCERY_INSTALL_LOG"
 
 # Install the GNU General Public License
 mkdir -p  ${INSTALL_ROOT}/usr/share/doc
