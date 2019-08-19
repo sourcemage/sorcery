@@ -616,7 +616,7 @@ optimize()  {
   debug "libsorcery" "In optimize()"
 
   unset  CFLAGS CXXFLAGS LDFLAGS CPPFLAGS
-  unset  FAST PRELINK RISKY SMALL SPEEDY STRIP TINY AS_NEEDED
+  unset  FAST PRELINK RISKY SMALL SPEEDY STRIP TINY AS_NEEDED NOSEPCODE
 
   # if user specified --no-opts then use only the args from the command line
   # otherwise do the normal stuff
@@ -665,6 +665,11 @@ optimize()  {
         as_needed)
           LDFLAGS="$LDFLAGS -Wl,--as-needed"
           AS_NEEDED="on"
+          ;;
+
+        nosepcode)
+          LDFLAGS+=' -Wl,-znoseparate-code'
+          NOSEPCODE="on"
           ;;
 
       esac
