@@ -38,8 +38,7 @@ dl_curl_get() {
     local CURL_OPTIONS
     dl_curl_set_options $url $hints
     dl_curl_call_curl  $target $url
-    rc=$?
-    [[ $rc == 0 ]] && break
+    ((rc = $?)) || break
   done
 
   dl_disconnect
@@ -47,7 +46,6 @@ dl_curl_get() {
   eval "$dl_target=\"$target\""
   eval "$dl_type=\"file\""
   return $rc
-
 }
 
 #---------------------------------------------------------------------

@@ -606,12 +606,10 @@ pass_four()  {
     unlock_resources "libgrimoire" "install"
     unlock_resources "cast" "$SPELL"
     unlock_resources "solo" "cast"
+    return $rc
   else
     cast_spell $*
-    rc=$?
   fi
-
-  return $rc
 }
 
 
@@ -862,8 +860,7 @@ main()  {
   fi
 
   for spell in $SPELLS ; do
-    codex_does_spell_exist $spell
-    if [ $? -eq 0 ] ; then
+    if codex_does_spell_exist $spell; then
       T_SPELLS="$T_SPELLS $spell"
     fi
   done
@@ -881,9 +878,6 @@ main()  {
     five)  pass_five   $SPELLS  ;; #cast report
        *)  pass_zero   $SPELLS  ;; #start everything
   esac
-  local rc=$?
-
-  return $rc
 }
 
 

@@ -32,6 +32,7 @@ dl_hg_get() {
   [[ $target ]] &&
   dl_connect || return 255
 
+  local origdir="$(pwd)"
   for url in $url_list; do
     local URL HG_ROOT HG_DIRECTORY HG_TAG
     url_crack "$url" "$hints"
@@ -39,30 +40,27 @@ dl_hg_get() {
     then
       HG_DIRECTORY=${target/.hg/}
     fi
+    eval "$dl_target=\"$HG_DIRECTORY\""
     if [[ -d $HG_DIRECTORY ]]; then
       message "${MESSAGE_COLOR}Running hg pull...${DEFAULT_COLOR}"
-      ( cd $HG_DIRECTORY &&
-      echo hg pull $HG_ROOT &&
-      hg pull $HG_ROOT &&
-      echo hg update $HG_TAG &&
-      hg update $HG_TAG )
-      rc=$?
-      eval "$dl_target=\"$HG_DIRECTORY\""
+      cd "$HG_DIRECTORY" &&
+      echo hg pull "$HG_ROOT" &&
+      hg pull "$HG_ROOT"
     else
       message "${MESSAGE_COLOR}Running hg clone...${DEFAULT_COLOR}"
       echo hg clone $HG_ROOT $HG_DIRECTORY
-      hg clone $HG_ROOT $HG_DIRECTORY &&
-      ( cd $HG_DIRECTORY &&
-      echo hg update $HG_TAG &&
-      hg update $HG_TAG )
-      rc=$?
-      eval "$dl_target=\"$HG_DIRECTORY\""
-    fi
-    [[ $rc == 0 ]] && break
+      hg clone "$HG_ROOT" "$HG_DIRECTORY" &&
+      cd "$HG_DIRECTORY"
+    fi &&
+    echo hg update "$HG_TAG" &&
+    hg update "$HG_TAG"
+    ((rc = $?)) || break
   done
   dl_disconnect
 
   eval "$dl_type=\"tree\""
+
+  cd "$origdir"
   return $rc
 }
 

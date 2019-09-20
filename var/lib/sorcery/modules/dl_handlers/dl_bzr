@@ -40,21 +40,15 @@ dl_bzr_get() {
     then
       BZR_DIRECTORY=${target}
     fi
-    if test -d $BZR_DIRECTORY; then
+    eval "$dl_target=\"$BZR_DIRECTORY\""
+    if [ -d "$BZR_DIRECTORY" ]; then
       message "${MESSAGE_COLOR}Updating...${DEFAULT_COLOR}"
-      ( cd $BZR_DIRECTORY &&
-	echo bzr update &&
-	bzr update )
-      rc=$?
-      eval "$dl_target=\"$BZR_DIRECTORY\""
+      bzr update "$BZR_DIRECTORY"
     else
       message "${MESSAGE_COLOR}Doing a lightweight checkout...${DEFAULT_COLOR}"
-      echo bzr checkout --lightweight $BZR_ROOT $BZR_DIRECTORY
-      bzr checkout --lightweight $BZR_ROOT $BZR_DIRECTORY
-      rc=$?
-      eval "$dl_target=\"$BZR_DIRECTORY\""
+      bzr checkout --lightweight "$BZR_ROOT" "$BZR_DIRECTORY"
     fi
-    [[ $rc == 0 ]] && break
+    ((rc = $?)) || break
   done
   dl_disconnect
 

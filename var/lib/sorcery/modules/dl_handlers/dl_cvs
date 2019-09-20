@@ -58,29 +58,29 @@ dl_cvs_get() {
     local URL CVS_ROOT CVS_MODULE CVS_TAG
     url_cvs_crack $url
 
+    local origdir="$(pwd)"
     # if the target is a directory then its quite possible we're
     # updating a tree rather than checking a new one out
-    if test -d $target; then
+    if [ -d "$target" ]; then
       message "${MESSAGE_COLOR}Running cvs update...${DEFAULT_COLOR}"
-      if cd $target; then
-        cvs $CVS_OPTIONS update -d -r $CVS_TAG
-        rc=$?
-        cd ..
-      else
+      if ! cd "$target"; then
         dl_disconnect
         return 1
       fi
+      cvs $CVS_OPTIONS update -d -r "$CVS_TAG"
     else
       message "${MESSAGE_COLOR}Running cvs checkout...${DEFAULT_COLOR}"
-      cvs $CVS_OPTIONS -d$CVS_ROOT checkout -r $CVS_TAG -d $target $CVS_MODULE
-      rc=$?
+      cvs $CVS_OPTIONS -d"$CVS_ROOT" checkout -r "$CVS_TAG" -d "$target" \
+	  "$CVS_MODULE"
     fi
-    [[ $rc == 0 ]] && break
+    ((rc = $?)) || break
   done
   dl_disconnect
 
   eval "$dl_target=\"$target\""
   eval "$dl_type=\"tree\""
+
+  cd "$origdir"
   return $rc
 }
 
