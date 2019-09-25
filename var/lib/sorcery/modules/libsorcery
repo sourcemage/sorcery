@@ -75,8 +75,8 @@ update_sorcery_scripts() {
 
   mk_source_dir  $SOURCE_DIRECTORY              &&
   cd $BUILD_DIRECTORY
-  bzip2  -cdf   $FILENAME                       |
-  tar --owner=root --group=root -xf /dev/stdin  &&
+  # untar is defined by libunpack
+  bzip2 -c < "$FILENAME" | untar                &&
   cd      $SOURCE_DIRECTORY                     &&
 
   pwd                                           || return 1
