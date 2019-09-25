@@ -64,9 +64,8 @@ export
                                 Makes snapshot of box's configuration:
                                  This includes the list of installed spells,
                                  their dependencies and configure options.
-import [--deprecated] snapshot
-                                Restores snapshot. --deprecated activates
-                                 the old behaviour, useful for old caches.
+import          snapshot
+                                Restores snapshot.
 
 section        [section]        Lists all sections. Or all spells in
                                  the specified section.
@@ -155,51 +154,6 @@ maybe_column()  {
 }
 
 #-----
-## THIS FUNCTION IS DEPRECATED
-## To make the <@function export_snapshot> actualy be useful, an import
-## is quite handy.
-## @param snapshot file
-#-----
-import_snapshot_old()  {
-  message "${PROBLEM_COLOR}This behaviour is deprecated and can be removed at any time!$DEFAULT_COLOR"
-
-          SNAPSHOT=$1
-  SOURCE_DIRECTORY=$BUILD_DIRECTORY/snapshot
-
-  if  [  -f  "$1"  ];  then
-
-    cd  $BUILD_DIRECTORY
-    mk_source_dir          $SOURCE_DIRECTORY
-
-    if  [  -n  "$EXTENSION"  ];  then
-      $COMPRESSBIN -dc $SNAPSHOT  |  tar  -x
-    else
-      tar  -xf  $SNAPSHOT
-    fi
-
-    cd  $SOURCE_DIRECTORY
-
-    for  LINE  in  $(cat  install);  do
-      push_install_queue  $LINE
-    done
-    report  $INSTALL_QUEUE  "Install Queue"
-
-    cp  -ai  local  /etc/sorcery
-    cp  -ai  etc    /
-
-    cd  /
-    rm_source_dir  $SOURCE_DIRECTORY
-
-  else
-
-    message  "Unable to find snapshot  \"$SNAPSHOT\""
-    false
-
-  fi
-
-}
-
-#-----
 ## Construct and echo a filename to save a snapshot in.
 #-----
 mk_snapshot_filename() {
@@ -251,8 +205,8 @@ import_snapshot()  {
   fi
 
   if [[ $1 == '--deprecated' ]] ; then
-    import_snapshot_old "$2"
-    return
+    message "${PROBLEM_COLOR}--deprecated is not supported anymore!$DEFAULT_COLOR"
+    shift
   fi
 
   local snapshot=$1
