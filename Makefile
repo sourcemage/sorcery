@@ -1,6 +1,6 @@
 .PHONY: help
-help:; @echo '$(help)'
-help = Available targets:
+help:
+	@awk 'sub(/^#HELP: ?/, "")' $(MAKEFILE_LIST) $(.MAKE.MAKEFILES)
 
 BRANCH = stable
 release = sorcery-$(BRANCH).tar.bz2
@@ -13,11 +13,12 @@ $(release): $(ts-scm)
 	&& mv "$$tmp" $(release) \
 	|| rm -f "$$tmp"
 
-help += $(.newline)	release - Make a release
+#HELP: Available targets:
+#HELP:	release   - Make a release
 .PHONY: release
 release: $(release)
 
-help += $(.newline)	bump - Bump version
+#HELP:	bump      - Bump version
 .PHONY: bump bump-stable bump-devel
 bump-stable:
 	git describe --tags | >etc/sorcery/version \
@@ -28,6 +29,9 @@ bump-devel:
 
 bump: bump-$(BRANCH)
 
+#HELP:	install   - Install sorcery
+#HELP:	uninstall - Uninstall sorcery
+#HELP:	convert   - Convert from Pre 0.8.x grimoire to new codex format
 script-targets = install uninstall convert
 .PHONY: $(script-targets)
 $(script-targets):; ./$@
