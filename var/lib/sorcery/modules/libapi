@@ -39,6 +39,7 @@
 #    download_src                   (libsummon)
 #    force_depends                  (libdepends)
 #    gather_docs                    (build_api/common)
+#    get_safe_locale                (libmisc)
 #    get_spell_provider             (libstate)
 #    get_source_nums                (libmisc)
 #    guess_compressor               (libunpack)
@@ -505,6 +506,24 @@ gather_docs() {
 get_source_nums() {
     debug "libapi" "$FUNCNAME - $*"
     real_get_source_nums "$@"
+}
+
+#---------------------------------------------------------------------
+## @Type API
+## @param optional list of preferred locales to test for instead
+##        of internal default, in order (one string, space-separated)
+##
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_get_safe_locale,> for more details.
+##
+## On a modern system, this should print C.UTF-8 or en_US.UTF-8, falling
+## back to C, which always has to be there.
+##
+## @return 0 if the returned locale is a preferred one (not C fallback)
+## @stdout the locale name
+#---------------------------------------------------------------------
+get_safe_locale() {
+    debug "libapi" "get_safe_locale - $*"
+    real_get_safe_locale "$@"
 }
 
 #---------------------------------------------------------------------

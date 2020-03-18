@@ -49,7 +49,7 @@ gpg_verify_signature() { # $1 sig $2 file $3 pubring $4 algo var
     return 200
   else
     local output=$TMP_DIR/$(smgl_basename $file).gpgout
-    LC_ALL=C.UTF-8 gpg --no-default-keyring  \
+    LC_ALL="$(get_safe_locale)" gpg --no-default-keyring  \
                --always-trust        \
                --keyring $keyring    \
                --batch               \
