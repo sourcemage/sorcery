@@ -1711,6 +1711,17 @@ show_file() {
       x-gzip) gzip -cd "$file" | $PAGER ;;
       x-xz|x-lzma) xz -cd "$file" | $PAGER ;;
       x-7z-compressed) 7z -d "$file" | $PAGER ;;
+      # This is needed as long as there is stable grimoire with
+      # file 5.23 which returns binary for bzip2 files
+      # (and others, I presume). At least for bzip2 files that
+      # sorcery created!
+      binary) case "$file" in
+                *.bz2) bzcat "$file" | $PAGER ;;
+                *.gz)  gzip -cd "$file" | $PAGER ;;
+                *) message "Unknown binary file type."
+                   return 1 ;;
+              esac
+              ;;
           *) message "Unknown file type."
               return 1 ;;
     esac
