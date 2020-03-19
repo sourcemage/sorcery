@@ -15,12 +15,7 @@ transfer_staged_spell()
   stage_install_ordinary
 
   # restore any hardlinks, since they were copied over normally
-  local hlist
-  if [[ -n $CAST_TMPDIR ]]; then
-    hlist="$CAST_TMPDIR/hardlinks"
-  else
-    hlist="$TMP_DIR/hardlinks"
-  fi
+  local hlist="${CAST_TMPDIR:-$TMP_DIR}/hardlinks"
   if [[ -s $hlist ]]; then
     local inode last_inode filename last_filename
     sort "$hlist" |
