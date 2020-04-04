@@ -430,8 +430,10 @@ create_cache_archive()  {
 
   case "$COMPRESSBIN" in
     gzip|bzip2|pbzip2|xz)
-      $COMPRESSBIN -c $CACHE > $CACHE_COMP
-      rm $CACHE
+      if "$COMPRESSBIN" -c </dev/null &>/dev/null; then
+        "$COMPRESSBIN" -c "$CACHE" > "$CACHE_COMP" &&
+        rm "$CACHE"
+      fi
       ;;
   esac
 }
