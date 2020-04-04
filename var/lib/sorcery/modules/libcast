@@ -679,25 +679,23 @@ acquire_cast_lock() {
 ## our compile log directory.
 #---------------------------------------------------------------------
 create_compile_log()  {
-  local tmp_log=$C_LOG.2
-
   message  "${MESSAGE_COLOR}Creating compile log"                  \
            "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"  \
            "${DEFAULT_COLOR}"
-  if [[ "$STORE_CONF_LOG" == on ]] && test -e $SOURCE_DIRECTORY/config.log; then
-    echo "---config.log---" >> $C_LOG
-    cat $SOURCE_DIRECTORY/config.log >> $C_LOG
-  fi
-
-  # remove any nplicated lines (happens due to all the redirection we do)
-  uniq $C_LOG > $tmp_log
-  mv $tmp_log $C_LOG
-
+  {
+    # remove any nplicated lines (happens due to all the redirection we do)
+    uniq "$C_LOG"
+    # append config.log
+    if [ on = "$STORE_CONF_LOG" ] && [ -e "$SOURCE_DIRECTORY"/config.log ]; then
+      echo '---config.log---'
+      cat "$SOURCE_DIRECTORY"/config.log
+    fi
+  } |
   # install the compile log
-  if [  -z  "$EXTENSION"  ];  then
-    cp  $C_LOG  $COMPILE_LOGS/$SPELL-$VERSION
+  if [ -z "$EXTENSION" ] || ! "$COMPRESSBIN" </dev/null &>/dev/null; then
+    cat > "$COMPILE_LOGS/$SPELL-$VERSION"
   else
-    $COMPRESSBIN -c $C_LOG > "$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+    "$COMPRESSBIN" -c > "$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
   fi
 
   # install the castfs log
