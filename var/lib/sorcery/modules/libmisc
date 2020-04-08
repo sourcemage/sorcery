@@ -1478,22 +1478,22 @@ set_architecture() {
   : ${arch:=${TARGET:-$ARCHITECTURE}}
 
   # Find the specfile to use
-  SPECFILE=$(find -L "${ARCH_SPECS[@]}" \( -name "$arch" -o -name null \) \
-		  -perm -400 -type f 2>/dev/null |
-		 awk '! /[/]null$/ { exit } END { print }')
-  case "$SPECFILE" in
-    */null)
-      message "${PROBLEM_COLOR}Cannot find arch spec for $arch!"
-      message "Reverting to null!"
-      message "Please run sorcery afterwards and pick another architecture!$DEFAULT_COLOR"
-      echo
-      sleep 2
-  esac
+  for specdir in ${ARCH_SPECS[@]} ; do
+    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "$arch" 2>/dev/null | sed q)
+    [ $SPECFILE ] && break
+  done
+  if [[ ! $SPECFILE ]] ; then
+    message "${PROBLEM_COLOR}Cannot find arch spec for $arch!"
+    message "Reverting to null!"
+    message "Please run sorcery afterwards and pick another architecture!$DEFAULT_COLOR"
+    echo
+    sleep 2
+    SPECFILE=$(find -L ${specdir} -perm -400 -type f -name "null" 2>/dev/null | sed q)
+  fi
   debug "libmisc" "set_architecture: SPECFILE=$SPECFILE"
 
   # turn the path into an array, but remove $specdir from the start first
   unset SMGL_COMPAT_ARCHS
-  specdir="${SPECFILE%/*/*/*}"
   explode "${SPECFILE#$specdir/}" '/' SMGL_COMPAT_ARCHS
 
   # Reverse the array so that the most specific arch is first
