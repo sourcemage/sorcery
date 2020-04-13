@@ -286,10 +286,11 @@ resurrect_spell()  { (
   local tmp="$SCRIPT_DIRECTORY"
   SCRIPT_DIRECTORY=$(codex_find_spell_by_name $SPELL)
   query_conflicts $SPELL "$conflicts"
-  if [[ $? == 0 ]] && dispel_conflicts $SPELL "$conflicts"; then
+  local rc=$?
+  if [ -f "$conflicts" ]; then
     sed -i "/^$SPELL /d" "$conflicts"
-  else
-    sed -i "/^$SPELL /d" "$conflicts"
+  fi
+  if [ 0 != "$rc" ] || ! dispel_conflicts "$SPELL" "$conflicts"; then
     resurrect_fail
     return 1
   fi
