@@ -230,12 +230,18 @@ debug()  {
   debugVar=${debugVar//[^a-zA-Z0-9_]/_}
   local i
   if [[ ${!debugVar} != "no" ]] ; then
-    echo -n "$1($$): " >>$DEBUG
+    # Construct line and print out in one go, to lessen interference from
+    # parallel work, and some strange interference between printouts of one
+    # and the same process that I do not understand (yet, or ever).
+    # In ( ... ) subshells, $$ still refers to the mother shell, trying
+    # the bashism with fallback to be able to tell apart parallel cast passes
+    # three and four.
+    local line="$1(${BASHPID:-$$}):"
     shift
     for i in "$@" ; do
-      echo -n " \"$i\"" >>$DEBUG
+      line="$line \"$i\""
     done
-    echo >>$DEBUG
+    printf "%s\n" "$line" >>$DEBUG
   fi
 
   true
