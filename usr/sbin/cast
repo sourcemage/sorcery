@@ -435,22 +435,26 @@ pass_two()  {
   MINUS_K=yes
   if [ "$SEPARATE" ]; then
     ( CAST_PASS="three"
+      debug "cast" "pass $CAST_PASS subshell (separate)"
       depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
       if [[ $SCREEN_NAME ]] ; then
         screen_notify "$SCREEN_NAME" "Done downloading"
         screen_kill_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN
       fi
+      debug "cast" "pass $CAST_PASS subshell done"
       touch $TMP_DIR/pass_three.done
     )
   else
     ( CAST_PASS="three"
       trap "exit 1" INT TERM # this keep a rather nasty message
                                     # from appearing if we get killed
+      debug "cast" "pass $CAST_PASS subshell"
       depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
       if [[ $SCREEN_NAME ]] ; then
         screen_notify "$SCREEN_NAME" "Done downloading"
         screen_kill_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN
       fi
+      debug "cast" "pass $CAST_PASS subshell done"
       touch $TMP_DIR/pass_three.done &>/dev/null
     ) &
   fi
@@ -459,7 +463,9 @@ pass_two()  {
 
   (
     CAST_PASS="four"
+    debug "cast" "pass $CAST_PASS subshell"
     depengine_entry_point "$SPELLS" "$SPELLS_TO_CAST"
+    debug "cast" "pass $CAST_PASS subshell done"
     touch $TMP_DIR/pass_four.done
   )
 
@@ -610,6 +616,7 @@ pass_four()  {
   else
     cast_spell $*
   fi
+  debug "cast" "pass_four done for $SPELL"
 }
 
 
