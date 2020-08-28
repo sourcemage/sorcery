@@ -45,6 +45,11 @@ depengine_entry_point() {
   local spell pending_list spell_status rc
   local spell_depends spell_sub_depends spell_rsub_depends
 
+  # Shortcut for avoiding grey dependency loop detection,
+  # see depengine_cast_engine(). Empty list to begin with.
+  # This is a global variable!
+  dpgn_grey_loop_spells=
+
   for spell in $(hash_get_table_fields dep_f_hash); do
     dpgn_set_spell_color $spell white
   done
@@ -101,14 +106,28 @@ depengine_cast_engine() {
   local org_color=$(dpgn_get_spell_color $spell)
   local rc
 
-  dpgn_set_spell_color $spell grey
-
-  recurse_depends $spell $in_trigger
-  rc=$?
-  if [[ $in_trigger != 0 ]] && [[ $rc == 2 ]] ; then
+  # Dependency recursion can hit a grey dependency loop many times
+  # and waste a lot of CPU cycles on that. The shortcut turns a pathological
+  # seemingly endless loop during a whole-system rebuild (about 1000 spells)
+  # into a non-issue.
+  if [[ $in_trigger != 0 ]] && list_find "$looped_spell_list" $spell; then
+    debug "libdepengine" "grey loop shortcut for $spell"
     dpgn_set_spell_color $spell $org_color
     return 2
+  else
+    dpgn_set_spell_color $spell grey
+    recurse_depends $spell $in_trigger
+    rc=$?
+    if [[ $in_trigger != 0 ]] && [[ $rc == 2 ]] ; then
+      debug "libdepengine" "got a grey loop for $spell"
+      dpgn_set_spell_color $spell $org_color
+      list_add looped_spell_list $spell
+      return 2
+    fi
   fi
+  # The grey loop detection shall start fresh on the next round of recursions
+  # once an actual action takes place that may change the situation.
+  dpgn_grey_loop_spells=
 
   spell_status=$(dpgn_get_spell_color $spell)
   if [[ $spell_status == grey ]] && [[ $rc == 0 ]] ; then
