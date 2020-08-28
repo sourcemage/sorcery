@@ -147,6 +147,7 @@ depengine_cast_engine() {
 
   dpgn_set_spell_color $spell black:$rc
 
+  debug "libdepengine" "done with depengine_cast_engine $@"
   return $rc
 }
 
@@ -225,6 +226,7 @@ recurse_depends() {
   # catches those cases where we dont, and doesn't worry too much
   # about a failure
   if [[ $rc == 0 ]] ; then
+    debug "libdepengine" "build triggerers of $spell"
     local hash_triggerers
     hash_get_ref trg_r_hash $spell:cast_self hash_triggerers
     for triggerer in $hash_triggerers; do
@@ -236,6 +238,7 @@ recurse_depends() {
       fi
     done
   fi
+  debug "libdepengine" "done with recurse_depends $@"
   return $rc
 }
 
@@ -344,6 +347,7 @@ execute_triggers() {
 ## frontend to cast spells, unregisters pending triggers if any
 #------------------------------------------------------------------------
 dpgn_cast_spell_front() {
+  $STD_DEBUG
   if ! [[ $CAST_PASS ]] ; then
     message "ERROR: Missing cast pass variable!!"
     exit 1
