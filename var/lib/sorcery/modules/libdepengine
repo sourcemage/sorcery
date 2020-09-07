@@ -135,6 +135,12 @@ depengine_cast_engine() {
     rc=$?
   fi
 
+  if grep -qs "^$spell$" "$FAILED_LIST"; then
+    message "${MESSAGE_COLOR}The spell ${SPELL_COLOR}$spell$MESSAGE_COLOR" \
+            " failed to cast. Remembering that.$DEFAULT_COLOR"
+    rc=1
+  fi
+
   dpgn_set_spell_color $spell brown
 
   if [[ $rc == 0 ]] ; then
