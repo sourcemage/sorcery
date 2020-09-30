@@ -135,9 +135,19 @@ depengine_cast_engine() {
     rc=$?
   fi
 
+  # Crude hacks to avoid casting spells whose dependencies failed.
+  # Since sorcery does not properly keep track of spell state with
+  # its multiple passes, some grepping in files that store failures
+  # does the trick.
   if grep -qs "^$spell$" "$FAILED_LIST"; then
     message "${MESSAGE_COLOR}The spell ${SPELL_COLOR}$spell$MESSAGE_COLOR" \
             " failed to cast. Remembering that.$DEFAULT_COLOR"
+    rc=1
+  # pre_sub_depends failure is non-fatal, just means re-cast
+  elif grep -s "^$spell " "$CAST_BACKUPDIR/failure_reason_log" \
+    | grep -q -v pre_sub_depends; then
+    message "${MESSAGE_COLOR}The spell ${SPELL_COLOR}$spell$MESSAGE_COLOR" \
+            " failed before cast. Remembering that.$DEFAULT_COLOR"
     rc=1
   fi
 
