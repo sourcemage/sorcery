@@ -39,14 +39,22 @@ real_mk_source_dir() {
   local NEW_DIR=${NEW_DIR:=$SOURCE_DIRECTORY}
 
   local SIZE=$2
-  local SIZE=${SIZE:=2g}
+  # See bug 15946. Even simpler approach: Just specify no size, wich
+  # also defaults to half of RAM in Linux.
+  # TODO: Use given size to decide for TMPFS or not, early bail out
+  # if not enough disk.
+  local sizepar
+  if [[ -n "$SIZE" ]]; then
+    sizepar="size=$SIZE,"
+  fi
+  # Could also think about inode count being necessary.
 
   if  [  -n  "$NEW_DIR"  ];  then
 
     rm_source_dir  $NEW_DIR
     mkdir -p $NEW_DIR  &&
     if  [[  $TMPFS == on  ]]; then
-      mount  -o  size=$SIZE,nr_inodes=1m  -t  tmpfs  tmpfs  $NEW_DIR
+      mount  -o "$sizepar"nr_inodes=1m  -t  tmpfs  tmpfs  $NEW_DIR
     fi
   fi
 
