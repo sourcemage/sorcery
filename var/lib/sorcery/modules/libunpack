@@ -592,7 +592,10 @@ unpack_missing() {
 ##
 #---------------------------------------------------------------------
 uncompress_unpack_cache() {
-  uncompress_unpack "$1" root cache same-permissions
+  # FIXME enable unpacking with non-gnu tar
+  local filename=$(guess_filename "$basedir/$1") &&
+  local compressor=$(guess_compressor "$filename") &&
+  uncompress_core "$filename" "$compressor" | tar -xf -
 }
 
 #---------------------------------------------------------------------
