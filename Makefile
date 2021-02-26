@@ -29,7 +29,12 @@ bump-devel:
 
 bump: bump-$(BRANCH)
 
+devinst: install
+	date +%Y%m%d | tr '\n' - > /etc/sorcery/version
+	git show --oneline | head -n 1 | cut -f 1 -d ' ' >> /etc/sorcery/version
+
 #HELP:	install   - Install sorcery
+#HELP:	devinst   - Install with version vom active branch
 #HELP:	uninstall - Uninstall sorcery
 #HELP:	convert   - Convert from Pre 0.8.x grimoire to new codex format
 script-targets = install uninstall convert
