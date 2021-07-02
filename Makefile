@@ -9,7 +9,7 @@ ts-scm = .git/refs/heads/master
 
 $(release): $(ts-scm)
 	tmp="$$(mktemp -p .)" \
-	&& git archive --prefix=sorcery/ | bzip2 > "$$tmp" \
+	&& git archive --prefix=sorcery/ HEAD | bzip2 > "$$tmp" \
 	&& mv "$$tmp" $(release) \
 	|| rm -f "$$tmp"
 
