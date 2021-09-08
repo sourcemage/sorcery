@@ -1,8 +1,9 @@
 AWK ?= awk
 
+.MAKE.MAKEFILES ?= ${MAKEFILE_LIST}
 .PHONY: help
 help:
-	@awk 'sub(/^#HELP: ?/, "")' $(MAKEFILE_LIST) $(.MAKE.MAKEFILES)
+	@${AWK} 'sub(/^#HELP: ?/, "")' ${.MAKE.MAKEFILES}
 
 BRANCH = stable
 release = sorcery-$(BRANCH).tar.bz2
