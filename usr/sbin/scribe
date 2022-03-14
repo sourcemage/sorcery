@@ -281,11 +281,15 @@ scribe_add_update_worker() {
 
   # download it
   local scribe_target scribe_type
-  if [[ $add_or_update == update ]]; then
-    url_download "$grim_name" "$from" "" scribe_target scribe_type
-  else
-    url_download "$grim_target" "$from" "" scribe_target scribe_type
-  fi
+  case "$add_or_update:$from" in
+    # Special case to avoid re-downloading git repos
+    (update:git*)
+      url_download "$grim_name" "$from" "" scribe_target scribe_type
+      ;;
+    (*)
+      url_download "$grim_target" "$from" "" scribe_target scribe_type
+      ;;
+  esac
 
   #check the success of the download
   if [ $? != 0 ]; then
