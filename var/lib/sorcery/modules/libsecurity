@@ -58,7 +58,7 @@ gaze_checkmd5() {
       SOURCE="$(ls $SOURCE_CACHE/$SOURCE* 2> /dev/null | cut -d'/' -f 5 | head -n 1)"
       if [ "$SOURCE" ]
       then
-        if [[ -z $(echo ${SOURCE#$OLDSOURCE.} | egrep '^[0-9]{14}$') ]]
+        if [[ -z $(echo ${SOURCE#$OLDSOURCE.} | grep -E '^[0-9]{14}$') ]]
         then
           APPEND="FUZZ s/$OLDSOURCE/$SOURCE/ "
         else
