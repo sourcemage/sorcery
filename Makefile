@@ -1,6 +1,9 @@
+AWK ?= awk
+
+.MAKE.MAKEFILES ?= ${MAKEFILE_LIST}
 .PHONY: help
 help:
-	@awk 'sub(/^#HELP: ?/, "")' $(MAKEFILE_LIST) $(.MAKE.MAKEFILES)
+	@${AWK} 'sub(/^#HELP: ?/, "")' ${.MAKE.MAKEFILES}
 
 BRANCH = stable
 release = sorcery-$(BRANCH).tar.bz2
@@ -19,24 +22,16 @@ $(release): $(ts-scm)
 release: $(release)
 
 #HELP:	bump      - Bump version
-.PHONY: bump bump-stable bump-devel
-bump-stable:
-	git describe --tags | >etc/sorcery/version \
-	awk -F'[^0-9]' -vOFS=. '{++$$NF;for(i=1;i<NF;i++)$$i=$$(i+1)}NF--'
+.PHONY: bump
+bump:
+	git describe --tags | >etc/sorcery/version ${AWK} -f bump.awk
 
-bump-devel:
-	date -u +%Y%m%d > etc/sorcery/version
-
-bump: bump-$(BRANCH)
-
-devinst: install
-	date +%Y%m%d | tr '\n' - > /etc/sorcery/version
-	git show --oneline | head -n 1 | cut -f 1 -d ' ' >> /etc/sorcery/version
+devinst: bump install
 
 #HELP:	install   - Install sorcery
-#HELP:	devinst   - Install with version vom active branch
+#HELP:	devinst   - Install with version from active branch
 #HELP:	uninstall - Uninstall sorcery
 #HELP:	convert   - Convert from Pre 0.8.x grimoire to new codex format
-script-targets = install uninstall convert
+script-targets = install devinst uninstall convert
 .PHONY: $(script-targets)
 $(script-targets):; ./$@

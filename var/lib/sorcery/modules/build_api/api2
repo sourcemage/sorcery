@@ -85,13 +85,8 @@ run_build_spell() {
       then
         invoke_installwatch
       fi                                    &&
-      if [[ $OVERRIDE_GRIMOIRES ]]; then
-        delve -g "$OVERRIDE_GRIMOIRES" $SPELL INSTALL &&
-        delve -g "$OVERRIDE_GRIMOIRES" $SPELL INSTALL_EXTRAS
-      else
-        delve $SPELL INSTALL &&
-        delve $SPELL INSTALL_EXTRAS
-      fi &&
+      delve ${OVERRIDE_GRIMOIRES+-g "$OVERRIDE_GRIMOIRES"} $SPELL INSTALL &&
+      delve ${OVERRIDE_GRIMOIRES+-g "$OVERRIDE_GRIMOIRES"} $SPELL INSTALL_EXTRAS &&
       run_post_install                      || return 2
       run_transfer                          &&
       devoke_installwatch                   &&
@@ -211,14 +206,9 @@ run_pre_install() {
 run_install() {
   debug "build_api2" "Starting run_install()"
 
-  if [[ $STAGED_INSTALL == on ]]; then
-    message "${MESSAGE_COLOR}Installing"              \
-            "${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}"  \
-            "into the stage${DEFAULT_COLOR}" >&3
-  else
-    message "${MESSAGE_COLOR}Installing" \
-            "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" >&3
-  fi
+  message "${MESSAGE_COLOR}Installing" \
+          "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+	  "(staging: $STAGED_INSTALL)" >&3
 
   if [ -f $S_PWD ] ; then
     cd "$(cat $S_PWD)"
