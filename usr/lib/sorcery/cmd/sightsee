@@ -1,0 +1,86 @@
+#!/bin/sh
+codex=/var/lib/sorcery/codex
+unset verbose paths
+
+upstream_rel_get() {
+  wget -q -O- "$1" | gawk -vfname="$2" '
+	match($0, fname, V) {
+		$0 = substr($0, RSTART, RLENGTH)
+		print V[1 in V]
+	}
+  ' | sort -rV | sed q
+}
+
+# Process options
+while
+  case "$1" in
+    (--codex)
+      codex="$2"
+      shift 2
+      ;;
+    (-v|--verbose)
+      verbose=1
+      shift
+      ;;
+    (-h|--help)
+      cat <<"!"
+
+sightsee [spell...]	Find upstream software releases. Takes paths or spell
+			names.
+!
+      exit 0
+      ;;
+    (*) false ;;
+  esac
+do :
+done
+
+if [ $# = 0 ]; then
+  paths="$codex"
+else
+  for i in "$@"; do
+    case "$i" in
+      (*/*) ;;
+      (*)
+        if ! [ -d "$i" ]; then
+          j=$(find "$codex" -maxdepth 3 -name "$i" -type d -print -quit)
+          [ -d "$j" ] && i="$j"
+        fi
+        ;;
+    esac
+    paths+=("$i")
+  done
+fi
+
+find "${paths[@]}" -name DETAILS -exec awk '
+	function check_missing() {
+		if (spell != "")
+		printf "E: %s: Upstream releases page not specified\n", \
+			spell >"/dev/stderr"
+	}
+	END { check_missing() }
+	FNR==1 {
+		check_missing()
+		spell = FILENAME
+		sub(/\/DETAILS$/, "", spell)
+		sub(/.*\//, "", spell)
+	}
+	/^ *VERSION=/ {
+		version = $0
+		sub(/.*=/, "", version)
+	}
+	/^#Watch:/ {
+		# TODO check syntax
+		print spell, version, $2, $3
+		spell = ""
+		nextfile
+	}
+  ' {} + |
+while read spell cur_rel url regex; do
+  latest_rel=$(upstream_rel_get "$url" "$regex") &&
+  if [ "x$latest_rel" != "x$cur_rel" ]; then
+    echo "$spell $latest_rel"
+  elif [ -n "$verbose" ]; then
+    >&2 echo "I: $spell is up to date"
+  fi
+done
