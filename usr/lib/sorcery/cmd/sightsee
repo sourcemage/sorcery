@@ -57,14 +57,9 @@ else
 fi
 
 find "${paths[@]}" -name DETAILS -exec awk '
-	function check_missing() {
-		if (spell != "")
-		printf "E: %s: Upstream releases page not specified\n", \
-			spell >"/dev/stderr"
-	}
-	END { check_missing() }
+	END { print_spell() }
 	FNR==1 {
-		check_missing()
+		if (spell != "") print_spell()
 		spell = FILENAME
 		sub(/\/DETAILS$/, "", spell)
 		sub(/.*\//, "", spell)
@@ -72,16 +67,26 @@ find "${paths[@]}" -name DETAILS -exec awk '
 	/^ *VERSION=/ {
 		version = $0
 		sub(/.*=/, "", version)
+		if (watch_url != "") nextfile
 	}
 	/^#Watch:/ {
+		watch_url = $2
+		watch_regex = $3
 		# TODO check syntax
-		print spell, version, $2, $3
-		spell = ""
-		nextfile
+		if (version != "") nextfile
+	}
+	function print_spell() {
+		if (watch_url == "") {
+			printf "E: %s: %s\n", spell, \
+				"Upstream releases page not specified" \
+				>"/dev/stderr"
+		}
+		print spell, version, watch_url, watch_regex
+		version = watch_url = spell = ""
 	}
   ' {} + |
 while read spell cur_rel url regex; do
-  latest_rel=$(upstream_rel_get "$url" "$regex") &&
+  latest_rel=$(upstream_rel_get "$url" "$regex") || continue
   if [ "x$latest_rel" != "x$cur_rel" ]; then
     echo "$spell $latest_rel"
   elif [ -n "$verbose" ]; then
