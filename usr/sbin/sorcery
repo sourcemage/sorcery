@@ -32,6 +32,8 @@ Usage:          sorcery [parameters]
 
 Optional Parameters:
 
+-v  | --version         Print the sorcery version
+
 -h  |  --help  |  help  Display this help screen
 
 -s  |  system-update    Perform a system update (updates sorcery, grimoire,
@@ -80,13 +82,11 @@ default add spell PROVIDER on/off       "Spell" is the provider for
 
 default remove [spell|""] [spell|PROVIDER|""] Remove entry from defaults
 default search [spell|""] [spell|PROVIDER|""] [on|off] Search defaults
-
--v  | --version                 Print the sorcery version
-
 EOF
-
-  exit 1
 #' <-- fix for syntax highlighting in nedit
+  find /usr/lib/sorcery/cmd -mindepth 1 -maxdepth 1 -perm /333 -type f \
+    -exec {} --help \;
+  exit 1
 }
 
 mirror_list() {
@@ -1995,6 +1995,13 @@ main() {
   fi
 
 }
+
+# Externally-implemented subcommands take priority
+if [ -f /usr/lib/sorcery/cmd/"$1" ]; then
+  cmd="$1"
+  shift
+  exec /usr/lib/sorcery/cmd/"$cmd" "$@"
+fi
 
 . /etc/sorcery/config
 verify_parameters "$@"
