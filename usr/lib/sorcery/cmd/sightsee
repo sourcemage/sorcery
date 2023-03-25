@@ -8,7 +8,7 @@ upstream_rel_get() {
 		$0 = substr($0, RSTART, RLENGTH)
 		print V[1 in V]
 	}
-  ' | sort -rV | sed q
+  ' | sort -urV
 }
 
 # Process options
@@ -86,7 +86,7 @@ find "${paths[@]}" -name DETAILS -exec awk '
 	}
   ' {} + |
 while read spell cur_rel url regex; do
-  latest_rel=$(upstream_rel_get "$url" "$regex") || continue
+  latest_rel=$(upstream_rel_get "$url" "$regex" | sed q) || continue
   if [ "x$latest_rel" != "x$cur_rel" ]; then
     echo "$spell $latest_rel"
   elif [ -n "$verbose" ]; then
