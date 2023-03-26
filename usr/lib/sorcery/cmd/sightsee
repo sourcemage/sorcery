@@ -69,9 +69,11 @@ find "${paths[@]}" -name DETAILS -exec awk '
 		sub(/.*=/, "", version)
 		if (watch_url != "") nextfile
 	}
-	/^#Watch:/ {
-		watch_url = $2
-		watch_regex = $3
+	/^# *Watch:/ {
+		sub(/^[^:]+: */, "")
+		watch_url = $1
+		sub(/^[^ ]+ +/, "")
+		watch_regex = $0
 		# TODO check syntax
 		if (version != "") nextfile
 	}
