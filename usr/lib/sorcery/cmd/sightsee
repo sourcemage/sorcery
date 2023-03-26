@@ -1,11 +1,14 @@
 #!/bin/sh
 codex=/var/lib/sorcery/codex
-unset verbose paths
+unset debug verbose paths
 
 upstream_rel_get() {
-  wget -q -O- "$1" | gawk -vfname="$2" '
+  [ -z "$debug" ] || >&2 echo "D: Visiting $1"
+  wget -q -O- "$1" | gawk -vdebug="$debug" -vfname="$2" '
 	match($0, fname, V) {
 		$0 = substr($0, RSTART, RLENGTH)
+		if (debug)
+			printf "D: matched `%s`\n", $0 >"/dev/stderr"
 		print V[1 in V]
 	}
   ' | sort -urV
@@ -22,6 +25,10 @@ while
     (--codex)
       codex="$2"
       shift 2
+      ;;
+    (--debug)
+      debug=1
+      shift
       ;;
     (-v|--verbose)
       verbose=1
@@ -57,7 +64,7 @@ else
   done
 fi
 
-find "${paths[@]}" -name DETAILS -exec awk '
+find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 	END { print_spell() }
 	FNR==1 {
 		if (spell != "") print_spell()
@@ -78,6 +85,8 @@ find "${paths[@]}" -name DETAILS -exec awk '
 			"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
 			"(-src|-source)?" \
 			"[.](tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
+		if (debug)
+			printf "D: regex `%s`\n", watch_regex >"/dev/stderr"
 		if (version != "") nextfile
 	}
 	function print_spell() {
@@ -91,12 +100,18 @@ find "${paths[@]}" -name DETAILS -exec awk '
 	}
   ' {} + |
 while read spell cur_rel url regex; do
+  if [ -n "$debug" ]; then
+    >&2 echo "D: current_release for $spell: $cur_rel"
+  fi
   latest_rel=$(upstream_rel_get "$url" "$regex" | sed q) || continue
   if [ -z "$latest_rel" ]; then
     >&2 echo "W: $spell has no published releases, review the URL"
   elif [ "x$latest_rel" != "x$cur_rel" ]; then
+    if [ -n "$debug" ]; then
+      >&2 echo "D: latest release for $spell: $latest_rel"
+    fi
     echo "$spell $latest_rel"
-  elif [ -n "$verbose" ]; then
+  elif [ -n "$verbose" ] || [ -n "$debug" ]; then
     >&2 echo "I: $spell is up to date"
   fi
 done
