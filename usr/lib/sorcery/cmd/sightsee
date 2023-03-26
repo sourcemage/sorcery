@@ -80,7 +80,7 @@ find "${paths[@]}" -name DETAILS -exec awk '
 	}
 	function print_spell() {
 		if (watch_url == "") {
-			printf "E: %s: %s\n", spell, \
+			printf "W: %s: %s\n", spell, \
 				"Upstream releases page not specified" \
 				>"/dev/stderr"
 		}
@@ -90,7 +90,9 @@ find "${paths[@]}" -name DETAILS -exec awk '
   ' {} + |
 while read spell cur_rel url regex; do
   latest_rel=$(upstream_rel_get "$url" "$regex" | sed q) || continue
-  if [ "x$latest_rel" != "x$cur_rel" ]; then
+  if [ -z "$latest_rel" ]; then
+    >&2 echo "W: $spell has no published releases, review the URL"
+  elif [ "x$latest_rel" != "x$cur_rel" ]; then
     echo "$spell $latest_rel"
   elif [ -n "$verbose" ]; then
     >&2 echo "I: $spell is up to date"
