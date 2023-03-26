@@ -73,9 +73,11 @@ find "${paths[@]}" -name DETAILS -exec awk '
 	/^# *Watch:/ {
 		sub(/^[^:]+: */, "")
 		watch_url = $1
-		sub(/^[^ ]+ +/, "")
-		watch_regex = $0
-		# TODO check syntax
+		sub(/^[^ ]+ */, "")
+		watch_regex = $0 ? $0 : spell \
+			"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
+			"(-src|-source)?" \
+			"[.](tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
 		if (version != "") nextfile
 	}
 	function print_spell() {
