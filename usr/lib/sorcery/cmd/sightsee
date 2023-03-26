@@ -74,7 +74,9 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 	}
 	/^ *VERSION=/ {
 		version = $0
-		sub(/.*=/, "", version)
+		sub(/[\t ]*[;#].*/, "", version)
+		sub(/.*=["'\'']?/, "", version)
+		sub(/["'\'']$/, "", version)
 		if (watch_url != "") nextfile
 	}
 	/^# *Watch:/ {
