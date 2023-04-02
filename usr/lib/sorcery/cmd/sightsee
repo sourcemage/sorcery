@@ -71,7 +71,8 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 	}
 	/^ *SPELL=/ {
 		spell = $0
-		sub(/^[^=]+=/, "", spell)
+		sub(/^[^=]+=["'\'']?/, "", spell)
+		sub(/["'\'']$/, "", spell)
 		next
 	}
 	/^ *VERSION=/ {
