@@ -1,10 +1,14 @@
 #!/bin/sh
+. /etc/sorcery/local/config
 codex=/var/lib/sorcery/codex
 unset debug verbose paths
 
 upstream_rel_get() {
   [ -z "$debug" ] || >&2 echo "D: Visiting $1"
-  wget -q -O- "$1" | gawk -vdebug="$debug" -vfname="$2" '
+  case "$HTTP_DL_HANDLER" in
+    (curl) curl -s "$1" ;;
+    (*) wget -q -O- "$1" ;;
+  esac | gawk -vdebug="$debug" -vfname="$2" '
 	match($0, fname, V) {
 		$0 = substr($0, RSTART, RLENGTH)
 		if (debug)
