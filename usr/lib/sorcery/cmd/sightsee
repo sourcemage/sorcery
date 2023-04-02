@@ -68,9 +68,11 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 	END { print_spell() }
 	FNR==1 {
 		if (spell != "") print_spell()
-		spell = FILENAME
-		sub(/\/DETAILS$/, "", spell)
-		sub(/.*\//, "", spell)
+	}
+	/^ *SPELL=/ {
+		spell = $0
+		sub(/^[^=]+=/, "", spell)
+		next
 	}
 	/^ *VERSION=/ {
 		version = $0
@@ -83,12 +85,7 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 		sub(/^[^:]+: */, "")
 		watch_url = $1
 		sub(/^[^ ]+ */, "")
-		watch_regex = $0 ? $0 : spell \
-			"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
-			"([-.]src|[-.]source)?" \
-			"[.](tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
-		if (debug)
-			printf "D: regex `%s`\n", watch_regex >"/dev/stderr"
+		watch_regex = $0
 		if (version != "") nextfile
 	}
 	function print_spell() {
@@ -97,6 +94,13 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 				"Upstream releases page not specified" \
 				>"/dev/stderr"
 		} else {
+			if (!watch_regex)
+				watch_regex = spell \
+					"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
+					"([-.]src|[-.]source)?" \
+					"[.](tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
+			if (debug)
+				printf "D: regex `%s`\n", watch_regex >"/dev/stderr"
 			print spell, version, watch_url, watch_regex
 		}
 		version = watch_url = spell = ""
