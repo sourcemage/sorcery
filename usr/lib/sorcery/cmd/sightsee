@@ -9,7 +9,7 @@ upstream_rel_get() {
     (curl) curl -s "$1" ;;
     (*) wget -q -O- "$1" ;;
   esac | gawk -vdebug="$debug" -vfname="$2" '
-	match($0, fname, V) {
+	match(tolower($0), fname, V) {
 		$0 = substr($0, RSTART, RLENGTH)
 		if (debug)
 			printf "D: matched `%s`\n", $0 >"/dev/stderr"
