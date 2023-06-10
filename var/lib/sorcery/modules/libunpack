@@ -196,6 +196,7 @@ uncompress_core() {
             tar)  cat           "$1"  ;;
           xz|XZ)  xz -cdf "$1" ;;
            LZMA)  xz -cdf "$1" ;;
+           lzip)  lzip -cdf "$1" ;;
           7-zip)  cat "$1" ;; # 7z supports stdout, but it unpacks at the same time
               *)  cat           "$1"  ;;
   esac
@@ -234,7 +235,7 @@ unpack_core() {
   debug "libgrimoire" "unpack_core - $*"
 
   case  "$2"  in
-            bzip2|gzip|compress*|tar|XZ|xz|LZMA)
+            bzip2|gzip|compress*|lzip|tar|XZ|xz|LZMA)
                     untar 2>/dev/null || cat > /dev/null ;;
               Zip)  cat /dev/stdin >/dev/null   #get rid of unused output
                     unzip  -q  "$1"                                    ;;
