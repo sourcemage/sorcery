@@ -1107,8 +1107,10 @@ invoke_build_dir() {
 
   USE_DISTCC=off
   if [[ $DISABLE_DISTCC != yes ]] ; then
-    if test -n "$DISTCC_HOSTS" && spell_ok distcc ; then
-      USE_DISTCC=on
+    if test -n "$DISTCC_HOSTS"; then
+      if spell_ok icecream || spell_ok distcc; then
+        USE_DISTCC=on
+      fi
     fi
   fi
 

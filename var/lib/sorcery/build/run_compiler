@@ -19,20 +19,19 @@
 
 . /etc/sorcery/compile_config
 
+DISTCC=
 if [[ $USE_DISTCC != off ]] &&
-   [[ "$DISTCC_HOSTS" ]] &&
-   test -x /usr/bin/distcc ; then
-
-  DISTCC=/usr/bin/distcc
-
+   [[ "$DISTCC_HOSTS" ]]; then
+  if [ -x /usr/bin/icecc ]; then
+    DISTCC=/usr/bin/icecc
+  elif [ -x /usr/bin/distcc ]; then
+    DISTCC=/usr/bin/distcc
+  fi
   export DISTCC_HOSTS
   export DISTCC_DIR
   export DISTCC_VERBOSE=0
   export DISTCC_LOG=/dev/null
-
-  test -d "$DISTCC_DIR/" || mkdir -p "$DISTCC_DIR"
-else
-  DISTCC=""
+  mkdir -p "$DISTCC_DIR"
 fi
 
 if [ "$CCACHE" = "on" ] && [ -x /usr/bin/ccache ] ; then
