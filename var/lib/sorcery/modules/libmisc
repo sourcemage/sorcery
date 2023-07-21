@@ -1764,6 +1764,23 @@ show_file() {
 }
 
 #---------------------------------------------------------------------
+##
+## Reserve file descriptors; connects them to /dev/null.
+##
+#---------------------------------------------------------------------
+SORCERY_LAST_RESERVED_FD=2
+reserve_fds() {
+  while [ $# -gt 0 ]; do
+    if ! : >& "$((SORCERY_LAST_RESERVED_FD))"; then
+      eval "$1=$((SORCERY_LAST_RESERVED_FD)) &&
+            exec $((SORCERY_LAST_RESERVED_FD))> /dev/null" &&
+      shift
+    fi 2>/dev/null
+    let ++SORCERY_LAST_RESERVED_FD
+  done
+}
+
+#---------------------------------------------------------------------
 ## @param title
 ## @Globals TERM
 ##
