@@ -1,6 +1,6 @@
 #!/bin/sh
 . /etc/sorcery/local/config
-codex=/var/lib/sorcery/codex
+. /etc/sorcery/roots
 unset debug verbose paths
 
 upstream_rel_get() {
@@ -32,7 +32,7 @@ while
       exit
       ;;
     (--codex)
-      codex="$2"
+      CODEX_ROOT="$2"
       shift 2
       ;;
     (--debug)
@@ -57,14 +57,14 @@ do :
 done
 
 if [ $# = 0 ]; then
-  paths="$codex"
+  paths="$CODEX_ROOT"
 else
   for i in "$@"; do
     case "$i" in
       (*/*) ;;
       (*)
         if ! [ -d "$i" ]; then
-          j=$(find "$codex" -maxdepth 3 -name "$i" -type d -print -quit)
+          j=$(find "$CODEX_ROOT" -maxdepth 3 -name "$i" -type d -print -quit)
           [ -d "$j" ] && i="$j"
         fi
         ;;
