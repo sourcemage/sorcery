@@ -36,16 +36,24 @@ run_build_spell() {
   export VOYEUR_STDOUT VOYEUR_STDERR
   export __DELVE_IN_CAST=on
 
-  >"$CASTFS_DBGLOG"
-  >"$C_LOG"
+  rm  -f $CASTFS_DBGLOG
+  touch $CASTFS_DBGLOG
+  rm  -f $C_LOG
+  touch $C_LOG
 
-  reserve_fds VOYEUR_STDOUT VOYEUR_STDERR
   if [[ $SCREEN_NAME ]] ; then
     screen_new_window "$SCREEN_NAME" $SCREEN_CAST_WIN "cast $SPELL" \
-      tail -f -s 0.1 "$C_LOG"
+      tail -f -s 0.1 $C_LOG
     screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
+
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
   elif [ "$VOYEUR" == "on" -a -z "$SILENT" ] ; then
-    eval "exec $((VOYEUR_STDOUT))>&1 $((VOYEUR_STDERR))>&2"
+    VOYEUR_STDOUT=/dev/stdout
+    VOYEUR_STDERR=/dev/stderr
+  else
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
   fi
 
   if [[ -z $STAGED_INSTALL ]]
@@ -84,9 +92,9 @@ run_build_spell() {
       devoke_installwatch                   &&
       STAGED_INSTALL=off                    &&
       run_final | append_to_notice_log      || return 3
-    ) 3> >(tee -a "$C_LOG") \
-      2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-       > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+    ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+      2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
+       > >(tee -a $C_LOG >> $VOYEUR_STDOUT) \
   )
   rs=$?
   unset __DELVE_IN_CAST

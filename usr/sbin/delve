@@ -102,16 +102,11 @@ delve_log_helper() {
   CASTFS_DBGLOG=${CASTFS_DBGLOG:="/tmp/sorcery/delve/$SPELL.iwdbglog"}
   C_FIFO=${C_FIFO:="/dev/stdout"}
   IW_LOG=${IW_LOG:="/tmp/sorcery/delve/$SPELL.iw"}
+  VOYEUR_STDOUT=${VOYEUR_STDOUT:="/dev/stdout"}
+  VOYEUR_STDERR=${VOYEUR_STDERR:="/dev/stderr"}
   S_PWD=${S_PWD:="/tmp/sorcery/delve/$SPELL.pwd"}
   touch $C_LOG
-  if [ -z "$VOYEUR_STDOUT" ]; then
-     reserve_fds VOYEUR_STDOUT
-     eval "exec $((VOYEUR_STDOUT))>&1"
-  fi
-  if [ -z "$VOYEUR_STDERR" ]; then
-     reserve_fds VOYEUR_STDERR
-     eval "exec $((VOYEUR_STDERR))>&2"
-  fi
+
 }
 
 #---------------------------------------------------------------------------
@@ -156,20 +151,22 @@ delve_build() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step BUILD 1 2 || return 1
   delve_log_helper
-  ( run_build ) \
-    3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_build
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 delve_pre_install() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step PRE_INSTALL 2 || return 1
   delve_log_helper
-  ( run_pre_install ) \
-    3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_pre_install
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 delve_staged_install_setup() {
@@ -200,11 +197,11 @@ delve_install() {
     else
       $CHROOT_CMD delve $SPELL INSTALL
     fi
-  ) 3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
   local rc=$?
-  if [[ -n "$CHROOT_CMD" && "$STAGED_INSTALL" = castfs ]]
+  if [[ $CHROOT_CMD ]]
   then
     devoke_stage_root
   fi &&
@@ -224,11 +221,11 @@ delve_install_extras() {
     else
       $CHROOT_CMD delve $SPELL INSTALL_EXTRAS
     fi
-  ) 3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
   local rc=$?
-  if [[ -n "$CHROOT_CMD" && "$STAGED_INSTALL" = castfs ]]
+  if [[ $CHROOT_CMD ]]
   then
     devoke_stage_root
   fi &&
@@ -245,30 +242,33 @@ delve_post_build() {
     return 1
   }
   cd $SOURCE_DIRECTORY
-  ( run_post_build ) \
-    3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_post_build
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 delve_post_install() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step POST_INSTALL 1 2 || return 1
   delve_log_helper
-  ( run_post_install ) \
-    3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_post_install
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 delve_transfer() {
   debug "delve" "Running $FUNCNAME"
   delve_is_valid_step TRANSFER 2 || return 1
   delve_log_helper
-  ( run_transfer ) \
-    3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_transfer
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
 delve_final() {
@@ -277,10 +277,12 @@ delve_final() {
   delve_log_helper
   devoke_installwatch &&
   STAGED_INSTALL=off
-  ( run_final ) \
-    3> >(tee -a "$C_LOG") \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_final
+  ) 3> >(tee -a $C_LOG >> /dev/stdout) \
+    2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG > $VOYEUR_STDOUT)
+
 }
 
 delve_triggers() {

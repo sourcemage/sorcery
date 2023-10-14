@@ -30,13 +30,19 @@ run_build_spell() {
   STAGED_INSTALL=off
   rm -f $C_LOG
   touch $C_LOG
-  reserve_fds VOYEUR_STDOUT VOYEUR_STDERR
   if [[ $SCREEN_NAME ]] ; then
     screen_new_window "$SCREEN_NAME" $SCREEN_CAST_WIN "cast $SPELL" \
       tail -f -s 0.1 $C_LOG
     screen_switch_window "$SCREEN_NAME" $SCREEN_MAIN_WIN
+
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
   elif [ "$VOYEUR" == "on" -a -z "$SILENT" ] ; then
-    eval "exec $((VOYEUR_STDOUT))>&1 $((VOYEUR_STDERR))>&2"
+    VOYEUR_STDOUT=/dev/stdout
+    VOYEUR_STDERR=/dev/stderr
+  else
+    VOYEUR_STDOUT=/dev/null
+    VOYEUR_STDERR=/dev/null
   fi
   # should OPTS get set here?
 
@@ -116,9 +122,10 @@ run_build()  {
   message "$SPELL    $VERSION"
 
   run_config_loc
-  ( run_spell_file BUILD build ) \
-    2> >(tee -a "$C_LOG" >& "$VOYEUR_STDERR") \
-     > >(tee -a "$C_LOG" >& "$VOYEUR_STDOUT")
+  (
+    run_spell_file BUILD build
+  ) 2> >(tee -a $C_LOG 1>&2 >> $VOYEUR_STDERR) \
+     > >(tee -a $C_LOG >> $VOYEUR_STDOUT) # see bug 7201
 
   if  [  "$?"  !=  0  ];  then
     message  "${PROBLEM_COLOR}"      \
