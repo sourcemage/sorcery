@@ -169,24 +169,27 @@ delve_pre_install() {
      > >(tee -a $C_LOG > $VOYEUR_STDOUT)
 }
 
+delve_staged_install_setup() {
+  case "$STAGED_INSTALL:$CHROOT_CHECK" in
+    (off:*) invoke_installwatch ;;
+    (*:)
+      if [ "x$1" = x--prepare ]; then
+        prepare_stage_root
+      fi &&
+      invoke_stage_root &&
+      export CHROOT_CHECK=true &&
+      CHROOT_CMD="chroot $STAGE_DIRECTORY/MOUNT"
+      ;&
+    (*:true) INSTALL_ROOT="" ;;
+  esac
+}
+
 delve_install() {
   debug "delve" "Running $FUNCNAME"
 
   delve_is_valid_step INSTALL 2 || return 1
   delve_log_helper
-  if [[ "$STAGED_INSTALL" != "off" ]]
-  then
-    if [[ -z "$CHROOT_CHECK" ]]
-    then
-      prepare_stage_root &&
-      invoke_stage_root &&
-      export CHROOT_CHECK="true"
-      CHROOT_CMD="chroot ${STAGE_DIRECTORY}/MOUNT"
-    fi
-    INSTALL_ROOT=""
-  else
-    invoke_installwatch
-  fi
+  delve_staged_install_setup --prepare
   (
     if [[ -z "$CHROOT_CMD" ]]
     then
@@ -210,18 +213,7 @@ delve_install_extras() {
 
   delve_is_valid_step INSTALL_EXTRAS 2 || return 1
   delve_log_helper
-  if [[ "$STAGED_INSTALL" != "off" ]]
-  then
-    if [[ -z "$CHROOT_CHECK" ]]
-    then
-      invoke_stage_root &&
-      export CHROOT_CHECK="true"
-      CHROOT_CMD="chroot ${STAGE_DIRECTORY}/MOUNT"
-    fi
-    INSTALL_ROOT=""
-  else
-    invoke_installwatch
-  fi
+  delve_staged_install_setup
   (
     if [[ -z "$CHROOT_CMD" ]]
     then

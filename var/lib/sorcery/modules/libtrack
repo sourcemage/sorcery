@@ -124,11 +124,7 @@ real_devoke_stage_root()
 {
   unset CASTFS_LOGFILE
   unset CASTFS_DBGLVL
-  for dir in /dev/pts /dev /proc /sys
-  do
-    umount -l "${STAGE_DIRECTORY}/MOUNT$dir"
-  done &&
-  umount -l "${STAGE_DIRECTORY}/MOUNT"
+  umount -l "${STAGE_DIRECTORY}/MOUNT"{/dev/pts,/dev,/proc,/sys,}
 }
 
 #---------------------------------------------------------------------
@@ -178,12 +174,10 @@ real_devoke_installwatch()  {
 
 is_castfs_installed()
 {
-  if type castfs >/dev/null 2>&1 &&
-     (
-       modprobe fuse > /dev/null 2>&1 ||
-       grep -q '^nodev[\t\v\f\r ]*fuse$' /proc/filesystems
-     ) &&
-     [ -c /dev/fuse ]
+  modprobe fuse >/dev/null 2>&1
+  if [ -c /dev/fuse ] &&
+     grep -q '^nodev	fuse$' /proc/filesystems &&
+     type castfs >/dev/null 2>&1
   then
     message "${MESSAGE_COLOR}Staging enabled${DEFAULT_COLOR}"
     return 0
@@ -429,7 +423,7 @@ create_cache_archive()  {
   rm $TMP_DATA $TMP_MDATA
 
   case "$COMPRESSBIN" in
-    gzip|bzip2|pbzip2|xz)
+    gzip|bzip2|pbzip2|xz|lzip)
       if "$COMPRESSBIN" -c </dev/null &>/dev/null; then
         "$COMPRESSBIN" -c "$CACHE" > "$CACHE_COMP" &&
         rm "$CACHE"

@@ -5,7 +5,7 @@ AWK ?= awk
 help:
 	@${AWK} 'sub(/^#HELP: ?/, "")' ${.MAKE.MAKEFILES}
 
-BRANCH = stable
+BRANCH = devel
 release = sorcery-$(BRANCH).tar.bz2
 
 ts-scm = .git/refs/heads/master
