@@ -135,19 +135,22 @@ depengine_cast_engine() {
     rc=$?
   fi
 
+  # pre_sub_depends failure is non-fatal, just means re-cast
+  # Also, pre_remove and post_remove return values are ignored, anyway.
+  local fail_reasons=$(grep -s "^$spell " "$CAST_BACKUPDIR/failure_reason_log" \
+    | cut -f 2 -d ' ' \
+    | grep -v -e '(pre_sub_depends)' -e '(pre_remove)' -e '(post_remove)')
   # Crude hacks to avoid casting spells whose dependencies failed.
   # Since sorcery does not properly keep track of spell state with
   # its multiple passes, some grepping in files that store failures
   # does the trick.
   if grep -qs "^$spell$" "$FAILED_LIST"; then
     message "${MESSAGE_COLOR}The spell ${SPELL_COLOR}$spell$MESSAGE_COLOR" \
-            " failed to cast. Remembering that.$DEFAULT_COLOR"
+            " failed to cast. Remembering that. ${fail_reasons}$DEFAULT_COLOR"
     rc=1
-  # pre_sub_depends failure is non-fatal, just means re-cast
-  elif grep -s "^$spell " "$CAST_BACKUPDIR/failure_reason_log" \
-    | grep -q -v pre_sub_depends; then
+  elif [[ -n $fail_reasons ]]; then
     message "${MESSAGE_COLOR}The spell ${SPELL_COLOR}$spell$MESSAGE_COLOR" \
-            " failed before cast. Remembering that.$DEFAULT_COLOR"
+            " subtly failed before cast. Remembering that. ${fail_reasons}$DEFAULT_COLOR"
     rc=1
   fi
 
