@@ -1902,36 +1902,75 @@ gaze_system_info()
   uname -a
 
   #---
-  ## Section: BASESYSTEM
+  ## Section: SORCERY BASE
   #---
 
   message -n "${PROBLEM_COLOR}--------------------{"
-  message -n "Section:          BASESYSTEM"
+  message -n "Section:        SORCERY BASE"
   message    "}--------------------${DEFAULT_COLOR}"
 
   #---
-  ## Need a list of the base spell and ALL of it's DIRECT
-  ## depends(what's in DEPENDS)
-  ## base_system="$(gaze dependencies basesystem 2 | sed
+  ## Need a list of the sorcery base spell and ALL of it's
+  ## DIRECT depends(what's in DEPENDS)
+  ## base_system="$(gaze dependencies ${SORCERY_BASE} 2 | sed
   ## -e "s/()//" -e 's/ (depends)//' -e 's/ (optional)//' | tr "\n" " " )"
   #---
 
-  version="$(figure_installed basesystem)"
-  section="$(codex_get_spell_section_name basesystem)"
-  message -n "${MESSAGE_COLOR}${section}/basesystem:\t"
+  version="$(figure_installed ${SORCERY_BASE})"
+  section="$(codex_get_spell_section_name ${SORCERY_BASE})"
+  message -n "${MESSAGE_COLOR}${section}/${SORCERY_BASE}:\t"
   message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}\n"
 
   compute_installed_depends on_down_deps x on
   compute_installed_depends off_down_deps x off
   {
-  for curr_spell in $(hash_get on_down_deps basesystem)
+  for curr_spell in $(hash_get on_down_deps ${SORCERY_BASE})
   do
     version="$(figure_installed $curr_spell)"
     section="$(codex_get_spell_section_name $curr_spell)"
     message -n "${MESSAGE_COLOR}${section}/${curr_spell}:\t"
     message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}"
   done
-  for curr_spell in $(hash_get off_down_deps basesystem)
+  for curr_spell in $(hash_get off_down_deps ${SORCERY_BASE})
+  do
+    version="$(figure_installed $curr_spell)"
+    section="$(codex_get_spell_section_name $curr_spell)"
+    message -n "${MESSAGE_COLOR}${section}/${curr_spell}:\t"
+    message    "${QUERY_COLOR}${version} (disabled)${DEFAULT_COLOR}"
+  done
+  } | sort
+
+  #---
+  ## Section: SYSTEM BASE
+  #---
+
+  message -n "${PROBLEM_COLOR}--------------------{"
+  message -n "Section:         SYSTEM BASE"
+  message    "}--------------------${DEFAULT_COLOR}"
+
+  #---
+  ## Need a list of the sorcery base spell and ALL of it's
+  ## DIRECT depends(what's in DEPENDS)
+  ## base_system="$(gaze dependencies ${SYSTEM_BASE} 2 | sed
+  ## -e "s/()//" -e 's/ (depends)//' -e 's/ (optional)//' | tr "\n" " " )"
+  #---
+
+  version="$(figure_installed ${SYSTEM_BASE})"
+  section="$(codex_get_spell_section_name ${SYSTEM_BASE})"
+  message -n "${MESSAGE_COLOR}${section}/${SYSTEM_BASE}:\t"
+  message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}\n"
+
+  compute_installed_depends on_down_deps x on
+  compute_installed_depends off_down_deps x off
+  {
+  for curr_spell in $(hash_get on_down_deps ${SYSTEM_BASE})
+  do
+    version="$(figure_installed $curr_spell)"
+    section="$(codex_get_spell_section_name $curr_spell)"
+    message -n "${MESSAGE_COLOR}${section}/${curr_spell}:\t"
+    message    "${QUERY_COLOR}${version}${DEFAULT_COLOR}"
+  done
+  for curr_spell in $(hash_get off_down_deps ${SYSTEM_BASE})
   do
     version="$(figure_installed $curr_spell)"
     section="$(codex_get_spell_section_name $curr_spell)"

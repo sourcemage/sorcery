@@ -380,10 +380,10 @@ compute_uninstalled_depends()
   local _idx
   local looked_at
 
-  # this is a list of all spells basesystem depends on it is used to
-  # avoid loops with the "everything depends on basesystem" feature
+  # this is a list of all spells $SORCERY_BASE depends on it is used to
+  # avoid loops with the "everything depends on $SORCERY_BASE" feature
   local base_deps
-  base_deps=$(search_depends_status $DEPENDS_STATUS basesystem|cut -f2 -d:)
+  base_deps=$(search_depends_status $DEPENDS_STATUS $SORCERY_BASE|cut -f2 -d:)
 
   # All specified spells are assumed to be not installed, or else -c and -r
   # would have to be specified all the time.
@@ -1611,12 +1611,12 @@ private_add_depends()
     hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
   done
 
-  # force implied basesystem dependency in the depends tree
-  if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
-     [[ $SPELL != basesystem ]] &&
+  # force implied $SORCERY_BASE dependency in the depends tree
+  if [[ $FORCE_SORCERY_BASE_DEPENDS == on ]] &&
+     [[ $SPELL != $SORCERY_BASE ]] &&
      ! real_list_find "$base_deps" "$SPELL"; then
-    hash_append "$CAST_HASH" "$SPELL" "basesystem"
-    hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
+    hash_append "$CAST_HASH" "$SPELL" "$SORCERY_BASE"
+    hash_append "$BACK_CAST_HASH" "$SORCERY_BASE" "$SPELL"
   fi
 
   spells=( ${spells[*]} ${NEW_DEPENDS[*]}

@@ -818,6 +818,36 @@ custom_optimization_menu() {
   fi
 }
 
+set_base_spells()  {
+  local RESULTS KEY rc
+
+  while true ; do
+    RESULTS=($(eval $DIALOG '--extra-label Adjust --inputmenu \
+                            "Base Spells Menu" \
+                            17 50 9 \
+                            SORCERY_BASE "$SORCERY_BASE" \
+                            SYSTEM_BASE "$SYSTEM_BASE"'))
+    rc=$?
+    [[ $rc == 0 ]] || [[ $rc == 1 ]] && break
+    if (( ${#RESULTS[*]} != 3 )); then
+      eval $DIALOG '--title "ERROR" --msgbox \
+                   "ERROR: Specify a single spell." 8 40'
+      continue
+    fi
+    KEY=${RESULTS[1]}
+    case "$KEY" in
+      SORCERY_BASE) SORCERY_BASE="${RESULTS[2]}"  ;;
+      SYSTEM_BASE) SYSTEM_BASE="${RESULTS[2]}"  ;;
+    esac
+  done
+
+  # only commit values if user selected "OK"
+  if [ $rc == 0 ] ; then
+    modify_local_config SORCERY_BASE "$SORCERY_BASE"
+    modify_local_config SYSTEM_BASE "$SYSTEM_BASE"
+  fi
+}
+
 integrity_fix_menu()  {
 
   local INT_TITLE="Integrity Checking Selection Menu"
@@ -1636,6 +1666,7 @@ option_menu()  {
   local R_HELP="Enter the maximum rate for downloading"
   local T_HELP="Select compression program for logs and archives"
   local N_HELP="Enter the process priority (nice value) to use for sorcery"
+  local P_HELP="Select system base spells"
   local U_HELP="Enter the permissions mask (umask value) to use for sorcery"
   local S_HELP="Sorcery development options (debugging)"
   local W_HELP="Enter maximum timeout (seconds) for summoning sources"
@@ -1665,6 +1696,7 @@ option_menu()  {
                       "J"  "Dependency Following"     "$J_HELP" \
                       "M"  "Software Mirrors"         "$M_HELP" \
                       "O"  "Optimize Architecture"    "$O_HELP" \
+                      "P"  "Base Spells"              "$P_HELP" \
                       "T"  "Compression Type"         "$T_HELP" \
                       "S"  "Sorcery Development"      "$S_HELP" \
                       "W"  "Summon Timeout Value"     "$W_HELP" \
@@ -1689,6 +1721,7 @@ option_menu()  {
       C)  parallel_compilation_menu ;;
       M)  mirror_menu               ;;
       O)  optimize_architecture     ;;
+      P)  set_base_spells           ;;
       S)  sorcery_devel_settings    ;;
       T)  set_compression_type      ;;
       W)  set_http_ftp_timeout      ;;
