@@ -1,0 +1,168 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Set of functions for creating preservation spells
+## @Copyright (C) 2024 The Source Mage Team <http://www.sourcemage.org>
+#---------------------------------------------------------------------
+
+#-----------------------------------------------------------------------
+## Preserve all installed files from the named spell which match the
+## given pattern in a newly created preservation spell
+##
+## @param src_spell: spell to preserve files from
+## @param file_patterns: newline separated list of grep compatible
+##                       regex patterns
+#-----------------------------------------------------------------------
+function preserve_matches() {
+  local src_spell=$1 &&
+  local file_patterns="$2" &&
+
+  local spell_tablet &&
+  if ! tablet_find_spell_dir $src_spell spell_tablet; then
+    error_message "${PROBLEM_COLOR}Unable to find tablet entry for ${SPELL_COLOR}${spell}${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  install_log="$(readlink -f "$spell_tablet"/logs/install)" &&
+  {
+    files_to_preserve="$(grep --file=<(echo "$file_patterns") "$install_log")"
+    (( $? < 2 ))
+  } &&
+
+  if [[ -n "$files_to_preserve" ]]; then
+    preserve_spell_files $SPELL "$files_to_preserve"
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Preserve the given list of installed files from the named source
+## spell in a newly created preservation spell
+##
+## @param src_spell: spell "owning" the listed files currently
+## @param spell_files: a list of files from the spell to be preserved
+#-----------------------------------------------------------------------
+function preserve_spell_files() {
+  local src_spell=$1 &&
+  local spell_files="$2" &&
+
+  message "${MESSAGE_COLOR}Preserving the following files from ${SPELL_COLOR}${src_spell}${MESSAGE_COLOR}:" &&
+  message "${FILE_COLOR}${spell_files}${DEFAULT_COLOR}" &&
+
+  if ! spell_ok $src_spell; then
+    error_message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}${src_spell}${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local preserve_spell="smgl-preserve-${src_spell}-$(installed_version $src_spell)" &&
+  if ! spell_ok $preserve_spell; then
+    create_preserve_spell $src_spell $preserve_spell
+  fi &&
+
+  tablet_write_grimoire_file $preserve_spell "find_depends.function" 755 < "$GRIMOIRE/find_depends.function" &&
+
+  tablet_write_spell_file $preserve_spell "PRE_REMOVE" 755 <<'EOF' &&
+. "$GRIMOIRE/find_depends.function"
+. "$SCRIPT_DIRECTORY/DETAILS"
+
+message "${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} is a spell that preserves the shared objects from dispelled or upgraded spell ${SPELL_COLOR}${DONOR}${MESSAGE_COLOR}."
+message "Dispelling this spell may lead to breakage of other spells that still depend on these shared objects." &&
+message "Determining which spells would break, this may take a while.${DEFAULT_COLOR}" &&
+
+local breakage_list &&
+local so_names="$(find_spell_shared_objects "$SPELL" | xargs readelf -d | sed -n -e '/SONAME/s/^.*\[\([^]]*\).*/\1/p')" &&
+
+find_shared_object_dependencies breakage_list "$so_names" "$SPELL" &&
+
+if [[ -n "${breakage_list}" ]]; then
+  message "" &&
+  message "${PROBLEM_COLOR}You are about to remove ${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}." &&
+  message "This will lead to the following spells becoming broken:" &&
+  message "${SPELL_COLOR}$(fold -s -w 72 <<< "${breakage_list}")" &&
+  message "${MESSAGE_COLOR}To avoid breakage you need to recast these before removing ${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}." &&
+  if ! query "${QUERY_COLOR}Do you wish to remove ${SPELL_COLOR}${SPELL}${QUERY_COLOR} now?" n; then
+    exit 1
+  fi
+else
+  message "${MESSAGE_COLOR}No spells could be found that will break, continuing spell removal.${DEFAULT_COLOR}"
+fi
+EOF
+
+  tablet_add_spell_files $preserve_spell "$spell_files" &&
+  tablet_remove_spell_files $src_spell "$spell_files"
+}
+
+#-----------------------------------------------------------------------
+## Create a preservation spell
+##
+## Creates a minimal, but complete spell based on the given source
+## spell consisting of the following parts:
+## - tablet entry
+## - cache file
+## - install and md5 logs
+## Updates the sorcery state:
+## - marks the spell installed
+## - adds the spell to the version cache
+## - copies the dependencies from the source spell
+##
+## @param src_spell: spell on which the preservation spell is based
+## @param preserve_spell: name of the new preservation spell
+#-----------------------------------------------------------------------
+function create_preserve_spell() {
+  local src_spell=$1 &&
+  local preserve_spell=$2 &&
+  local preserve_version=none &&
+
+  message "${MESSAGE_COLOR}Creating preservation spell ${SPELL_COLOR}${preserve_spell}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+
+  if ! spell_ok $src_spell; then
+    error_message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}${src_spell}${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  local preserve_tablet &&
+  if ! preserve_tablet=$(tablet_clone_skeleton preserved $preserve_spell $preserve_version $src_spell); then
+    error_message "${PROBLEM_COLOR}Unable to create tablet for ${SPELL_COLOR}${preserve_spell}${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local cache_file="$STATE_ROOT/var/cache/sorcery/$preserve_spell-$preserve_version-$HOST.tar$EXTENSION" &&
+  local compile_log="$STATE_ROOT/var/log/sorcery/compile/$preserve_spell-$preserve_version$EXTENSION" &&
+  local install_log="$STATE_ROOT/var/log/sorcery/install/$preserve_spell-$preserve_version" &&
+  local md5_log="$STATE_ROOT/var/log/sorcery/md5sum/$preserve_spell-$preserve_version" &&
+  echo | $COMPRESSBIN > "$compile_log" &&
+  touch "$md5_log" &&
+  echo "$compile_log" > "$install_log" &&
+  echo "$md5_log" >> "$install_log" &&
+  echo "$install_log" >> "$install_log" &&
+
+  add_spell $preserve_spell installed $preserve_version &&
+  add_version_cache "$STATE_ROOT/var/state/sorcery/versions" $preserve_spell $preserve_version 0 0 0 && 
+  while IFS=":" read depender dependee state type en_switch dis_switch; do
+    add_depends "$STATE_ROOT/var/state/sorcery/depends" $depender $dependee $state $type "$en_switch" "$dis_switch"
+  done < "$preserve_tablet/depends" &&
+  while IFS=":" read depender dependee sub_dependency; do
+    add_sub_depends "$STATE_ROOT/var/state/sorcery/sub_depends" $depender $dependee $sub_dependency
+  done < "$preserve_tablet/rsub_depends" &&
+
+  find -P "$preserve_tablet" >> "$install_log" &&
+  tablet_create_cache "$cache_file" "$install_log" &&
+  tablet_create_md5_log "$md5_log" "$install_log"
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
