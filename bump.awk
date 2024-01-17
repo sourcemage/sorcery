@@ -9,12 +9,16 @@ BEGIN {
 	for (i = 1; i < NF; i++)
 		$i = $(i+1)
 	--NF
-	print
 	exit
 }
 
-# bump snapshot
+# add placeholder for unknown predecessor
+!/^v/ { sub(/^/, "0-0-g") }
+
+# add timestamp to snapshot
 {
-	sub(/.*-g/, strftime("%Y%m%d-g", systime(), 1))
-	print
+	"git log -1 --format=%ct" | getline  t
+	sub(/-/, strftime("+%Y%m%d-", t, 1))
 }
+
+END { print }

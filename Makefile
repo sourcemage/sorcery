@@ -27,7 +27,9 @@ release: $(release)
 #HELP:	bump      - Bump version
 .PHONY: bump
 bump:
-	git log -1 --format=%cs | tr -d '-' >etc/sorcery/version
+	git describe --always --tags  --match=v\* | \
+		${AWK} -f bump.awk | \
+		tee etc/sorcery/version
 
 devinst: bump install
 
