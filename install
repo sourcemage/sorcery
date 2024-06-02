@@ -67,7 +67,13 @@ then
   archspec=$(find /usr/share/archspecs -type f -name $ARCHITECTURE)
   if [[ -f $archspec ]]
   then
-    HOST=$(grep HOST $archspec | sed 's/.*"\(.*\)".*/\1/')
+    use_gcc()  { ! :; } # Take latest GCC only
+    use_gcc2() { ! :; }
+    HOST_LIBC=
+    if ldd --version 2>&1 |grep -q musl; then
+      HOST_LIBC=musl
+    fi
+    HOST=$(. $archspec && printf "%s" "$HOST")
     for COMPILER in "c++" "g++" "gcc"
     do
       HOST_COMPILE="$HOST_COMPILE $HOST-$COMPILER"
@@ -75,7 +81,7 @@ then
   fi
 fi
 for COMPILER in clang cc gcc c++ g++ $HOST_COMPILE; do
-  ln -sf "run_compiler" "$COMPILER"
+  ln -vsf "run_compiler" "$COMPILER"
   echo $BUILD_DIR/$COMPILER >> $SORCERY_INSTALL_LOG
 done
 popd &>/dev/null
