@@ -98,6 +98,14 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 		watch_regex = $0
 		if (version != "") nextfile
 	}
+	function select_regex(spell, url) {
+		if (url ~ /^https:\/\/github\.com\/.*\/tags$/)
+			return "/archive/refs/tags/v?([0-9.]+)[.]tar"
+		return spell \
+			"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
+			"([-.]src|[-.]sources?)?" \
+			"[.](tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
+	}
 	function print_spell() {
 		if (watch_url == "") {
 			printf "W: %s: %s\n", spell, \
@@ -105,10 +113,7 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 				>"/dev/stderr"
 		} else {
 			if (!watch_regex)
-				watch_regex = spell \
-					"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
-					"([-.]src|[-.]sources?)?" \
-					"[.](tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
+				watch_regex = select_regex(spell, watch_url)
 			if (debug)
 				printf "D: regex `%s`\n", watch_regex >"/dev/stderr"
 			print spell, version, watch_url, watch_regex
