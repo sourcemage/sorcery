@@ -345,7 +345,7 @@ scribe_add_update_worker() {
     message "${MESSAGE_COLOR}Grimoire ${FILE_COLOR}\"$grimoire\"" \
             "${MESSAGE_COLOR}successfully added to your codex.${DEFAULT_COLOR}"
   else
-    message "${SPELL_COLOR}$grim_name ${MESSAGE_COLOR}updated!${DEFAULT_COLOR}"
+    message "${SPELL_COLOR}$grim_name$MESSAGE_COLOR updated!$DEFAULT_COLOR"
     echo
     grimoire_history $grimoire
   fi
@@ -772,8 +772,9 @@ scribe_update() {
 
       #include metadata
       . $grimoire/GRIMOIRE
-      message "${MESSAGE_COLOR}Updating grimoire ${SPELL_COLOR}$grim " \
-              "${MESSAGE_COLOR}from ${FILE_COLOR}$FROM_URL${DEFAULT_COLOR}"
+      message "${MESSAGE_COLOR}Updating grimoire" \
+              "${SPELL_COLOR}$grim$MESSAGE_COLOR" \
+              "from ${FILE_COLOR}$FROM_URL${DEFAULT_COLOR}"
       scribe_add_update_worker "$grimoire" "$FROM_URL" update ||
       let rc++
     done
