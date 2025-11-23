@@ -102,9 +102,9 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 	}
 	function select_regex(spell, url) {
 		if (url ~ /^https:\/\/github\.com\/.*\/tags$/)
-			return "/archive/refs/tags/v?([0-9.]+)[.]tar"
+			return "/archive/refs/tags/(v|" spell "-)?([0-9.]+)[.]tar"
 		if (url ~ /gitlab/)
-			return "/" spell "/-/archive/v?([0-9.]+)/" spell "-"
+			return "/" spell "/-/archive/(v|" spell "-)?([0-9.]+)/" spell "-"
 		return spell \
 			"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
 			"([-.]src|[-.]sources?)?" \
