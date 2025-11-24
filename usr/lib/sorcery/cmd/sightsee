@@ -9,16 +9,40 @@ upstream_rel_get() {
     (curl) curl -s "$1" ;;
     (*) wget -q -O- "$1" ;;
   esac | gawk -vdebug="$debug" -vfname="$2" '
+	BEGIN {
+		# Parse named capture groups
+		num_parens = split(fname, text, /[()]/, parens) - 1
+		for (i = 0; i < num_parens; i++) {
+			if (parens[i] == "(") {
+				depth++
+				idx++
+				if (match(text[i+1], /^\?<[^>]+>/)) {
+					group_name = substr(text[i+1], \
+						3, RLENGTH - 3)
+					grpname2num[group_name] = idx
+				}
+				last_group = idx
+			} else {
+				depth--
+			}
+		}
+		split("", text)
+		split("", parens)
+		gsub(/\(\?<[^>]+>/, "(", fname) # Fixup regex
+
+		# Shortcut
+		version_group = "version" in grpname2num \
+			? grpname2num["version"] : last_group
+	}
 	{
 		while (match(tolower($0), fname, V)) {
-			matched = int((length(V)-1)/3)
 			if (debug) {
-				printf "D: matched `%s` -> (%d) `%s`\n", \
+				printf "D: matched `%s` -> `%s`\n", \
 					substr($0, RSTART, RLENGTH), \
-					matched, V[matched] \
+					V[version_group] \
 					>"/dev/stderr"
 			}
-			print V[matched]
+			print V[version_group]
 			$0 = substr($0, RSTART + RLENGTH)
 		}
 	}
@@ -102,11 +126,12 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 	}
 	function select_regex(spell, url) {
 		if (url ~ /^https:\/\/github\.com\/.*\/tags$/)
-			return "/archive/refs/tags/(v|" spell "-)?([0-9.]+)[.]tar"
+			return "/archive/refs/tags/(v|" spell "-)?(?<version>[0-9.]+)[.]tar"
 		if (url ~ /gitlab/)
-			return "/" spell "/-/archive/(v|" spell "-)?([0-9.]+)/" spell "-"
+			return "/" spell "/-/archive/(v|" spell "-)?(?<version>[0-9.]+)/" spell "-"
 		return spell \
-			"[-_](R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
+			"([-_]src|[-_]sources?)?" \
+			"[-_](?<version>R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
 			"([-.]src|[-.]sources?)?" \
 			"[.]((orig[.])?tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
 	}
