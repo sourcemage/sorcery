@@ -121,15 +121,40 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 		if (version != "") nextfile
 	}
 	function select_regex(spell, url) {
+		version_re = "(?<version>[rv]?" \
+			"([0-9]+[-_.+~])*[0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?" \
+			")"
+		arch_re = "(" \
+			"src|" \
+			"sources?|" \
+			"alpha|" \
+			"(uefi-)?arm(64|el|hf)?|" \
+			"aarch64|" \
+			"hppa|" \
+			"(hurd-|uefi-)?i[3-6]86|" \
+			"x32|" \
+			"ia64|" \
+			"loong64|" \
+			"m68k|" \
+			"mips(64|n32)?(r6)?(el)?|" \
+			"(uefi-)?(x86_|amd)64|" \
+			"powerpc(spe)?|" \
+			"ppc64(el)?|" \
+			"riscv64|" \
+			"s390x?|" \
+			"sh4|" \
+			"sparc(64)?|" \
+			"noarch|" \
+			"all" \
+			")"
 		if (url ~ /^https:\/\/github\.com\/.*\/tags$/)
-			return "/archive/refs/tags/(v|" spell "-)?(?<version>[0-9.]+)[.]tar"
+			return "/archive/refs/tags/(v|" spell "-)?" version_re "[.]tar"
 		if (url ~ /gitlab/)
-			return "/" spell "/-/archive/(v|" spell "-)?(?<version>[0-9.]+)/" spell "-"
-		return spell \
-			"([-_]src|[-_]sources?)?" \
-			"[-_](?<version>R?[-_.+~0-9]+(([a-z]|rc|alpha|beta)[0-9]*)?)" \
-			"([-.]src|[-.]sources?)?" \
-			"[.]((orig[.])?tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
+			return "/" spell "/-/archive/(v|" spell "-)?" version_re "/" spell "-"
+		return spell "([-_](src|sources?))?[-_]" version_re \
+			"([-_.]" arch_re ")?" \
+			"[.](orig[.])?" \
+			"(tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
 	}
 	function print_spell() {
 		if (watch_url == "") {
