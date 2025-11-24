@@ -14,16 +14,12 @@ upstream_rel_get() {
 		num_parens = split(fname, text, /[()]/, parens) - 1
 		for (i = 0; i < num_parens; i++) {
 			if (parens[i] == "(") {
-				depth++
-				idx++
+				last_group++
 				if (match(text[i+1], /^\?<[^>]+>/)) {
 					group_name = substr(text[i+1], \
 						3, RLENGTH - 3)
-					grpname2num[group_name] = idx
+					grpname2num[group_name] = last_group
 				}
-				last_group = idx
-			} else {
-				depth--
 			}
 		}
 		split("", text)
