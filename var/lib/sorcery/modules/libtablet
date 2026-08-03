@@ -446,8 +446,9 @@ tablet_find_spell_dir() {
   fi
   # print the newest one
   local BREAK
+  local version_installed=$(installed_version $SPELL)
   function tablet_find_spell_dir_sub() {
-    tablet_is_spell_version_installed $SPELL $1 quiet &&
+    tablet_is_spell_version_installed $SPELL $1 quiet "$version_installed" &&
     tablet_does_tablet_point_to_itself $1 quiet &&
     __spell_dir=$1 &&
     BREAK=yes
@@ -882,9 +883,14 @@ tablet_fix_duplicates() {
     return
   fi
 
+  # every page in $tbc_dir belongs to the same spell, so the installed
+  # version is fetched once here rather than once per page inside the
+  # loop below (installed_version() is a locked, whole-file scan).
+  local version_installed=$(installed_version $spell)
+
   for ((i = 0; i < ${#tablets[*]}; i++ )) ; do
     message "Inspecting ${tablets[$i]}"
-    tablet_is_spell_version_installed $spell ${tablets[$i]} &&
+    tablet_is_spell_version_installed $spell ${tablets[$i]} '' "$version_installed" &&
     tablet_does_tablet_point_to_itself ${tablets[$i]}  ||
     tablet_backup_page ${tablets[$i]} $backup_dir
   done
@@ -905,11 +911,20 @@ tablet_backup_page() {
 
 #---------------------------------------------------------------------
 ## check if the tablet represents a spell version thats installed
+## @param spell
+## @param tablet dir
+## @param quiet - suppress messages if set
+## @param installed version - optional. installed_version() involves
+##   a file lock plus two full scans of $SPELL_STATUS, so callers that
+##   already know the answer (e.g. because they're checking several
+##   tablet pages for the same spell in a row) can pass it in here to
+##   skip re-fetching it for every page.
 #---------------------------------------------------------------------
 tablet_is_spell_version_installed() {
   local spell=$1
   local tb_dir=$2
   local quiet=$3
+  local version_installed=$4
   local tb_version
   tablet_get_tb_version $tb_dir tb_version
   [[ $? != 0 ]] && return 253
@@ -919,7 +934,7 @@ tablet_is_spell_version_installed() {
     [[ $quiet ]] || message "Unable to get version for $tb_dir"
     return 254
   }
-  local version_installed=$(installed_version $spell)
+  [[ $version_installed ]] || version_installed=$(installed_version $spell)
   if [[ "$version_in_tablet" != "$version_installed" ]] ; then
     if ! [[ $quiet ]] ; then
       message "Tablet at $tb_dir represents\na version that is not installed" \
