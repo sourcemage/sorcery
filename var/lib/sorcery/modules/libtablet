@@ -974,29 +974,122 @@ tablet_does_tablet_point_to_itself() {
 #----------------------------------------------------------------------
 tablet_coalesce_files() {
   local dir=${1:-$TABLET_PATH}
-  local car cdr i each
-  let i=0
+  local i=0
 
   local link_log=${2:-$TMP_DIR}/link_log
+  local pairs_file=$TMP_DIR/tablet_coalesce_pairs.$$
+  local groups_file=$TMP_DIR/tablet_coalesce_groups.$$
+  local listing_file=$TMP_DIR/tablet_coalesce_listing.$$
 
-  local total_files=$(find $dir -type f 2>/dev/null|wc -l)
   message
-  message "Computing the md5sums of $total_files tablet files and coalescing all the duplicates..."
-  # the + makes find stack found files, so md5sum is invoked a lot less often
-  find $dir -type f -exec md5sum {} + 2>/dev/null | sort |
-  while read sum file; do
-    if [[ -z $previous_sum || $previous_sum != $sum ]]; then
-      previous_sum=$sum
-      previous_file=$file
-    else
-      if ! [[ $previous_file -ef $file ]]; then
-        echo "Linking $previous_file to $file" >> $link_log
-        ln -f $previous_file $file
+  message "Scanning $dir..."
+
+  # Single pass over the tablet tree, gathering size + basename +
+  # path for every file. This used to be two separate find traversals
+  # of the whole tree - one just to count files for the progress
+  # message, one to gather size/path - which doubles the cost of
+  # what's often the slowest part of coalescing a large tablet.
+  find $dir -type f -printf '%s\t%f\t%p\n' 2>/dev/null > $listing_file
+
+  local total_files=$(wc -l < $listing_file)
+  message "Comparing file sizes of $total_files tablet files..."
+
+  # Phase 1: group files by size AND basename, using only stat data
+  # already gathered above (no file content is read yet). Two files
+  # can only be identical if they're the same size, so this alone
+  # cheaply throws out every file with no same-size sibling. Adding
+  # basename narrows groups further, since tablet duplicates are
+  # realistically the same file (e.g. DETAILS) repeated across spell
+  # versions, not different files that coincidentally match byte for
+  # byte. The trade-off: two identical-content files with different
+  # basenames (most commonly two unrelated empty files) will no
+  # longer be found as duplicates of each other.
+  # Same-size-and-name groups of exactly 2 files are split off into
+  # $pairs_file (a checksum can't save any work when there's only one
+  # possible pair to compare); groups of 3 or more go to $groups_file,
+  # where a checksum is worth computing so that matching files can be
+  # found in a single sorted pass instead of comparing every file
+  # against every other file in the group.
+  sort -t $'\t' -k1,1n -k2,2 $listing_file |
+    awk -F'\t' -v pairs="$pairs_file" -v groups="$groups_file" '
+      function flush() {
+        if (n == 2) {
+          print buf[1] > pairs
+          print buf[2] > pairs
+        } else if (n >= 3) {
+          for (j = 1; j <= n; j++) print buf[j] > groups
+        }
+        n = 0
+      }
+      ($1 != prev_size || $2 != prev_name) { flush() }
+      { n++; buf[n] = $1 "\t" $3; prev_size = $1; prev_name = $2 }
+      END { flush() }
+    '
+
+  local pair_count=$([[ -s $pairs_file ]] && wc -l < $pairs_file || echo 0)
+  local group_count=$([[ -s $groups_file ]] && wc -l < $groups_file || echo 0)
+  local candidate_files=$((pair_count + group_count))
+
+  message "Comparing $pair_count paired files directly and checksumming $group_count files in larger groups (of $total_files total)..."
+
+  # Phase 2a: same-size pairs - just compare the two files directly,
+  # no checksum step needed since there's nothing to sort or bucket.
+  if [[ -s $pairs_file ]]; then
+    while IFS=$'\t' read -r size1 file1 && IFS=$'\t' read -r size2 file2; do
+      if ! [[ $file1 -ef $file2 ]] && cmp -s -- "$file1" "$file2"; then
+        echo "Linking $file1 to $file2" >> $link_log
+        ln -f -- "$file1" "$file2"
       fi
-    fi
-    let i+=1
-    progress_bar $i $total_files
-  done
+      let i+=2
+      progress_bar $i $candidate_files
+    done < $pairs_file
+  fi
+
+  # Phase 2b: same-size groups of 3+ files. cksum (CRC-32) is used
+  # instead of md5sum since it's much cheaper to compute and this is
+  # only ever used to bucket likely-identical files together, never
+  # to prove they're identical - cmp -s below does that, so a weaker
+  # checksum here doesn't risk linking two different files together.
+  #
+  # A checksum bucket can contain more than one distinct content (a
+  # collision), and sort only orders by checksum, not content, so
+  # files with identical content aren't guaranteed to be adjacent.
+  # Keep one representative per distinct content cluster seen so far
+  # in the current bucket - comparing each new file against all of
+  # them - rather than a single fixed representative, or duplicates
+  # of a non-first cluster would never get linked to each other.
+  if [[ -s $groups_file ]]; then
+    local -a reps=()
+    cut -f2- $groups_file |
+    while IFS= read -r file; do
+      [[ -e $file ]] && cksum -- "$file"
+    done | sort -k1,1n -k2,2n |
+    while read -r sum size file; do
+      if [[ -z $previous_sum || $previous_sum != $sum || $previous_size != $size ]]; then
+        previous_sum=$sum
+        previous_size=$size
+        reps=("$file")
+      else
+        local matched=
+        for rep in "${reps[@]}"; do
+          if [[ $rep -ef $file ]]; then
+            matched=1
+            break
+          elif cmp -s -- "$rep" "$file"; then
+            echo "Linking $rep to $file" >> $link_log
+            ln -f -- "$rep" "$file"
+            matched=1
+            break
+          fi
+        done
+        [[ $matched ]] || reps+=("$file")
+      fi
+      let i+=1
+      progress_bar $i $candidate_files
+    done
+  fi
+
+  rm -f $pairs_file $groups_file $listing_file
   clear_line
 }
 
