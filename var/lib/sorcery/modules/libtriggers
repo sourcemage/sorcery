@@ -23,60 +23,123 @@ run_triggers() {
 }
 
 #---------------------------------------------------------------------
-## @param spell
+## @param spell instance
 ##
 ## Remove's all of a spell's triggers from the list of registered
-## triggers.
+## triggers.  A trigger belongs to the instance that registered it, so
+## one slot going away leaves the others' triggers where they are.
 ##
 #---------------------------------------------------------------------
 remove_triggers()
 {
   debug "libtriggers" "remove_triggers - $*"
 
+  local spell
+  esc_str "$1" spell
+
   [ -f $TRIGGER_LIST ] || return 0
   lock_start_transaction "$TRIGGER_LIST" tTRIGGER_LIST
-  grep -v "^$SPELL:" $TRIGGER_LIST > $tTRIGGER_LIST
+  # the subject may hold a slot of its own, so "gcc" here is gcc's slot 0
+  # and not every slot of gcc; the cause after it never holds one
+  grep -v "^$spell:[^:]*:on_" $TRIGGER_LIST > $tTRIGGER_LIST
   lock_commit_transaction $TRIGGER_LIST
   return $?
 }
 
 #---------------------------------------------------------------------
+## Reads a trigger row back into the four things it is made of.  The
+## subject may hold a slot, so the row is found by its event rather than
+## counted off from the front; the cause is written packed and the
+## action is whatever is left, script arguments and all.
+##
+## @param row
+## @param variable to set to the subject instance (optional)
+## @param variable to set to the packed cause (optional)
+## @param variable to set to the event (optional)
+## @param variable to set to the action (optional)
+##
+## @return 1 if the row is not a trigger row
+#---------------------------------------------------------------------
+trigger_split_row() {
+  local __trg_row=$1 __trg_head __trg_event
+
+  for __trg_event in on_cast on_pre_cast on_dispel on_pre_dispel; do
+    [[ $__trg_row == *":$__trg_event:"* ]] && break
+    __trg_event=""
+  done
+  [[ $__trg_event ]] || return 1
+
+  __trg_head=${__trg_row%%:$__trg_event:*}
+  [[ $__trg_head == *:* ]] || return 1
+
+  [[ $2 ]] && upvar "$2" "${__trg_head%:*}"
+  [[ $3 ]] && upvar "$3" "${__trg_head##*:}"
+  [[ $4 ]] && upvar "$4" "$__trg_event"
+  [[ $5 ]] && upvar "$5" "${__trg_row#*:$__trg_event:}"
+  return 0
+}
+
+#---------------------------------------------------------------------
 ## @param event
-## @param [spell]
-## @Globals SPELL if \$2 is omitted
+## @param [spell instance]
+## @Globals SPELL SPELL_INSTANCE if \$2 is omitted
 ##
 ## @Stdout Query and warnings
 ## @Stdin y/n
 ## Triggers an event and performs necessary actions. Argument 2 is
 ## optional. If omitted, the value of SPELL will be used.
 ##
+## A trigger waits on a spell or on one slot of it, so casting an
+## instance fires the rows that named the slot and the rows that did
+## not, the way $SUSTAINED reads a bare name as every slot.
+##
 #---------------------------------------------------------------------
 trigger()
 {
   debug "libtriggers" "trigger - $*"
 
-  local spell TRIGGER action
+  local spell instance action
   action=$1
-  esc_str "${SPELL:-$2}" spell
+  slot_split "${SPELL:-$2}" spell || spell=${SPELL:-$2}
+  slot_instance_tag "${SPELL_INSTANCE:-${SPELL:-$2}}" instance || instance=$spell
+  esc_str "$spell" spell
+  esc_str "$instance" instance
 
   [ -f $TRIGGER_LIST ] || return 0
   # no locking of $TRIGGER_LIST since the triggered actions may need it
-  iterate do_trigger $'\n' "$(grep "^[^:]*:$spell:on_$action" $TRIGGER_LIST)"
+  # the subject in front of the cause may hold a slot, so the row cannot
+  # be anchored at its start
+  iterate do_trigger $'\n' \
+          "$(grep -e ":$spell:on_$action:" -e ":$instance:on_$action:" \
+                  $TRIGGER_LIST)"
 }
 
 #---------------------------------------------------------------------
-## Get the triggerees of a given spell event and action
+## @param spell instance
+## @param event
+## @param actions
+##
+## Get the triggerees of a given spell event and action.  Both what
+## waits and what is waited on may hold a slot: the subject comes off
+## the row whole rather than as its first field, and a cause naming no
+## slot is woken by every slot.
 #---------------------------------------------------------------------
 get_triggerees() {
-  local spell=$1
+  local instance=$1
   local event=$2
-  local each
+  local each spell cause row subject
   # get all the cast/check_self triggers
   [ -f $TRIGGER_LIST ] || return 0
 
+  slot_split "$instance" spell || spell=$instance
+  slot_instance_tag "$instance" cause || cause=$spell
+
   lock_file $TRIGGER_LIST
   for each in $3 ; do
-    grep "[^:]*:$spell:$event:$each" $TRIGGER_LIST|cut -f1 -d:
+    grep -e ":$spell:$event:$each" -e ":$cause:$event:$each" $TRIGGER_LIST |
+    while read row; do
+      trigger_split_row "$row" subject && echo "$subject"
+    done
   done|sort -u|grep -v '^$'
   unlock_file $TRIGGER_LIST
 }
@@ -84,14 +147,28 @@ get_triggerees() {
 #---------------------------------------------------------------------
 ## Get the run_script triggers from $spell on $target when theres a
 ## $action
+##
+## @param spell instance
+## @param event
+## @param target
 #---------------------------------------------------------------------
 get_run_script_triggers() {
-  local spell=$1
+  local instance=$1
   local event=$2
   local target=$3
+  local spell cause row action
+
+  slot_split "$instance" spell || spell=$instance
+  slot_instance_tag "$instance" cause || cause=$spell
 
   lock_file $TRIGGER_LIST
-  grep "$target:$spell:$event:run_script" $TRIGGER_LIST|cut -f4 -d:
+  # the action is the tail of the row, not its fourth field: the subject
+  # in front of it may hold a slot
+  grep -e "^$target:$spell:$event:run_script" \
+       -e "^$target:$cause:$event:run_script" $TRIGGER_LIST |
+  while read row; do
+    trigger_split_row "$row" "" "" "" action && echo "$action"
+  done
   unlock_file $TRIGGER_LIST
 }
 
@@ -129,8 +206,14 @@ set_trigger()
   esac
   #perhaps a check to make sure that $2 exists?
 
-  spell=${SPELL:-$4}
-  str="$spell:$2:$1:$3"
+  # the row belongs to the instance registering it -- for slot 0 that is
+  # the bare spell name, so the file reads as it always has
+  spell=${SPELL_INSTANCE:-${SPELL:-$4}}
+  # the cause is written packed, like a slot in the state database, so
+  # that only one field of the row can hold a ':'
+  local cause
+  slot_instance_tag "$2" cause || cause=$2
+  str="$spell:$cause:$1:$3"
 
   lock_file $TRIGGER_LIST
   if ! test -f $TRIGGER_LIST || ! grep -q "$str" $TRIGGER_LIST ; then
@@ -189,13 +272,16 @@ real_on_pre_dispel() {
 
 
 do_trigger() {
-  TRIGGER=()
-  explode "$1" ":" TRIGGER
+  # a row is read back rather than exploded: the subject may hold a slot
+  # and the action may hold a script
+  local subject cause todo
+  trigger_split_row "$1" subject cause "" todo || return
+  slot_tag_instance "$cause" cause
   local DC="$DEFAULT_COLOR"
-  message "${SPELL_COLOR}${TRIGGER[1]}${DC}${QUERY_COLOR}" \
+  message "${SPELL_COLOR}${cause}${DC}${QUERY_COLOR}" \
           "being $action has triggered a" \
-          "\"${DC}${FILE_COLOR}${TRIGGER[3]}${DC}${QUERY_COLOR}\"" \
-          "on spell ${DC}${SPELL_COLOR}${TRIGGER[0]}${DC}."
+          "\"${DC}${FILE_COLOR}${todo}${DC}${QUERY_COLOR}\"" \
+          "on spell ${DC}${SPELL_COLOR}${subject}${DC}."
   query "Proceed? " "y"
   [[ $? != 0 ]] && return
 
@@ -203,21 +289,21 @@ do_trigger() {
     unset CAST_PASS D_LOG
     function run_script() { eval $@ ; }
     #Ok, now do the required action:
-    case ${TRIGGER[3]} in
+    case $todo in
       cast_self)
-        cast -c "${TRIGGER[0]}"
+        cast -c "$subject"
         ;;
       dispel_self)
-        dispel --noqueue --nosustain "${TRIGGER[0]}"
+        dispel --noqueue --nosustain "$subject"
         ;;
       check_self)
-        cleanse --nofix_quick "${TRIGGER[0]}" ||
-        cast -c "${TRIGGER[0]}"
+        cleanse --nofix_quick "$subject" ||
+        cast -c "$subject"
         ;;
       run_script*)
-        eval "${TRIGGER[3]}"
+        eval "$todo"
         ;;
-      *) message "${PROBLEM_COLOR}${TRIGGER[3]} is not" \
+      *) message "${PROBLEM_COLOR}$todo is not" \
                  "a known kind of trigger.${DEFAULT_COLOR}"
     esac
   )

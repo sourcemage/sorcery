@@ -40,9 +40,9 @@ gaze_checkmd5() {
   SECTION=$(echo $i | sed -e 's/\/[^\/]*\/DETAILS//' -e 's/\/.*\///')
   if test "$SECTION" == "$SPELL" || test "$SECTION" == "DETAILS"
   then
-    echo -en "${SPELL_COLOR}$SPELL${DEFAULT_COLOR} "
+    echo -en "${SPELL_COLOR}${SPELL_INSTANCE:-$SPELL}${DEFAULT_COLOR} "
   else
-    echo -en "$GRIMOIRE: $SECTION: ${SPELL_COLOR}$SPELL${DEFAULT_COLOR} "
+    echo -en "$GRIMOIRE: $SECTION: ${SPELL_COLOR}${SPELL_INSTANCE:-$SPELL}${DEFAULT_COLOR} "
   fi
 
   REALSOURCE=
@@ -217,9 +217,13 @@ gaze_checkmd5syntax() {
 
 #---------------------------------------------------------------------
 ## @param spelldirectory
+## @param slot (optional)
 ##
 ## spelldirectory is the spell's directory.
 ## Checks the md5s of all source files in spelldirectory.
+##
+## A slot has its own sources and its own config, since DETAILS branches
+## on $SLOT to name them, so it is checked a slot at a time.
 ##
 #---------------------------------------------------------------------
 gaze_checkmd5s() {
@@ -231,9 +235,16 @@ gaze_checkmd5s() {
   unset SOURCE
   unset MD5 2> /dev/null
   unset LICENSE 2> /dev/null
-  SPELL_CONFIG=$DEPENDS_CONFIG/$spellname
+  codex_set_current_slot "$spellroot" "$2" || return 1
+  slot_disk_tag "$spellname" "$SLOT" spelltag
+  SPELL_CONFIG=$DEPENDS_CONFIG/$spelltag
 
   source $spellpath > /dev/null 2> /dev/null
+
+  # DETAILS may have pinned a slot of its own, and what is reported is
+  # the install the sources belong to
+  slot_valid "$SLOT" || SLOT=$SLOT_DEFAULT
+  slot_join "$SPELL" "$SLOT" SPELL_INSTANCE
 
   gaze_checkmd5  $spellroot  ''
 
@@ -305,7 +316,13 @@ gaze_md5check() {
   done
 
   for i in $SPELLS ; do
-    gaze_checkmd5s   $i
+    # a slotted spell is checked a slot at a time; an unslotted one is
+    # its one default slot
+    smgl_basename "$i" spellname
+    slots=$(codex_get_spell_slots $spellname)
+    for slot in ${slots:-0} ; do
+      gaze_checkmd5s   $i  $slot
+    done
   done
 
   if [  -n  "$UNKNOWN"  ] ; then

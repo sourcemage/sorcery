@@ -85,26 +85,28 @@ delve_log_helper() {
     local OPTS
     run_spell_config
 
-    get_uncommitted_depends_file $SPELL spell_depends
-    lock_file $ABANDONED_DEPENDS/$SPELL
-    if test -e $spell_depends && test -e $ABANDONED_DEPENDS/$SPELL ; then
-      cp $ABANDONED_DEPENDS/$SPELL $spell_depends
+    get_uncommitted_depends_file "$SPELL_INSTANCE" spell_depends
+    lock_file $ABANDONED_DEPENDS/$SPELL_DISK_TAG
+    if test -e $spell_depends && test -e $ABANDONED_DEPENDS/$SPELL_DISK_TAG ; then
+      cp $ABANDONED_DEPENDS/$SPELL_DISK_TAG $spell_depends
     fi
-    unlock_file $ABANDONED_DEPENDS/$SPELL
+    unlock_file $ABANDONED_DEPENDS/$SPELL_DISK_TAG
     test -e $spell_depends &&
-    OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
+    OPTS="$OPTS $(get_depends_options $spell_depends "$SPELL_INSTANCE")"
   fi
 
   save_bin_lib_paths
 
-  # these have to go somewhere where future delves can find them
-  C_LOG=${C_LOG:="/tmp/sorcery/delve/$SPELL.compile.log"}
-  CASTFS_DBGLOG=${CASTFS_DBGLOG:="/tmp/sorcery/delve/$SPELL.iwdbglog"}
+  # these have to go somewhere where future delves can find them,
+  # and one slot delved is not another
+  local tag=${SPELL_DISK_TAG:-$SPELL}
+  C_LOG=${C_LOG:="/tmp/sorcery/delve/$tag.compile.log"}
+  CASTFS_DBGLOG=${CASTFS_DBGLOG:="/tmp/sorcery/delve/$tag.iwdbglog"}
   C_FIFO=${C_FIFO:="/dev/stdout"}
-  IW_LOG=${IW_LOG:="/tmp/sorcery/delve/$SPELL.iw"}
+  IW_LOG=${IW_LOG:="/tmp/sorcery/delve/$tag.iw"}
   VOYEUR_STDOUT=${VOYEUR_STDOUT:="/dev/stdout"}
   VOYEUR_STDERR=${VOYEUR_STDERR:="/dev/stderr"}
-  S_PWD=${S_PWD:="/tmp/sorcery/delve/$SPELL.pwd"}
+  S_PWD=${S_PWD:="/tmp/sorcery/delve/$tag.pwd"}
   touch $C_LOG
 
 }
@@ -195,7 +197,7 @@ delve_install() {
     then
       run_install || return 2
     else
-      $CHROOT_CMD delve $SPELL INSTALL
+      $CHROOT_CMD delve $SPELL_INSTANCE INSTALL
     fi
   ) 3> >(tee -a $C_LOG >> /dev/stdout) \
     2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \
@@ -219,7 +221,7 @@ delve_install_extras() {
     then
       run_install_extras || return 2
     else
-      $CHROOT_CMD delve $SPELL INSTALL_EXTRAS
+      $CHROOT_CMD delve $SPELL_INSTANCE INSTALL_EXTRAS
     fi
   ) 3> >(tee -a $C_LOG >> /dev/stdout) \
     2> >(tee -a $C_LOG 1>&2 > $VOYEUR_STDERR) \

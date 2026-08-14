@@ -253,12 +253,12 @@ save_libraries()  {
   OLD_LIBS=$SOURCE_DIRECTORY/old.libraries
   mkdir -p "$OLD_LIBS"
 
-  SAVED=$OLD_LIBS/$SPELL.saved.libraries
+  SAVED=$OLD_LIBS/$SPELL_DISK_TAG.saved.libraries
   lock_file "$SAVED"
   rm -rf "$SAVED"
 
-  OLD_VERSION=$(installed_version  $SPELL)
-      OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
+  OLD_VERSION=$(installed_version  $SPELL_INSTANCE)
+      OLD_LOG=$INSTALL_LOGS/$SPELL_DISK_TAG-$OLD_VERSION
 
   grep "^/lib/\|^/usr/lib" "$OLD_LOG" |
   while  read        LINE;  do
@@ -306,12 +306,12 @@ save_binaries()  {
   OLD_BINS=$SOURCE_DIRECTORY/old.binaries
   mkdir -p "$OLD_BINS"
 
-  SAVED=$OLD_BINS/$SPELL.saved.binaries
+  SAVED=$OLD_BINS/$SPELL_DISK_TAG.saved.binaries
   lock_file "$SAVED"
   rm -rf "$SAVED"
 
-  OLD_VERSION=$(installed_version  $SPELL)
-      OLD_LOG=$INSTALL_LOGS/$SPELL-$OLD_VERSION
+  OLD_VERSION=$(installed_version  $SPELL_INSTANCE)
+      OLD_LOG=$INSTALL_LOGS/$SPELL_DISK_TAG-$OLD_VERSION
 
   grep "^/bin/\|^/sbin/\|^/usr/bin/\|^/usr/sbin/" "$OLD_LOG" |
   while  read        LINE;  do
@@ -358,15 +358,15 @@ spell_recover()  {
 
   debug  "libsorcery" "Running spell_recover()"
 
-  message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" \
+  message  "${MESSAGE_COLOR}Aborting dispel of ${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}" \
            "${MESSAGE_COLOR}and recovering...${DEFAULT_COLOR}"
 
   unlock_resources "libgrimoire" "install"
-  unlock_resources "cast" "$SPELL"
+  unlock_resources "cast" "$SPELL_INSTANCE"
   unlock_resources "solo" "cast"
-  local current_version=$(installed_version $SPELL)
+  local current_version=$(installed_version $SPELL_INSTANCE)
   SUCCESS_LIST=/dev/null
-  resurrect_spell $SPELL $current_version
+  resurrect_spell $SPELL_INSTANCE $current_version
 
   exit  130
 }
@@ -791,8 +791,11 @@ fix_installed_spells()  {
 ##
 #---------------------------------------------------------------------
 log_list()  {
-  local spell version
-  while read spell version; do
+  local spell version slot
+  # field 5 is the packed slot, which is already the disk tag's suffix,
+  # and is empty for slot 0 -- so is the tag it makes
+  while read spell version slot; do
+    spell=$spell${slot:+@$slot}
     # the install and md5sum logs are not compressed
     echo "$INSTALL_LOGS/$spell-$version"
     echo "$MD5SUM_LOGS/$spell-$version"
@@ -800,7 +803,7 @@ log_list()  {
     # FIXME $EXTENSION may be the wrong one if the user changed it
     echo "$COMPILE_LOGS/$spell-$version$EXTENSION"
     echo "$COMPILE_LOGS/$spell-$version.castfs.dbglog$EXTENSION"
-  done < <(all_spell_status | cut -d: -f1,4 --output-delimiter=" ")
+  done < <(all_spell_status | cut -d: -f1,4,5 --output-delimiter=" ")
 }
 
 
@@ -853,8 +856,10 @@ activity_log() {
 ##
 #---------------------------------------------------------------------
 run_details() {
-  debug "libsorcery" "starting run_details for $SPELL"
-  if  !  codex_set_current_spell_by_name  $SPELL;  then
+  debug "libsorcery" "starting run_details for ${SPELL_INSTANCE:-$SPELL}"
+  # the instance says which slot to load; the codex puts the bare name
+  # back in $SPELL and the instance back in $SPELL_INSTANCE
+  if  !  codex_set_current_spell_by_name  ${SPELL_INSTANCE:-$SPELL};  then
     local  GRIMOIRES=$(codex_get_all_grimoires)
     message  "${PROBLEM_COLOR}Unable to find spell"        \
              "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${PROBLEM_COLOR}"      \
@@ -969,21 +974,40 @@ generate_keep_list()  {
   local source_keep="$1"
   local cache_keep="$2"
   local type="$3"
+  # a spell is kept once per slot: each slot has its own version, and so
+  # its own cache
   if [[ "$type" == installed_only ]] ; then
     get_all_spells_with_status ok |
     sort -u |
-    while read spell; do
-      codex_find_spell_by_name "$spell"
+    while read instance; do
+      local spell slot dir
+      slot_split "$instance" spell slot || continue
+      codex_find_spell_by_name "$spell" |
+      while read dir; do
+        echo "$dir $slot"
+      done
     done
   else
-    codex_get_all_spells
+    codex_get_all_spells |
+    while read dir; do
+      local slot spec
+      spec=""
+      test -f "$dir/SLOTS" && spec=$(codex_parse_slots_file "$dir/SLOTS")
+      if [[ $spec ]] ; then
+        for slot in $(slot_spec_expand "$spec"); do
+          echo "$dir $slot"
+        done
+      else
+        echo "$dir"
+      fi
+    done
   fi |
   (
   echo sorcery-$SORCERY_BRANCH.tar.bz2
-  while read SPELL_DIRECTORY ; do
-    codex_set_current_spell_quick "$SPELL_DIRECTORY" &>/dev/null
+  while read SPELL_DIRECTORY slot ; do
+    codex_set_current_spell_quick "$SPELL_DIRECTORY" "$slot" &>/dev/null
     get_spell_files 2>/dev/null
-    ls $INSTALL_CACHE/$SPELL-$VERSION-* 1>&2 2>/dev/null
+    ls $INSTALL_CACHE/$SPELL_DISK_TAG-$VERSION-* 1>&2 2>/dev/null
     unset VERSION SPELL ${!SOURCE*}
   done
   ) 2> $cache_keep > $source_keep
@@ -1130,7 +1154,9 @@ invoke_build_dir() {
 ##
 #---------------------------------------------------------------------
 verify_sources()  {
-  verify_source $(sources $SPELL)
+  # which files a spell has depends on the slot: the instance names the
+  # one being cast, and the bare name would name the default slot
+  verify_source $(sources ${SPELL_INSTANCE:-$SPELL})
 }
 
 

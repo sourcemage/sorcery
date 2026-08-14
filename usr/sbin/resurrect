@@ -51,6 +51,8 @@ do_resurrect() {
   local spell=$1
   local requested_version=$USE_VERSION
   local cache
+  local tag
+  slot_instance_tag "$spell" tag || tag=$spell
   local error_base="${PROBLEM_COLOR}Unable to resurrect $SPELL_COLOR$spell"
   error_base="$error_base$DEFAULT_COLOR because$PROBLEM_COLOR"
 
@@ -58,7 +60,7 @@ do_resurrect() {
     # use the version for only one spell in case more were specified (illegal)
     unset USE_VERSION
 
-    find_cache "$INSTALL_CACHE/$spell-$requested_version-$HOST" cache
+    find_cache "$INSTALL_CACHE/$tag-$requested_version-$HOST" cache
     if [[ ! -f $cache ]]; then
       error_message "$error_base no cache for version $requested_version" \
         "was found.$DEFAULT_COLOR"
@@ -82,8 +84,8 @@ do_resurrect() {
   else
     # find the available versions, regardless of compression
     local version versions
-    versions=$(find "$INSTALL_CACHE/" -name "$spell-*-$HOST.*" -printf "%f\n" |
-      sed "s,^$spell-\(\S*\)-$HOST\.\S*$,\1," |
+    versions=$(find "$INSTALL_CACHE/" -name "$tag-*-$HOST.*" -printf "%f\n" |
+      sed "s,^$tag-\(\S*\)-$HOST\.\S*$,\1," |
       while read version; do
         # we need to ignore other spells with similar names due to laxed matching
         # for example, wine-gecko would match when searching for wine, but we can
@@ -110,7 +112,7 @@ do_resurrect() {
         chosen_version=$(
           for version in $versions; do
             # output: mtime version
-            stat -c "%Y $version" $INSTALL_CACHE/$spell-$version-$HOST.*
+            stat -c "%Y $version" $INSTALL_CACHE/$tag-$version-$HOST.*
           done | sort -g -r | head -n1 | cut -d" " -f2
         )
       else
@@ -160,9 +162,14 @@ direct_resurrect() {
     tmp=$(tar tOfOO "$cache" 2>&1 $tablet_path | sed -n "1 s,$tablet_path/,,p; q")
     tmp=${tmp%/}
 
-    spell=${tmp%/*}
+    local tag=${tmp%/*}
     date=${tmp#*/}
-    version=$(tar fOx "$cache" 2>&1 $tablet_path/$spell/$date/version)
+    version=$(tar fOx "$cache" 2>&1 $tablet_path/$tag/$date/version)
+    # the tablet is filed under the disk tag, the rest of resurrect wants
+    # the instance token
+    local tag_spell tag_slot
+    slot_undisk_tag "$tag" tag_spell tag_slot &&
+    slot_join "$tag_spell" "$tag_slot" spell
   fi
 
   if [[ -z $spell ]]; then

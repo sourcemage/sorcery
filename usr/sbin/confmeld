@@ -35,7 +35,9 @@ use-new                backup the old config and install the new one in its plac
 
 Optional arguments:
 You can invoke confmeld with a spell name or a staged config as an argument.
-Confmeld will then work only on that argument.
+Confmeld will then work only on that argument.  A spell name may carry a
+slot -- confmeld gcc:14:native -- and one that does not is every slot of
+that spell with configs staged.
 
 EOF
   exit 1
@@ -64,9 +66,14 @@ all_uniq_config_files()
 }
 
 #--------------------------------------------------------------------
-## list all spells that have staged configs
+## list all installs that have staged configs
 ##
-## @stdout list of spells that have staged configs
+## @stdout list of the disk tags of the installs with staged configs
+##
+## The stage is filed under a disk tag, so that two slots of a spell
+## staging the same config file do not stage it over each other.  What
+## comes out here names a file and not a spell -- see slot_tag_instance
+## for the other half.
 #--------------------------------------------------------------------
 all_spells_with_staged_configs()
 {
@@ -93,7 +100,9 @@ maybe_column()  {
 #--------------------------------------------------------------------
 list_spells_with_staged_configs()
 {
-  local spells=$(all_spells_with_staged_configs)
+  # a tag differs from the instance it names in its separator alone,
+  # and '@' is a character no spell name holds
+  local spells=$(all_spells_with_staged_configs | tr @ :)
 
   if [[ -n $spells ]]; then
     message "${MESSAGE_COLOR}Spells with staged configuration files:$SPELL_COLOR"
@@ -127,9 +136,12 @@ list_staged_configs()
 #--------------------------------------------------------------------
 list_all()
 {
-  local spell config
+  local spell config instance
   for spell in $(all_spells_with_staged_configs); do
-    message "${SPELL_COLOR}$spell:$FILE_COLOR"
+    # the directory is named after an install: by its tag on disk, and
+    # by its instance to the user
+    slot_tag_instance "$spell" instance || instance=$spell
+    message "${SPELL_COLOR}$instance:$FILE_COLOR"
     all_config_files |
     sed -n "s,^$CONFIG_STAGE_DIRECTORY/$spell/[^/]*,,p" |
     maybe_column
@@ -142,7 +154,7 @@ list_all()
 ## parses the path to get specific information about the config file
 ##
 ## @param config file path
-## @param upvar for spell name
+## @param upvar for the disk tag of the install that staged it
 ## @param upvar for spell success time
 ## @param upvar for actual path to file
 #--------------------------------------------------------------------
@@ -196,19 +208,22 @@ final_cleanup()
 #--------------------------------------------------------------------
 merge_single_file()
 {
-  local file=$1 spell sdate target nice_date
+  local file=$1 spell sdate target nice_date instance
 
   parse_stage_config_path $file spell sdate target &&
   if [[ -f $file && $target ]]
   then
+    # what staged the file is an install: the tag names its stage, the
+    # instance names its tablet
+    slot_tag_instance "$spell" instance || instance=$spell
     # make the $sdate human readable
     # date -d can't use the whole original, so we have to do it in steps
     nice_date=$(date -d ${sdate:0:8} "+%a %d %b %Y")
     nice_date="$nice_date $(date -d ${sdate:8:4} "+%X %Z")"
-    message "${SPELL_COLOR}$spell$DEFAULT_COLOR cast on $nice_date has config"
+    message "${SPELL_COLOR}$instance$DEFAULT_COLOR cast on $nice_date has config"
     message "${FILE_COLOR}$file$DEFAULT_COLOR"
     message "to be merged with $FILE_COLOR/$target${DEFAULT_COLOR}\n"
-    tablet_set_spell $spell &&
+    tablet_set_spell $instance &&
     install_config_file $file $INSTALL_ROOT/$target
     recursive_config_stage_cleanup $file $spell
     echo -e "\n"
@@ -223,12 +238,17 @@ merge_single_file()
 #--------------------------------------------------------------------
 confmeld_partial()
 {
-  local thing config configs rc=0
+  local thing config configs rc=0 tag
 
   for thing in "$@"; do
-    if codex_does_spell_exist $thing &> /dev/null; then
-      # we got a spell
-      configs=$(find $CONFIG_STAGE_DIRECTORY/$thing -type f)
+    if codex_does_spell_exist $thing &> /dev/null &&
+       slot_instance_tag $thing tag; then
+      # we got a spell.  A name that leaves the slot out is every slot
+      # of it with something staged, since the stage is filed under the
+      # tag of one install and which of them was meant is not ours to
+      # guess
+      configs=$(all_config_files |
+                grep "^$CONFIG_STAGE_DIRECTORY/$tag\(@[^/]*\)*/")
     else
       # we got a config or three
       configs=$(find $CONFIG_STAGE_DIRECTORY -type f -wholename "*$thing")

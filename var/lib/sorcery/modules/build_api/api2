@@ -29,7 +29,7 @@ run_build_spell() {
 
   local CHROOT_CHECK=""
 
-  export C_LOG=$TMP_DIR/$SPELL.compile.log
+  export C_LOG=$TMP_DIR/${SPELL_DISK_TAG:-$SPELL}.compile.log
   export CASTFS_DBGLOG=$C_LOG.castfs.dbglog
   export C_FIFO=/dev/stdout # not needed for api2 anymore, but just in case
   export S_PWD=$TMP_DIR/build.saved.pwd
@@ -85,8 +85,10 @@ run_build_spell() {
       then
         invoke_installwatch
       fi                                    &&
-      delve ${OVERRIDE_GRIMOIRES+-g "$OVERRIDE_GRIMOIRES"} $SPELL INSTALL &&
-      delve ${OVERRIDE_GRIMOIRES+-g "$OVERRIDE_GRIMOIRES"} $SPELL INSTALL_EXTRAS &&
+      # the instance, since delve loads the spell afresh and the bare
+      # name would load the default slot rather than the one being cast
+      delve ${OVERRIDE_GRIMOIRES+-g "$OVERRIDE_GRIMOIRES"} $SPELL_INSTANCE INSTALL &&
+      delve ${OVERRIDE_GRIMOIRES+-g "$OVERRIDE_GRIMOIRES"} $SPELL_INSTANCE INSTALL_EXTRAS &&
       run_post_install                      || return 2
       run_transfer                          &&
       devoke_installwatch                   &&

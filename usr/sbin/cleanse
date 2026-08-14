@@ -228,13 +228,17 @@ delint()
   generic_remove_stale "$DEPENDS_STATUS" depends two
 
   message "Pass three (duplicate depends entries)"
-  for LINE in $( sed 's/^\([^:]*\):\([^:]*\):.*$/\1:\2/;tp;d;:p;s/+/\\+/' "$DEPENDS_STATUS" | sort | uniq -d ) ; do
+  # a row is one requester's word about one dependency, and either may
+  # name a slot -- which lives at the end of the row, so the key is not
+  # a prefix of it and nothing here can be done by anchored greps
+  for LINE in $( awk -F: -- '{print $1":"$2":"$7":"$8}' "$DEPENDS_STATUS" |
+                 sort | uniq -d ) ; do
     message
     options=()
     while read v opt; do
       options[$v]="$opt"
-    done < <(awk -v line="^$LINE:" -- '
-        $0 ~ line && !($0 in seen) {print count++, $0; seen[$0]}
+    done < <(awk -F: -v key="$LINE" -- '
+        key == $1":"$2":"$7":"$8 && !($0 in seen) {print count++, $0; seen[$0]}
       ' "$DEPENDS_STATUS")
 
     if [ ${#options[@]} -gt 1 ] ; then
@@ -244,7 +248,8 @@ delint()
       choice="${options[0]}"
       message "Identical lines removed: $choice"
     fi
-    grep -Ev "^$LINE:" $DEPENDS_STATUS > $TMP_DIR/delint.3
+    awk -F: -v key="$LINE" -- 'key != $1":"$2":"$7":"$8' \
+        $DEPENDS_STATUS > $TMP_DIR/delint.3
     echo "$choice" >> $TMP_DIR/delint.3
     mv $TMP_DIR/delint.3 $DEPENDS_STATUS
   done
@@ -284,13 +289,35 @@ generic_remove_stale() {
   message "Pass $3 (stale $2 entries)"
   local tmp=$TMP_DIR/delint.$2.stale
   local t
-  awk -F: -v status="$SPELL_STATUS" '
+  # a row is stale when the instance that owns it is not installed, and
+  # the instance is not the first field: a depends row keeps the slot in
+  # its seventh, a sub-depends row in its fourth, and a trigger row
+  # spells it out, colons and all, in front of the cause
+  local slotf=0
+  case $2 in
+    depends)     slotf=7 ;;
+    sub_depends) slotf=4 ;;
+  esac
+  awk -F: -v status="$SPELL_STATUS" -v slotf="$slotf" -v kind="$2" '
+    function inst(name, slot) {
+      return (slot == "" || slot == "0") ? name : name "@" slot
+    }
+    function owner(   i, j, s) {
+      if (kind != "trigger")
+        return inst($1, slotf ? $slotf : "")
+      for (i = 1; i <= NF; i++)
+        if ($i ~ /^on_(pre_)?(cast|dispel)$/) break
+      if (i > NF) return $1
+      s = $1
+      for (j = 2; j <= i - 2; j++) s = s "@" $j
+      return s
+    }
     BEGIN {
-      while (getline < status)
-        Installed[$1]
+      while ((getline < status) > 0)
+        Installed[inst($1, $5)]
     }
     {
-      if (!($1 in Installed))
+      if (!(owner() in Installed))
         print $0
     }' "$1" |tee $tmp
   t=$(wc -l $tmp | awk '{print $1}')
@@ -305,6 +332,46 @@ generic_remove_stale() {
     sort $tmp | uniq -u > $tmp.2
     cp $tmp.2 $1
   fi
+}
+
+#---------------------
+## Revise the row two instances share: either turn the dependency off,
+## or hand it to another provider.  The slots sit at the end of a row,
+## so an anchored sed can no longer tell one row from its siblings.
+## @param  off or provider
+## @param  the requester, an instance
+## @param  the dependency, an instance
+## @param  the dependency's type, when turning it off; its provider
+##         tag, when handing it over
+## @param  the new provider, when handing it over
+#---------------------
+prune_revise()
+{
+  local mode=$1 arg=$4 new=$5
+  local req_spell req_slot dep_spell dep_slot
+
+  slot_split "$2" req_spell req_slot &&
+  slot_split "$3" dep_spell dep_slot || return 1
+
+  if slot_is_default "$req_slot"; then req_slot=""
+  else slot_pack "$req_slot" req_slot; fi
+  if slot_is_default "$dep_slot"; then dep_slot=""
+  else slot_pack "$dep_slot" dep_slot; fi
+
+  # a row that says nothing about slots leaves both fields off the end
+  awk -F: -v OFS=: -v mode="$mode" -v arg="$arg" -v new="$new" \
+          -v req="$req_spell" -v rs="$req_slot" \
+          -v dep="$dep_spell" -v ds="$dep_slot" '
+    function norm(s) { return (s == "0") ? "" : s }
+    function name(f) { sub(/[(].*/, "", f); return f }
+    $1 == req && norm($7) == rs && norm($8) == ds && name($2) == dep {
+      if (mode == "off" && $3 == "on" && $4 == arg)
+        $3 = "off"
+      else if (mode == "provider" && $2 == dep "(" arg ")")
+        $2 = new "(" arg ")"
+    }
+    1' $DEPENDS_STATUS > $TMP_DIR/prune.1 &&
+  mv $TMP_DIR/prune.1 $DEPENDS_STATUS
 }
 
 #---------------------
@@ -331,10 +398,17 @@ prune_depends()
 
   # Get a list of bad dependencies
   # Output is in the form "SPELL DEPENDENCY optional/reqired PROVIDER"
+  # both ends of a row are instances, with their slots at the end of it;
+  # what is missing is one slot of a spell, and the other slots of that
+  # spell are no answer to it
   bad=( $( awk -F: -v status="$SPELL_STATUS" '
+    function inst(name, slot) {
+      return (slot == "" || slot == "0") ? name : name "@" slot
+    }
+    function show(t) { gsub(/@/, ":", t); return t }
     BEGIN {
-      while (getline < status == 1)
-        Installed[$1]
+      while ((getline < status) > 0)
+        Installed[inst($1, $5)]
     }
     $3 == "on" {
       if (match($2, /[(][^):]*[)]/)) {
@@ -344,8 +418,8 @@ prune_depends()
         prov = "__BLANK__"
         dep = $2
       }
-      if ($1 in Installed && dep != "" && !(dep in Installed))
-        print $1, dep, $4, prov
+      if (inst($1, $7) in Installed && dep != "" && !(inst(dep, $8) in Installed))
+        print show(inst($1, $7)), show(inst(dep, $8)), $4, prov
      }' $DEPENDS_STATUS ) )
 
   unlock_file $SPELL_STATUS
@@ -400,15 +474,12 @@ prune_depends()
       C*)  echo $2 >> $TMP_DIR/prune.cast      ;;
       R*)  echo $1 >> $TMP_DIR/prune.cast
         # Revise choice in the depends file
-        sed 's/^\('$1':'$2':\)on\(:optional:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
-        mv $TMP_DIR/prune.1 $DEPENDS_STATUS
+        prune_revise off "$1" "$2" optional
         ;;
       Disable*)
-        sed 's/^\('$1':'$2':\)on\(:suggest:.*\)$/\1off\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
-        mv $TMP_DIR/prune.1 $DEPENDS_STATUS
+        prune_revise off "$1" "$2" suggest
         ;;
-      S*)  sed 's/^\('$1':\)'$2'\(('$4'):.*\)$/\1'$provider'\2/' $DEPENDS_STATUS > $TMP_DIR/prune.1
-        mv $TMP_DIR/prune.1 $DEPENDS_STATUS
+      S*)  prune_revise provider "$1" "$2" "$4" "$provider"
         if [[ $3 == required ]] || [[ $3 == optional ]]; then
           echo $1 >>$TMP_DIR/prune.cast
         fi
@@ -459,9 +530,11 @@ packages()
   lock_file $SPELL_STATUS
 
   message "Pass 1 (bad lines)"
-  sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/!p' $SPELL_STATUS > $TMP_DIR/packages.bad
+  # a slot, and then a subslot, may follow the version
+  local good='/^[^:]*:[^:]*:[^:]*:[^:]*\(:[^:]*\)\{0,2\}$/'
+  sed -n "$good"'!p' $SPELL_STATUS > $TMP_DIR/packages.bad
   if [ -s $TMP_DIR/packages.bad ] ; then
-    sed -n '/^[^:]*:[^:]*:[^:]*:[^:]*$/p' $SPELL_STATUS > $TMP_DIR/packages.good
+    sed -n "$good"p $SPELL_STATUS > $TMP_DIR/packages.good
     echo "$(wc -l $TMP_DIR/packages.bad) bad lines, $(wc -l $TMP_DIR/packages.good) good lines in your packages file."
     t=$(date +%Y%m%d%s)
     message "\tSaving bad lines to $BACKUPDIR/packages.1.bad.$t"
@@ -487,13 +560,14 @@ packages()
   fi
 
   message "Pass 3 (duplicate entries)"
+  # two rows of one spell in two slots are not duplicates of each other
   t=$(
-    for LINE in $( sed -n 's/^\([^:]*\):\([^:]*\):.*$/\1/p' $SPELL_STATUS | sort | uniq -d ) ; do
-      grep "^$LINE:" $SPELL_STATUS | sed 's/^/\t/'
-    done
+    awk -F: -- 'FNR == NR { Count[$1":"$5]++; next }
+                Count[$1":"$5] > 1 { print "\t" $0 }' \
+        $SPELL_STATUS $SPELL_STATUS
   )
   if [[ $t ]] && query "\tRemove all but one of each set of duplicates?" "n" ; then
-    awk -F: '!($1 in LINES){LINES[$1]; print}' $SPELL_STATUS > $TMP_DIR/packages.3
+    awk -F: '!($1":"$5 in LINES){LINES[$1":"$5]; print}' $SPELL_STATUS > $TMP_DIR/packages.3
     message "\tRemoving bad entries"
     mv $TMP_DIR/packages.3 $SPELL_STATUS
   fi
@@ -721,7 +795,9 @@ cleanse_fix_find_check()  {
   fi
 
   local SPELL=$1
-  local I_LOG="$INSTALL_LOGS/$SPELL-$2"
+  local tag
+  slot_instance_tag "$SPELL" tag || tag=$SPELL
+  local I_LOG="$INSTALL_LOGS/$tag-$2"
   local BADLIST=""
   local LINE
 
@@ -779,13 +855,14 @@ cleanse_fix_init_ldd_check()  {
     return 0
   fi
   local SPELL
-  local I_LOG
+  local I_LOG tag
   local size count
   let count=0
   message "Doing initialization for the ldd check"
   size=$#
   for SPELL in $* ; do
-    I_LOG=$INSTALL_LOGS/$SPELL-$(private_installed_version  $SPELL)
+    slot_instance_tag "$SPELL" tag || tag=$SPELL
+    I_LOG=$INSTALL_LOGS/$tag-$(private_installed_version  $SPELL)
     hash_put ldd_hash $SPELL "$(grep '\.so$' $I_LOG|get_dirnames|sort -u|tr '\n' :)"
     progress_bar $count $size 50
     let count++
@@ -807,7 +884,9 @@ cleanse_fix_ldd_check()  { (
   message "\tLibrary test"
 
   local SPELL=$1
-  local I_LOG=$INSTALL_LOGS/$SPELL-$2
+  local tag
+  slot_instance_tag "$SPELL" tag || tag=$SPELL
+  local I_LOG=$INSTALL_LOGS/$tag-$2
   local BADLIST=""
   local LINE
 
@@ -877,7 +956,9 @@ cleanse_fix_sym_check() {
     return 0
   fi
   local SPELL=$1
-  local I_LOG="$INSTALL_LOGS/$SPELL-$2"
+  local tag
+  slot_instance_tag "$SPELL" tag || tag=$SPELL
+  local I_LOG="$INSTALL_LOGS/$tag-$2"
   local BADLIST=""
   local LINE
 
@@ -937,11 +1018,13 @@ cleanse_fix_md5sum_check() {
     return 0
   fi
   local SPELL=$1
-  local MD5_LOG="$MD5SUM_LOGS/$SPELL-$2"
+  local tag
+  slot_instance_tag "$SPELL" tag || tag=$SPELL
+  local MD5_LOG="$MD5SUM_LOGS/$tag-$2"
   local BADLIST
-  local TMP_MD5_LOG=$TMP_DIR/cleanse.md5sum.tmp.$SPELL.$$
-  local BROKEN1=$TMP_DIR/cleanse.md5sum.broken1.$SPELL.$$
-  local BROKEN2=$TMP_DIR/cleanse.md5sum.broken2.$SPELL.$$
+  local TMP_MD5_LOG=$TMP_DIR/cleanse.md5sum.tmp.$tag.$$
+  local BROKEN1=$TMP_DIR/cleanse.md5sum.broken1.$tag.$$
+  local BROKEN2=$TMP_DIR/cleanse.md5sum.broken2.$tag.$$
   local A=$'\a' # magic sed seperator, assume files dont have bells in the name
 
   # Ignore standard paths we know will change, the install log, file log,
@@ -998,7 +1081,11 @@ cleanse_fix_md5sum_check() {
                 # this actually isnt a very good assumption but works enough
                 # of the time
                 each_spell=$(smgl_basename $each|awk -F- '{for (i=1;i<NF-1;i++) {printf "%s-",$i}printf "%s\n",$i}')
-                each_version=$(private_installed_version $each_spell)
+                # what the log is named after is an install, and what is
+                # installed is asked about by instance
+                slot_tag_instance "$each_spell" each_instance ||
+                  each_instance=$each_spell
+                each_version=$(private_installed_version $each_instance)
                 [[ $each_version ]] &&
                 [[ $MD5SUM_LOGS/${each_spell}-${each_version} == $each ]] &&
                 echo $each
@@ -1016,7 +1103,7 @@ cleanse_fix_md5sum_check() {
     if [ $FIX == fix ] || [ $FIX == quick ]; then
       message "Removing from $SPELL's install and md5sum logs."
 
-      INSTALL_LOG=$INSTALL_LOGS/$SPELL-$2
+      INSTALL_LOG=$INSTALL_LOGS/$tag-$2
       # there is a slight bug with all these transactions due to
       # the fact that we have no stdin, if a transaction fails the user
       # is prompted, but since we're in this funny loop, it'll read from
@@ -1035,13 +1122,13 @@ cleanse_fix_md5sum_check() {
 
       test -d $POSSESSED_LOGS || mkdir -p $POSSESSED_LOGS
 
-      possessed=$POSSESSED_LOGS/$SPELL-$2
+      possessed=$POSSESSED_LOGS/$tag-$2
       lock_start_transaction "$possessed" tfile
       echo $LINE >> $tfile
       # remove duplicates
-      cp $tfile $TMP_DIR/$SPELL.possessed.$$
-      sort -u $TMP_DIR/$SPELL.possessed.$$ > $tfile
-      rm  $TMP_DIR/$SPELL.possessed.$$
+      cp $tfile $TMP_DIR/$tag.possessed.$$
+      sort -u $TMP_DIR/$tag.possessed.$$ > $tfile
+      rm  $TMP_DIR/$tag.possessed.$$
       lock_commit_transaction $possessed
 
       message -n '.'

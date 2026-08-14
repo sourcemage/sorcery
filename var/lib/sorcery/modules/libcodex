@@ -491,29 +491,37 @@ codex_is_directory_a_spell() {
 
 
 #---------------------------------------------------------------------
-## @param spell
-## @param [spell ...]
+## @param spell[:slot]
+## @param [spell[:slot] ...]
 ##
-## @return 0 if all the specified spells exist
+## @return 0 if all the specified spells exist, and offer the requested slot
 ## @return 1 othterwise
 ##
 #---------------------------------------------------------------------
 codex_does_spell_exist() {
-  local i
+  local i spell slot
   local retValue=0
   [[ "$#" -lt 1 ]] && return 1
   for i in "$@" ; do
     if [[ "$i" == "" ]] ; then
       message "${PROBLEM_COLOR}Empty string is not a spell!${DEFAULT_COLOR}"
       retValue=1
-    elif ! [[ $(codex_find_spell_by_name "$i") ]] ; then
-      message "${SPELL_COLOR}$i${DEFAULT_COLOR}${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
+    elif ! slot_split "$i" spell slot ; then
+      slot_bad_token_message "$i"
+      retValue=1
+    elif ! [[ $(codex_find_spell_by_name "$spell") ]] ; then
+      message "${SPELL_COLOR}$spell${DEFAULT_COLOR}${PROBLEM_COLOR} is not a spell!${DEFAULT_COLOR}"
+      retValue=1
+    # resolved rather than matched, since what came off the command line
+    # is a request: axes left off it stand for their defaults
+    elif ! codex_resolve_slot "$spell" "$slot" slot ; then
+      message "${SPELL_COLOR}$spell${DEFAULT_COLOR}${PROBLEM_COLOR} has no" \
+              "slot ${DEFAULT_COLOR}$slot${PROBLEM_COLOR}!${DEFAULT_COLOR}"
       retValue=1
     fi
   done
   return $retValue
 }
-
 
 
 #---------------------------------------------------------------------
@@ -624,18 +632,76 @@ codex_clear_current_spell()  {
   SPELL_DIRECTORY SCRIPT_DIRECTORY SPELL_DESCRIPTION \
   VERSION SHORT UPDATED WEB_SITE ENTERED MAINTAINER \
   MD5 LICENSE BUILD_API SECURITY_PATCH PATCHLEVEL \
+  SLOT SUBSLOT SLOT_SPEC SPELL_INSTANCE SPELL_DISK_TAG \
   $(compgen -v SOURCE|grep -E '^SOURCE[0-9]*(_URL)?$')
+  slot_clear_axis_vars
   # FIXME compgen depends on bash containing readline support
 }
 
 #---------------------------------------------------------------------
 ## @param spell directory
+## @param slot (optional)
+##
+## @Globals SLOT SLOT_AXES SLOT_<AXIS> SLOT_SPEC
+##
+## Works out which slot is being operated on and exports $SLOT and one
+## variable per named axis, so that DETAILS may branch on them.  With
+## no slot given the spell's default slot -- the first value of every
+## axis -- is used.
+##
+## @return 0 if the slot was set
+## @return 1 if the spell does not offer the requested slot
+##
+#---------------------------------------------------------------------
+codex_set_current_slot() {
+  local slot
+
+  SLOT_SPEC=""
+  test -f "$1/SLOTS" && SLOT_SPEC=$(codex_parse_slots_file "$1/SLOTS")
+
+  slot_spec_resolve "$SLOT_SPEC" "$2" slot || return 1
+  slot_set_axis_vars "$slot" "$SLOT_SPEC"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Canonicalizes $SLOT and $SUBSLOT and derives the names the instance
+## is known by, after DETAILS has had its say -- a spell with no SLOTS
+## file may still pin itself to a fixed slot by setting SLOT in DETAILS,
+## and SUBSLOT is only ever set there, usually from VERSION or a soname.
+##
+## The subslot is deliberately absent from both names: an ABI change
+## replaces an instance, it does not create another one.
+##
+## @Globals SLOT SUBSLOT SLOT_AXES SLOT_<AXIS> SPELL SPELL_INSTANCE SPELL_DISK_TAG
+##
+#---------------------------------------------------------------------
+codex_set_current_instance() {
+  slot_valid "$SLOT" || SLOT=$SLOT_DEFAULT
+  # DETAILS may have moved us, so the axis variables are redone here
+  slot_set_axis_vars "$SLOT" "$SLOT_SPEC"
+
+  # gentoo's default: a spell that names no ABI has the one ABI its
+  # slot stands for, and so never asks anyone to recast
+  slot_axis_valid "$SUBSLOT" || SUBSLOT=$SLOT
+  export SUBSLOT
+
+  slot_join     "$SPELL" "$SLOT" SPELL_INSTANCE
+  slot_disk_tag "$SPELL" "$SLOT" SPELL_DISK_TAG
+  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL_DISK_TAG"
+}
+
+#---------------------------------------------------------------------
+## @param spell directory
+## @param slot (optional)
 ## @Globals All vars set in a spell
 ## Sets the GRIMOIRE, SECTION, SECTION_DIRECTORY, SPELL_DIRECTORY,
 ## SCRIPT_DIRECTORY global variables for the
 ## given spell directory.
 ##
 ## Assumes the directory passed in is a valid spell directory.
+##
+## @return 1 if the spell does not offer the requested slot
 ##
 #---------------------------------------------------------------------
 codex_set_current_spell()  {
@@ -645,6 +711,13 @@ codex_set_current_spell()  {
   codex_clear_current_spell
 
   codex_get_spell_paths $1
+
+  codex_set_current_slot "$1" "$2" || return 1
+  # the config is read before DETAILS has had its say, so a spell that
+  # pins its own SLOT there reads slot 0's config here and its own from
+  # then on; a spell with a SLOTS file already has the right slot
+  slot_disk_tag "$SPELL" "$SLOT" SPELL_DISK_TAG
+  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL_DISK_TAG"
 
   if  [ -f  $SPELL_CONFIG  ]; then
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
@@ -662,7 +735,12 @@ codex_set_current_spell()  {
   .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
   persistent_clear
 
-  STAGE_DIRECTORY=$BUILD_DIRECTORY/stage-$SPELL-$VERSION
+  codex_set_current_instance
+
+  # two slots may well be one version -- gcc:15:native and
+  # gcc:15:arm-none-eabi are -- so the tag, not the name, keeps their
+  # staging areas apart
+  STAGE_DIRECTORY=$BUILD_DIRECTORY/stage-$SPELL_DISK_TAG-$VERSION
 
   # set a default build api if there isn't one already
   # this isn't strictly necessary as other code should be able to handle the
@@ -672,6 +750,9 @@ codex_set_current_spell()  {
 }
 
 #---------------------------------------------------------------------
+## @param spell directory
+## @param slot (optional)
+##
 ## Load just the very basics for a spell, skip build api, libcompat
 ## and other debug stuff. Intended for use in tight loops.
 #---------------------------------------------------------------------
@@ -680,10 +761,16 @@ codex_set_current_spell_quick()  {
 
   codex_get_spell_paths $1
 
+  codex_set_current_slot "$1" "$2" || return 1
+  slot_disk_tag "$SPELL" "$SLOT" SPELL_DISK_TAG
+  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL_DISK_TAG"
+
   test -f  "$SPELL_CONFIG" && .  "$SPELL_CONFIG" &> /dev/null
   persistent_load
   .  $1/DETAILS &> /dev/null
   persistent_clear
+
+  codex_set_current_instance
   true
 }
 
@@ -716,19 +803,25 @@ codex_get_spell_paths() {
 }
 
 #---------------------------------------------------------------------
-## @param spell name
+## @param spell name, or spell:slot
+## @param slot (optional, overridden by a slot in the first argument)
 ## Sets the GRIMOIRE, SECTION, SECTION_DIRECTORY, SPELL_DIRECTORY,
 ## SCRIPT_DIRECTORY global variables for the given spell name.
 ##
-## @return 1 if the given name is not a spell.
+## @return 1 if the given name is not a spell, or does not offer the
+##           requested slot.
 ##
 #---------------------------------------------------------------------
 codex_set_current_spell_by_name()  {
   debug "libcodex" "codex_set_current_spell_by_name -- $1"
-  local SPELL_NAME=$(codex_find_spell_by_name "$1")
+  local spell slot
+  slot_split "$1" spell slot || return 1
+  slot_is_default "$slot" && slot=$2
+
+  local SPELL_NAME=$(codex_find_spell_by_name "$spell")
   debug "libcodex" $SPELL_NAME
 
-  [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  $SPELL_NAME
+  [  -n  "$SPELL_NAME"  ]  &&  codex_set_current_spell  "$SPELL_NAME"  "$slot"
 }
 
 #---------------------------------------------------------------------
@@ -800,6 +893,167 @@ find_providers()  {
 }
 
 
+##############################SLOT FUNCTIONS##########################
+
+#---------------------------------------------------------------------
+## @param path to a SLOTS file
+##
+## @Stdout the slot spec it declares
+##
+## A SLOTS file declares the axes a spell's slots are the matrix of.
+## An axis is a name, a colon, and its values, default value first;
+## values may run over as many lines as is convenient, '#' starts a
+## comment, and a field starting with '!' excludes a combination:
+##
+## : version: 15 14 13
+## : target:  native arm-none-eabi i386-elf
+## : !13:arm-none-eabi
+##
+## A spell whose slots need no explaining can leave the axis unnamed,
+## and just list its slots:
+##
+## : 15 14 13
+##
+## @See <@function var.lib.sorcery.modules.libslot.html,slot_spec_has>
+## for what the resulting spec looks like.
+##
+#---------------------------------------------------------------------
+codex_parse_slots_file() {
+  awk -v anon="$SLOT_ANONYMOUS_AXIS" '
+	BEGIN { name = anon }
+	{ sub(/#.*/, "") }
+	{
+	  for (i = 1; i <= NF; i++) {
+	    field = $i
+	    if (substr(field, 1, 1) == "!") { excludes[++ne] = substr(field, 2); continue }
+	    # "target: native" and "target:native" both name an axis
+	    colon = index(field, ":")
+	    if (colon > 1) {
+	      name = substr(field, 1, colon - 1)
+	      field = substr(field, colon + 1)
+	      if (field == "") continue
+	    } else if (colon == 1)
+	      continue
+	    # not "values[name] = (name in values) ? values[name] "," field
+	    # : field": some awks create the subscript on the left before
+	    # they evaluate the right, and the test comes out true
+	    if (name in values)
+	      values[name] = values[name] "," field
+	    else {
+	      order[++n] = name
+	      values[name] = field
+	    }
+	  }
+	}
+	END {
+	  for (i = 1; i <= n; i++)
+	    spec = spec (spec ? " " : "") order[i] "=" values[order[i]]
+	  for (i = 1; i <= ne; i++)
+	    spec = spec " !" excludes[i]
+	  if (spec) print spec
+	}
+  ' "$1"
+}
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+## @Stdout the spell's slot spec, empty if it is not slotted
+##
+## The slot index is only a cache: a SLOTS file written since the last
+## reindex, or a grimoire indexed by an older sorcery, is still read
+## correctly, just a little slower.
+##
+#---------------------------------------------------------------------
+codex_get_spell_slot_spec() {
+  local spell=$1
+  local spell_path section_dir grimoire index
+
+  spell_path=$(codex_find_spell_by_name "$spell") || return 1
+  [[ $spell_path ]] || return 1
+
+  smgl_dirname "$spell_path" section_dir
+  smgl_dirname "$section_dir" grimoire
+  index=$grimoire/$SLOT_INDEX_FILE
+
+  if [[ -f $index ]] &&
+     awk -v s="$spell" -v d="$section_dir" -- \
+       '$1 == s && $2 == d { found = 1
+                             for (i = 3; i <= NF; i++)
+                               printf "%s%s", (i > 3 ? " " : ""), $i
+                             print ""
+                             exit }
+        END { exit !found }' "$index"
+  then
+    return 0
+  fi
+
+  test -f "$spell_path/SLOTS" && codex_parse_slots_file "$spell_path/SLOTS"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## @param spell name
+## @param request to limit the listing to (optional)
+##
+## @Stdout the slots the spell offers, one per line, default slot first
+##
+## Nothing is listed for a spell that declares no slots -- such a spell
+## has the single default slot, which is the case for every spell that
+## does not know about slots at all.
+##
+#---------------------------------------------------------------------
+codex_get_spell_slots() {
+  local spec
+  spec=$(codex_get_spell_slot_spec "$1") || return 1
+  slot_spec_expand "$spec" "$2"
+}
+
+#---------------------------------------------------------------------
+## @param spell name
+##
+## @Stdout the spell's default slot
+##
+#---------------------------------------------------------------------
+codex_get_default_slot() {
+  local spec
+  spec=$(codex_get_spell_slot_spec "$1") || return 1
+  slot_spec_default "$spec"
+}
+
+#---------------------------------------------------------------------
+## @param spell name
+## @param slot
+##
+## @return 0 if the spell can be installed in the given slot
+##
+## A spell that declares no slots only has the default slot.
+##
+#---------------------------------------------------------------------
+codex_spell_has_slot() {
+  local spec
+  spec=$(codex_get_spell_slot_spec "$1") || return 1
+  slot_spec_has "$spec" "$2"
+}
+
+#---------------------------------------------------------------------
+## Works out which slot a request refers to.  An empty request, and any
+## axis left off the end of one, means that axis's default value.
+##
+## @param spell name
+## @param requested slot, may be empty
+## @param variable to set to the resolved slot
+##
+## @return 0 if the request could be satisfied
+## @return 1 if the spell does not offer the requested slot
+##
+#---------------------------------------------------------------------
+codex_resolve_slot() {
+  local __spec
+  __spec=$(codex_get_spell_slot_spec "$1") || return 1
+  slot_spec_resolve "$__spec" "$2" "$3"
+}
+
 ##############################CACHE FUNCTIONS#########################
 #---------------------------------------------------------------------
 ## @param spell name
@@ -870,6 +1124,11 @@ codex_create_cache()  {
     sort > "$1/$SPELL_INDEX_FILE"
 
     codex_list_provides "$1" > "$1/$PROVIDE_INDEX_FILE"
+    # unlike the two above this index is only an optimization -- see
+    # codex_get_spell_slots, which falls back to the SLOTS files
+    # themselves.  That is what keeps grimoires indexed by an older
+    # sorcery working.
+    codex_list_slots "$1" > "$1/$SLOT_INDEX_FILE"
     shift
   done
 }
@@ -949,6 +1208,34 @@ codex_list_provides() {
     for file in $(codex_find_in_grimoire $grimoire "PROVIDES"); do
         smgl_dirname "$file" spell
         awk -v s="$spell" '/provides/{$1 = $2} {print $1, s}' $file
+    done | sort
+}
+
+#---------------------------------------------------------------------
+## @param grimoire-path
+## @Stdout spell section-directory slot-spec
+## Lists every slotted spell in grimoire together with the axes its
+## slots span, for instance: <br>
+## gcc /home/martin/p4/grimoire/devel version=15,14,13 target=native,arm-none-eabi
+##
+## The axes are indexed rather than the matrix they span, so a spell
+## with a lot of slots costs no more here than a spell with two.
+##
+## Spells with no SLOTS file are not listed at all -- they only have
+## the default slot.
+##
+#---------------------------------------------------------------------
+codex_list_slots() {
+    local grimoire=$1
+    local file spell_dir section_dir spell spec
+
+    for file in $(codex_find_in_grimoire "$grimoire" "SLOTS"); do
+        spec=$(codex_parse_slots_file "$file")
+        [[ $spec ]] || continue
+        smgl_dirname "$file" spell_dir
+        smgl_dirname "$spell_dir" section_dir
+        smgl_basename "$spell_dir" spell
+        echo "$spell $section_dir $spec"
     done | sort
 }
 

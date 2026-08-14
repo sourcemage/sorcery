@@ -35,10 +35,14 @@ run_config_loc () {
         mkdir --parents --mode=0755 $SM_CONFIG_OPTION_CACHE
       fi
 
-      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ] ; then
-        message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}$SPELL"
-        message "${FILE_COLOR}($SM_CONFIG_OPTION_CACHE/$SPELL)"
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL | column
+      # a slot is configured on its own, so the cache is keyed on the
+      # tag; an unslotted spell keeps the file it always had
+      local option_cache=$SM_CONFIG_OPTION_CACHE/${SPELL_DISK_TAG:-$SPELL}
+
+      if  [  -f $option_cache  ] ; then
+        message "${MESSAGE_COLOR}These are your current -- config options for spell ${SPELL_COLOR}${SPELL_INSTANCE:-$SPELL}"
+        message "${FILE_COLOR}($option_cache)"
+        cat $option_cache | column
       fi
 
       if    query  "Do you wish to add -- options to ./configure?"  n ;  then
@@ -55,16 +59,16 @@ run_config_loc () {
           sedit 's/^/# /' $F_TMP
         fi
 
-        cat $SM_CONFIG_OPTION_CACHE/$SPELL >> $F_TMP 2>/dev/null
+        cat $option_cache >> $F_TMP 2>/dev/null
         edit_file $F_TMP
-        rm -f $SM_CONFIG_OPTION_CACHE/$SPELL
+        rm -f $option_cache
         sedit '/^#.*$/d' $F_TMP
-        mv $F_TMP $SM_CONFIG_OPTION_CACHE/$SPELL
+        mv $F_TMP $option_cache
       fi
 
       # load custom OPTS
-      if  [  -f $SM_CONFIG_OPTION_CACHE/$SPELL  ];  then
-        OPTS="$OPTS $(< $SM_CONFIG_OPTION_CACHE/$SPELL)"
+      if  [  -f $option_cache  ];  then
+        OPTS="$OPTS $(< $option_cache)"
         message "${MESSAGE_COLOR} OPTS= ${DEFAULT_COLOR}$OPTS"
       fi
 
@@ -91,17 +95,20 @@ real_prepare_install() { (
   debug  "libgrimoire" "Running prepare_install() on $SPELL"
 
   message  "${MESSAGE_COLOR}Preparing to install"  \
-           "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+           "${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}"
 
   lock_resources "libgrimoire" "install"
 
-    if spell_ok $SPELL
+    # the instance, not the spell: casting one slot of a spell replaces
+    # that slot and leaves the others installed, which is the whole
+    # point of having them
+    if spell_ok $SPELL_INSTANCE
     then
 
       trap  "spell_recover"  SIGINT
       save_libraries
       save_binaries
-      dispel --notriggers --nosustain --noqueue $SPELL
+      dispel --notriggers --nosustain --noqueue $SPELL_INSTANCE
 
     fi
 ) &&
@@ -143,7 +150,10 @@ real_gather_docs()  { (
 
     debug  "libgrimoire" "Running gather_docs() on $SPELL DOCS=$DOCS"
 
-    DEST_DIR=$DOCUMENT_DIRECTORY/$SPELL
+    # the disk tag rather than the spell, so that two slots of the same
+    # spell do not file their documentation in the one directory and
+    # dispel each other's; for a spell without slots the two are equal
+    DEST_DIR=$DOCUMENT_DIRECTORY/${SPELL_DISK_TAG:-$SPELL}
     mkdir  -p  $DEST_DIR
 
     cd $SOURCE_DIRECTORY
@@ -203,65 +213,85 @@ install_pam_confs()  {
 run_spell_success() {
     debug "build_api_common" "cast of $SPELL-$VERSION was successful"
 
-    local INST_LOG="$INSTALL_LOGS/$SPELL-$VERSION"
-    local MD5_LOG="$MD5SUM_LOGS/$SPELL-$VERSION"
-    local TMP_INST_LOG="$TMP_DIR/$SPELL-$VERSION.install"
-    local TMP_MD5_LOG="$TMP_DIR/$SPELL-$VERSION.md5"
-    local C_LOG_COMP="$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+    local INST_LOG="$INSTALL_LOGS/$SPELL_DISK_TAG-$VERSION"
+    local MD5_LOG="$MD5SUM_LOGS/$SPELL_DISK_TAG-$VERSION"
+    local TMP_INST_LOG="$TMP_DIR/$SPELL_DISK_TAG-$VERSION.install"
+    local TMP_MD5_LOG="$TMP_DIR/$SPELL_DISK_TAG-$VERSION.md5"
+    local C_LOG_COMP="$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION$EXTENSION"
 
     run_hook  SUCCESS pre
     local CACHE
-    construct_cache_name "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE
+    construct_cache_name "$INSTALL_CACHE/$SPELL_DISK_TAG-$VERSION-$HOST" CACHE
     local CACHE_COMP=$CACHE$EXTENSION
 
     tablet_check_version_cache "$VERSION_STATUS" &&
     (
-      codex_set_current_spell_by_name $SPELL
-      add_version_cache "$VERSION_STATUS" "$SPELL" "$VERSION" "$PATCHLEVEL" "$SECURITY_PATCH" "$UPDATED"
+      codex_set_current_spell_by_name "$SPELL_INSTANCE"
+      add_version_cache "$VERSION_STATUS" "$SPELL_INSTANCE" "$VERSION" "$PATCHLEVEL" "$SECURITY_PATCH" "$UPDATED"
     )
 
     # announce to everyone the spell succeeded
-    activity_log  "cast"  "$SPELL"  "$VERSION"  "success"
-    add_spell $SPELL installed $VERSION
-    echo $SPELL >> $SUCCESS_LIST
-    pop_install_queue "$SPELL"
+    activity_log  "cast"  "$SPELL_INSTANCE"  "$VERSION"  "success"
+    add_spell "$SPELL_INSTANCE" installed "$VERSION" "$SUBSLOT"
+    # the queue and the lists the depends engine reads are between
+    # instances, like everything else that names an install
+    echo $SPELL_INSTANCE >> $SUCCESS_LIST
+    pop_install_queue "$SPELL_INSTANCE"
 
     # update depends info
     debug "build_api_common" "Merging depends info"
 
     # none of the old values are valid, only the new, uncommitted values are
-    remove_depends_status $DEPENDS_STATUS $SPELL
+    remove_depends_status $DEPENDS_STATUS "$SPELL_INSTANCE"
     local spell_depends spell_sub_depends spell_rsub_depends
     local t_DEPENDS_STATUS
     lock_start_transaction "$DEPENDS_STATUS" t_DEPENDS_STATUS
-    get_uncommitted_depends_file $SPELL spell_depends
+    get_uncommitted_depends_file "$SPELL_INSTANCE" spell_depends
+    # everything we depend on is installed by now, so a ':=' dependency
+    # can be told which ABI it got
+    bind_depends_subslots "$spell_depends"
     if [ -e "$spell_depends" ] ; then
       cat  $spell_depends >> $t_DEPENDS_STATUS
     fi
     lock_commit_transaction $DEPENDS_STATUS
 
+    # what bound itself to the ABI we had was built against something
+    # that is gone; the install queue is how sorcery says "cast this
+    # again", and push_install_queue is no use here because it refuses
+    # what is installed, which every one of these is
+    local stale
+    for stale in $(search_depends_stale_subslot "$DEPENDS_STATUS" \
+                                                "$SPELL_INSTANCE" "$SUBSLOT")
+    do
+      spell_ok "$stale" || continue
+      message "${MESSAGE_COLOR}The ABI of ${SPELL_COLOR}$SPELL_INSTANCE" \
+              "${MESSAGE_COLOR}moved, queueing" \
+              "${SPELL_COLOR}$stale${DEFAULT_COLOR}"
+      push_queue $INSTALL_QUEUE "$stale"
+    done
+
     # since the database is now accurate, no reason to keep old answers
     # floating around
-    test -e "$ABANDONED_DEPENDS/$SPELL" &&
-    rm -f $ABANDONED_DEPENDS/$SPELL &>/dev/null
+    test -e "$ABANDONED_DEPENDS/$SPELL_DISK_TAG" &&
+    rm -f $ABANDONED_DEPENDS/$SPELL_DISK_TAG &>/dev/null
 
     # none of the old values are valid, only the new, uncommitted values are
-    remove_sub_depends $SUB_DEPENDS_STATUS "" "$SPELL"
+    remove_sub_depends $SUB_DEPENDS_STATUS "" "$SPELL_INSTANCE"
     local spell_sub_depends
     local t_SUB_DEPENDS_STATUS
     lock_start_transaction "$SUB_DEPENDS_STATUS" t_SUB_DEPENDS_STATUS
-    get_uncommitted_sub_depends_file $SPELL spell_sub_depends
+    get_uncommitted_sub_depends_file "$SPELL_INSTANCE" spell_sub_depends
     if [ -e "$spell_sub_depends" ] ; then
       cat  $spell_sub_depends >> $t_SUB_DEPENDS_STATUS
     fi
     lock_commit_transaction $SUB_DEPENDS_STATUS
-    get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
+    get_uncommitted_rsub_depends_file "$SPELL_INSTANCE" spell_rsub_depends
 
     # compile log
     create_compile_log
     view_compile_log
 
-    local tablet_dir=$(tablet_get_path $SPELL)
+    local tablet_dir=$(tablet_get_path "$SPELL_INSTANCE")
     if [ "$?" != 0 ] ; then
       message "failed to make a tablet directory: $tablet_dir" \
               "this may be a bug"
@@ -272,7 +302,7 @@ run_spell_success() {
                "${FILE_COLOR}${tablet_dir}${DEFAULT_COLOR}"
       tablet_install_spell_files $tablet_dir
       local TABLET_SPELL_DIR=$tablet_dir spell_config_stage
-      spell_config_stage=$CONFIG_STAGE_DIRECTORY/$SPELL
+      spell_config_stage=$CONFIG_STAGE_DIRECTORY/$SPELL_DISK_TAG
       lock_file "$spell_config_stage"
       if [[ $STAGED_INSTALL != "off" && -d $spell_config_stage/current ]]
       then
@@ -290,7 +320,7 @@ run_spell_success() {
                  -prune -o -type f -wholename "*/$quasi_basename" -print |
             while read file; do
               if cmp -s $deferred_file $file; then
-                recursive_config_stage_cleanup $deferred_file $SPELL
+                recursive_config_stage_cleanup $deferred_file $SPELL_DISK_TAG
                 continue 2
               fi &>/dev/null
             done
@@ -303,7 +333,7 @@ run_spell_success() {
       fi
       unlock_file "$spell_config_stage"
       # this data is now doubly stale, remove it
-      rm  -f $ABANDONED_PERSIST/$SPELL.p
+      rm  -f $ABANDONED_PERSIST/$SPELL_DISK_TAG.p
     fi
 
     # when delving late stages the installwatch log may not exist
@@ -328,7 +358,7 @@ run_spell_success() {
       # save the md5sums of the files in the stage and not the target
       # ones on the system, otherwise config merging breaks #13835
       # for this we need an "install" log of what is in the stage
-      local STAGE_INST_LOG="$TMP_DIR/$SPELL-$VERSION.stage.install"
+      local STAGE_INST_LOG="$TMP_DIR/$SPELL_DISK_TAG-$VERSION.stage.install"
       create_stage_install_log $TMP_INST_LOG $STAGE_INST_LOG
       if [[ $tablet_dir ]] ; then
         find $tablet_dir >> $STAGE_INST_LOG
@@ -381,8 +411,8 @@ run_spell_failure() {
 
     local reason
     get_failure_reason reason
-    activity_log "cast" "$SPELL"  "$VERSION" "failure" "$reason"
-    echo $SPELL >> $FAILED_LIST
+    activity_log "cast" "$SPELL_INSTANCE"  "$VERSION" "failure" "$reason"
+    echo $SPELL_INSTANCE >> $FAILED_LIST
 
     # if it failed after PRE_BUILD make a compile log
     if [ "$rc" != 1 ] ; then
@@ -393,8 +423,8 @@ run_spell_failure() {
     # put the answers somewhere where they can still be used later
     mkdir -p $ABANDONED_DEPENDS
     local spell_depends
-    get_uncommitted_depends_file $SPELL spell_depends
-    [ -e "$spell_depends" ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL
+    get_uncommitted_depends_file "$SPELL_INSTANCE" spell_depends
+    [ -e "$spell_depends" ] && mv $spell_depends $ABANDONED_DEPENDS/$SPELL_DISK_TAG
 
     # This may have been locked if there was a failure during the install
     unlock_resources "libgrimoire" "install"
@@ -407,8 +437,8 @@ run_spell_failure() {
     rm -f $IW_LOG $C_LOG
 
     local spell_sub_depends spell_rsub_depends
-    get_uncommitted_sub_depends_file $SPELL spell_sub_depends
-    get_uncommitted_rsub_depends_file $SPELL spell_rsub_depends
+    get_uncommitted_sub_depends_file "$SPELL_INSTANCE" spell_sub_depends
+    get_uncommitted_rsub_depends_file "$SPELL_INSTANCE" spell_rsub_depends
     rm -f "$spell_sub_depends" "$spell_rsub_depends"
 
     if [[  $CLEAN_SOURCE == on ]]

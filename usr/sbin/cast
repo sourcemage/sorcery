@@ -216,7 +216,7 @@ cast_spell()  { (
   run_details
   load_build_api || return 1
 
-  dispel_conflicts $SPELL || return 1
+  dispel_conflicts $SPELL_INSTANCE || return 1
 
   # show_downloading tail -f's (essentially) the download log as it
   # comes in, or if downloading is complete, cats the download log, in
@@ -224,7 +224,7 @@ cast_spell()  { (
   # a ${download_log}.done file. If SEPARATE is set, then all downloading
   # is done first, so there is no need to wait for it to complete.
   if ! [ "$SEPARATE" ]; then
-    show_downloading $SPELL
+    show_downloading $SPELL_INSTANCE
   fi
 
   verify_sources ||   return 1
@@ -234,10 +234,10 @@ cast_spell()  { (
 
   # all this needs to reorganized and stuff...later
 
-  export IW_LOG="$TMP_DIR/$SPELL.iw"
+  export IW_LOG="$TMP_DIR/$SPELL_DISK_TAG.iw"
 
   #some minor discussion occured about having this, i'll leave it out for now
-  activity_log  "cast"  "$SPELL"  "$VERSION"  "start"
+  activity_log  "cast"  "$SPELL_INSTANCE"  "$VERSION"  "start"
 
   # must declare OPTS before sourcing config
   local OPTS
@@ -247,11 +247,11 @@ cast_spell()  { (
   libtrack_init
 
   local spell_depends spell_sub_depends
-  get_uncommitted_depends_file $SPELL spell_depends
+  get_uncommitted_depends_file "$SPELL_INSTANCE" spell_depends
   test -e $spell_depends &&
-  OPTS="$OPTS $(get_depends_options $spell_depends $SPELL)"
+  OPTS="$OPTS $(get_depends_options $spell_depends "$SPELL_INSTANCE")"
 
-  get_uncommitted_sub_depends_file $SPELL spell_sub_depends
+  get_uncommitted_sub_depends_file "$SPELL_INSTANCE" spell_sub_depends
   test -e $spell_sub_depends &&
   local PROCESSED_SUB_DEPENDS=$(cut -f3 -d: $spell_sub_depends|tr '\n' ' ')
 
@@ -286,7 +286,7 @@ cast_spell()  { (
   fi
 
 
-  unlock_resources "cast" "$SPELL"
+  unlock_resources "cast" "${SPELL_INSTANCE:-$SPELL}"
   #It's OK to try to release a lock you don't have
   unlock_resources "solo" "cast"
 
@@ -499,9 +499,9 @@ pass_two()  {
 }
 
 #---------------------------------------------------------------------
-## @param spellname
-## @Globals SPELL
-## Sets SPELL to the spellname and calls summon_spell with spellname
+## @param spell instance
+## @Globals SPELL SPELL_INSTANCE
+## Sets SPELL to the spellname and calls summon_spell with the instance
 ## as argument. This is equivalent to calling summon, but without the
 ## overhead.
 ## (Is being called by make)
@@ -511,17 +511,19 @@ pass_three()  {
   debug "cast" "pass_three - $*"
   unset CAST_PASS
   trap "exit 1" INT TERM
-  local SPELL=$1
+  local SPELL_INSTANCE=$1
+  local SPELL
+  slot_split "$1" SPELL || { slot_bad_token_message "$1"; return 1; }
 
   # download_log is removed with it's .done in libcast
-  local download_log=$(get_spell_dl_log $SPELL)
+  local download_log=$(get_spell_dl_log $SPELL_INSTANCE)
 
   if [[ $SCREEN_NAME ]] && [ ! -p $TMP_DIR/download.fifo ] ; then
     # Create the summon window
     mkfifo $TMP_DIR/download.fifo
     # Neither tail not cat work properly on FIFOs so a while loop will
     # have to be used
-    screen_new_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL" \
+    screen_new_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL_INSTANCE" \
       /bin/bash -c  'while : ; do
           read LINE && echo $LINE || sleep 0.1 ;
         done < '$TMP_DIR/download.fifo
@@ -529,7 +531,7 @@ pass_three()  {
   fi
   if [[ $SCREEN_NAME ]] ; then
     # A summon window is already up, just change the name
-    screen_name_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL"
+    screen_name_window "$SCREEN_NAME" $SCREEN_SUMMON_WIN "Summon $SPELL_INSTANCE"
     # symlink the d/l log to the fifo
     ln -s $TMP_DIR/download.fifo $download_log
   else
@@ -540,10 +542,10 @@ pass_three()  {
   # check if this is being resurrected and if so, don't summon
   # this will go away when resurrect support and dependency resolution merge
   if ! [[ $COMPILE ]] ; then
-    VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
-    if [[ $VERSION ]] && can_resurrect $SPELL $VERSION &> /dev/null ; then
+    VERSION=$(codex_set_current_spell_by_name $SPELL_INSTANCE &> /dev/null;echo $VERSION)
+    if [[ $VERSION ]] && can_resurrect $SPELL_INSTANCE $VERSION &> /dev/null ; then
       # The 2>/dev/null is necessary because the dir may not exist
-      echo "pass_three thought that $SPELL was being resurrected" \
+      echo "pass_three thought that $SPELL_INSTANCE was being resurrected" \
         > $download_log 2>/dev/null
       # touch the 'log' file just in case the spell disagreed so cast doesnt
       # hang forever
@@ -553,10 +555,10 @@ pass_three()  {
   fi
 
   if [ "$SEPARATE" ]; then
-    summon_spell "$SPELL" &> "$download_log"
+    summon_spell "$SPELL_INSTANCE" &> "$download_log"
   else
     lock_file   $download_log
-    summon_spell "$SPELL" &> "$download_log"
+    summon_spell "$SPELL_INSTANCE" &> "$download_log"
     unlock_file   $download_log
   fi
 
@@ -566,9 +568,9 @@ pass_three()  {
 }
 
 #---------------------------------------------------------------------
-## @param spellname
-## @Globals SPELL COMPILE
-## Sets SPELL to spellname.
+## @param spell instance
+## @Globals SPELL SPELL_INSTANCE COMPILE
+## Sets SPELL to the spellname and SPELL_INSTANCE to the whole token.
 ## Calls trigger "pre_cast"
 ## If COMPILE is not set, the spell doesn't need an update and it can
 ## be resurrected (can_resurrect SPELL) it calls resurrect with SPELL.
@@ -582,18 +584,19 @@ pass_four()  {
   local do_resurrect=no
   local VERSION
   unset CAST_PASS
-  SPELL=$1
+  SPELL_INSTANCE=$1
+  slot_split "$1" SPELL || { slot_bad_token_message "$1"; return 1; }
 
   trigger "pre_cast"
 
   if ! [[ $COMPILE ]] ; then
     # hacky way to get the latest version
-    VERSION=$(codex_set_current_spell_by_name $SPELL &> /dev/null;echo $VERSION)
+    VERSION=$(codex_set_current_spell_by_name $SPELL_INSTANCE &> /dev/null;echo $VERSION)
     if [[ ! $VERSION ]] ; then
       message "Can't find spell version for some reason, is $SPELL a spell?"
     else
-      can_resurrect $SPELL $VERSION &> /dev/null &&
-      ! does_spell_need_update $SPELL &> /dev/null &&
+      can_resurrect $SPELL_INSTANCE $VERSION &> /dev/null &&
+      ! does_spell_need_update $SPELL_INSTANCE &> /dev/null &&
       do_resurrect=yes
     fi
   fi
@@ -601,22 +604,22 @@ pass_four()  {
   # this is a hacky way to tell what version we're updating from
   # if any, we can use it to find md5 logs for installing config type
   # files, it mostly is here for libresurrect.real_install_config_file
-  local OLD_SPELL_VERSION=$(installed_version $SPELL)
+  local OLD_SPELL_VERSION=$(installed_version $SPELL_INSTANCE)
 
   local rc
   if [[ "$do_resurrect" == "yes" ]] ; then
-    resurrect_spell $SPELL $VERSION
+    resurrect_spell $SPELL_INSTANCE $VERSION
     rc=$?
     # this is here for safety in case resurrect bails out somewhere
     # we didnt expect it to
     unlock_resources "libgrimoire" "install"
-    unlock_resources "cast" "$SPELL"
+    unlock_resources "cast" "$SPELL_INSTANCE"
     unlock_resources "solo" "cast"
     return $rc
   else
     cast_spell $*
   fi
-  debug "cast" "pass_four done for $SPELL"
+  debug "cast" "pass_four done for $SPELL_INSTANCE"
 }
 
 
@@ -755,10 +758,12 @@ pass_five()  {
   run_hook cast_final "" $rc
 
   # check if confmeld should be run
-  local spell deferred_list
+  local spell tag deferred_list
   while read spell; do
+    # the list holds instances, the stage is filed under the disk tag
+    slot_instance_tag "$spell" tag || tag=$spell
     # ignore the date - previously deferred files should be merged too
-    if [[ -d $CONFIG_STAGE_DIRECTORY/$spell ]]; then
+    if [[ -d $CONFIG_STAGE_DIRECTORY/$tag ]]; then
       deferred_list="$spell $deferred_list"
     fi
   done < $SUCCESS_LIST

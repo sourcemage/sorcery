@@ -28,10 +28,15 @@
 #---------------------------------------------------------------------
 summon_spell() {
   $STD_DEBUG
-  local SPELL=$1
+  # run_details below reads the instance, so it is set here rather than
+  # left to whatever spell was loaded last
+  local SPELL_INSTANCE=$1
+  local SPELL tag
+  slot_split "$1" SPELL || { slot_bad_token_message "$1"; return 1; }
+  slot_instance_tag "$1" tag
   local rc=1
-  if [ -n "${SPELL}" ] && lock_resources "summon" "${SPELL}"; then
-    local dl_dir=$TMP_DIR/${SPELL:-none}
+  if [ -n "${SPELL}" ] && lock_resources "summon" "${SPELL_INSTANCE}"; then
+    local dl_dir=$TMP_DIR/${tag:-none}
     debug "libsummon" "dl_dir is $dl_dir"
     mkdir -p $dl_dir && pushd $dl_dir &>/dev/null &&
 
@@ -43,9 +48,9 @@ summon_spell() {
       rc=$?
 
       if [[ $rc == 0 ]]; then
-        activity_log "summon" "$SPELL"  "$VERSION" "success"
+        activity_log "summon" "${SPELL_INSTANCE:-$SPELL}"  "$VERSION" "success"
       else
-        activity_log "summon" "$SPELL"  "$VERSION" "failure" "download failed"
+        activity_log "summon" "${SPELL_INSTANCE:-$SPELL}"  "$VERSION" "failure" "download failed"
       fi
 
       # this actually only returns from the subshell, not the function
@@ -53,7 +58,7 @@ summon_spell() {
     ) && popd &>/dev/null
     rc=$?
     rm -rf $dl_dir
-    unlock_resources "summon" "${SPELL}"
+    unlock_resources "summon" "${SPELL_INSTANCE}"
   fi
   return $rc
 }

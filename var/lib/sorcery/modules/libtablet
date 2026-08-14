@@ -377,12 +377,13 @@ tablet_get_spell_name_from_path() {
 
 #---------------------------------------------------------------------
 ## setup a unique tablet directory
-## @param spell name
+## @param spell instance
 ## @stdout path to unique tablet directory
 ## @return 0 if the directory was made, 1 if not
 #---------------------------------------------------------------------
 tablet_get_path() {
-  local SPELL=$1
+  local SPELL
+  slot_instance_tag "$1" SPELL || SPELL=$1
   local tb_dir=$TABLET_PATH/$SPELL/$(date +%Y%m%d%H%M%S)
   local sleep_time
   local made
@@ -405,7 +406,7 @@ tablet_get_path() {
 }
 
 #----------------------------------------------------------------------
-## @param spell name
+## @param spell instance
 ## @param upvar
 ## @param timestamp (optional)
 ##
@@ -425,12 +426,14 @@ tablet_find_spell_dir() {
     return 0
   fi
   local SPELL=$1
+  local tb_tag
+  slot_instance_tag "$SPELL" tb_tag || tb_tag=$SPELL
   if ! test -d $TABLET_PATH; then
     mkdir -p $TABLET_PATH
     return 1
   fi
   local __spell_dir
-  local base_dir=$TABLET_PATH/$SPELL
+  local base_dir=$TABLET_PATH/$tb_tag
   if ! [[ $base_dir ]] || ! test -d $base_dir ; then
     return 1
   fi
@@ -464,13 +467,14 @@ tablet_find_spell_dir() {
 }
 
 #----------------------------------------------------------------------
-## @param spell name
+## @param spell instance
 ## @param upvar
 ## quicker dirtier version of above without special checks since the
 ## tablet in a cache tarball has nothing to do with the installed system
 #----------------------------------------------------------------------
 tablet_find_resurrect_dir() {
-  local SPELL=$1
+  local SPELL
+  slot_instance_tag "$1" SPELL || SPELL=$1
   if ! test -d $TABLET_PATH; then
     return 1
   fi
@@ -528,15 +532,15 @@ tablet_install_spell_files() {
   test -e $SPELL_CONFIG.p && cp ${SPELL_CONFIG}.p spell_config.p
 
   # depends info
-  get_uncommitted_depends_file $SPELL spell_depends &&
+  get_uncommitted_depends_file "$SPELL_INSTANCE" spell_depends &&
   test -e $spell_depends && cp $spell_depends depends
 
   # sub-depends we provide
   local sub_depends_file rsub_depends_file
-  get_uncommitted_sub_depends_file $SPELL sub_depends_file &&
+  get_uncommitted_sub_depends_file "$SPELL_INSTANCE" sub_depends_file &&
   test -e $sub_depends_file && cp $sub_depends_file sub_depends
   # get sub-depend we request
-  get_uncommitted_rsub_depends_file $SPELL sub_depends_file &&
+  get_uncommitted_rsub_depends_file "$SPELL_INSTANCE" sub_depends_file &&
   test -e $rsub_depends_file && cp $sub_depends_file rsub_depends
 
   # logs
@@ -570,12 +574,16 @@ tablet_install_spell_files() {
 ## efficiency.
 #---------------------------------------------------------------------
 tablet_set_spell() {
+  # a page is a page of one instance, so the slot comes off the token
+  # here and is put back by codex_set_current_instance below, the same
+  # way codex_set_current_spell does it from a spell directory
+  local tb_slot tb_config
   codex_clear_current_spell
-  SPELL=$1
+  slot_split "$1" SPELL tb_slot || return 1
   if [[ $2 ]] && test -d $2; then
     SPELL_DIRECTORY=$2
   else
-    tablet_find_spell_dir $SPELL SPELL_DIRECTORY || return 1
+    tablet_find_spell_dir "$1" SPELL_DIRECTORY || return 1
     TABLET_PAGE=$SPELL_DIRECTORY
   fi
 
@@ -597,9 +605,19 @@ tablet_set_spell() {
     .  $SPELL_CONFIG > /dev/null  2> /dev/null
   fi
 
+  # the tablet carries a copy of the spell directory, SLOTS and all, so
+  # DETAILS branches on the same $SLOT_<AXIS> it was cast with
+  codex_set_current_slot "$SCRIPT_DIRECTORY" "$tb_slot"
+
   persistent_load
   .  $SPELL_DIRECTORY/DETAILS 1>/dev/null 2>&1
   persistent_clear
+
+  # codex_set_current_instance would point SPELL_CONFIG at the system
+  # copy, and a tablet's own is the one this spell was cast with
+  tb_config=$SPELL_CONFIG
+  codex_set_current_instance
+  SPELL_CONFIG=$tb_config
 
   BUILD_API=$(<$SPELL_DIRECTORY/build_api)
   # if BUILD_API isnt set something is wrong, but just be safe
@@ -646,6 +664,8 @@ tablet_import_repair_files_page() {
 
   local spell spell_dir
   tablet_get_spell_name_from_path "$page" spell
+  # a chapter is named after the install; the codex knows spells
+  slot_undisk_tag "$spell" spell
   hash_get_ref $2 $spell spell_dir
   codex_get_spell_paths "$spell_dir"
 
@@ -834,11 +854,16 @@ tablet_cleanse_chapter() {
   local do_repair=$3
   local spell
   smgl_basename "$sdir" spell
+  # the chapter is named after an install, and what is installed is
+  # asked about by instance and looked up in the codex by name
+  local instance name
+  slot_tag_instance "$spell" instance || instance=$spell
+  slot_split "$instance" name || name=$spell
   local page rc
 
   mkdir -p "$backup_dir/duplicates"
   mkdir -p "$backup_dir/chapter_files"
-  tablet_fix_duplicates "$spell" "$sdir" "$backup_dir/duplicates"
+  tablet_fix_duplicates "$instance" "$sdir" "$backup_dir/duplicates"
   test -d "$sdir" || return 0
 
 
@@ -849,7 +874,7 @@ tablet_cleanse_chapter() {
     elif [[ $do_repair == yes ]] ; then
       ( # pretend we're tablet_import_repair_files
         shopt -s nullglob
-        hash_put spell_lookup_hash "$spell" "$(codex_find_spell_by_name $spell)"
+        hash_put spell_lookup_hash "$name" "$(codex_find_spell_by_name $name)"
         tablet_import_repair_files_page "$page" spell_lookup_hash
       )
     fi

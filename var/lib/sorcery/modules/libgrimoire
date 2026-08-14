@@ -209,31 +209,46 @@ real_installed_version()  {
 
 #---------------------------------------------------------------------
 ## @Type API
-## @param spell
+## @param spell instance
 ## Returns the current version of the given spell
 ## Doesnt do sanity check for spell_ok, used internally for speed.
 ## Behavior is undefined is spell is not installed.
 ##
 #---------------------------------------------------------------------
 private_installed_version()  {
-  awk -F: -v spell="$1" '$1 == spell { print $4; exit }' $SPELL_STATUS 2>/dev/null
+  local spell request
+
+  # a bare spell name asks about every slot of it, and the first row
+  # answers, exactly as this has always done
+  state_split_query "$1" spell request || return 1
+  state_spell_status_rows "$SPELL_STATUS" "$spell" "$request" "" |
+  cut -f4 -d: | head -n 1
 }
 
 #---------------------------------------------------------------------
-## @param spell
+## @param spell, or spell:slot
 ## @param default answer to dispel query
 ## @Type API
 ## If the default answer is anything other than 'y' then 'n' is assumed.
 ## returns the given spellname if it is installed
 ##
+## A conflict is with an install, not with a spell, so a name given
+## without a slot conflicts with every installed slot of it -- and each
+## is named in full, since what comes back here is what gets dispelled.
+## A spell may name one of its own slots: gcc:14 and gcc:15 living side
+## by side is the point of slots, but two slots of something else may
+## well be one file each in the same place.
+##
 #---------------------------------------------------------------------
 real_conflicts() {
   debug  "libgrimoire" "Running conflicts() on $1. Default query answer $2."
 
-  if spell_ok "$1"; then
-    case "$2" in y) a=y;; *) a=n;; esac
-    echo "$1:$a"
-  fi
+  local instance
+  case "$2" in y) a=y;; *) a=n;; esac
+
+  for instance in $(spell_instances "$1"); do
+    echo "$instance:$a"
+  done
 }
 
 #---------------------------------------------------------------------

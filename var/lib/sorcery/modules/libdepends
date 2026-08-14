@@ -181,13 +181,11 @@ run_our_sub_depends() {
   local sub_depends pair
   # do all sub-depends on us from live-table first, they get priority
   # in case there is a conflict
-  for triple in $(search_sub_depends "$SUB_DEPENDS_STATUS" '.*' "$SPELL") ; do
-    # parse the line out, eventually these silly variable expansions should
-    # be in functions or benchmarked against explode
-    tmp=${triple%:*};
-    requester=${tmp%:*};
-    sub_dependee=${tmp#*:};
-    sub_depends=${triple##*:}
+  for triple in $(search_sub_depends "$SUB_DEPENDS_STATUS" '.*' "$SPELL_INSTANCE") ; do
+    # a row is between instances and its slots sit past the sub-depends,
+    # so it is read back rather than picked apart here
+    state_split_sub_depends_row "$triple" requester sub_dependee sub_depends ||
+    continue
 
     # if the requester has been processed skip any sub-depends its
     # previous instance requested, bug 11865
@@ -199,11 +197,13 @@ run_our_sub_depends() {
   done
 
   # do all sub-depends from sub_dep_r_hash (things that we provide)
-  for pair in $(hash_get sub_dep_r_hash $SPELL) ; do
+  for pair in $(hash_get sub_dep_r_hash $SPELL_INSTANCE) ; do
+    # the sub-depends is the last field, the instance is all that is
+    # before it and may hold ':' of its own
     requester=${pair%:*}
-    sub_depends=${pair#*:}
+    sub_depends=${pair##*:}
 
-    process_sub_depends "$requester" "$SPELL" "$sub_depends" || return 1
+    process_sub_depends "$requester" "$SPELL_INSTANCE" "$sub_depends" || return 1
   done
 }
 
@@ -213,18 +213,19 @@ run_our_sub_depends() {
 run_other_sub_depends() {
   $STD_DEBUG
   local this_spell=$1
-  local SPELL sub_dependee sub_depends pair
+  local SPELL SPELL_INSTANCE sub_dependee sub_depends pair
   local sub_dependee_looked_at
   # do all sub-depends from sub_dep_f_hash (things we request)
   for pair in $(hash_get sub_dep_f_hash $this_spell) ; do
     # FIXME, do this one spell at a time, rather than in whatever order we
     # see them it will reduce the number of run_details
+    # the sub-depends is the last field, the instance is the rest
     sub_dependee=${pair%:*}
-    sub_depends=${pair#*:}
+    sub_depends=${pair##*:}
     hash_get_ref depends_looked_at $sub_dependee sub_dependee_looked_at
     if [[ $sub_dependee_looked_at == done ]]; then
       # load the spell and clear out any special variables
-      SPELL=$sub_dependee
+      SPELL_INSTANCE=$sub_dependee
       run_details
       local NEW_SUB_DEPENDEES=""
       # afk 5-28-06: bash 3.0 breaks local foo=(), have to make this two lines
@@ -296,20 +297,31 @@ __comp_depends_aux() {
     awk -F: -v reverse="$1" \
 	-v pattern="required|optional${3:+|runtime|suggest}" \
 	-v status="${4:-on}" '
+	# the tree is between instances: a row names the spell in one
+	# field and its slot in another, and one slot of a spell can
+	# depend on something another slot of it does not
+	function instance(spell, slot) {
+		gsub(/@/, ":", slot)
+		return (slot == "" || slot == "0") ? spell : spell ":" slot
+	}
 	FNR == 1 { file++ }
 	file == 1 {
 		if ($3 == status && $4 ~ pattern) {
 			# Remove provider name
 			sub(/[(].*/, "", $2)
+			req = instance($1, $7)
+			dep = instance($2, $8)
 			if (reverse)
-				depmap[$2] = depmap[$2] " " $1 " "
-			else	depmap[$1] = depmap[$1] " " $2 " "
+				depmap[dep] = depmap[dep] " " req " "
+			else	depmap[req] = depmap[req] " " dep " "
 		}
 		next
 	}
 	{
-		if ($3 == "installed" || $3 == "held")
-			print $1, depmap[$1]
+		if ($3 == "installed" || $3 == "held") {
+			inst = instance($1, $5)
+			print inst, depmap[inst]
+		}
 	}
     ' "$DEPENDS_STATUS" "$SPELL_STATUS"
   )
@@ -337,6 +349,62 @@ compute_installed_depends() {
 #---------------------------------------------------------------------
 compute_reverse_installed_depends() {
   __comp_depends_aux 1 "$@"
+}
+
+#---------------------------------------------------------------------
+## Reports dependencies that cannot all be met at once, and drops the
+## spells that asked for them.
+##
+## Two slots of a spell live side by side happily -- that is what slots
+## are for -- so a slot never conflicts with a slot.  A subslot does: it
+## is an ABI, and it replaces rather than joins, so two spells asking
+## one instance for two ABIs are asking for something the system cannot
+## hold.  So is one spell asking an instance for an ABI other than the
+## one it is installed with, when nothing in this cast is going to
+## rebuild it.
+##
+## An instance that /is/ being rebuilt is left alone: what ABI it will
+## come out with is not known until it has been cast, and the trigger
+## that fires when a subslot moves is the thing that answers for it.
+#---------------------------------------------------------------------
+private_check_slot_conflicts() {
+  local instance want requester
+  local wants wanted requesters installed_sub looked_at
+
+  for instance in $(hash_get_table_fields slot_subslot_hash); do
+    hash_get_ref slot_subslot_hash "$instance" wants
+
+    wanted=""
+    requesters=""
+    while read -r want requester; do
+      [[ $want ]] || continue
+      real_list_add wanted "$want"
+      real_list_add requesters "$requester"
+    done <<< "$wants"
+
+    hash_get_ref depends_looked_at "$instance" looked_at
+    if [[ $looked_at != done ]]; then
+      # nothing here is going to rebuild it, so the ABI it has is the
+      # ABI it is going to keep
+      query_spell_subslot "$instance" installed_sub
+      [[ $installed_sub ]] && real_list_add wanted "$installed_sub"
+    fi
+
+    # one word, one ABI, nothing to argue about
+    [[ $wanted == "${wanted%% *}" ]] && continue
+
+    message "${PROBLEM_COLOR}Cannot give${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}$requesters${DEFAULT_COLOR}" \
+            "${PROBLEM_COLOR}the${DEFAULT_COLOR}" \
+            "${SPELL_COLOR}$instance${DEFAULT_COLOR}" \
+            "${PROBLEM_COLOR}they ask for: subslots${DEFAULT_COLOR}" \
+            "$wanted${PROBLEM_COLOR}, and an instance has one at a" \
+            "time.${DEFAULT_COLOR}"
+    for requester in $requesters; do
+      log_failure_reason "subslot conflict" "$requester"
+      private_remove_dependees "$requester"
+    done
+  done
 }
 
 #---------------------------------------------------------------------
@@ -399,7 +467,10 @@ compute_uninstalled_depends()
       debug "libdepends" "already looked at ${spells[$_idx]}, skipping"
     fi
   done
+  private_check_slot_conflicts
+
   # we no longer need these, no sense in keeping them around
+  hash_reset slot_subslot_hash
   hash_unset depends_looked_at
   hash_unset sub_dep_f_hash
   hash_unset sub_dep_r_hash
@@ -415,12 +486,18 @@ compute_uninstalled_depends()
 #---------------------------------------------------------------------
 ## A private function for running a spell's DEPENDS script.
 ## No functions except libdepends functions should use this.
-## @param Spell
+## @param spell instance
 #---------------------------------------------------------------------
 private_run_depends()
 {
   debug "libdepends" "$FUNCNAME - $*"
-  local SPELL=$1
+  # run_details below puts the bare name in $SPELL and the instance back
+  # in $SPELL_INSTANCE, but the depends file and the spell config are
+  # wanted before it runs
+  local SPELL_INSTANCE=$1
+  local SPELL SPELL_DISK_TAG
+  slot_split "$1" SPELL || { slot_bad_token_message "$1"; return 1; }
+  slot_instance_tag "$1" SPELL_DISK_TAG
 
   # special accumulators for the current spell
   local NEW_DEPENDS=""
@@ -431,65 +508,66 @@ private_run_depends()
   local spell_depends
   local spell_sub_depends
 
-  hash_put "depends_looked_at" "$SPELL" "start"
+  hash_put "depends_looked_at" "$SPELL_INSTANCE" "start"
 
   # We only need to run the stuff if we are going to be casting.
   # It only needs to be added to the casting hash table if we are
   # really casting it
-  if private_should_cast $SPELL ; then
+  if private_should_cast $SPELL_INSTANCE ; then
 
     # this cant go in private_should_cast because then the dependee wont
     # have a chance at being fixed
     # we check already here, so a specified spell isn't needlessly run
     if spell_exiled $1; then
-      depends_message  "${SPELL}" "is exiled and will not be cast."
+      depends_message  "${SPELL_INSTANCE}" "is exiled and will not be cast."
       log_failure_reason exiled $1
       return 1
     fi
-    get_uncommitted_depends_file $SPELL spell_depends
+    get_uncommitted_depends_file "$SPELL_INSTANCE" spell_depends
     spell_sub_depends=$spell_depends.sub
     if  [  -n  "$RECONFIGURE"  ];  then
       local t_abandonded_p
-      rm  -f  $DEPENDS_CONFIG/$SPELL
-      test -f $DEPENDS_CONFIG/$SPELL.p &&
+      local tag=${SPELL_DISK_TAG:-$SPELL}
+      rm  -f  $DEPENDS_CONFIG/$tag
+      test -f $DEPENDS_CONFIG/$tag.p &&
       mkdir -p $ABANDONED_PERSIST      &&
-      lock_file "$DEPENDS_CONFIG/$SPELL.p" &&
-      lock_start_transaction "$ABANDONED_PERSIST/$SPELL.p" t_abandonded_p &&
-      mv -f "$DEPENDS_CONFIG/$SPELL.p" "$t_abandonded_p" &&
-      unlock_file "$DEPENDS_CONFIG/$SPELL.p" &&
-      lock_commit_transaction "$ABANDONED_PERSIST/$SPELL.p"
+      lock_file "$DEPENDS_CONFIG/$tag.p" &&
+      lock_start_transaction "$ABANDONED_PERSIST/$tag.p" t_abandonded_p &&
+      mv -f "$DEPENDS_CONFIG/$tag.p" "$t_abandonded_p" &&
+      unlock_file "$DEPENDS_CONFIG/$tag.p" &&
+      lock_commit_transaction "$ABANDONED_PERSIST/$tag.p"
     fi
     prepare_spell_config
     SCRIPT_DIRECTORY=$(codex_find_spell_by_name $SPELL)
-    run_prepare $SPELL            &&
+    run_prepare $SPELL_INSTANCE   &&
     run_details                   &&
     run_configure $SPELL          &&
     run_other $SPELL              &&
     run_depends $SPELL            &&
     run_up_triggers $SPELL        &&
-    run_our_sub_depends $SPELL        &&
+    run_our_sub_depends $SPELL_INSTANCE &&
 
     # possibly recast things that depend on us if option is set (-B)
     private_upward_depends $SPELL &&
-    private_recast_optionals $SPELL &&
+    private_recast_optionals $SPELL_INSTANCE &&
     private_add_triggerees        &&
     private_add_depends           ||
-    { debug "libdepends" "$FUNCNAME failed to process $SPELL." ; return 1; }
+    { debug "libdepends" "$FUNCNAME failed to process $SPELL_INSTANCE." ; return 1; }
     # no point in keeping the file around if its empty...
     test -s $spell_depends || rm -f $spell_depends $spell_sub_depends
 
-    if real_list_find "${RUNTIME_DEPENDS[*]}" "$SPELL"; then
+    if real_list_find "${RUNTIME_DEPENDS[*]}" "$SPELL_INSTANCE"; then
       local k=${#BONUS_SPELLS[@]}
-      BONUS_SPELLS[$k]=$SPELL
+      BONUS_SPELLS[$k]=$SPELL_INSTANCE
     fi
 
     # this processes any sub-depends we requested and the sub-dependee
     # has already been processed, so we must process them on their behalf
     # this must be done after everything else!
-    run_other_sub_depends "$SPELL" || return 1
+    run_other_sub_depends "$SPELL_INSTANCE" || return 1
   else
-    depends_message "${SPELL}" "No work to do."
-    hash_put "depends_looked_at" "$SPELL" "ignore"
+    depends_message "${SPELL_INSTANCE}" "No work to do."
+    hash_put "depends_looked_at" "$SPELL_INSTANCE" "ignore"
   fi
 
   # if there weren't any depends no sense in keeping the file around
@@ -548,7 +626,11 @@ private_upward_depends() {
     # and/or move the weird pattern into library functions...
     # (afrayedknot 2005-10-02)
     lock_file "$DEPENDS_STATUS"
-    tmp=$(grep "^.*:$1\(([^:]*)\)\?:" $DEPENDS_STATUS|cut -f1 -d:|tr "\n" " ")
+    # what depends on us is an instance, and its slot is at the end of
+    # the row rather than in the field cut(1) would hand back; -B stays
+    # deliberately broad about which slot of us was depended on
+    tmp=$(grep "^[^:]*:${1%%:*}\(([^:]*)\)\?:" $DEPENDS_STATUS |
+          state_depends_requesters | tr "\n" " ")
     unlock_file "$DEPENDS_STATUS"
     local j k each
     let j=${#NEW_UP_DEPENDS[*]}
@@ -586,16 +668,23 @@ private_recast_optionals_sub() {
 private_recast_optionals() {
   if [[ $RECAST_OPTIONALS ]] && [[ $RECAST_OPTIONALS != ignore ]] ; then
     local spell j enabled
+    # both ends of a row are instances: the dependency that is off is one
+    # slot of us, and what has it off is a slot of itself, which is at
+    # the end of the row rather than in its first field
+    local dep_spell dep_slot
+    slot_split "$1" dep_spell dep_slot || { dep_spell=$1; dep_slot=""; }
+    slot_is_default "$dep_slot" && dep_slot=""
     let j=${#NEW_UP_DEPENDS[*]}
     for spell in $(search_depends_status_exact $DEPENDS_STATUS \
-                 '.*' "$1\(([^:]*)\)\?" off optional '.*' '.*'|cut -f1 -d:); do
+                 '.*' "$dep_spell\(([^:]*)\)\?" off optional '.*' '.*' \
+                 "$dep_slot" | state_depends_requesters); do
       private_recast_optionals_sub $spell \
         "$spell has a disabled optional dependency on $1"
       if [[ $enabled ]] ; then
         NEW_UP_DEPENDS[$j]=$spell
         let j++
         # toggle the dependency, so the user doesn't get requeried
-        toggle_depends_status $DEPENDS_STATUS $spell "$1(\([^:]*\))?"
+        toggle_depends_status $DEPENDS_STATUS $spell "$dep_spell(\([^:]*\))?"
         spells=( ${spells[*]} $spell )
       fi
     done
@@ -603,13 +692,14 @@ private_recast_optionals() {
     # also check for disabled features that $1 is a provider of
     local features feature_regex
     # get the features and build a regex for quicker lookup
-    features=$(codex_find_spell_provides $1)
+    features=$(codex_find_spell_provides $dep_spell)
     for feature in $features; do
       feature_regex="$feature\|$feature_regex"
     done
     feature_regex=${feature_regex%\\|}
     for spell in $(search_depends_status_exact $DEPENDS_STATUS \
-                '.*' "($feature_regex)" off optional '.*' '.*'|cut -f1 -d:|sort -u); do
+                '.*' "($feature_regex)" off optional '.*' '.*' |
+                state_depends_requesters | sort -u); do
       private_recast_optionals_sub $spell \
         "$spell has a disabled optional dependency on $1 as a provider"
       if [[ $enabled ]] ; then
@@ -617,12 +707,74 @@ private_recast_optionals() {
         let j++
         # toggle all the features that $1 provides and set $1 as their provider
         for feature in $features; do
-          change_spell_provider $DEPENDS_STATUS $spell "$1" "$feature" "on"
+          change_spell_provider $DEPENDS_STATUS $spell "$dep_spell" "$feature" "on"
         done
         spells=( ${spells[*]} $spell )
       fi
     done
   fi
+}
+
+#---------------------------------------------------------------------
+## Works out which instance of a spell a dependency atom asks for.
+##
+## An installed instance that answers the atom is the answer: a
+## dependency that leaves an axis unconstrained must not drag a second
+## slot in when what is already on the system will do.  Failing that,
+## the unconstrained axes take their default values -- whatever this
+## resolves to is about to be cast, and a cast has to name one point in
+## the matrix.
+##
+## @param spell name
+## @param slot request, may be empty or hold '*' axes
+## @param subslot request, may be empty
+## @param variable to set to the instance
+##
+## @return 1 if the spell offers no slot answering the request
+#---------------------------------------------------------------------
+depends_resolve_atom() {
+  # every local is __res_ prefixed: slot_split, query_spell_subslot,
+  # codex_resolve_slot and slot_join all upvar into a name the caller
+  # chose, and would write here instead if the names met
+  local __res_inst __res_slot __res_subslot
+
+  for __res_inst in $(spell_instances "$1${2:+:$2}"); do
+    slot_split "$__res_inst" "" __res_slot || continue
+    query_spell_subslot "$__res_inst" __res_subslot
+    slot_atom_matches "$2" "$3" "$__res_slot" "$__res_subslot" || continue
+    upvar "$4" "$__res_inst"
+    return 0
+  done
+
+  if ! codex_resolve_slot "$1" "$2" __res_slot; then
+    # a spell that pins its slot in DETAILS rather than declaring a
+    # SLOTS file has no spec to resolve against, so a concrete request
+    # is taken at its word and DETAILS has the last one
+    [[ $(codex_get_spell_slot_spec "$1") ]] && return 1
+    case $2 in
+      ''|*'*'*) return 1 ;;
+    esac
+    __res_slot=$2
+  fi
+  slot_join "$1" "$__res_slot" "$4"
+}
+
+#---------------------------------------------------------------------
+## Puts the slot a depends row recorded back onto the spell name from
+## it, so that the answer the row remembers names the instance it named
+## when it was written.
+##
+## @param variable holding the spell name, and to set to the instance
+## @param the row's packed dependency slot, may be empty
+#---------------------------------------------------------------------
+depends_row_instance() {
+  local __row_spell __row_slot
+
+  [[ $2 ]] || return 0
+  eval "__row_spell=\$$1"
+  [[ $__row_spell ]] || return 0
+  slot_unpack "$2" __row_slot
+  slot_join "$__row_spell" "$__row_slot" "$1"
 }
 
 ###################BEGIN CALLBACKS FROM OUTSIDE#######################
@@ -656,9 +808,19 @@ real_generic_required_depends()
     return 1
   fi
 
+  # a dependency is an atom -- spell[:slot][/subslot][=] -- and only the
+  # spell name of it means anything to the codex.  The rest rides down
+  # to private_common_depends in these locals, which is dynamic scope,
+  # but is how $spell_depends and $spells get down there too
+  local dep_spell dep_slot dep_subslot dep_bind
+  if ! slot_atom_split "$1" dep_spell dep_slot dep_subslot dep_bind; then
+    slot_bad_token_message "$1"
+    return 1
+  fi
+
   # determine if we're dealing with a provider or a spell
   local is_provider
-  if ! codex_does_spell_exist $1 &> /dev/null; then
+  if ! codex_does_spell_exist $dep_spell &> /dev/null; then
     is_provider=yes
   fi
 
@@ -735,12 +897,26 @@ real_generic_required_depends()
     fi
   fi
 
+  # past here the atom is spoken for by one instance -- or, if it names
+  # a feature, by the bare feature name, whose slot is applied to
+  # whichever provider gets chosen
+  local dep_target=$dep_spell
+  if [[ ! $is_provider ]] &&
+     ! depends_resolve_atom "$dep_spell" "$dep_slot" "$dep_subslot" dep_target
+  then
+    message "${PROBLEM_COLOR}No slot of ${SPELL_COLOR}$dep_spell" \
+            "${PROBLEM_COLOR}answers ${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
+  fi
+  shift
+  set -- "$dep_target" "$@"
+
   local target_spell
   if [[ $is_provider ]]; then
     work_depends_provider "$failure_ok" "$article" \
                                    "$query_term" "$database_term" "$@" &&
     if [[ "$requested_sub_depends" ]]; then
-      target_spell=$(get_spell_provider "$SPELL" "$1")
+      target_spell=$(get_spell_provider "$SPELL_INSTANCE" "$1")
     fi
   else
     work_depends_spell "$failure_ok" "$article" \
@@ -799,9 +975,17 @@ real_generic_optional_depends()
     return 1
   fi
 
+  # as in real_generic_required_depends: the atom is split here, and its
+  # slot and subslot ride down to private_common_depends in locals
+  local dep_spell dep_slot dep_subslot dep_bind
+  if ! slot_atom_split "$1" dep_spell dep_slot dep_subslot dep_bind; then
+    slot_bad_token_message "$1"
+    return 1
+  fi
+
   # determine if we're dealing with a provider or a spell
   local is_provider
-  if ! codex_does_spell_exist $1 &> /dev/null; then
+  if ! codex_does_spell_exist $dep_spell &> /dev/null; then
     is_provider=yes
   fi
 
@@ -871,20 +1055,32 @@ real_generic_optional_depends()
       message "${PROBLEM_COLOR}no grimoire for $1 was retrieved${DEFAULT_COLOR}"
       message "Assuming dependency is off because it could not be met"
       if [[ $is_provider ]]; then
-        private_common_depends "($1)" "off" "$database_term" "$2" "$3"
+        private_common_depends "($dep_spell)" "off" "$database_term" "$2" "$3"
       else
-        private_common_depends "$1" "off" "$database_term" "$2" "$3"
+        private_common_depends "$dep_spell" "off" "$database_term" "$2" "$3"
       fi
       return 0
     fi
   fi
+
+  # as in real_generic_required_depends
+  local dep_target=$dep_spell
+  if [[ ! $is_provider ]] &&
+     ! depends_resolve_atom "$dep_spell" "$dep_slot" "$dep_subslot" dep_target
+  then
+    message "${PROBLEM_COLOR}No slot of ${SPELL_COLOR}$dep_spell" \
+            "${PROBLEM_COLOR}answers ${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
+  fi
+  shift
+  set -- "$dep_target" "$@"
 
   local target_spell
   if [[ $is_provider ]]; then
     work_optional_depends_provider "$failure_ok" "$article" \
                                    "$query_term" "$database_term" "$@" &&
     if [[ "$requested_sub_depends" ]]; then
-      target_spell=$(get_spell_provider "$SPELL" "$1")
+      target_spell=$(get_spell_provider "$SPELL_INSTANCE" "$1")
     fi
   else
     work_optional_depends_spell "$failure_ok" "$article" \
@@ -893,7 +1089,7 @@ real_generic_optional_depends()
   fi &&
   if [[ "$requested_sub_depends" ]] &&
      [[ "$target_spell" ]] &&
-     is_depends_enabled "$SPELL" "$target_spell"; then
+     is_depends_enabled "$SPELL_INSTANCE" "$target_spell"; then
     for sub_depend in $requested_sub_depends; do
       sub_depends "$target_spell" "$sub_depend" || return 1
     done
@@ -961,8 +1157,9 @@ work_depends_provider()
     # provider case, if the user chose none, we would fall out during spell_ok
     # and we transparently switch between optional and required without
     # anyone noticing
-    explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
+    explode "$(search_depends_status $DEPENDS_STATUS "${SPELL_INSTANCE:-$SPELL}" ".*($1)")" ":" "status"
     tmp=${status[1]%(*}    # Name of spell which provides $1
+    depends_row_instance tmp "${status[7]}"
     if spell_ok $tmp; then
       message "${MESSAGE_COLOR}Using ${SPELL_COLOR}$tmp${DEFAULT_COLOR}"
       private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
@@ -971,8 +1168,8 @@ work_depends_provider()
   fi
 
   # check if theres an abandoned answer, but only if its still a provider
-  if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
-    tmp=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)"|awk -F: '{print $2;exit}')
+  if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} ] ; then
+    tmp=$(search_depends_status $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} "${SPELL_INSTANCE:-$SPELL}" ".*($1)"|awk -F: '{print $2;exit}')
     [[ $tmp ]] && real_list_find "$CANDIDATES" "$tmp" && default=$tmp
   fi
 
@@ -999,7 +1196,7 @@ work_depends_provider()
     if [[ $choices == ${choices##* } ]]; then
       default=$choices
     else
-      explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" ".*($1)")" ":" "status"
+      explode "$(search_depends_status $DEPENDS_STATUS "${SPELL_INSTANCE:-$SPELL}" ".*($1)")" ":" "status"
       local old_provider=${status[1]%(*} # Name of spell which provides $1
       if real_list_find "$choices" $old_provider; then
         default=$old_provider
@@ -1009,10 +1206,19 @@ work_depends_provider()
     fi
   fi
 
-  local provider
+  local provider provider_instance
   select_provider "provider" "$default" 0 $CANDIDATES
 
-  private_common_depends "$provider($1)" "on" "$database_term" "$2" ""
+  # a provider may be slotted itself, and the atom's slot asked for one
+  # of its slots: "depends X11:2" wants a provider of X11 in slot 2
+  if ! depends_resolve_atom "$provider" "$dep_slot" "$dep_subslot" \
+                            provider_instance; then
+    message "${PROBLEM_COLOR}No slot of ${SPELL_COLOR}$provider" \
+            "${PROBLEM_COLOR}provides ${SPELL_COLOR}$1${DEFAULT_COLOR}"
+    return 1
+  fi
+
+  private_common_depends "$provider_instance($1)" "on" "$database_term" "$2" ""
 }
 
 #---------------------------------------------------------------------
@@ -1075,15 +1281,16 @@ work_optional_depends_provider()
   local CANDIDATES=$( find_providers $1)
   # if not reconfiguring check if theres already an answer in DEPENDS_STATUS
   if [[ ! $RECONFIGURE ]]; then
-    explode "$(search_depends_status_simple $DEPENDS_STATUS "$SPELL" ".*($1)" "on")" ":" "status"
+    explode "$(search_depends_status_simple $DEPENDS_STATUS "${SPELL_INSTANCE:-$SPELL}" ".*($1)" "on")" ":" "status"
     local tmp=${status[1]%(*}    # Name of spell which provides $1
+    depends_row_instance tmp "${status[7]}"
     if [[ "$tmp" ]] && spell_ok "$tmp"; then
       message "${MESSAGE_COLOR}Using ${SPELL_COLOR}$tmp${DEFAULT_COLOR}"
       private_common_depends "$tmp($1)" "on" "$database_term" "$2" "$3"
       return 0
     fi
     if [[ "$(search_depends_status_simple $DEPENDS_STATUS \
-                                          "$SPELL" ".*($1)" "off")" ]]; then
+                          "${SPELL_INSTANCE:-$SPELL}" ".*($1)" "off")" ]]; then
       message "${MESSAGE_COLOR}Using ${SPELL_COLOR}[none]${DEFAULT_COLOR}"
       private_common_depends "$tmp($1)" "off" "$database_term" "$2" "$3"
       return 0
@@ -1091,12 +1298,12 @@ work_optional_depends_provider()
   fi
 
   # check if theres an abandoned answer, but only if its still a provider
-  if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
-    tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "on"|awk -F: '{print $2;exit}')
+  if [[ ! $default ]] && [ -e $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} ] ; then
+    tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} "${SPELL_INSTANCE:-$SPELL}" ".*($1)" "on"|awk -F: '{print $2;exit}')
     if [[ $tmp ]] && real_list_find "$CANDIDATES" "$tmp"; then
       default=$tmp
     else
-      tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/$SPELL "$SPELL" ".*($1)" "off")
+      tmp=$(search_depends_status_simple $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} "${SPELL_INSTANCE:-$SPELL}" ".*($1)" "off")
       [[ $tmp ]] && default=none
     fi
   fi
@@ -1145,7 +1352,7 @@ work_optional_depends_provider()
       default=$choices
     else
       # only search for enabled dependencies since none is already the default
-      explode "$(search_depends_status_simple $DEPENDS_STATUS "$SPELL" ".*($1)" "on")" ":" "status"
+      explode "$(search_depends_status_simple $DEPENDS_STATUS "${SPELL_INSTANCE:-$SPELL}" ".*($1)" "on")" ":" "status"
       local old_provider=${status[1]%(*} # Name of spell which provides $1
       if real_list_find "$choices" $old_provider; then
         default=$old_provider
@@ -1155,13 +1362,20 @@ work_optional_depends_provider()
     fi
   fi
 
-  local provider
+  local provider provider_instance
   select_provider "provider" "$default" 1 $CANDIDATES
 
   if [ $provider == "none" ] ; then
     private_common_depends "($1)" "off" "$database_term" "$2" "$3"
   else
-    private_common_depends "$provider($1)" "on" "$database_term" "$2" "$3"
+    # as in work_depends_provider, the provider may be slotted
+    if ! depends_resolve_atom "$provider" "$dep_slot" "$dep_subslot" \
+                              provider_instance; then
+      message "${PROBLEM_COLOR}No slot of ${SPELL_COLOR}$provider" \
+              "${PROBLEM_COLOR}provides ${SPELL_COLOR}$1${DEFAULT_COLOR}"
+      return 1
+    fi
+    private_common_depends "$provider_instance($1)" "on" "$database_term" "$2" "$3"
   fi
 
 }
@@ -1254,7 +1468,7 @@ work_optional_depends_spell()
     # not reconfiguring...
     # example: icewm:imlib:off:optional:--with-imlib:--with-xpm
     local status=()
-    explode "$(search_depends_status $DEPENDS_STATUS "$SPELL" "$1")" ":" "status"
+    explode "$(search_depends_status $DEPENDS_STATUS "${SPELL_INSTANCE:-$SPELL}" "$1")" ":" "status"
     if [[ ${status[2]} ]] ; then
       # ah there are! use them
       if [[ ${status[2]} == "on" ]] ; then
@@ -1279,9 +1493,9 @@ work_optional_depends_spell()
 
 
   # check for abandoned answers
-  if [ -e $ABANDONED_DEPENDS/$SPELL ] ; then
+  if [ -e $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} ] ; then
     debug "libdepends" "Checking in abandoned depends"
-    default=$(search_depends_status $ABANDONED_DEPENDS/$SPELL "$SPELL" "$1"|awk -F: '{print $3;exit}')
+    default=$(search_depends_status $ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL} "${SPELL_INSTANCE:-$SPELL}" "$1"|awk -F: '{print $3;exit}')
   fi
 
   # check the defaults file...
@@ -1401,7 +1615,9 @@ real_up_trigger() {
            "${SPELL_COLOR}${2}${DEFAULT_COLOR}" \
            "${CHECK_COLOR}on${DEFAULT_COLOR}" \
            "${SPELL_COLOR}${1}${DEFAULT_COLOR}"
-  private_up_trigger $SPELL "$1" "$2"
+  # it is one instance of us that triggers, and the tree the engine
+  # walks is between instances
+  private_up_trigger ${SPELL_INSTANCE:-$SPELL} "$1" "$2"
 }
 
 #---------------------------------------------------------------------
@@ -1528,7 +1744,36 @@ real_force_depends() {
 private_common_depends()
 {
   debug "libdepends" "$FUNCNAME - $SPELL - $@"
-  add_depends $spell_depends "$SPELL" "$@"
+
+  # the dependency's slot is a field of its own, so the name field holds
+  # the bare spell -- with the feature still parenthesised after it,
+  # since that is the shape get_spell_provider reads back
+  local dep_name=$1 dep_feature="" dep_row_slot=""
+  if [[ $1 == *'('* ]]; then
+    dep_name=${1%%(*}
+    dep_feature="(${1#*(}"
+  fi
+  if [[ $dep_name ]]; then
+    slot_split "$dep_name" dep_name dep_row_slot || return 1
+    slot_is_default "$dep_row_slot" && dep_row_slot=""
+  fi
+
+  # '=' is not a legal subslot, so it stands for one not bound yet: an
+  # atom asking to be told when an ABI moves is written before the
+  # dependency it asks about has been cast, and bind_depends_subslots
+  # fills the answer in on the way to $DEPENDS_STATUS
+  local dep_bound=""
+  [[ $dep_bind == yes ]] && [[ $2 == on ]] && dep_bound="="
+
+  # an atom that pins an ABI has a claim on the one instance, and two
+  # such claims can disagree; private_check_slot_conflicts settles that
+  # once every spell has had its say
+  if [[ $2 == on ]] && [[ $dep_subslot ]] && [[ $dep_subslot != '*' ]] ; then
+    hash_append slot_subslot_hash "${1%%(*}" "$dep_subslot $SPELL_INSTANCE" $'\n'
+  fi
+
+  add_depends $spell_depends "$SPELL_INSTANCE" "$dep_name$dep_feature" \
+              "$2" "$3" "$4" "$5" "$dep_row_slot" "$dep_bound"
 
   # runtime and suggested depends have no formal dependency info
   if [[ $2 == on ]] ; then
@@ -1574,7 +1819,7 @@ private_add_triggerees() {
     run_spell_file TRIGGER_CHECK trigger_check
     running_trigger=$?
     if [[ $running_trigger == 0 ]] ; then
-      private_up_trigger "$SPELL" "$TARGET" "$ACTION"
+      private_up_trigger "$SPELL_INSTANCE" "$TARGET" "$ACTION"
     fi
   }
 
@@ -1584,12 +1829,14 @@ private_add_triggerees() {
     private_add_triggerees_sub1
   }
 
+  # what waits on us waits on an instance of us, and what it names is an
+  # instance too -- one slot may be triggered where another is not
   for ACTION in cast_self check_self dispel_self run_script; do
-    for TARGET in $(get_triggerees $SPELL on_cast $ACTION); do
+    for TARGET in $(get_triggerees $SPELL_INSTANCE on_cast $ACTION); do
       spell_ok $TARGET || continue
       if [[ $ACTION == run_script ]] ; then
         iterate private_add_triggerees_sub2 $'\n' \
-                          "$(get_run_script_triggers $SPELL on_cast $TARGET)"
+                  "$(get_run_script_triggers $SPELL_INSTANCE on_cast $TARGET)"
       else
         private_add_triggerees_sub1
       fi
@@ -1604,19 +1851,21 @@ private_add_triggerees() {
 #---------------------------------------------------------------------
 private_add_depends()
 {
-  debug "libdepends" "$FUNCNAME: SPELL=$SPELL, NEW_DEPENDS=${NEW_DEPENDS[*]}"
-  hash_append "$CAST_HASH" "$SPELL" "${NEW_DEPENDS[*]}"
+  # the tables are between instances: one slot of a spell may depend on
+  # something another slot of it does not
+  debug "libdepends" "$FUNCNAME: SPELL=$SPELL_INSTANCE, NEW_DEPENDS=${NEW_DEPENDS[*]}"
+  hash_append "$CAST_HASH" "$SPELL_INSTANCE" "${NEW_DEPENDS[*]}"
 
   for child in ${NEW_DEPENDS[*]}; do
-    hash_append "$BACK_CAST_HASH" "$child" "$SPELL"
+    hash_append "$BACK_CAST_HASH" "$child" "$SPELL_INSTANCE"
   done
 
   # force implied basesystem dependency in the depends tree
   if [[ $FORCE_BASESYSTEM_DEPENDS == on ]] &&
      [[ $SPELL != basesystem ]] &&
      ! real_list_find "$base_deps" "$SPELL"; then
-    hash_append "$CAST_HASH" "$SPELL" "basesystem"
-    hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL"
+    hash_append "$CAST_HASH" "$SPELL_INSTANCE" "basesystem"
+    hash_append "$BACK_CAST_HASH" "basesystem" "$SPELL_INSTANCE"
   fi
 
   spells=( ${spells[*]} ${NEW_DEPENDS[*]}
@@ -1630,7 +1879,7 @@ private_add_depends()
 
   UP_DEPENDS=( ${UP_DEPENDS[*]} ${NEW_UP_DEPENDS[*]} )
 
-  hash_put "depends_looked_at" "$SPELL" "done"
+  hash_put "depends_looked_at" "$SPELL_INSTANCE" "done"
 
 }
 
@@ -1792,7 +2041,7 @@ uncommitted_upward_depends() {
 run_spell_config()
 {
 
-  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+  SPELL_CONFIG=$DEPENDS_CONFIG/${SPELL_DISK_TAG:-$SPELL}
   debug "libdepends" "run_spell_config() - DEPENDS_CONFIG=$DEPENDS_CONFIG SPELL=$SPELL, SPELL_CONFIG=$SPELL_CONFIG DEPENDS_STATUS=$DEPENDS_STATUS"
 
   if  [  -x  $SPELL_CONFIG  ];  then

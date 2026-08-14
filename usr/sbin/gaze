@@ -40,6 +40,8 @@ installed      [spell]          Views installed spells.
 version         spell           Views version of spell installed,
                                  and version in the grimoire.
 versions        spell           Views version of spell in all grimoires
+slots           spell[:slot]    Lists the slots a spell offers, the
+                                 installed ones marked
 patchlevels     spell           Views PATCHLEVEL and SECURITY_PATCH value
                                  of spell in all grimoires
 license         spell           Views the license of the given spell(s)
@@ -654,7 +656,11 @@ show_from()  {
 	$0 ~ str && $0 !~ xclude {
 		found = 1
 		if (!verbose) exit
-		printf("%s: %s\n", FILENAME, $0)
+		# a log is filed under the disk tag, and nothing but a
+		# packed slot puts an "@" in one
+		fn = FILENAME
+		gsub(/@/, ":", fn)
+		printf("%s: %s\n", fn, $0)
 		if (whole) nextfile
 	}
 	END {
@@ -1056,6 +1062,26 @@ gaze_show_section()  {
 
 #---------------------------------------------------------------------
 ##
+## Expands a token that names no slot into one token per slot the
+## spell has: asked after a spell, a table that answers for one of its
+## slots and says nothing of the others is answering the wrong
+## question.  A token that names a slot, and a spell that has none,
+## come back as they went in.
+## @param Spell, or spell:slot
+## @param Name to look the slots up under, if the first is a directory
+## @Stdout one token per slot
+##
+#---------------------------------------------------------------------
+gaze_expand_slots() {
+  local name slot slots s
+  slot_split "$1" name slot || { echo "$1"; return 1; }
+  slot_is_default "$slot" && slots=$(codex_get_spell_slots "${2:-$name}")
+  [[ $slots ]] || { echo "$1"; return 0; }
+  for s in $slots; do slot_join "$name" "$s"; done
+}
+
+#---------------------------------------------------------------------
+##
 ## Shows a table with the installed version of a spell and the
 ## versions available in the specified grimoires.
 ## @param Grimoires  space-separated list of grimoires to check, or "-"
@@ -1065,18 +1091,23 @@ gaze_show_section()  {
 ##
 #---------------------------------------------------------------------
 gaze_show_spell_version_table()  {
-  local grimoires installed_grimoire installed_ver
+  local grimoires installed_grimoire installed_ver instance slot
   grimoires=($1)
   shift
   [[ $# != 0 ]] || return 0
   (
     echo  "Grimoire|Section|Spell|Grimoire Version|Installed Version"
     echo  "--------|-------|-----|----------------|-----------------"
-    for SPELL in "$@"; do
+    for instance in "$@"; do
       unset installed_grimoire
+      # an argument may name a slot: the grimoire is looked up by the
+      # bare name, DETAILS branches on the slot, and what is printed and
+      # what the state database is asked about is the instance
+      slot_split "$instance" SPELL slot || { slot_bad_token_message "$instance"
+                                             continue; }
       if [[ $grimoires != - ]]; then
-	codex_does_spell_exist $SPELL || continue
-	if tablet_find_spell_dir "$SPELL" tablet; then
+	codex_does_spell_exist $instance || continue
+	if tablet_find_spell_dir "$instance" tablet; then
 	  # TODO change this if it will be stored in the less volatile
 	  #      state/packages file.
 	  tablet_get_grimoire_name $tablet installed_grimoire
@@ -1089,17 +1120,19 @@ gaze_show_spell_version_table()  {
 	else
 	  SPELL_DIRECTORY=$(codex_cache_spell_lookup $SPELL $grimoire)
 	fi &&
-	codex_set_current_spell "$SPELL_DIRECTORY" || continue
+	codex_set_current_spell "$SPELL_DIRECTORY" "$slot" || continue
 	# XXX old tablet/state files may not hold installed_grimoire,
 	#     so match the first.
 	: ${installed_grimoire:=$GRIMOIRE_NAME}
 	case "$VERSION:$GRIMOIRE_NAME" in
 	  # Always match the installed-from grimoire
 	  (*:"$installed_grimoire")
-	    installed_ver="$(installed_version "$SPELL")"
+	    # the instance the codex settled on, since an argument may
+	    # have been a directory rather than a name
+	    installed_ver="$(installed_version "$SPELL_INSTANCE")"
 	    ;&
 	  (?*:*)
-	    echo "$GRIMOIRE_NAME|${SECTION:--}|$SPELL|${VERSION:--}|${installed_ver:--}"
+	    echo "$GRIMOIRE_NAME|${SECTION:--}|$SPELL_INSTANCE|${VERSION:--}|${installed_ver:--}"
 	    ;;
 	esac
       done
@@ -1117,14 +1150,20 @@ gaze_show_spell_version_table()  {
 ##
 #---------------------------------------------------------------------
 gaze_show_version()  {
-  local spells unknown
+  local spells unknown name slot
   for spell_or_section in "$@"; do
-    if codex_find_spell_or_section_by_name "$spell_or_section"; then
+    # the codex is asked about the spell, the table about the slot; what
+    # comes back is a directory, and a slot rides on it the same way
+    if slot_split "$spell_or_section" name slot &&
+       codex_find_spell_or_section_by_name "$name"; then
       [ -n "$CODEX_FOUND_SECTION" ] &&
         gaze_show_spell_version_table - \
           $(codex_get_spells_in_section "$CODEX_FOUND_SECTION")
+      # the slots are looked up by name, and ride on the directory the
+      # codex found the same way one slot does
       [ -n "$CODEX_FOUND_SPELL" ] &&
-      spells+=("$CODEX_FOUND_SPELL")
+      spells+=($(gaze_expand_slots "$(slot_join "$CODEX_FOUND_SPELL" "$slot")" \
+                                   "$name"))
     else
       unknown+=("$spell_or_section")
     fi
@@ -1147,7 +1186,47 @@ gaze_show_version()  {
 ##
 #---------------------------------------------------------------------
 gaze_show_versions()  {
-  gaze_show_spell_version_table "$(codex_get_all_grimoires)" "$@"
+  local spell spells=()
+  # a bare name asks after the spell, which may live in more than one
+  # slot; the tokens are the user's own, so the codex knows them
+  for spell in "$@"; do spells+=($(gaze_expand_slots "$spell")); done
+  gaze_show_spell_version_table "$(codex_get_all_grimoires)" "${spells[@]}"
+}
+
+#---------------------------------------------------------------------
+##
+## Shows the slots a spell offers, the installed ones marked.
+## @param Spell
+## @param ...
+##
+#---------------------------------------------------------------------
+gaze_show_slots()  {
+  local spell name request slot slots mark
+
+  for spell in "$@"; do
+    slot_split "$spell" name request || { slot_bad_token_message "$spell"
+                                          continue; }
+    codex_find_spell_by_name "$name" > /dev/null ||
+      { message "${PROBLEM_COLOR}No such spell:" \
+                "${SPELL_COLOR}$name${DEFAULT_COLOR}"
+        continue; }
+
+    # a bare name asks after every slot the spell has, not after the
+    # default one slot_split filled in for it
+    slot_is_default "$request" && request=
+
+    # a spell that declares no slots still has slot 0, and saying so is
+    # more use than saying nothing
+    slots=$(codex_get_spell_slots "$name" "$request")
+    [[ $slots ]] || slots=0
+
+    for slot in $slots; do
+      if spell_ok "$(slot_join "$name" "$slot")"; then mark="installed"
+      else                                             mark=""; fi
+      message "${SPELL_COLOR}$(slot_join "$name" "$slot")" \
+              "${MESSAGE_COLOR}$mark${DEFAULT_COLOR}"
+    done
+  done
 }
 
 #---------------------------------------------------------------------
@@ -1356,21 +1435,34 @@ gaze_show_license()  {
 #-----
 gaze_show_installed() {
 
-  local total_rc=0
+  local total_rc=0 arg instances
   if [ -z  "$1" ]
   then
-    grep -v ':exiled:[^:]*$' $SPELL_STATUS | $PAGER
+    # a row keeps the slot in a field of its own and the status is no
+    # longer the last thing before the version, so neither the join nor
+    # the exiles can be left to a pattern over the whole line
+    awk -F: -v OFS=: '$3 != "exiled" {
+                        s = $5; gsub(/@/, ":", s)
+                        print (s == "" || s == "0" ? $1 : $1 ":" s), $2, $3, $4
+                      }' $SPELL_STATUS | $PAGER
   else
-    for spell in "$@"; do
-      ! [[ $GAZE_VERBOSE == false ]] &&
-      message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
-      VERSION=$(installed_version  $spell)
-      if  [  -n  "$VERSION"  ]; then
-        echo "$VERSION"
-      else
-        total_rc=1
-        message  "not installed"
-      fi
+    for arg in "$@"; do
+      # what is installed under a bare name may be several slots, and
+      # answering for one of them is answering the wrong question; a
+      # name nothing is installed under is asked after as it was typed,
+      # so that the "not installed" below names it
+      instances=$(spell_instances "$arg")
+      for spell in ${instances:-$arg}; do
+        ! [[ $GAZE_VERBOSE == false ]] &&
+        message  "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
+        VERSION=$(installed_version  $spell)
+        if  [  -n  "$VERSION"  ]; then
+          echo "$VERSION"
+        else
+          total_rc=1
+          message  "not installed"
+        fi
+      done
     done
   fi
   return $total_rc
@@ -1385,8 +1477,12 @@ gaze_show_installed() {
 #-----
 gaze_show_short_description() {
 
+  local name
   for spell in $@; do
-    if codex_find_spell_by_name $spell > /dev/null; then
+    # the grimoire is looked up by name; the slot is DETAILS' business,
+    # and codex_set_current_spell_by_name reads it off the argument
+    slot_split "$spell" name || { slot_bad_token_message "$spell"; continue; }
+    if codex_find_spell_by_name $name > /dev/null; then
         ! [[ $GAZE_VERBOSE == false ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
@@ -1412,8 +1508,11 @@ gaze_show_short_description() {
 #-----
 gaze_show_long_description() {
 
+  local name
   for spell in $@; do
-    if codex_find_spell_by_name $spell > /dev/null; then
+    # as above: the name finds the spell, the slot picks the details
+    slot_split "$spell" name || { slot_bad_token_message "$spell"; continue; }
+    if codex_find_spell_by_name $name > /dev/null; then
         ! [[ $GAZE_VERBOSE == false ]] &&
         message "${SPELL_COLOR}${spell}:${DEFAULT_COLOR}"
         (
@@ -1450,11 +1549,14 @@ gaze_show_where() {
     shift
   fi
 
+  local name
   for spell in $@; do
+    # a slot is a slot of one spell, and one spell lives in one section
+    slot_split "$spell" name || { slot_bad_token_message "$spell"; continue; }
     if [[ $SHOW_PATH == true ]]; then
-      SECTION="$(codex_find_spell_by_name $spell)"
+      SECTION="$(codex_find_spell_by_name $name)"
     else
-      SECTION="$(codex_get_spell_section_name $spell)"
+      SECTION="$(codex_get_spell_section_name $name)"
     fi
 
     if ! [[ $GAZE_VERBOSE == false ]]; then
@@ -1623,16 +1725,20 @@ gaze_show_dependencies() {
 ##
 #-----
 gaze_show_size_all() {
-  local each date status version install_log
+  local each version slot install_log
   local current_spell=0 current_size=0 current_info
   local max_size=0 max_spell total_size=0 total_files=0
-  local installed_spells=$(all_spell_status | sed -n '/:exiled:/! s,:, ,gp')
+  # the slot has a field of its own, so the row is picked apart by
+  # field and not by turning every ':' into a space; packed, it is
+  # already the suffix the log's name carries
+  local installed_spells=$(all_spell_status |
+                           awk -F: '$3 != "exiled" { print $1, $4, $5 }')
   local spell_count=$(wc -l <<< "$installed_spells")
 
   echo "This will take a while and cause lots of disk I/O..."
-  while read each date status version; do
+  while read each version slot; do
     let current_spell++
-    install_log="$INSTALL_LOGS/$each-$version"
+    install_log="$INSTALL_LOGS/$each${slot:+@$slot}-$version"
     current_info=$(
       while read entry; do
         test -f "$entry" && echo "'$entry'"
@@ -1642,7 +1748,7 @@ gaze_show_size_all() {
     current_size=${current_info[0]}
     if [[ $current_size -gt $max_size ]]; then
       max_size=$current_size
-      max_spell=$each
+      max_spell=$each${slot:+:${slot//@/:}}
     fi
     let total_size+=$current_size
     let total_files+=${current_info[1]}
@@ -1685,7 +1791,9 @@ gaze_show_size() {
           continue
         fi
         local version=$(installed_version $spell)
-        local file="$INSTALL_LOGS/$spell-$version"
+        local tag
+        slot_instance_tag "$spell" tag || tag=$spell
+        local file="$INSTALL_LOGS/$tag-$version"
         if ! test -e $file ; then
            message "No install log for $spell ($file)"
            continue
@@ -1706,7 +1814,7 @@ gaze_show_size() {
 ##
 ## displays a spell's install log
 ##
-## @param spell - the spell name
+## @param spell - the spell instance
 ## @param version - version for that spell
 ## @param type - If empty show the log without state files, if "spell"
 ##        show log without sorcery log files eitther, if "full" show the entire
@@ -1717,8 +1825,10 @@ gaze_install() {
   local SPELL=$1
   local VERSION=$2
   local TYPE=$3
+  local tag
+  slot_instance_tag "$SPELL" tag || tag=$SPELL
 
-  local log=$INSTALL_LOGS/$SPELL-$VERSION
+  local log=$INSTALL_LOGS/$tag-$VERSION
   test -f $log || {
     message "Install log for $SPELL does not exist"
     return 1
@@ -2261,9 +2371,13 @@ parse()  {
   done
 
 
-  SPELL=$2
+  # the argument may name a slot: the codex is asked after the spell,
+  # the state database after the instance, and the log files a spell
+  # leaves behind are named for its disk tag
+  slot_split "$2" SPELL SLOT_ARG || SPELL=$2
+  slot_disk_tag "$SPELL" "$SLOT_ARG" SPELL_DISK_TAG
   SECTION=$2
-  VERSION=$(installed_version  $SPELL)
+  VERSION=$(installed_version  "$2")
 
   case  $1  in
 
@@ -2304,6 +2418,7 @@ parse()  {
          section)  shift; gaze_show_section $@           ;;
          version)  shift; gaze_show_version $@           ;;
         versions)  shift; gaze_show_versions $@          ;;
+           slots)  shift; gaze_show_slots "$@"           ;;
      patchlevels)  shift; gaze_show_patchlevels $@       ;;
          license)  shift; gaze_show_license $@           ;;
            alien)  alien                                 ;;
@@ -2342,7 +2457,7 @@ parse()  {
               elif  [  -z  "$VERSION"  ];  then
                   codex_set_current_spell_by_name  "$1"
               fi
-              display  "$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"   \
+              display  "$COMPILE_LOGS/${SPELL_DISK_TAG:-$SPELL}-$VERSION$EXTENSION"   \
                        "Compile log for $SPELL-$VERSION does not exist"
               ;;
 
@@ -2354,13 +2469,13 @@ parse()  {
                  gaze_install $SPELL $VERSION spell ;;
 
             sum)  [  -n  "$SPELL"  ]                 &&
-          checksum  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
+          checksum  "$INSTALL_LOGS/${SPELL_DISK_TAG:-$SPELL}-$VERSION"  ||
           checksum  "$INSTALL_LOGS/*"
           ;;
 
 
          md5sum)  [  -n  "$SPELL"  ]                        &&
-             md5sum_files  "$INSTALL_LOGS/$SPELL-$VERSION"  ||
+             md5sum_files  "$INSTALL_LOGS/${SPELL_DISK_TAG:-$SPELL}-$VERSION"  ||
              md5sum_files  "$INSTALL_LOGS/*"
              ;;
 

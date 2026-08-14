@@ -470,9 +470,20 @@ dispel_depends_engine() {
       # spell, the spell is not recastable
       # note: this doesnt take into account the spell changing out from
       # under us. Oh well.
+      # a row names both spells bare and both slots further along, so
+      # the tail pattern is what tells one instance's rows from another's
+      local parent_spell parent_slot
+      state_split_query "$parent" parent_spell parent_slot ||
+        { parent_spell=$parent; parent_slot=""; }
       lock_file $DEPENDS_STATUS
       for child in $borkers; do
-        type=$(grep -m 1 "$parent:$child\(([^:]*)\)\?:on" $DEPENDS_STATUS|cut -f4 -d:)
+        local child_spell child_slot dtail
+        state_split_query "$child" child_spell child_slot ||
+          { child_spell=$child; child_slot=""; }
+        state_depends_tail_pattern dtail "$parent_slot" "$child_slot" ""
+        type=$(grep -m 1 \
+               "^$parent_spell:$child_spell\(([^:]*)\)\?:on:.*$dtail\$" \
+               $DEPENDS_STATUS|cut -f4 -d:)
         if [[ "$type" == required ]]; then
           recastable=no
           list_add non_optional_borkers $child
@@ -498,8 +509,10 @@ dispel_depends_engine() {
           # remove any uncommitted data, store our new data in a new abandonded
           # dir with borked optionals disabled, remove those deps
           # from master file so that recasting will see them
-          depends_file=$ABANDONED_DEPENDS/$SPELL
-          rm -f $UNCOMMITTED_DEPENDS/$parent $depends_file
+          depends_file=$ABANDONED_DEPENDS/${SPELL_DISK_TAG:-$SPELL}
+          local parent_tag
+          slot_instance_tag "$parent" parent_tag || parent_tag=$parent
+          rm -f $UNCOMMITTED_DEPENDS/$parent_tag $depends_file
           touch $depends_file
           local depline
           search_depends_status $DEPENDS_STATUS $parent|while read depline; do
@@ -514,7 +527,16 @@ dispel_depends_engine() {
               remove_depends_status $DEPENDS_STATUS $parent \
                                     "${deparray[1]}\(([^:]*)\)\?"
             fi
-            add_depends $depends_file "${deparray[@]}"
+            # not "${deparray[@]}": a row's trailing fields are the
+            # requester's slot, the dependency's slot and the bound
+            # subslot, but add_depends wants the requester's slot folded
+            # into the instance it is given first
+            local dep_requester
+            slot_unpack "${deparray[6]}" dep_requester
+            slot_join "${deparray[0]}" "$dep_requester" dep_requester
+            add_depends $depends_file "$dep_requester" "${deparray[1]}" \
+                        "${deparray[2]}" "${deparray[3]}" "${deparray[4]}" \
+                        "${deparray[5]}" "${deparray[7]}" "${deparray[8]}"
           done
 
           list_add NEW_CASTS $parent
@@ -558,6 +580,41 @@ dispel_depends_engine() {
 }
 
 #---------------------------------------------------------------------
+## @param spell, or spell:slot, possibly with '*' axes
+## @param variable to add the instance to
+##
+## Works out which install a token names.  Dispelling is about what is
+## installed, so a token naming no slot is the installed instance and
+## not slot 0 -- but only if there is just the one: which of two slots
+## the user meant is not for sorcery to guess.
+##
+## @return 1 if the token names no install, or more than one
+#---------------------------------------------------------------------
+dispel_resolve_instance() {
+  # __ prefixed: the caller hands us the name of a list to add to, and
+  # its name is the obvious one
+  local __instances
+  __instances=$(spell_instances "$1")
+
+  case $(echo $__instances | wc -w) in
+    1) list_add "$2" "$__instances"
+       return 0
+       ;;
+    0) # not installed: dispel_spell says so itself, and says it about
+       # the token the user typed
+       list_add "$2" "$1"
+       return 0
+       ;;
+  esac
+
+  message "${PROBLEM_COLOR}More than one slot of" \
+          "${SPELL_COLOR}$1${PROBLEM_COLOR} is installed;" \
+          "name the one to dispel:${DEFAULT_COLOR}"
+  message "${SPELL_COLOR}$(echo $__instances)${DEFAULT_COLOR}"
+  return 1
+}
+
+#---------------------------------------------------------------------
 ## Main loop for dispel
 ## @Args Parameters
 #---------------------------------------------------------------------
@@ -570,7 +627,12 @@ main() {
   if [ "$DOWNGRADE_SPELL" ]; then
     downgrade "$DOWNGRADE_SPELL" "$DOWNGRADE_VERSION"
   fi
-  SPELLS=$(strip_parameters  "$@")
+  local spell instances=""
+  for spell in $(strip_parameters  "$@"); do
+    dispel_resolve_instance "$spell" instances ||
+      DISPEL_EXIT_STATUS=${DISPEL_EXIT_STATUS:-1}
+  done
+  SPELLS=$instances
 
   if [ "$NONORPHAN_DEFAULT" ] || [ "$ORPHAN_DEFAULT" ]; then
     CHILD_DEPS=yes

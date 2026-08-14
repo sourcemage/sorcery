@@ -1,0 +1,799 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+## @Synopsis Functions for dealing with spell slots.
+##
+## A spell may offer several I<slots>, each pinning its own VERSION and
+## sources.  Different slots of the same spell install side by side and
+## are upgraded independently, much like portage's SLOT.
+##
+## A slot is not necessarily one number.  A spell declares one or more
+## I<axes> and its slots are the matrix they span -- a toolchain has a
+## version axis and a target axis, so gcc:14:arm-none-eabi and
+## gcc:14:native are two slots of gcc 14.  A slot token is the axis
+## values joined with ':', in the order the spell declares them.
+##
+## A spell instance is named C<spell:slot>.  The default slot is C<0>,
+## and C<spell:0> is always rendered as plain C<spell>, so a spell that
+## never mentions slots -- which is every spell that exists today --
+## keeps its current name in every state file, log and cache.
+##
+## In a dependency or query, an axis may be C<*>, meaning "any value",
+## and axes may be left off the end, meaning "any value" as well.
+##
+## A spell also has a I<subslot>, gentoo's: the ABI its dependents were
+## built against, written after the slot and a '/'.  Unlike a slot, a
+## subslot is not part of a spell's identity -- glibc:2.6/2.6.1 is not
+## installed beside glibc:2.6/2.6.2, it is replaced by it.  What the
+## subslot does is tell dependents that they have to be recast, which
+## they ask for by ending the atom in '=':
+##
+## : depends glibc:=           # recast me when glibc's ABI moves
+## : depends glibc:2.6/2.6.1   # only that ABI will do
+##
+## Spells set SUBSLOT in DETAILS, usually to a soname; it defaults to
+## the slot, which never moves, so nothing is recast unless a spell
+## asks to be.
+##
+## The whole grammar, then, is
+##
+## : spell[:axis[:axis...]][/subslot][=]
+##
+## The functions here are pure: they work on tokens and on the
+## I<slot spec> libcodex parses out of a spell's SLOTS file, and touch
+## neither the grimoire nor the state database.  A spec looks like
+##
+## : version=15,14,13 target=native,arm-none-eabi !13:arm-none-eabi
+##
+## with the axes in declaration order, and a C<!> field for every
+## combination the spell excludes.  The spec of an unslotted spell is
+## the empty string.
+##
+## @Copyright Copyright 2026 Ismael Luceno
+#---------------------------------------------------------------------
+
+# The slot every unslotted spell lives in.
+SLOT_DEFAULT=0
+
+# The axis a SLOTS file gets when it does not name one.  It is the only
+# axis such a spell has, so $SLOT already says everything about it and
+# no per-axis variable is exported for it.
+SLOT_ANONYMOUS_AXIS=slot
+
+
+###############################TOKENS#################################
+
+#---------------------------------------------------------------------
+## @param slot
+##
+## @return 0 if the slot is the default slot (or is empty)
+#---------------------------------------------------------------------
+slot_is_default() {
+  [[ -z $1 || $1 == "$SLOT_DEFAULT" ]]
+}
+
+#---------------------------------------------------------------------
+## An axis value -- or a subslot, which is a single value too -- may
+## not contain ':' (the axis separator), '/' (the subslot separator),
+## '=' (the bind operator), '@' (the disk tag separator), whitespace,
+## or the parentheses used by the provider syntax, spell(FEATURE).
+##
+## @param axis value
+##
+## @return 0 if the value is well formed
+#---------------------------------------------------------------------
+slot_axis_valid() {
+  [[ $1 ]] || return 1
+  case $1 in
+    *[!A-Za-z0-9_.+-]*) return 1 ;;
+  esac
+  return 0
+}
+
+#---------------------------------------------------------------------
+## @param slot
+##
+## @return 0 if every axis of the slot is well formed
+#---------------------------------------------------------------------
+slot_valid() {
+  [[ $1 ]] || return 1
+  [[ $1 == *::* || $1 == :* || $1 == *: ]] && return 1
+
+  case $1 in
+    *[!A-Za-z0-9_.+:-]*) return 1 ;;
+  esac
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Like slot_valid, but also accepts '*' for an axis, which is only
+## meaningful when requesting or matching a slot.
+##
+## @param slot
+##
+## @return 0 if the slot is usable as a request
+#---------------------------------------------------------------------
+slot_valid_request() {
+  local axis rest=$1
+
+  [[ $1 ]] || return 1
+  [[ $1 == *::* || $1 == :* || $1 == *: ]] && return 1
+
+  while [[ $rest ]]; do
+    axis=${rest%%:*}
+    if [[ $rest == *:* ]]; then rest=${rest#*:}; else rest=; fi
+    [[ $axis == '*' ]] && continue
+    slot_axis_valid "$axis" || return 1
+  done
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Splits a C<spell:slot> token into its parts.  A token with no slot
+## suffix yields the default slot.  Neither variable is touched when the
+## token is malformed.
+##
+## @param token          spell, or spell:slot
+## @param variable to set to the spell name (optional)
+## @param variable to set to the slot (optional)
+## @param "request" to also accept wildcard axes (optional)
+##
+## @Stdout "spell slot", if no variables were given
+##
+## @return 0 on success
+## @return 1 if the token is malformed
+#---------------------------------------------------------------------
+slot_split() {
+  local __token=$1
+  local __spell __slot
+
+  [[ $__token ]] || return 1
+
+  if [[ $__token == *:* ]]; then
+    __spell=${__token%%:*}
+    __slot=${__token#*:}
+  else
+    __spell=$__token
+    __slot=$SLOT_DEFAULT
+  fi
+
+  [[ $__spell ]] || return 1
+  if [[ $4 == request ]]; then
+    slot_valid_request "$__slot" || return 1
+  else
+    slot_valid "$__slot" || return 1
+  fi
+
+  if [[ -z $2 ]] && [[ -z $3 ]]; then
+    echo "$__spell $__slot"
+  else
+    [[ $2 ]] && upvar "$2" "$__spell"
+    [[ $3 ]] && upvar "$3" "$__slot"
+  fi
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Builds the canonical C<spell:slot> token.  The default slot is
+## dropped, so slot 0 always renders as a bare spell name.
+##
+## @param spell
+## @param slot (optional, defaults to the default slot)
+## @param variable to set (optional)
+##
+## @Stdout the token, if no variable was given
+#---------------------------------------------------------------------
+slot_join() {
+  local __token=$1
+
+  slot_is_default "$2" || __token="$1:$2"
+
+  if [[ -z $3 ]]; then
+    echo "$__token"
+  else
+    upvar "$3" "$__token"
+  fi
+}
+
+#---------------------------------------------------------------------
+## Squeezes a slot into a token with no ':' in it.
+##
+## Two places cannot take the ':' a slot is joined with: the state
+## database, whose rows are ':' delimited, and any filename that
+## reaches tar(1) via -P, where "foo:bar" is a remote host:path.  '@'
+## is not a legal axis character, so it stands in for the separator in
+## both.
+##
+## @param slot
+## @param variable to set (optional)
+##
+## @Stdout the packed slot, if no variable was given
+#---------------------------------------------------------------------
+slot_pack() {
+  local __packed=${1//:/@}
+
+  if [[ -z $2 ]]; then
+    echo "$__packed"
+  else
+    upvar "$2" "$__packed"
+  fi
+}
+
+#---------------------------------------------------------------------
+## Inverse of slot_pack.  An empty packed slot is the default slot,
+## which is how a state row written before slots existed reads back.
+##
+## @param packed slot
+## @param variable to set (optional)
+##
+## @Stdout the slot, if no variable was given
+#---------------------------------------------------------------------
+slot_unpack() {
+  local __slot=${1//@/:}
+
+  [[ $__slot ]] || __slot=$SLOT_DEFAULT
+
+  if [[ -z $2 ]]; then
+    echo "$__slot"
+  else
+    upvar "$2" "$__slot"
+  fi
+}
+
+#---------------------------------------------------------------------
+## Builds the name a spell instance is known by on disk -- install logs,
+## md5 logs, compile logs, install caches, tablets, spell configs.
+##
+## As with slot_join, the default slot is dropped, which is what keeps
+## existing logs and caches valid.
+##
+## @param spell
+## @param slot (optional, defaults to the default slot)
+## @param variable to set (optional)
+##
+## @Stdout the disk tag, if no variable was given
+#---------------------------------------------------------------------
+slot_disk_tag() {
+  local __tag=$1
+  # not __packed: that is what slot_pack calls its own local, and upvar
+  # would write to it instead of to ours
+  local __disk_slot
+
+  if ! slot_is_default "$2"; then
+    slot_pack "$2" __disk_slot
+    __tag="$1@$__disk_slot"
+  fi
+
+  if [[ -z $3 ]]; then
+    echo "$__tag"
+  else
+    upvar "$3" "$__tag"
+  fi
+}
+
+#---------------------------------------------------------------------
+## slot_disk_tag for callers holding a whole instance token rather than
+## a spell and a slot -- what a state row or a queue hands you.
+##
+## @param spell, or spell:slot
+## @param variable to set (optional)
+##
+## @return 1 if the instance token is malformed
+## @Stdout the disk tag, if no variable was given
+#---------------------------------------------------------------------
+slot_instance_tag() {
+  # not __spell and __slot: those are what slot_split calls its own
+  # locals, and upvar would write to them instead of to ours
+  local __tag_spell __tag_slot
+
+  slot_split "$1" __tag_spell __tag_slot || return 1
+  slot_disk_tag "$__tag_spell" "$__tag_slot" "$2"
+}
+
+#---------------------------------------------------------------------
+## Inverse of slot_disk_tag.
+##
+## @param disk tag
+## @param variable to set to the spell name (optional)
+## @param variable to set to the slot (optional)
+##
+## @Stdout "spell slot", if no variables were given
+#---------------------------------------------------------------------
+slot_undisk_tag() {
+  local __tag=$1
+  local __spell=${__tag%%@*}
+  local __slot=$SLOT_DEFAULT
+
+  [[ $__spell ]] || return 1
+  if [[ $__tag == *@* ]]; then
+    __slot=${__tag#*@}
+    __slot=${__slot//@/:}
+  fi
+  slot_valid "$__slot" || return 1
+
+  if [[ -z $2 ]] && [[ -z $3 ]]; then
+    echo "$__spell $__slot"
+  else
+    [[ $2 ]] && upvar "$2" "$__spell"
+    [[ $3 ]] && upvar "$3" "$__slot"
+  fi
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Inverse of slot_instance_tag, for callers that want the instance
+## token back in one piece -- what a tablet directory or a trigger row
+## hands you.
+##
+## @param disk tag
+## @param variable to set (optional)
+##
+## @return 1 if the tag does not name an instance
+## @Stdout the instance token, if no variable was given
+#---------------------------------------------------------------------
+slot_tag_instance() {
+  # not __spell and __slot: those are what slot_undisk_tag calls its own
+  # locals, and upvar would write to them instead of to ours
+  local __tag_spell __tag_slot
+
+  slot_undisk_tag "$1" __tag_spell __tag_slot || return 1
+  slot_join "$__tag_spell" "$__tag_slot" "$2"
+}
+
+#---------------------------------------------------------------------
+## Matches a slot against a request.  An axis of '*' matches anything,
+## and so does an axis the request leaves off the end -- "gcc:14" asks
+## for gcc 14 on any target.
+##
+## @param request
+## @param slot
+##
+## @return 0 if the slot satisfies the request
+#---------------------------------------------------------------------
+slot_match() {
+  local request=$1 slot=$2
+  local want have
+
+  # the axes are walked with parameter expansion rather than split into
+  # an array: a request may contain '*', and unquoted word splitting
+  # would hand that to the globber
+  while [[ $request ]]; do
+    want=${request%%:*}
+    if [[ $request == *:* ]]; then request=${request#*:}; else request=; fi
+
+    # the request asks about an axis the slot does not have
+    [[ $slot ]] || return 1
+    have=${slot%%:*}
+    if [[ $slot == *:* ]]; then slot=${slot#*:}; else slot=; fi
+
+    [[ $want == '*' ]] && continue
+    [[ $have == "$want" ]] || return 1
+  done
+  return 0
+}
+
+
+###############################ATOMS##################################
+
+#---------------------------------------------------------------------
+## Splits a dependency atom, C<spell[:slot][/subslot][=]>, into its
+## parts.  Unlike slot_split, which parses the name of one installed
+## instance, everything but the spell is optional here and an empty
+## slot or subslot means "any" rather than "the default".
+##
+## Wildcards are allowed, so C<gcc:*:arm-none-eabi> asks for any gcc
+## targeting arm, and C<glibc:=> for any slot of glibc, recasting the
+## dependent whenever its subslot moves.
+##
+## No variable is touched when the atom is malformed.
+##
+## @param atom
+## @param variable to set to the spell name (optional)
+## @param variable to set to the slot (optional)
+## @param variable to set to the subslot (optional)
+## @param variable to set to "yes" if the atom binds the subslot (optional)
+##
+## @Stdout "spell slot subslot bind", if no variables were given
+##
+## @return 0 on success
+## @return 1 if the atom is malformed
+#---------------------------------------------------------------------
+slot_atom_split() {
+  local __atom=$1
+  local __spell __rest __slot __subslot
+  local __bind=no
+
+  [[ $__atom ]] || return 1
+
+  if [[ $__atom == *:* ]]; then
+    __spell=${__atom%%:*}
+    __rest=${__atom#*:}
+  else
+    # ':' is what introduces a slot, and '=' binds one, so neither can
+    # appear in a bare spell name
+    case $__atom in
+      *[=/]*) return 1 ;;
+    esac
+    __spell=$__atom
+  fi
+  [[ $__spell ]] || return 1
+
+  if [[ $__rest == *= ]]; then
+    __bind=yes
+    __rest=${__rest%=}
+  fi
+
+  if [[ $__rest == */* ]]; then
+    __subslot=${__rest##*/}
+    __rest=${__rest%/*}
+    [[ $__subslot == '*' ]] || slot_axis_valid "$__subslot" || return 1
+  fi
+
+  if [[ $__rest ]]; then
+    slot_valid_request "$__rest" || return 1
+    __slot=$__rest
+  fi
+
+  if [[ -z $2$3$4$5 ]]; then
+    echo "$__spell $__slot $__subslot $__bind"
+  else
+    [[ $2 ]] && upvar "$2" "$__spell"
+    [[ $3 ]] && upvar "$3" "$__slot"
+    [[ $4 ]] && upvar "$4" "$__subslot"
+    [[ $5 ]] && upvar "$5" "$__bind"
+  fi
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Renders a dependency atom.  Inverse of slot_atom_split.
+##
+## @param spell
+## @param slot (optional)
+## @param subslot (optional)
+## @param "yes" to bind the subslot (optional)
+## @param variable to set (optional)
+##
+## @Stdout the atom, if no variable was given
+#---------------------------------------------------------------------
+slot_atom_join() {
+  local __atom=$1
+  local __slot=$2
+
+  # a subslot has to hang off a slot, so an unconstrained one becomes
+  # the wildcard when a subslot is asked for
+  [[ $3 && -z $__slot ]] && __slot='*'
+
+  [[ $__slot ]] && __atom="$__atom:$__slot"
+  [[ $3 ]] && __atom="$__atom/$3"
+  if [[ $4 == yes ]]; then
+    [[ $__slot ]] || __atom="$__atom:"
+    __atom="$__atom="
+  fi
+
+  if [[ -z $5 ]]; then
+    echo "$__atom"
+  else
+    upvar "$5" "$__atom"
+  fi
+}
+
+#---------------------------------------------------------------------
+## Decides whether an installed instance answers an atom.  An empty or
+## '*' slot or subslot in the atom matches anything, as does an axis
+## the atom leaves off the end of its slot.
+##
+## @param atom's slot
+## @param atom's subslot
+## @param instance's slot
+## @param instance's subslot
+##
+## @return 0 if the instance satisfies the atom
+#---------------------------------------------------------------------
+slot_atom_matches() {
+  slot_match "$1" "$3" || return 1
+  [[ -z $2 || $2 == '*' || $2 == "$4" ]]
+}
+
+#---------------------------------------------------------------------
+## Complains about a malformed spell instance token.
+##
+## @param token
+#---------------------------------------------------------------------
+slot_bad_token_message() {
+  message "${SPELL_COLOR}$1${DEFAULT_COLOR}${PROBLEM_COLOR} is not a" \
+          "valid spell name; expected spell or spell:slot, where a slot" \
+          "is one or more ':' separated axes made" \
+          "of${DEFAULT_COLOR} A-Z a-z 0-9 _ . + -" \
+          "${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+}
+
+
+################################SPECS#################################
+
+#---------------------------------------------------------------------
+## @param slot spec
+##
+## @Stdout the axis names, in declaration order
+#---------------------------------------------------------------------
+slot_spec_axes() {
+  local field names
+
+  for field in $1; do
+    case $field in
+      !*) continue ;;
+      *=*) names="$names ${field%%=*}" ;;
+    esac
+  done
+  echo ${names# }
+}
+
+#---------------------------------------------------------------------
+## @param slot spec
+##
+## @Stdout how many axes the spell has, 0 if it is unslotted
+#---------------------------------------------------------------------
+slot_spec_axis_count() {
+  local axes
+  axes=$(slot_spec_axes "$1")
+  set -- $axes
+  echo $#
+}
+
+#---------------------------------------------------------------------
+## @param slot spec
+## @param axis number, counting from 1
+##
+## @Stdout the values that axis may take, default first
+##
+## @return 1 if the spell has no such axis
+#---------------------------------------------------------------------
+slot_spec_values() {
+  local field
+  local i=0
+
+  for field in $1; do
+    case $field in
+      !*) continue ;;
+      *=*) i=$((i + 1))
+           if [[ $i == "$2" ]]; then
+             echo "${field#*=}" | tr , ' '
+             return 0
+           fi ;;
+    esac
+  done
+  return 1
+}
+
+#---------------------------------------------------------------------
+## @param slot spec
+##
+## @Stdout the excluded slot patterns
+#---------------------------------------------------------------------
+slot_spec_excludes() {
+  local field patterns
+
+  for field in $1; do
+    case $field in
+      !*) patterns="$patterns ${field#!}" ;;
+    esac
+  done
+  echo ${patterns# }
+}
+
+#---------------------------------------------------------------------
+## @param slot spec
+##
+## @Stdout the spell's default slot -- the first value of every axis
+#---------------------------------------------------------------------
+slot_spec_default() {
+  local field slot value
+
+  for field in $1; do
+    case $field in
+      !*) continue ;;
+      *=*) value=${field#*=}
+           slot="$slot:${value%%,*}" ;;
+    esac
+  done
+
+  if [[ $slot ]]; then
+    echo "${slot#:}"
+  else
+    echo "$SLOT_DEFAULT"
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param slot spec
+## @param slot
+##
+## @return 0 if the slot is one the spell offers
+##
+## Every axis must be given -- a slot is a point in the matrix, not a
+## request.  A spell with no spec only has the default slot.
+#---------------------------------------------------------------------
+slot_spec_has() {
+  local axis pattern values
+  local rest=$2
+  local i=0
+
+  if [[ -z $1 ]]; then
+    slot_is_default "$2"
+    return
+  fi
+
+  slot_valid "$2" || return 1
+
+  while [[ $rest ]]; do
+    axis=${rest%%:*}
+    if [[ $rest == *:* ]]; then rest=${rest#*:}; else rest=; fi
+    i=$((i + 1))
+    values=$(slot_spec_values "$1" $i) || return 1
+    real_list_find "$values" "$axis" || return 1
+  done
+
+  [[ $i == $(slot_spec_axis_count "$1") ]] || return 1
+
+  for pattern in $(slot_spec_excludes "$1"); do
+    slot_match "$pattern" "$2" && return 1
+  done
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Turns a request into the one slot it names.  Axes left off the end,
+## and axes given as '*', take that axis's default value -- casting has
+## to pick a single point in the matrix, so "unconstrained" becomes
+## "default" here, unlike in a dependency, where it stays "any".
+##
+## @param slot spec
+## @param request, may be empty
+## @param variable to set to the resolved slot
+##
+## @return 0 if the request names a slot the spell offers
+## @return 1 otherwise, including when it names an excluded combination
+#---------------------------------------------------------------------
+slot_spec_resolve() {
+  # every local here is __ prefixed: the caller hands us the name of a
+  # variable to fill in, and upvar would otherwise write to our own
+  local __axis __n __slot __values
+  local __request=$2
+  local __i=0
+
+  if [[ -z $1 ]]; then
+    slot_is_default "$2" || return 1
+    upvar "$3" "$SLOT_DEFAULT"
+    return 0
+  fi
+
+  # a bare spell name arrives here as a request for the default slot,
+  # since that is what slot_split makes of a name with no slot on it;
+  # for a spell that has slots it means every axis's default, the same
+  # as no request at all
+  slot_is_default "$__request" && __request=
+
+  __n=$(slot_spec_axis_count "$1")
+
+  for ((__i = 1; __i <= __n; __i++)); do
+    __values=$(slot_spec_values "$1" $__i)
+    __axis=${__request%%:*}
+    if [[ $__request == *:* ]]; then __request=${__request#*:}; else __request=; fi
+
+    if [[ -z $__axis || $__axis == '*' ]]; then
+      __axis=${__values%% *}
+    else
+      real_list_find "$__values" "$__axis" || return 1
+    fi
+    __slot="$__slot:$__axis"
+  done
+
+  # the request named more axes than the spell has
+  [[ -z $__request ]] || return 1
+
+  __slot=${__slot#:}
+  slot_spec_has "$1" "$__slot" || return 1
+  upvar "$3" "$__slot"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## @param slot spec
+## @param request to limit the expansion to (optional)
+##
+## @Stdout every slot the spell offers, default first, one per line
+##
+## Nothing is printed for a spell with no spec -- it is not slotted,
+## and so has no slots to list.
+#---------------------------------------------------------------------
+slot_spec_expand() {
+  local n slot value values
+  local i=0
+  local slots=""
+
+  n=$(slot_spec_axis_count "$1")
+  [[ $n -gt 0 ]] || return 0
+
+  for ((i = 1; i <= n; i++)); do
+    values=$(slot_spec_values "$1" $i)
+    local grown=""
+    if [[ -z $slots ]]; then
+      grown=$values
+    else
+      for slot in $slots; do
+        for value in $values; do
+          grown="$grown $slot:$value"
+        done
+      done
+    fi
+    slots=${grown# }
+  done
+
+  for slot in $slots; do
+    slot_spec_has "$1" "$slot" || continue
+    [[ $2 ]] && ! slot_match "$2" "$slot" && continue
+    echo "$slot"
+  done
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Exports $SLOT and one variable per named axis, so that DETAILS can
+## branch on them: axis "target" of slot "14:arm-none-eabi" arrives as
+## $SLOT_TARGET.  The anonymous axis gets no variable of its own, $SLOT
+## being all there is to say about it.
+##
+## $SLOT_AXES remembers the names, so slot_clear_axis_vars can undo it.
+##
+## @param slot
+## @param slot spec
+#---------------------------------------------------------------------
+slot_set_axis_vars() {
+  local name value variable
+  local rest=$1
+
+  slot_clear_axis_vars
+
+  SLOT=$1
+  export SLOT
+
+  for name in $(slot_spec_axes "$2"); do
+    value=${rest%%:*}
+    if [[ $rest == *:* ]]; then rest=${rest#*:}; else rest=; fi
+
+    [[ $name == "$SLOT_ANONYMOUS_AXIS" ]] && continue
+    variable=SLOT_$(echo "$name" | tr '[:lower:]-' '[:upper:]_')
+    eval "$variable=\$value"
+    export "$variable"
+    SLOT_AXES="$SLOT_AXES $variable"
+  done
+  SLOT_AXES=${SLOT_AXES# }
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Unsets whatever slot_set_axis_vars exported last.
+#---------------------------------------------------------------------
+slot_clear_axis_vars() {
+  [[ $SLOT_AXES ]] && unset $SLOT_AXES
+  unset SLOT_AXES
+  return 0
+}
+
+#---------------------------------------------------------------------
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
+# vim: filetype=sh:tabstop=4:shiftwidth=4:expandtab

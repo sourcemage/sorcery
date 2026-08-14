@@ -310,9 +310,9 @@ check_if_modified() {
   local to=$1
   local md5_log=$2
   if ! [[ $2 ]] ; then
-    md5_log="$TMP_DIR/$SPELL.md5"
+    md5_log="$TMP_DIR/${SPELL_DISK_TAG:-$SPELL}.md5"
     if [[ $OLD_SPELL_VERSION ]] ; then
-      old_md5_log="$MD5SUM_LOGS/$SPELL-$OLD_SPELL_VERSION"
+      old_md5_log="$MD5SUM_LOGS/$SPELL_DISK_TAG-$OLD_SPELL_VERSION"
       # log must be in filterable form
       log_adjuster "$old_md5_log" "$md5_log" filterable root
     else
@@ -401,7 +401,8 @@ create_cache_archive()  {
   # gather the queuing factors, so we can include them in the label, saving us the
   # need to compute the spell name and a few untars when dealing with just a cache
   local label
-  label="$SPELL ${VERSION:-0} ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
+  # the instance, so that resurrect -f knows which slot the cache holds
+  label="${SPELL_INSTANCE:-$SPELL} ${VERSION:-0} ${PATCHLEVEL:-0} ${SECURITY_PATCH:-0} ${UPDATED:-0}"
 
   local TMP_DATA=$TMP_DIR/foo.data
   local TMP_MDATA=$TMP_DIR/foo.mdata

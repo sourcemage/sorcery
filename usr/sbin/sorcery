@@ -158,18 +158,28 @@ show_spells()  { (
 
   for  SPELL  in  $SPELLS;  do
 
+    local  SPELL_DIR=$SPELL
     smgl_basename $SPELL SPELLNAME
-    if  !  spell_installed  $SPELLNAME  &&
-        !  spell_held       $SPELLNAME  &&
-        !  spell_exiled     $SPELLNAME
-    then
+    # a slotted spell is offered a slot at a time: another slot is
+    # another install, and one of them being installed says nothing
+    # about the rest.  An unslotted spell is its one default slot.
+    local  SLOTS=$(codex_get_spell_slots $SPELLNAME)
+    for  SLOTNAME  in  ${SLOTS:-0};  do
 
-      codex_set_current_spell  $SPELL
-      echo  -en   '"'${SPELL:="Unknown"}'"'
-      echo  -en '\t"'${VERSION:="-"}'"'
-      echo  -e  '\t"'${SHORT:="Description Unavailable"}'"'
+      slot_join $SPELLNAME $SLOTNAME INSTANCE
+      if  !  spell_installed  $INSTANCE  &&
+          !  spell_held       $INSTANCE  &&
+          !  spell_exiled     $INSTANCE
+      then
 
-    fi
+        codex_set_current_spell  $SPELL_DIR $SLOTNAME
+        echo  -en   '"'${SPELL_INSTANCE:="Unknown"}'"'
+        echo  -en '\t"'${VERSION:="-"}'"'
+        echo  -e  '\t"'${SHORT:="Description Unavailable"}'"'
+
+      fi
+
+    done
 
   done
 
@@ -267,15 +277,18 @@ file_menu() {
 
 
 show_installed_spells()  {
-  local spell date status version
+  local spell date status version slot subslot instance
 
-  while read spell date status version; do
+  # the row's fifth field is the packed slot, which is what tells one
+  # install of a spell from another; it is empty for slot 0
+  while read spell date status version slot subslot; do
     if  [[  $status  ==  "installed"  ]]  ||
         [[  $status  ==  "held"       ]];  then
 
-      if  codex_set_current_spell_by_name  $spell;  then
+      slot_tag_instance "$spell${slot:+@$slot}" instance || instance=$spell
+      if  codex_set_current_spell_by_name  $instance;  then
         SHORT=${SHORT:-"Description unavailable"}
-        echo -en   '"'${spell:="Unknown"}'"'
+        echo -en   '"'${instance:="Unknown"}'"'
         echo -en '\t"'${version:="-"}'"'
         echo  -e '\t"'${SHORT//\"/\'}'"'
       fi
@@ -484,21 +497,30 @@ make_checklist()  {
 
   for  SPELL in $SPELLS;  do
 
-    if  codex_set_current_spell  $SPELL;  then
+    local  SPELL_DIR=$SPELL  SPELLNAME
+    smgl_basename $SPELL SPELLNAME
+    # one line per slot, each installed or not on its own; an unslotted
+    # spell is its one default slot
+    local  SLOTS=$(codex_get_spell_slots $SPELLNAME)
+    for  SLOTNAME  in  ${SLOTS:-0};  do
 
-      STATUS="OFF"
+      if  codex_set_current_spell  $SPELL_DIR $SLOTNAME;  then
 
-      if spell_ok $SPELL
-      then  STATUS="on"
-      else  STATUS="off"
+        STATUS="OFF"
+
+        if spell_ok $SPELL_INSTANCE
+        then  STATUS="on"
+        else  STATUS="off"
+        fi
+
+        echo -en   '"'${SPELL_INSTANCE:="Unknown"}'"'
+        echo -en '\t"'${VERSION:="-"}'"'
+        echo -en '\t"'$STATUS'"'
+        echo -e  '\t"'${SHORT:="Description Unavailable"}'"'
+
       fi
 
-      echo -en   '"'${SPELL:="Unknown"}'"'
-      echo -en '\t"'${VERSION:="-"}'"'
-      echo -en '\t"'$STATUS'"'
-      echo -e  '\t"'${SHORT:="Description Unavailable"}'"'
-
-    fi
+    done
 
   done
 
@@ -514,11 +536,19 @@ process_section()  {
   for  SPELL  in  $SPELLS;  do
 
     smgl_basename "$SPELL" LINE
-    if  echo  -e  "$KEEP_LIST"  |
-        grep  -q  "^$LINE\$"
-    then  push_install_queue  $LINE
-    else  push_remove_queue   $LINE
-    fi
+    # the checklist offered an install per slot, so the answers come
+    # back as instances and every slot is committed on its own
+    local  SLOTS=$(codex_get_spell_slots $LINE)
+    for  SLOTNAME  in  ${SLOTS:-0};  do
+
+      slot_join $LINE $SLOTNAME INSTANCE
+      if  echo  -e  "$KEEP_LIST"  |
+          grep  -q  "^$INSTANCE\$"
+      then  push_install_queue  $INSTANCE
+      else  push_remove_queue   $INSTANCE
+      fi
+
+    done
 
   done
 
@@ -561,6 +591,7 @@ make_hold_checklist()  {
       SPELL="${array[0]}"
      STATUS="${array[2]}"
     VERSION="${array[3]}"
+       SLOT="${array[4]}"
 
     if  [  "$STATUS"  ==  "installed"  ]   ||
         [  "$STATUS"  ==  "held"       ];  then
@@ -569,9 +600,12 @@ make_hold_checklist()  {
       HELD="on"                    ||
       HELD="off"
 
-      if  codex_set_current_spell_by_name  $SPELL;  then
+      # the slot field is packed, and a hold is on one install of a
+      # spell, not on every slot of it
+      slot_tag_instance "$SPELL${SLOT:+@$SLOT}" INSTANCE || INSTANCE=$SPELL
+      if  codex_set_current_spell_by_name  $INSTANCE;  then
 
-        echo  -en   "\"${SPELL:="Unknown"}\""
+        echo  -en   "\"${INSTANCE:="Unknown"}\""
         echo  -en "\t\"${VERSION:="-"}\""
         echo  -en "\t\"$HELD\""
         echo  -e  "\t\"${SHORT:="Description Unavailable"}\""

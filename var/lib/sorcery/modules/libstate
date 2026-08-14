@@ -13,18 +13,20 @@
 ## 3rd or 4th fields are not valid.
 ##
 ## @param  Depends status file
-## @param  Name of the "parent" spell
+## @param  Instance of the "parent" spell
 ## @param  Name of the spell the parent spell depends on
 ## @param  "on" or "off" depending on whether the user installed the dependency
 ## @param  Type of dependency (required or optional)
 ## @param  option to pass to C&lt;configure&gt; if the dependency is installed
 ## @param  option to pass to C&lt;configure&gt; if the dependency is not installed
+## @param  slot the dependency asked for (optional)
+## @param  subslot the dependency was bound to (optional)
 ##
 ## @Example add_depends kdelibs alsa-driver on optional --with-alsa --without-alsa
 ##
 #---------------------------------------------------------------------
 add_depends()
-{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
+{ # $1=depends file $2=spell instance, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg, $8=(OPT)dep slot, $9=(OPT)bound subslot
   debug "libstate" "add_depends() - $*"
 
   #already here for some reason
@@ -41,13 +43,59 @@ add_depends()
   search_depends_status "$depends_status" "$1" "$2" >/dev/null &&
   remove_depends_status "$depends_status" "$1" "$2"
 
+  local spell slot dep_slot extra
+  state_split_instance "$1" spell slot || return 1
+  slot_pack "$7" dep_slot
+  state_depends_tail "$slot" "$dep_slot" "$8" extra
+
   local t_status
 #  lock_start_transaction "$depends_status" t_status
-  echo "$1:$2:$3:$4:$5:$6" >> "$depends_status"
+  echo "$spell:$2:$3:$4:$5:$6$extra" >> "$depends_status"
 #  lock_commit_transaction "$depends_status"
 
   return 0
 
+}
+
+#---------------------------------------------------------------------
+##
+## Fills in the subslots that C<spell:=> dependencies asked to be bound
+## to.
+##
+## Such a row is written while its dependency is still uncast -- the
+## depends run comes before any casting -- so it goes out with '=' in
+## the subslot field, which is not a legal subslot, and this rewrites it
+## on the way into $DEPENDS_STATUS, by which time the dependency is
+## installed and has an ABI to name.
+##
+## A dependency that is somehow still not installed leaves the field
+## empty: nothing was bound, and there is nothing to compare against
+## when it moves.
+##
+## @param depends file, rewritten in place
+##
+#---------------------------------------------------------------------
+bind_depends_subslots() {
+  local line dep_slot instance subslot
+  local row=()
+
+  [[ -e $1 ]] || return 0
+
+  while IFS= read -r line; do
+    # explode writes over an array rather than replacing it, and a short
+    # row after a long one would otherwise read back the long one's tail
+    row=()
+    explode "$line" ":" row
+    if [[ ${row[8]} != "=" ]] ; then
+      echo "$line"
+      continue
+    fi
+    slot_unpack "${row[7]}" dep_slot
+    slot_join "${row[1]%%(*}" "$dep_slot" instance
+    query_spell_subslot "$instance" subslot
+    echo "${line%:*}:$subslot"
+  done < "$1" > "$1.bound" &&
+  mv -f "$1.bound" "$1"
 }
 
 #---------------------------------------------------------------------
@@ -59,12 +107,14 @@ add_depends()
 ## Prints out the matching line(s)
 ## @Stdout the matching line(s)
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param depends
 ## @param on/off
 ## @param optional/required
 ## @param on arg
 ## @param off arg
+## @param dependency slot (optional)
+## @param bound subslot (optional)
 ##
 ## @return 0 if entry was found
 ## @return 1 if entry was not found
@@ -72,19 +122,21 @@ add_depends()
 ##
 #---------------------------------------------------------------------
 search_depends_status_exact()
-{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
+{ # $1=depends file $2=spell instance, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg, $8=(OPT)dep slot, $9=(OPT)bound subslot
 
   local depends_status=$1
   shift
 
-  local a1 a2 a3 a4 a5 a6
-  esc_str "$1" a1; esc_str "$3" a3
+  local a1 a2 a3 a4 a5 a6 spell slot dtail
+  state_split_query "$1" spell slot || { spell=$1; slot=""; }
+  esc_str "$spell" a1; esc_str "$3" a3
   esc_str "$4" a4; esc_str "$5" a5; esc_str "$6" a6
   esc_provider_str "$2" a2
-  debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6]"
+  state_depends_tail_pattern dtail "$slot" "$7" "$8"
+  debug "libstate" "search_depends_status_exact: [$a1:$a2:$a3:$a4:$a5:$a6$dtail]"
 
   lock_file "$depends_status"
-  grep "^$a1:$a2:$a3:$a4:$a5:$a6$" "$depends_status"
+  grep "^$a1:$a2:$a3:$a4:$a5:$a6$dtail$" "$depends_status"
   rc=$?
   unlock_file "$depends_status"
 
@@ -100,70 +152,126 @@ search_depends_status_exact()
 ## Prints out the matching line(s)
 ## @Stdout the matching line(s)
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param depends
 ## @param on/off (optional)
 ## @param optional/required (optional)
 ## @param on arg (optional)
 ## @param off arg (optional)
+## @param dependency slot (optional)
+## @param bound subslot (optional)
 ##
 #---------------------------------------------------------------------
 search_depends_status_simple()
-{ # $1=depends file $2=spell, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg
+{ # $1=depends file $2=spell instance, $3=depends, $4=on/off, $5=optional/required, $6=on arg, $7=off arg, $8=(OPT)dep slot, $9=(OPT)bound subslot
 
     local depends_status=$1
     shift
 
-    local a1 a2 a3 a4 a5 a6
-    esc_str "$1" a1; esc_provider_str "$2" a2
+    local a1 a2 a3 a4 a5 a6 spell slot dtail
+    state_split_query "$1" spell slot || { spell=$1; slot=""; }
+    esc_str "$spell" a1; esc_provider_str "$2" a2
     a3=${3:-.*} ; a4=${4:-.*}
     esc_str "$5" a5; esc_str "$6" a6
     a5=${5:-.*} ; a6=${6:-.*}
+    state_depends_tail_pattern dtail "$slot" "$7" "$8"
 
     lock_file "$depends_status"
-    grep "^$a1:$a2\(([^:]*)\)\?:$a3:$a4:$a5:$a6$" "$depends_status"
+    grep "^$a1:$a2\(([^:]*)\)\?:$a3:$a4:$a5:$a6$dtail$" "$depends_status"
     unlock_file "$depends_status"
 }
 
 
 #---------------------------------------------------------------------
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param depends (optional)
 ## @Stdout matching lines
 ## In case you want to search by spell or dependency in $1
 ##
 ## Arguments can be regexp
 ##
-## Prints out the matching line(s)
+## Prints out the matching line(s).  A bare spell name matches every
+## slot of it; the end of the row is not anchored here, so the slot is
+## filtered afterwards rather than folded into the pattern.
 ##
 #---------------------------------------------------------------------
 search_depends_status()
-{ # $1=depends file $2=spell, $3=(opt)depends
+{ # $1=depends file $2=spell instance, $3=(opt)depends
 
   [[ -z $2 ]] && return 1
   local depends_status=$1
   shift
 
-  local spell
-  esc_str "$1" spell
+  local spell slot rows
+  state_split_query "$1" spell slot || { spell=$1; slot=""; }
+  esc_str "$spell" spell
 #  lock_file "$depends_status"
   if [[ -z $2 ]]; then
-    grep "^$spell:" "$depends_status"
+    rows=$(grep "^$spell:" "$depends_status")
   else
     local depends
     esc_provider_str "$2" depends
-    grep "^$spell:$depends:" "$depends_status"
+    rows=$(grep "^$spell:$depends:" "$depends_status")
   fi
 #  unlock_file "$depends_status"
+
+  [[ $rows ]] || return 1
+  if [[ $slot ]]; then
+    rows=$(state_filter_depends_slot "$slot" <<< "$rows")
+    [[ $rows ]] || return 1
+  fi
+  echo "$rows"
 }
 
+#---------------------------------------------------------------------
+##
+## Finds everything that bound itself to an instance's ABI and would no
+## longer agree with it.
+##
+## A C<spell:=> dependency remembers the subslot its dependency had when
+## it was cast.  When the dependency comes back wearing another one,
+## whatever bound to it was built against an ABI that is gone and has to
+## be cast again -- which is the whole reason to write ':=' rather than
+## ':'.  A row that bound nothing has nothing to go stale.
+##
+## @param depends file
+## @param dependee instance
+## @param subslot the dependee has now
+##
+## @Stdout the requester instances, one per line
+##
+#---------------------------------------------------------------------
+search_depends_stale_subslot() {
+  local depends_status=$1
+  local spell slot a_spell a_slot line requester
+  local row=()
 
+  [[ -e $depends_status ]] || return 1
+  slot_split "$2" spell slot || return 1
+  slot_pack "$slot" a_slot
+  slot_is_default "$slot" && a_slot=""
+  esc_str "$spell" a_spell
+
+  # the dependency may be named through a provider, and the row it is
+  # read out of has the slots at its end
+  grep "^[^:]*:$a_spell\(([^:]*)\)\?:" "$depends_status" |
+  while IFS= read -r line; do
+    row=()
+    explode "$line" ":" row
+    [[ ${row[7]} == "$a_slot" ]] || continue
+    [[ ${row[8]} ]] || continue
+    [[ ${row[8]} == "$3" ]] && continue
+    slot_unpack "${row[6]}" slot
+    slot_join "${row[0]}" "$slot" requester
+    echo "$requester"
+  done | sort -u
+}
 
 #---------------------------------------------------------------------
 ##
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param dependency spell
 ## @Stdout list of options
 ##
@@ -183,11 +291,15 @@ get_depends_options()
     return
   }
 
-  local START
-  esc_str "$1" START
-  debug "libstate" "get_depends_options() - START=$START"
+  local START slot
+  state_split_query "$1" START slot || { START=$1; slot=""; }
+  debug "libstate" "get_depends_options() - START=$START:$slot"
   lock_file "$depends_status"
-  awk -F ':' -v start=$START '$1 == start { OPTS = OPTS " " ($3 == "on" ? $5 : $6) } END { print OPTS }' $depends_status 2> /dev/null
+  awk -F ':' -v start="$START" -v slot="$slot" -- '
+    function rowslot(   s) { s = $7; gsub(/@/, ":", s); return (s == "" ? "0" : s) }
+    $1 == start && (slot == "" || rowslot() == slot) {
+      OPTS = OPTS " " ($3 == "on" ? $5 : $6) }
+    END { print OPTS }' $depends_status 2> /dev/null
   unlock_file "$depends_status"
 }
 
@@ -197,26 +309,29 @@ get_depends_options()
 ## Arguments can be regexp, and all but the spell are optional
 ##
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param depends
 ## @param on/off
 ## @param optional/required
 ## @param on arg
 ## @param off arg
+## @param dependency slot (optional)
+## @param bound subslot (optional)
 ##
 #---------------------------------------------------------------------
 remove_depends_status()
-{ # $1=depends file $2=spell, $3=(OPT)depends, $4=(OPT)on/off, $5=(OPT)optional/required, $6=(OPT)on arg, $7=(OPT)off arg
+{ # $1=depends file $2=spell instance, $3=(OPT)depends, $4=(OPT)on/off, $5=(OPT)optional/required, $6=(OPT)on arg, $7=(OPT)off arg, $8=(OPT)dep slot, $9=(OPT)bound subslot
 
    local depends_status=$1
    shift
 
-    local a1 a2 a3 a4 a5 a6
+    local a1 a2 a3 a4 a5 a6 spell slot dtail
     # arguments 1 and 2 are spell names, which might have characters that
     # look like regexps, 5 and 6 might like funny too
     # contrast 3 and 4 which are "on", "off", "required" or "optional"
     # if they are regexps its probably desired so dont escape those
-    esc_str "$1" a1; esc_str "$2" a2
+    state_split_query "$1" spell slot || { spell=$1; slot=""; }
+    esc_str "$spell" a1; esc_str "$2" a2
     a1=${a1:-.*}; a2=${a2:-.*}
 
     a3=${3:-.*} ; a4=${4:-.*}
@@ -225,9 +340,11 @@ remove_depends_status()
     a5=${a5:-.*}; a6=${a6:-.*}
     [[ "$a5" == "[none]" ]] && a5="\\[none\\]"
 
+    state_depends_tail_pattern dtail "$slot" "$7" "$8"
+
     local t_status
     lock_start_transaction "$depends_status" t_status
-    sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$/D" "$t_status"
+    sedit "/^$a1:$a2:$a3:$a4:$a5:$a6$dtail$/D" "$t_status"
     lock_commit_transaction "$depends_status"
 }
 
@@ -235,7 +352,7 @@ remove_depends_status()
 ## Toggle optional and suggested dependencies on/off
 ##
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param dependency
 ##
 #---------------------------------------------------------------------
@@ -243,8 +360,9 @@ toggle_depends_status() {
   local depends_status=$1
   shift
 
-  local spell dependency
-  esc_str "$1" spell; esc_str "$2" dependency
+  local spell dependency slot
+  state_split_query "$1" spell slot || spell=$1
+  esc_str "$spell" spell; esc_str "$2" dependency
 
   local t_status
   lock_start_transaction "$depends_status" t_status
@@ -260,7 +378,7 @@ toggle_depends_status() {
 ## toggle it to be enabled or disabled.
 ##
 ## @param depends file
-## @param spell
+## @param spell instance
 ## @param new provider
 ## @param feature
 ## @param on/off
@@ -270,8 +388,9 @@ change_spell_provider() {
   local depends_status=$1
   shift
 
-  local spell new_provider feature enabled
-  esc_str "$1" spell
+  local spell new_provider feature enabled slot
+  state_split_query "$1" spell slot || spell=$1
+  esc_str "$spell" spell
   esc_str "$2" new_provider
   esc_str "$3" feature
   enabled=$4
@@ -293,17 +412,22 @@ change_spell_provider() {
 ## The uncommitted_hash hash table should be hash_export'ed to
 ## make it through the call to make.
 ##
-## @param spell
+## @param spell instance
 ## @param variable name to put the filename name in (pass by reference)
 ##
 #---------------------------------------------------------------------
 get_uncommitted_depends_file() {
-    local SPELL=$1
+    # canonical, so that a caller with only a spell name and one with the
+    # instance it belongs to agree on the hash key
+    local SPELL
+    state_canon_instance "$1" SPELL || SPELL=$1
+    local tag
+    slot_instance_tag "$SPELL" tag || tag=$SPELL
     local temp_spell_depends
     hash_get_ref "uncommitted_hash" $SPELL temp_spell_depends
 
     if ! [[ $temp_spell_depends ]] ; then
-      temp_spell_depends="$UNCOMMITTED_DEPENDS/$SPELL"
+      temp_spell_depends="$UNCOMMITTED_DEPENDS/$tag"
       hash_put "uncommitted_hash" "$SPELL" "$temp_spell_depends"
 
       mkdir -p "$ABANDONED_DEPENDS"
@@ -360,8 +484,8 @@ get_uncommitted_rsub_depends_file() {
 ## Add a sub-dependency.
 ##
 ## @param sub-depends file
-## @param requester file
-## @param sub-dependee
+## @param requester instance
+## @param sub-dependee instance
 ## @param sub-depends
 #---------------------------------------------------------------------
 add_sub_depends() {
@@ -370,9 +494,14 @@ add_sub_depends() {
   local file=$1
   shift
 
+  local requester rslot dependee dslot extra
+  state_split_instance "$1" requester rslot || return 1
+  state_split_instance "$2" dependee dslot || return 1
+  state_sub_depends_tail "$rslot" "$dslot" extra
+
   local t_file
   lock_start_transaction "$file" t_file
-  echo "$1:$2:$3" >> "$t_file"
+  echo "$requester:$dependee:$3$extra" >> "$t_file"
   lock_commit_transaction "$file"
 }
 
@@ -380,22 +509,25 @@ add_sub_depends() {
 ## Search in sub-depends file.
 ##
 ## @param sub-depends file
-## @param requester file (optional)
-## @param sub-dependee (optional)
+## @param requester instance (optional)
+## @param sub-dependee instance (optional)
 ## @param sub-depends (optional)
 #---------------------------------------------------------------------
 search_sub_depends() {
   $STD_DEBUG
   local file=$1
   shift
-  local a1 a2 a3
-  esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
+  local a1 a2 a3 requester rslot dependee dslot stail
+  state_split_query "$1" requester rslot || { requester=$1; rslot=""; }
+  state_split_query "$2" dependee  dslot || { dependee=$2;  dslot=""; }
+  esc_str "$requester" a1; esc_str "$dependee" a2; esc_str "$3" a3
   a1=${a1:-.*}
   a2=${a2:-.*}
   a3=${a3:-.*}
+  state_sub_depends_tail_pattern stail "$rslot" "$dslot"
 
   lock_file "$file"
-  grep "^$a1:$a2:$a3$" "$file"
+  grep "^$a1:$a2:$a3$stail$" "$file"
   unlock_file "$file"
 }
 
@@ -403,8 +535,8 @@ search_sub_depends() {
 ## Remove a sub-depends.
 ##
 ## @param sub-depends file
-## @param requester
-## @param sub-dependee
+## @param requester instance
+## @param sub-dependee instance
 ## @param sub-depends
 #---------------------------------------------------------------------
 remove_sub_depends() {
@@ -414,13 +546,16 @@ remove_sub_depends() {
 
   test -f $file || return
 
-  local a1 a2 a3
-  esc_str "$1" a1; esc_str "$2" a2; esc_str "$3" a3
+  local a1 a2 a3 requester rslot dependee dslot stail
+  state_split_query "$1" requester rslot || { requester=$1; rslot=""; }
+  state_split_query "$2" dependee  dslot || { dependee=$2;  dslot=""; }
+  esc_str "$requester" a1; esc_str "$dependee" a2; esc_str "$3" a3
   a1=${a1:-.*}; a2=${a2:-.*}; a3=${a3:-.*}
+  state_sub_depends_tail_pattern stail "$rslot" "$dslot"
 
   local t_file
   lock_start_transaction "$file" t_file
-  sedit "/^$a1:$a2:$a3$/D" "$t_file"
+  sedit "/^$a1:$a2:$a3$stail$/D" "$t_file"
   lock_commit_transaction "$file"
 }
 
@@ -595,21 +730,28 @@ search_default_provider() {
 
 #---------------------------------------------------------------------
 ## @param cache file
-## @param spell name
+## @param spell instance
 ##
 ## Removes the spell info from the passed file ($VERSION_STATUS)
+##
+## A version cache line is space delimited, so unlike the ':' delimited
+## databases it can hold the instance token whole; all that is needed
+## is to canonicalise it, so that "gcc:0" and "gcc" are one line.
 ##
 #---------------------------------------------------------------------
 remove_version_cache()  {
   local file=$1
+  local spell
+  state_canon_instance "$2" spell || spell=$2
+
   lock_start_transaction "$file" t_file
-  sed -i "/^$2 /d" $t_file
+  sed -i "/^$(esc_str "$spell") /d" $t_file
   lock_commit_transaction $file
 }
 
 #---------------------------------------------------------------------
 ## @param cache file
-## @param spell name
+## @param spell instance
 ## @param version
 ## @param patchlevel
 ## @param security patch
@@ -622,11 +764,353 @@ remove_version_cache()  {
 add_version_cache()  {
   local file=$1
   shift
-  remove_version_cache "$file" $1
+  remove_version_cache "$file" "$1"
+
+  local spell
+  state_canon_instance "$1" spell || spell=$1
+  shift
 
   lock_start_transaction "$file" t_file
-  echo "$1 ${2:-0} ${3:-0} ${4:-0} ${5:-0}" >> $t_file
+  echo "$spell ${1:-0} ${2:-0} ${3:-0} ${4:-0}" >> $t_file
   lock_commit_transaction $file
+}
+
+##########################SPELL INSTANCES#############################
+
+#---------------------------------------------------------------------
+## Splits the spell instance a state entry is about.  Everything here
+## that used to take a spell name takes an instance -- "spell", or
+## "spell:slot" -- and the database keeps the bare spell name in the
+## field it always did, with the slot in a trailing one, packed by
+## slot_pack because the rows are ':' delimited.
+##
+## A row with no slot field is in slot 0, so nothing written before
+## slots existed has to be migrated; and slot 0 is still written with
+## no slot field, so nothing written now looks any different.
+##
+## Reads and writes read a bare spell name differently, and this is the
+## write.  A write names one instance, so a bare name is slot 0.
+##
+## @param spell, or spell:slot
+## @param variable to set to the spell name
+## @param variable to set to the packed slot, empty for slot 0
+##
+## @return 1 if the instance token is malformed
+#---------------------------------------------------------------------
+state_split_instance() {
+  # not __spell and __slot: those are what slot_split calls its own
+  # locals, and upvar would write to them instead of to ours
+  local __inst_spell __inst_slot
+
+  slot_split "$1" __inst_spell __inst_slot || return 1
+  slot_is_default "$__inst_slot" && __inst_slot=""
+  slot_pack "$__inst_slot" __inst_slot
+
+  upvar "$2" "$__inst_spell"
+  upvar "$3" "$__inst_slot"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Splits the spell instance a query is about.  A query asks a question
+## -- "is anything providing gcc installed?" -- so a bare spell name is
+## any slot here, which is portage's reading of an unslotted atom too.
+##
+## The slot is left as it was written, wildcards and all, for slot_match
+## to interpret rather than slot_pack.
+##
+## @param spell, or spell:slot, possibly with '*' axes
+## @param variable to set to the spell name
+## @param variable to set to the slot request, empty for any slot
+##
+## @return 1 if the token is malformed
+#---------------------------------------------------------------------
+state_split_query() {
+  local __inst_spell=$1
+  local __inst_slot=""
+
+  if [[ $1 == *:* ]]; then
+    slot_split "$1" __inst_spell __inst_slot request || return 1
+  fi
+  [[ $__inst_spell ]] || return 1
+
+  upvar "$2" "$__inst_spell"
+  upvar "$3" "$__inst_slot"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Canonicalises a spell instance token, dropping a slot 0 suffix so
+## that "gcc:0" and "gcc" name the same line of a space delimited file.
+##
+## @param spell, or spell:slot
+## @param variable to set
+##
+## @return 1 if the token is malformed
+#---------------------------------------------------------------------
+state_canon_instance() {
+  # not __spell and __slot: those are what slot_split calls its own
+  # locals, and upvar would write to them instead of to ours
+  local __inst_spell __inst_slot
+
+  slot_split "$1" __inst_spell __inst_slot || return 1
+  slot_join "$__inst_spell" "$__inst_slot" "$2"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Turns a slot request into a regexp matching the packed slots that
+## answer it.  A '*' axis matches any value, and the axes the request
+## leaves off the end are free, so "14" also matches "14@arm-none-eabi".
+##
+## This is slot_match's job done in grep, which is what the depends
+## searches need: they are one regexp over a whole row.
+##
+## @param variable to set
+## @param slot request, may be empty
+##
+## @Stdout nothing; an empty request gives an empty pattern, which the
+##         caller is expected to widen to [^:]* itself
+#---------------------------------------------------------------------
+state_slot_pattern() {
+  local __dep_axis __dep_esc
+  local __dep_rest=$2
+  local __dep_pattern=""
+
+  while [[ $__dep_rest ]]; do
+    __dep_axis=${__dep_rest%%:*}
+    if [[ $__dep_rest == *:* ]]; then
+      __dep_rest=${__dep_rest#*:}
+    else
+      __dep_rest=
+    fi
+
+    if [[ $__dep_axis == '*' ]]; then
+      __dep_esc='[^:@]*'
+    else
+      esc_str "$__dep_axis" __dep_esc
+    fi
+    __dep_pattern="$__dep_pattern${__dep_pattern:+@}$__dep_esc"
+  done
+
+  [[ $__dep_pattern ]] && __dep_pattern="$__dep_pattern\\(@[^:]*\\)*"
+  upvar "$1" "$__dep_pattern"
+}
+
+#---------------------------------------------------------------------
+## The tail a depends row grew for slots:
+##
+## : spell:dep(provider):on/off:type:on arg:off arg:slot:dep slot:subslot
+##
+## with both slots packed -- the dependency's being the slot its atom
+## resolved to, since what a dependent breaks on is the instance that
+## went away rather than the wording of the atom -- and the subslot the
+## one the dependency was bound to at cast time, empty unless the atom
+## asked, with '=', to be told when the ABI moves.
+##
+## The tail is written only when it says something, so a dependency
+## between two unslotted spells is still the row sorcery always wrote.
+##
+## @param requester's packed slot, empty for slot 0
+## @param dependency's packed slot request, empty for any
+## @param bound subslot, empty for none
+## @param variable to set
+#---------------------------------------------------------------------
+state_depends_tail() {
+  local __dep_tail=""
+
+  [[ $1 || $2 || $3 ]] && __dep_tail=":${1:-$SLOT_DEFAULT}:$2:$3"
+  upvar "$4" "$__dep_tail"
+}
+
+#---------------------------------------------------------------------
+## The regexp for that tail.
+##
+## A row from before slots has no tail at all, and it stands for the
+## unslotted case: requester in slot 0, dependency unconstrained,
+## nothing bound.  A query asking for no more than that has to match
+## such a row, so the whole tail goes optional; a query that asks for
+## anything else must not.
+##
+## @param variable to set
+## @param requester's slot request, empty for any
+## @param dependency's slot request, empty for any
+## @param bound subslot, empty for any
+#---------------------------------------------------------------------
+state_depends_tail_pattern() {
+  local __dep_a7 __dep_a8 __dep_a9
+  local __dep_tail='\(:[^:]*:[^:]*:[^:]*\)\?'
+
+  if [[ $2 || $3 || $4 ]]; then
+    state_slot_pattern __dep_a7 "$2"
+    state_slot_pattern __dep_a8 "$3"
+    esc_str "$4" __dep_a9
+    __dep_a7=${__dep_a7:-[^:]*}
+    __dep_a8=${__dep_a8:-[^:]*}
+    __dep_a9=${__dep_a9:-[^:]*}
+    __dep_tail=":$__dep_a7:$__dep_a8:$__dep_a9"
+
+    if [[ -z $2 || $2 == "$SLOT_DEFAULT" ]] && [[ -z $3 ]] && [[ -z $4 ]]; then
+      __dep_tail="\\($__dep_tail\\)\\?"
+    fi
+  fi
+  upvar "$1" "$__dep_tail"
+}
+
+#---------------------------------------------------------------------
+## The same two things for a sub-depends row, which grew a tail of two
+## slots -- the requester's and the sub-dependee's -- rather than three.
+##
+## @param requester's packed slot, empty for slot 0
+## @param sub-dependee's packed slot, empty for slot 0
+## @param variable to set
+#---------------------------------------------------------------------
+state_sub_depends_tail() {
+  local __dep_tail=""
+
+  [[ $1 || $2 ]] && __dep_tail=":${1:-$SLOT_DEFAULT}:${2:-$SLOT_DEFAULT}"
+  upvar "$3" "$__dep_tail"
+}
+
+#---------------------------------------------------------------------
+## @param variable to set
+## @param requester's slot request, empty for any
+## @param sub-dependee's slot request, empty for any
+#---------------------------------------------------------------------
+state_sub_depends_tail_pattern() {
+  local __dep_a4 __dep_a5
+  local __dep_tail='\(:[^:]*:[^:]*\)\?'
+
+  if [[ $2 || $3 ]]; then
+    state_slot_pattern __dep_a4 "$2"
+    state_slot_pattern __dep_a5 "$3"
+    __dep_a4=${__dep_a4:-[^:]*}
+    __dep_a5=${__dep_a5:-[^:]*}
+    __dep_tail=":$__dep_a4:$__dep_a5"
+
+    if [[ -z $2 || $2 == "$SLOT_DEFAULT" ]] &&
+       [[ -z $3 || $3 == "$SLOT_DEFAULT" ]]; then
+      __dep_tail="\\($__dep_tail\\)\\?"
+    fi
+  fi
+  upvar "$1" "$__dep_tail"
+}
+
+#---------------------------------------------------------------------
+## Reads a sub-depends row back into the two instances it is between.
+## The slots live at the end of the row and are missing altogether on a
+## row between unslotted spells, which is what the callers that used to
+## cut the row up by hand cannot see.
+##
+## @param row
+## @param variable to set to the requester instance (optional)
+## @param variable to set to the sub-dependee instance (optional)
+## @param variable to set to the sub-depends (optional)
+##
+## @return 1 if the row is not a sub-depends row
+#---------------------------------------------------------------------
+state_split_sub_depends_row() {
+  local __row_fields __row_rslot __row_dslot
+  # explode does not clear the array it is handed
+  __row_fields=()
+  explode "$1" ":" __row_fields
+  [[ ${#__row_fields[*]} -ge 3 ]] || return 1
+
+  slot_unpack "${__row_fields[3]}" __row_rslot
+  slot_unpack "${__row_fields[4]}" __row_dslot
+
+  [[ $2 ]] && slot_join "${__row_fields[0]}" "$__row_rslot" "$2"
+  [[ $3 ]] && slot_join "${__row_fields[1]}" "$__row_dslot" "$3"
+  [[ $4 ]] && upvar "$4" "${__row_fields[2]}"
+  return 0
+}
+
+#---------------------------------------------------------------------
+## Filters depends rows on stdin down to those whose requester is in a
+## slot the request accepts.  For the searches that cannot anchor the
+## end of the row, and so cannot use state_depends_tail_pattern.
+##
+## @param slot request
+#---------------------------------------------------------------------
+state_filter_depends_slot() {
+  local line slot
+
+  awk -F: '{ s = $7; gsub(/@/, ":", s); print (s == "" ? "0" : s) " " $0 }' |
+  while read -r slot line; do
+    slot_match "$1" "$slot" || continue
+    echo "$line"
+  done
+}
+
+#---------------------------------------------------------------------
+## Turns depends rows on stdin into the instances that asked for them.
+## The requester is the first field of a row and the slot it is in is
+## the seventh, which is why cut(1) cannot answer this.
+#---------------------------------------------------------------------
+state_depends_requesters() {
+  local __row_line __row_slot __row_fields
+
+  while IFS= read -r __row_line; do
+    # explode does not clear the array it is handed
+    __row_fields=()
+    explode "$__row_line" ":" __row_fields
+    [[ ${__row_fields[0]} ]] || continue
+    slot_unpack "${__row_fields[6]}" __row_slot
+    slot_join "${__row_fields[0]}" "$__row_slot"
+  done
+}
+
+#---------------------------------------------------------------------
+## The same for the other end of the row: the instances that were
+## depended on.  The provider a dependency was answered through is
+## parenthesised after the name and is not part of it.
+#---------------------------------------------------------------------
+state_depends_dependees() {
+  local __row_line __row_slot __row_fields
+
+  while IFS= read -r __row_line; do
+    __row_fields=()
+    explode "$__row_line" ":" __row_fields
+    [[ ${__row_fields[1]} ]] || continue
+    slot_unpack "${__row_fields[7]}" __row_slot
+    slot_join "${__row_fields[1]%%(*}" "$__row_slot"
+  done
+}
+
+#---------------------------------------------------------------------
+## The one place that knows the shape of a SPELL_STATUS row:
+##
+## : spell:date:status:version:slot:subslot
+##
+## with the slot packed, empty for slot 0, and the subslot empty when
+## it is the slot -- which is its default, and all an unslotted spell
+## that says nothing about ABIs will ever have.
+##
+## Prints the rows matching a query, in file order.  The caller holds
+## the lock.
+##
+## @param spell status file
+## @param spell name
+## @param slot request, empty for any slot
+## @param version, empty for any version
+#---------------------------------------------------------------------
+state_spell_status_rows() {
+  local line slot
+
+  # awk unpacks the slot and puts it up front, where read can have it
+  # without a field having to be empty -- read eats a leading separator
+  # when the separator is whitespace, and keeping a tab out of the way
+  # of $IFS is more trouble than a slot never containing a space is
+  awk -F: -v spell="$2" -v version="$4" -- \
+      '$1 == spell && (version == "" || $4 == version) {
+         slot = $5
+         gsub(/@/, ":", slot)
+         print (slot == "" ? "0" : slot) " " $0 }' \
+      "$1" 2>/dev/null |
+  while read -r slot line; do
+    [[ -z $3 ]] || slot_match "$3" "$slot" || continue
+    echo "$line"
+  done
 }
 
 #---------------------------------------------------------------------
@@ -636,107 +1120,178 @@ add_version_cache()  {
 ## Arguments may either be SPELL, ACTION, VERSIONS, or just
 ## ACTION if there exists SPELL and VERSIONS variables already
 ## set.
-## @param spell OR action
+## @param spell instance OR action
 ## @param (if spell) action
 ## @param (if spell) version
+## @param (if spell) subslot (optional, defaults to the slot)
 ##
 #---------------------------------------------------------------------
 add_spell_status()
-{ #$1=spell, $2=action, $3=version, OR $1=action.
+{ #$1=spell[:slot], $2=action, $3=version, $4=(OPT)subslot, OR $1=action.
 
-  local spell action version date
+  local spell action version date slot subslot extra
   if [ $# -eq 1 ] ; then
     spell="$SPELL"
     action="$1"
     version="$VERSION"
+    slot_is_default "$SLOT" || slot_pack "$SLOT" slot
+    subslot="$SUBSLOT"
   else
-    spell=$1
+    state_split_instance "$1" spell slot || return 1
     action=$2
     version=$3
+    subslot=$4
   fi
   [[ $spell ]] && [[ $action ]] && [[ $version ]] || return 1
+
+  # a spell whose ABI is just its slot has nothing to say, and neither
+  # has slot 0, so the row of an unslotted spell comes out byte for byte
+  # what it has always been
+  [[ $subslot == "$(slot_unpack "$slot")" ]] && subslot=""
+  [[ $slot || $subslot ]] && extra=":$slot"
+  [[ $subslot ]] && extra="$extra:$subslot"
+
   date=$(date +%Y%m%d)
   lock_start_transaction "$SPELL_STATUS" tSPELL_STATUS
-  echo "$spell:$date:$action:$version" >> $tSPELL_STATUS
+  echo "$spell:$date:$action:$version$extra" >> $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
 
 }
 
 #---------------------------------------------------------------------
-## @param spell name
+## @param spell instance
+## @param status
+## @param version
+## @param subslot (optional)
 ##
 ## Given a spell, status (installed, held, etc), and version, add_spell
 ## adds the spell to the /var/state/sorcery/packages file
 ##
 #---------------------------------------------------------------------
 add_spell()  {
-  remove_spell  $1
-  add_spell_status $1 $2 $3
+  remove_spell  "$1"
+  add_spell_status "$1" "$2" "$3" "$4"
 }
 
 #---------------------------------------------------------------------
 ## @param spell status file
-## @param spell
+## @param spell instance
 ## @param version (optional)
 ## @Stdout matching lines
 ##
-## Arguments can be regexp
-##
-## Prints out the matching line(s)
+## Prints out the matching line(s).  A bare spell name matches every
+## slot of it.
 ##
 #---------------------------------------------------------------------
 search_spell_status() {
   [[ -z $2 ]] && return 1
   local spell_status=$1
-  shift
+  local spell request rows
 
-  local spell
-  esc_str "$1" spell
+  state_split_query "$2" spell request || return 1
+
   lock_file "$spell_status"
-  if [[ -z $2 ]]; then
-    grep "^$spell:" $spell_status
-  else
-    local version
-    esc_str "$2" version
-    grep "^$spell:$version:" $spell_status
-  fi
+  rows=$(state_spell_status_rows "$spell_status" "$spell" "$request" "$3")
   unlock_file "$spell_status"
+
+  [[ $rows ]] || return 1
+  echo "$rows"
 }
 
 #---------------------------------------------------------------------
 ##
-## @param spell ( [A-Za-z0-9_-] )
-## @param version (optional and may not contain spaces or colons; '.' and '*' have special meaning)
+## @param spell instance ( spell, or spell:slot with optional '*' axes )
+## @param version (optional and may not contain spaces or colons)
 ## @param variable to set
-## @Stdout last matching line ( only one even if there are more )
 ##
 ## Searches the SPELL_STATUS file for a spell and optionally
-## a version.
+## a version.  A bare spell name asks about every slot of it, and the
+## last matching row wins, as it always has.
 ##
-## Prints out the matching spell's status
 ## @return 1 only for critical problems ( missing SPELL_STATUS file )
 ## @return 0 for all other cases ( even when spell is not found )
 ##
 #---------------------------------------------------------------------
 query_spell_status()
-{ #$1=spell, $2=(OPT)version
+{ #$1=spell[:slot], $2=(OPT)version, $3=variable
 
-  local return_var __status
+  local __return_var __row __spell __request
+  local __status="" __version=""
   [[ -e $SPELL_STATUS ]] || return 1
 
-  lock_file "$SPELL_STATUS"
   if [[ -z $3 ]]; then
     [[ -z $2 ]] && return 0
-    return_var="$2"
-    __status=$(awk -F: -v spell="$1" '$1 == spell { status = $3 } END { print status }' "$SPELL_STATUS" 2>/dev/null)
+    __return_var=$2
   else
-    return_var="$3"
-    __status=$(awk -F: -v spell="$1" -v version="$2" '$1 == spell && $4 == version { status = $3 } END { print status }' "$SPELL_STATUS" 2>/dev/null)
+    __return_var=$3
+    __version=$2
   fi
+
+  state_split_query "$1" __spell __request || return 1
+
+  lock_file "$SPELL_STATUS"
+  __row=$(state_spell_status_rows "$SPELL_STATUS" "$__spell" "$__request" \
+                                  "$__version" | tail -n 1)
   unlock_file "$SPELL_STATUS"
 
-  eval "$return_var=\"\$__status\""
+  [[ $__row ]] && __status=$(echo "$__row" | cut -f3 -d:)
+  upvar "$__return_var" "$__status"
   return 0
+}
+
+#---------------------------------------------------------------------
+##
+## @param spell instance
+## @param variable to set
+##
+## The ABI the instance was installed with, empty if it is not
+## installed.  A row naming no subslot has the one its slot stands for.
+##
+## @return 1 only for critical problems ( missing SPELL_STATUS file )
+#---------------------------------------------------------------------
+query_spell_subslot() {
+  local __row __spell __request __slot
+  local __subslot=""
+  [[ -e $SPELL_STATUS ]] || return 1
+
+  state_split_query "$1" __spell __request || return 1
+
+  lock_file "$SPELL_STATUS"
+  __row=$(state_spell_status_rows "$SPELL_STATUS" "$__spell" "$__request" \
+                                  "" | tail -n 1)
+  unlock_file "$SPELL_STATUS"
+
+  if [[ $__row ]]; then
+    __subslot=$(echo "$__row" | cut -f6 -d:)
+    [[ $__subslot ]] || slot_unpack "$(echo "$__row" | cut -f5 -d:)" __subslot
+  fi
+  upvar "$2" "$__subslot"
+  return 0
+}
+
+#---------------------------------------------------------------------
+##
+## @param spell instance ( spell, or spell:slot with optional '*' axes )
+## @Stdout the installed instances of the spell, one per line
+##
+## Only installed and held instances are listed: an exiled row is a
+## note about a spell, not an install of one.
+##
+#---------------------------------------------------------------------
+spell_instances() {
+  local slot spell request status
+  [[ -e $SPELL_STATUS ]] || return 1
+
+  state_split_query "$1" spell request || return 1
+
+  lock_file "$SPELL_STATUS"
+  state_spell_status_rows "$SPELL_STATUS" "$spell" "$request" "" |
+  while IFS=: read -r spell _ status _ slot _; do
+    [[ $status == installed || $status == held ]] || continue
+    slot_unpack "$slot" slot
+    slot_join "$spell" "$slot"
+  done | sort -u
+  unlock_file "$SPELL_STATUS"
 }
 
 #---------------------------------------------------------------------
@@ -784,8 +1339,10 @@ real_spell_ok() {
 ## @return 0 if any provider of $1 is installed
 #---------------------------------------------------------------------
 real_provider_ok() {
+  # a provider is provided by an instance: the slot is at the end of the
+  # row, not in the field cut(1) would hand back
   for spell in $(search_depends_status_exact $DEPENDS_STATUS '.*' ".*($1)" \
-                 'on' '.*'  '.*' |cut -f2 -d:|cut -f1 -d\(|sort -u); do
+                 'on' '.*'  '.*' | state_depends_dependees | sort -u); do
     spell_ok $spell && return 0
   done
   return 1
@@ -803,14 +1360,18 @@ real_provider_ok() {
 #---------------------------------------------------------------------
 real_get_spell_provider() {
   local dep_status
+  # the uncommitted file is filed under the canonical instance, so a
+  # caller holding a bare name finds the same one
+  local instance
+  state_canon_instance "$1" instance || instance=$1
   if [[ $3 ]] ; then
     dep_status=$DEPENDS_STATUS
   else
-    hash_get_ref uncommitted_hash $1 dep_status
+    hash_get_ref uncommitted_hash "$instance" dep_status
     [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
   fi
-  search_depends_status_exact $dep_status "$1" ".*($2)" \
-                 'on' '.*'  '.*' '.*' |cut -f2 -d:|cut -f1 -d\(|sort -u
+  search_depends_status_exact $dep_status "$instance" ".*($2)" \
+                 'on' '.*'  '.*' '.*' | state_depends_dependees | sort -u
 }
 
 #---------------------------------------------------------------------
@@ -826,13 +1387,15 @@ real_get_spell_provider() {
 #---------------------------------------------------------------------
 real_is_depends_enabled() {
   local dep_status
+  local instance
+  state_canon_instance "$1" instance || instance=$1
   if [[ $3 ]] ; then
     dep_status=$DEPENDS_STATUS
   else
-    hash_get_ref uncommitted_hash $1 dep_status
+    hash_get_ref uncommitted_hash "$instance" dep_status
     [[ $dep_status ]] || dep_status=$DEPENDS_STATUS
   fi
-  [[ -n $(search_depends_status_simple $dep_status "$1" "$2" 'on' ) ]]
+  [[ -n $(search_depends_status_simple $dep_status "$instance" "$2" 'on' ) ]]
 }
 
 
@@ -850,21 +1413,28 @@ real_spell_exiled()    {
 
 
 #---------------------------------------------------------------------
-## @param spell to remove status of
+## @param spell instance to remove status of
 ## Removes all specified offending entries in SPELL_STATUS
+##
+## Only the named instance goes: casting gcc:15 must not forget that
+## gcc:14 is installed.
 ##
 #---------------------------------------------------------------------
 remove_spell_status()
-{ #$1=spell to remove status of
+{ #$1=spell instance to remove status of
+
+  local spell slot
+  state_split_instance "$1" spell slot || return 1
 
   lock_start_transaction "$SPELL_STATUS" tSPELL_STATUS
-  grep  -v  "^$1:" $SPELL_STATUS  >  $tSPELL_STATUS
+  awk -F: -v spell="$spell" -v slot="$slot" -- \
+      '!($1 == spell && $5 == slot)' $SPELL_STATUS  >  $tSPELL_STATUS
   lock_commit_transaction $SPELL_STATUS
 
 }
 
 #---------------------------------------------------------------------
-## @param spell name
+## @param spell instance
 ##
 ## Removes the given spell from the /var/state/sorcery/packages file.
 ## if C<EXILE> is set, the spell is changed to "exiled" in the file.
@@ -872,9 +1442,9 @@ remove_spell_status()
 #---------------------------------------------------------------------
 remove_spell()  {
   debug  "libsorcery" "Running remove_spell() on $1"
-  remove_spell_status $1
+  remove_spell_status "$1"
   if  [  -n  "$EXILE"  ];  then
-    add_spell_status $1 "exiled" "0.0"
+    add_spell_status "$1" "exiled" "0.0"
   fi
 }
 
@@ -894,15 +1464,38 @@ all_spell_status()
 
 
 #---------------------------------------------------------------------
-## @param spells
+## @param spell status file
+## @param spell name
+## @param packed slot, empty for every slot of the spell
+## @param status to look for
+## @param status to set instead
+##
+## The caller is inside the transaction and hands us its temp file.
+#---------------------------------------------------------------------
+state_reset_status() {
+    local file=$1
+
+    awk -F: -v OFS=: -v spell="$2" -v slot="$3" -v from="$4" -v to="$5" -- \
+        '$1 == spell && (slot == "" || $5 == slot) && $3 == from { $3 = to }
+         { print }' "$file" > "$file.status" &&
+    mv -f "$file.status" "$file"
+}
+
+#---------------------------------------------------------------------
+## @param spell instances
 ## sets &lt;spells&gt;'s status to held
+##
+## A bare spell name holds every slot of it -- the user is naming a
+## spell, not conjuring an instance into being.
 ##
 #---------------------------------------------------------------------
 set_held() {
-    local t_status
+    local t_status to_hold spell slot
     lock_start_transaction "$SPELL_STATUS" t_status
     for to_hold in $@; do
-        sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)installed/\1held/' $t_status
+        state_split_query "$to_hold" spell slot || continue
+        slot_pack "$slot" slot
+        state_reset_status "$t_status" "$spell" "$slot" installed held
     done
     lock_commit_transaction $SPELL_STATUS
 }
@@ -969,15 +1562,17 @@ set_unexiled() {
 
 
 #---------------------------------------------------------------------
-## @param spells
+## @param spell instances
 ## sets <spells>'s status to installed
 ##
 #---------------------------------------------------------------------
 set_unheld() {
-    local t_status
+    local t_status to_hold spell slot
     lock_start_transaction "$SPELL_STATUS" t_status
     for to_hold in $@; do
-        sedit 's/\(^'$(esc_str $to_hold)':[^:]*:\)held/\1installed/' $t_status
+        state_split_query "$to_hold" spell slot || continue
+        slot_pack "$slot" slot
+        state_reset_status "$t_status" "$spell" "$slot" held installed
     done
     lock_commit_transaction $SPELL_STATUS
 }
@@ -985,18 +1580,21 @@ set_unheld() {
 
 #---------------------------------------------------------------------
 ## @param status (installed, held, exiled or ok[for the first two])
-## @Stdout spells
+## @Stdout spell instances
 ## returns all spells that are in that status
+##
+## Slotted spells come out as "spell:slot"; everything else, which is
+## to say everything today, comes out as its bare name.
 ##
 #---------------------------------------------------------------------
 get_all_spells_with_status() {
   local status=$1
   lock_file $SPELL_STATUS
-  if [[ $status != ok ]]; then
-    awk -F: -v status="$status" '$3 == status { print $1 }' $SPELL_STATUS
-  else
-    awk -F: '$3 == "installed" || $3 == "held" { print $1 }' $SPELL_STATUS
-  fi
+  awk -F: -v status="$status" -- \
+      '$3 == status || (status == "ok" && ($3 == "installed" || $3 == "held")) {
+         slot = $5
+         gsub(/@/, ":", slot)
+         print $1 (slot == "" ? "" : ":" slot) }' $SPELL_STATUS
   unlock_file $SPELL_STATUS
 }
 

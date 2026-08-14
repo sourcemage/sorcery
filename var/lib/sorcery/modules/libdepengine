@@ -289,13 +289,14 @@ execute_triggers() {
   local spell=$1
   local failed=$2
   local trigger rc
-  local trg_array trg_action trg_target stuff trg_color
+  local trg_action trg_target stuff trg_color
 
   function execute_triggers_sub() {
     trigger=$1
-    explode "$trigger" : trg_array
-    trg_target=${trg_array[0]}
-    trg_action=${trg_array[1]}
+    # the action is the last field, the target is all that is before it
+    # and may hold a slot of its own
+    trg_target=${trigger%:*}
+    trg_action=${trigger##*:}
     # get the other spells that trigger this action
     trg_color=$(dpgn_get_spell_color $trg_target)
 
@@ -329,7 +330,10 @@ execute_triggers() {
         # run any other trigger besides the two above
         # but not if we're summoning
         local action=cast
-        do_trigger "$trg_target:$spell:on_cast:$trg_action"
+        # a cause is packed in a trigger row, here as much as on disk
+        local trg_cause
+        slot_instance_tag "$spell" trg_cause || trg_cause=$spell
+        do_trigger "$trg_target:$trg_cause:on_cast:$trg_action"
       fi
 
       # a brown trigger is a loop, drop it

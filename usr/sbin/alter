@@ -23,23 +23,28 @@ EOF
 
   source /etc/sorcery/config
   SPELL=${SPELL:=alter}
-  lock_resources "cast" "$SPELL"
-  VERSION="$(gaze -q installed "$SPELL" | grep -v 'not installed')"
+  # -n may name a slot, and then the logs and the cache belong to that
+  # one install, not to every slot of the spell
+  state_canon_instance "$SPELL" SPELL_INSTANCE &&
+  slot_instance_tag "$SPELL_INSTANCE" SPELL_DISK_TAG &&
+  slot_split "$SPELL_INSTANCE" SPELL || return 1
+  lock_resources "cast" "$SPELL_INSTANCE"
+  VERSION="$(gaze -q installed "$SPELL_INSTANCE" | grep -v 'not installed')"
   [ -z "$VERSION" ] && VERSION=$$
-  TMP_LOG=$TMP_DIR/$SPELL-$VERSION
-  IW_LOG=$TMP_DIR/$SPELL-$VERSION.iw
-  INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
-  MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
-  C_LOG=$TMP_DIR/$SPELL-$VERSION.compile.log
-  C_LOG_COMP=$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION
-  construct_cache_name "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE
+  TMP_LOG=$TMP_DIR/$SPELL_DISK_TAG-$VERSION
+  IW_LOG=$TMP_DIR/$SPELL_DISK_TAG-$VERSION.iw
+  INST_LOG=$INSTALL_LOGS/$SPELL_DISK_TAG-$VERSION
+  MD5_LOG=$MD5SUM_LOGS/$SPELL_DISK_TAG-$VERSION
+  C_LOG=$TMP_DIR/$SPELL_DISK_TAG-$VERSION.compile.log
+  C_LOG_COMP=$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION$EXTENSION
+  construct_cache_name "$INSTALL_CACHE/$SPELL_DISK_TAG-$VERSION-$HOST" CACHE
   CACHE_COMP=${CACHE}${EXTENSION}
   rm -f  "$C_LOG" 2> /dev/null
   touch  "$C_LOG"
-  message "${MESSAGE_COLOR}Gathering metadata for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
-  DATA="$(gaze compile $SPELL 2> /dev/null)" && COM_DATA="$DATA" || COM_DATA=""
-  DATA="$(gaze install $SPELL 2> /dev/null)" && INS_DATA="$DATA" || INS_DATA=""
-  DATA="$(gaze md5sum  $SPELL 2> /dev/null)" && MD5_DATA="$DATA" || MD5_DATA=""
+  message "${MESSAGE_COLOR}Gathering metadata for ${SPELL_COLOR}$SPELL_INSTANCE${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}"
+  DATA="$(gaze compile $SPELL_INSTANCE 2> /dev/null)" && COM_DATA="$DATA" || COM_DATA=""
+  DATA="$(gaze install $SPELL_INSTANCE 2> /dev/null)" && INS_DATA="$DATA" || INS_DATA=""
+  DATA="$(gaze md5sum  $SPELL_INSTANCE 2> /dev/null)" && MD5_DATA="$DATA" || MD5_DATA=""
   [ -n "$COM_DATA" ] && echo "$COM_DATA" > "$C_LOG"
   message "${MESSAGE_COLOR}Altering...${DEFAULT_COLOR}"
 
@@ -68,16 +73,16 @@ EOF
   create_compile_log
   create_md5list $INST_LOG $MD5_LOG
   create_cache_archive $INST_LOG $CACHE $CACHE_COMP
-  add_spell "$SPELL" installed "$VERSION"
+  add_spell "$SPELL_INSTANCE" installed "$VERSION"
   OLD_VERSION=$VERSION
   (
-    [[ $SPELL != alter ]] && codex_set_current_spell_by_name $SPELL
-    add_version_cache "$VERSION_STATUS" "$SPELL" "$OLD_VERSION" "${PATCHLEVEL:-0}" "${SECURITY_PATCH:-0}" "${UPDATED:-0}"
+    [[ $SPELL != alter ]] && codex_set_current_spell_by_name $SPELL_INSTANCE
+    add_version_cache "$VERSION_STATUS" "$SPELL_INSTANCE" "$OLD_VERSION" "${PATCHLEVEL:-0}" "${SECURITY_PATCH:-0}" "${UPDATED:-0}"
   )
 
   rm $C_LOG
   report_install
-  unlock_resources "cast" "$SPELL"
+  unlock_resources "cast" "$SPELL_INSTANCE"
 
   return 0
 
@@ -89,12 +94,15 @@ alter_md5_mend() {
   STORE_BASE=${STORE_BASE:=/var/log/sorcery/tmp} # */tmp are often small
                                   # by default for the backup
   SPELL="$1"
+  # the md5 logs are named after the install, so an argument naming a
+  # slot has to become a disk tag before it names a file
+  slot_instance_tag "$SPELL" SPELL_DISK_TAG || return 1
   VERSION="$(gaze -q installed "$SPELL")"
 
   MD5S="$(
     (
-      echo "$MASTER_MD5S" | grep -v " $SPELL-$VERSION$"
-      cat "$MD5SUM_LOGS/$SPELL-$VERSION" | cut -c35- | sed -e 's/.*/& -/'
+      echo "$MASTER_MD5S" | grep -v " $SPELL_DISK_TAG-$VERSION$"
+      cat "$MD5SUM_LOGS/$SPELL_DISK_TAG-$VERSION" | cut -c35- | sed -e 's/.*/& -/'
     )
   )"
 
@@ -127,7 +135,7 @@ alter_md5_mend() {
     TOTSP="$(echo "$SPELLS" | wc -l)"
     FILES="$(echo "$RESULTS" | cut -d' ' -f2 | sort -u)"
     if [ "$ARCHIVE" != "off" ]; then
-      STORE=$STORE_BASE/$SPELL-$VERSION.$$
+      STORE=$STORE_BASE/$SPELL_DISK_TAG-$VERSION.$$
       mkdir -p "$STORE"
       mkdir -p "$STORE/tmp/sorcery"
       message "${MESSAGE_COLOR}Cleaning $TOTAL old md5sums from $TOTSP spells and creating $SPELL-undo-$VERSION store.${DEFAULT_COLOR}" > /dev/stderr
@@ -165,15 +173,18 @@ alter_md5_mend() {
       message "${MESSAGE_COLOR}Creating ${SPELL_COLOR}$SPELL-undo${DEFAULT_COLOR}${MESSAGE_COLOR} spell for ${SPELL_COLOR}$SPELL-$VERSION${DEFAULT_COLOR}${MESSAGE_COLOR}.${DEFAULT_COLOR}" > /dev/stderr
       ORIGSPELL="$SPELL"
       SPELL="$SPELL-undo"
+      # the undo spell is one per install, so it is the tag that grows
+      # the suffix; "gcc:15:native-undo" would name no file at all
+      SPELL_DISK_TAG="$SPELL_DISK_TAG-undo"
       cd "$STORE"
       INST_LOG="$STORE.log"
       mkdir -p "$STORE$MD5SUM_LOGS"
-      MD5S_LOG="$STORE$MD5SUM_LOGS/$SPELL-$VERSION"
+      MD5S_LOG="$STORE$MD5SUM_LOGS/$SPELL_DISK_TAG-$VERSION"
       touch "$MD5S_LOG"
-      echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL-$VERSION-backup.md5"
+      echo -n "$RESULTS" > "$STORE/tmp/sorcery/$SPELL_DISK_TAG-$VERSION-backup.md5"
       find * > "$INST_LOG"
       create_md5list "$INST_LOG" "$MD5S_LOG" # relative to STORE instead of absolute
-      construct_cache_name "$INSTALL_CACHE/$SPELL-$VERSION-$HOST" CACHE
+      construct_cache_name "$INSTALL_CACHE/$SPELL_DISK_TAG-$VERSION-$HOST" CACHE
       CACHE_COMP="${CACHE}${EXTENSION}"
       # No install log nor compile cache needed or wanted since we are
       # only doing md5sum deletions from other spells, the undeleted
@@ -199,9 +210,13 @@ alter_gather_md5s() {
   MASTER_MD5S="$(
     (
       COUNT=0
+      # an instance holds colons of its own, so the name of its md5 log
+      # is the fields before the date joined with '@', and the version
       for i in $(
         gaze installed |
-        cut -d: -f1,4 | tr : -
+        awk -F: '{ tag = $1
+                   for (i = 2; i <= NF - 3; i++) tag = tag "@" $i
+                   print tag "-" $NF }'
       ); do
         cat "$MD5SUM_LOGS/$i" | sed -e 's/.*/'"$i"':&/'
         progress_bar $((++COUNT)) $TOTAL 60 > /dev/stderr

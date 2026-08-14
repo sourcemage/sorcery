@@ -89,10 +89,10 @@ reap_modified_file()  {
 ## Removes spell config stages if there are any
 #---------------------------------------------------------------------
 reap_spell_config_stage()  {
-  lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
+  lock_file "$CONFIG_STAGE_DIRECTORY/$SPELL_DISK_TAG"
   # it's locked - we also don't have to care about the unlikely "current" stage
-  rm -fr "$CONFIG_STAGE_DIRECTORY/$SPELL"
-  unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL"
+  rm -fr "$CONFIG_STAGE_DIRECTORY/$SPELL_DISK_TAG"
+  unlock_file "$CONFIG_STAGE_DIRECTORY/$SPELL_DISK_TAG"
 }
 
 #---------------------------------------------------------------------
@@ -103,16 +103,16 @@ reap_depends()  {
   # recasts as the default
   mkdir -p $ABANDONED_DEPENDS
   local t_file
-  lock_start_transaction "$ABANDONED_DEPENDS/$SPELL" t_file
-  search_depends_status $DEPENDS_STATUS $SPELL > $t_file
-  lock_commit_transaction "$ABANDONED_DEPENDS/$SPELL"
+  lock_start_transaction "$ABANDONED_DEPENDS/$SPELL_DISK_TAG" t_file
+  search_depends_status $DEPENDS_STATUS $SPELL_INSTANCE > $t_file
+  lock_commit_transaction "$ABANDONED_DEPENDS/$SPELL_DISK_TAG"
 
   # This conditional is here because the iso team wants to be able to
   # save dependencies after dispel (bug 8109), average users are expected
   # to always run this code to remove old depends.
   if [[ $NO_REAP_DEPENDS != "on" ]] ; then
-    remove_depends_status $DEPENDS_STATUS $SPELL
-    remove_sub_depends "$SUB_DEPENDS_STATUS" "$SPELL" ".*"
+    remove_depends_status $DEPENDS_STATUS $SPELL_INSTANCE
+    remove_sub_depends "$SUB_DEPENDS_STATUS" "$SPELL_INSTANCE" ".*"
   fi
 }
 
@@ -239,8 +239,8 @@ reap_state_files()  {
 #-----
 dispel_not_possible()  {
 
-  if  ! spell_ok $SPELL ; then
-    message  "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"              \
+  if  ! spell_ok $SPELL_INSTANCE ; then
+    message  "${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}"     \
              "${PROBLEM_COLOR}is not installed${DEFAULT_COLOR}."
   else
     false
@@ -250,13 +250,16 @@ dispel_not_possible()  {
 
 #-----
 ## Does the sustained checks for spells
+##
+## A bare spell name in $SUSTAINED sustains every slot of it, which is
+## what the file has always meant; naming an instance sustains the one.
 #-----
 dispel_sustained()  {
 
   if  [  "$SUSTAIN"  ==  "on"  ]  &&
-      grep  -q  "^$SPELL$"  $SUSTAINED
+      grep  -q  -e  "^$SPELL$"  -e  "^$SPELL_INSTANCE$"  $SUSTAINED
   then
-    message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"          \
+    message "${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}"     \
             "${PROBLEM_COLOR}is sustained${DEFAULT_COLOR}."
   else
     false
@@ -266,20 +269,25 @@ dispel_sustained()  {
 
 #-----
 ## Find out where a spell is located
+## @param spell instance
 ## @Globals SPELL
 #-----
 load_spell()  {
-  local SPELL=$1
-  if tablet_set_spell $SPELL ; then
+  local SPELL_INSTANCE=$1
+  local SPELL slot
+  slot_split "$1" SPELL slot || return 1
+  if tablet_set_spell $SPELL_INSTANCE ; then
     load_functions_file
   else
     SCRIPT_DIRECTORY="$(codex_find_spell_by_name $SPELL)"
 
-    VERSION=$(private_installed_version  $SPELL)
-    INST_LOG=$INSTALL_LOGS/$SPELL-$VERSION
-    MD5_LOG=$MD5SUM_LOGS/$SPELL-$VERSION
+    VERSION=$(private_installed_version  $SPELL_INSTANCE)
+    INST_LOG=$INSTALL_LOGS/$SPELL_DISK_TAG-$VERSION
+    MD5_LOG=$MD5SUM_LOGS/$SPELL_DISK_TAG-$VERSION
     if [[ $SCRIPT_DIRECTORY ]] ; then
-      codex_set_current_spell $SCRIPT_DIRECTORY
+      # the slot is the one being dispelled, not the spell's default:
+      # DETAILS branches on it, and PRE_REMOVE may too
+      codex_set_current_spell $SCRIPT_DIRECTORY "$slot"
       load_functions_file
     else
       message "Spell is missing from grimoires"
@@ -315,19 +323,29 @@ post_remove() {
 
 #---------------------------------------------------------------------
 ## Dispel a spell
+## @param spell instance
+##
+## One instance goes; the other slots of the spell are none of this
+## function's business.  $SPELL is the bare name, for the grimoire and
+## for anything that reads a spell rather than an install of one, and
+## the disk tag is set here rather than in load_spell because
+## reap_depends runs out here, outside the subshell.
 #---------------------------------------------------------------------
 dispel_spell() {
 
-    local SPELL=$1
+    local SPELL_INSTANCE=$1
+    local SPELL SPELL_DISK_TAG
+    slot_split "$1" SPELL || { slot_bad_token_message "$1"; return 1; }
+    slot_instance_tag "$1" SPELL_DISK_TAG
     run_hook dispel pre
     # fake dispel, only remove sorcery metadata
     if [[ $DEBUG_DISPEL ]] ; then
-        echo "pretending to dispel $SPELL"
-        load_spell $SPELL           &&
-        remove_spell  $SPELL &&
+        echo "pretending to dispel $SPELL_INSTANCE"
+        load_spell $SPELL_INSTANCE  &&
+        remove_spell  $SPELL_INSTANCE &&
         reap_depends &&
         message  "${DISPEL_COLOR}Partly dispelled spell:"  \
-                 "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}"
+                 "${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}"
         return
     fi
 
@@ -340,26 +358,26 @@ dispel_spell() {
 
     (
       # this function messes with the environment a lot leave it in a subshell
-      load_spell $SPELL           &&
+      load_spell $SPELL_INSTANCE  &&
       pre_remove                  &&
       reaper  $INST_LOG  $MD5_LOG &&
       post_remove                 &&
       reap_state_files $INST_LOG  &&
       reap_spell_config_stage     &&
-      remove_spell  $SPELL        &&
-      remove_version_cache "$VERSION_STATUS" $SPELL &&
+      remove_spell  $SPELL_INSTANCE &&
+      remove_version_cache "$VERSION_STATUS" $SPELL_INSTANCE &&
       { [[ $TRIGGER == off ]] || trigger "dispel";} &&
-      remove_triggers $SPELL      &&
-      { [[ $DEQUEUE == off ]] || pop_install_queue $SPELL; true; } &&
+      remove_triggers $SPELL_INSTANCE &&
+      { [[ $DEQUEUE == off ]] || pop_install_queue $SPELL_INSTANCE; true; } &&
       message  "${DISPEL_COLOR}Dispelled spell:"  \
-               "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}" &&
-      activity_log  "dispel"  "$SPELL"  "$VERSION"  "success"
+               "${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}" &&
+      activity_log  "dispel"  "$SPELL_INSTANCE"  "$VERSION"  "success"
     ) &&
     reap_depends
     local rc=$?
     if [[ "$rc" != 0 ]] ; then
         message "${PROBLEM_COLOR}Dispel of${DEFAULT_COLOR}" \
-                "${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
+                "${SPELL_COLOR}$SPELL_INSTANCE${DEFAULT_COLOR}" \
                 "${PROBLEM_COLOR}failed!${DEFAULT_COLOR}"
         return $rc
     fi

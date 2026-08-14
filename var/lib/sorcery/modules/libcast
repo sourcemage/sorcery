@@ -72,7 +72,7 @@ load_libcompat() {
 #---------------------------------------------------------------------
 prepare_spell_config()  {
 
-  SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+  SPELL_CONFIG=$DEPENDS_CONFIG/${SPELL_DISK_TAG:-$SPELL}
   if  !  [  -x  $SPELL_CONFIG  ];  then
     touch       $SPELL_CONFIG
     chmod  a+x  $SPELL_CONFIG
@@ -93,38 +93,42 @@ prepare_spell_config()  {
 ## @return 1 or if there was a problem parsing the CONFLICTS file
 #---------------------------------------------------------------------
 query_conflicts() {
-  debug "build_api_common" "Starting query_conflicts() on $SPELL"
+  debug "build_api_common" "Starting query_conflicts() on ${SPELL_INSTANCE:-$SPELL}"
   local ignore_conflict=$1
   local output=${2:-$CONFLICT_LIST}
+  local instance=${SPELL_INSTANCE:-$SPELL}
 
   # skip if the spell was already processed (avoids a double query for in-cast resurrects)
-  [[ -s $output ]] && awk -v s=$SPELL '{ if ($1 == s) {rc=1; exit} } END {exit !rc}' $output && return 0
+  [[ -s $output ]] && awk -v s="$instance" '{ if ($1 == s) {rc=1; exit} } END {exit !rc}' $output && return 0
 
   if [[ -x $SCRIPT_DIRECTORY/CONFLICTS ]]; then
     local CONFLICTS=$(run_spell_file CONFLICTS conflicts) || return 1
 
     local tmp conflicts to_dispel=""
     for tmp in $CONFLICTS; do
-      local spell_and_default
-      explode $tmp ':' spell_and_default
+      # what conflicts is an instance, and an instance holds colons of
+      # its own, so the answer is taken off the end rather than counted
+      # to from the front
+      local conflict=${tmp%:*}
+      local answer=${tmp##*:}
 
       # skip the spells we were told to ignore
-      list_find "$ignore_conflict" ${spell_and_default[0]} && continue
+      list_find "$ignore_conflict" "$conflict" && continue
 
-      local text="${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} conflicts with"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${DEFAULT_COLOR}${QUERY_COLOR}."
+      local text="${SPELL_COLOR}${instance}${MESSAGE_COLOR} conflicts with"
+      text="$text ${SPELL_COLOR}${conflict}${DEFAULT_COLOR}${QUERY_COLOR}."
       text="$text Dispel"
-      text="$text ${SPELL_COLOR}${spell_and_default[0]}${MESSAGE_COLOR}?"
+      text="$text ${SPELL_COLOR}${conflict}${MESSAGE_COLOR}?"
 
-      if query "$text" ${spell_and_default[1]}; then
-        list_add conflicts "${spell_and_default[0]}"
+      if query "$text" $answer; then
+        list_add conflicts "$conflict"
       else
         log_failure_reason "conflicts"
         return 1
       fi
     done
     if [[ $conflicts ]]; then
-      echo $SPELL $conflicts >> $output
+      echo $instance $conflicts >> $output
     fi
   fi
 
@@ -133,7 +137,7 @@ query_conflicts() {
 
 #---------------------------------------------------------------------
 ## Dispels the spells that are scheduled for a dispel due to conflicting
-## @param spell whose conflicts to dispel
+## @param instance whose conflicts to dispel
 ## @param file containing the list of conflicts
 #---------------------------------------------------------------------
 dispel_conflicts() {
@@ -647,28 +651,46 @@ install_initd() {
 
 
 #---------------------------------------------------------------------
+## Says whether the spell asks to be cast alone.  An empty SOLO asks it
+## for the whole spell, as it always did; a SOLO that names slots asks
+## it for those only, so that a spell whose system slot must not share
+## the machine may still have slots beside it that happily do.
+##
+## @return 0 if this instance is solo
+#---------------------------------------------------------------------
+spell_is_solo() {
+  [[ -f $SCRIPT_DIRECTORY/SOLO ]] || return 1
+  [[ -s $SCRIPT_DIRECTORY/SOLO ]] || return 0
+  grep -q -e "^${SLOT:-$SLOT_DEFAULT}$" "$SCRIPT_DIRECTORY/SOLO"
+}
+
+#---------------------------------------------------------------------
 ## Gets the cast lock for us and ensures that we've waited for all
 ## solo/non-solo casts to complete
 #---------------------------------------------------------------------
 acquire_cast_lock() {
+  # two slots of a spell are two builds and may run at once, so the lock
+  # is on the instance; for slot 0 that is the bare name, as before
+  local instance=${SPELL_INSTANCE:-$SPELL}
   # locking - blocks normal spells if a solo cast is running,
   # solo casts if any cast is running
   message "${MESSAGE_COLOR}Waiting for any${DEFAULT_COLOR}${FILE_COLOR}" \
           "Solo${DEFAULT_COLOR} ${MESSAGE_COLOR}casts to complete..." \
           "${DEFAULT_COLOR}"
   lock_resources "solo" "cast"
-  if test -f $SOLO && grep -q "^$SPELL$" $SOLO ||
-     [ -f $SCRIPT_DIRECTORY/SOLO ]
+  # SOLO reads spell-wide, like SUSTAINED, but one slot may be listed alone
+  if test -f $SOLO && grep -q -e "^$SPELL$" -e "^$instance$" $SOLO ||
+     spell_is_solo
   then #SOLO spell
     message -n "${MESSAGE_COLOR}Waiting for${DEFAULT_COLOR}" \
                "${SPELL_COLOR}all other${DEFAULT_COLOR} ${MESSAGE_COLOR}spells to" \
                "complete...${DEFAULT_COLOR}"
-    excllock_resources "cast" "$SPELL"
+    excllock_resources "cast" "$instance"
   else
     message -n "${MESSAGE_COLOR}Waiting for any other casts of" \
-               "${DEFAULT_COLOR}${SPELL_COLOR}$SPELL${DEFAULT_COLOR}" \
+               "${DEFAULT_COLOR}${SPELL_COLOR}$instance${DEFAULT_COLOR}" \
                "${MESSAGE_COLOR}to complete...${DEFAULT_COLOR}"
-    lock_resources "cast" "$SPELL"
+    lock_resources "cast" "$instance"
     unlock_resources "solo" "cast"
   fi
   message " done."
@@ -680,7 +702,7 @@ acquire_cast_lock() {
 #---------------------------------------------------------------------
 create_compile_log()  {
   message  "${MESSAGE_COLOR}Creating compile log"                  \
-           "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"  \
+           "${FILE_COLOR}$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION$EXTENSION"  \
            "${DEFAULT_COLOR}"
   {
     # remove any nplicated lines (happens due to all the redirection we do)
@@ -693,21 +715,21 @@ create_compile_log()  {
   } |
   # install the compile log
   if [ -z "$EXTENSION" ] || ! "$COMPRESSBIN" </dev/null &>/dev/null; then
-    cat > "$COMPILE_LOGS/$SPELL-$VERSION"
+    cat > "$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION"
   else
-    "$COMPRESSBIN" -c > "$COMPILE_LOGS/$SPELL-$VERSION$EXTENSION"
+    "$COMPRESSBIN" -c > "$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION$EXTENSION"
   fi
 
   # install the castfs log
   if [[ $STAGED_INSTALL == on ]] ; then
     message  "${MESSAGE_COLOR}Creating castfs debug log"                \
-             "${FILE_COLOR}$COMPILE_LOGS/$SPELL-$VERSION.castfs.dbglog$EXTENSION"  \
+             "${FILE_COLOR}$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION.castfs.dbglog$EXTENSION"  \
              "${DEFAULT_COLOR}"
     if [ -z "$EXTENSION" ]
     then
-      cp $CASTFS_DBGLOG $COMPILE_LOGS/$SPELL-$VERSION.castfs.dbglog
+      cp $CASTFS_DBGLOG $COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION.castfs.dbglog
     else
-      $COMPRESSBIN -c $CASTFS_DBGLOG > "$COMPILE_LOGS/$SPELL-$VERSION.castfs.dbglog$EXTENSION"
+      $COMPRESSBIN -c $CASTFS_DBGLOG > "$COMPILE_LOGS/$SPELL_DISK_TAG-$VERSION.castfs.dbglog$EXTENSION"
     fi
     rm -f $CASTFS_DBGLOG
   fi
@@ -790,11 +812,15 @@ show_downloading()  {
 
 #---------------------------------------------------------------------
 ## Gets the filename of the download log file
-## @param Spell
+## @param spell instance
 ## @Stdout file name
+##
+## One log per instance: two slots of a spell fetch different sources.
 #---------------------------------------------------------------------
 get_spell_dl_log() {
-  echo "$TMP_DIR/download.$1"
+  local tag
+  slot_instance_tag "$1" tag || tag=$1
+  echo "$TMP_DIR/download.$tag"
 }
 
 #---------------------------------------------------------------------
