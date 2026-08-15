@@ -84,10 +84,21 @@ This file is required and describes the URL for step 1.
 It also contains version information,
 package name, source name, source directory, and a description of the package.
 .PP
+.I SLOTS
+.IP
+This file declares the slots the spell offers, so that several versions
+(or builds) of it can be installed side by side. See
+.B SLOTS
+below.
+.PP
 .I CONFLICTS
 .IP
 This file contains a list of spells conflicting with this one.
 Usually only used when two spells install the same file(s).
+A spell listed without a slot conflicts with every installed slot of it;
+listing
+.I spell:slot
+conflicts with that one alone.
 .PP
 .I CONFIGURE
 .IP
@@ -191,6 +202,126 @@ e.g. stopping the daemon installed by it.
 .IP
 This file contains instructions to perform after successfully removing the
 package. This might be used to undo changes done in FINAL.
+.SH "SLOTS"
+.PP
+A spell normally has one installed copy. A spell that declares
+.I slots
+has one per slot, installed side by side and upgraded independently:
+.IP
+$
+.B cast gcc:14
+.IP
+$
+.B cast gcc:15
+.PP
+casts two spells that do not replace each other, and
+.I dispel gcc:14
+removes only that one. The
+.I spell:slot
+pair is called an
+.I instance
+and is what you type and what sorcery prints wherever it names an
+installed copy.
+.PP
+The default slot is
+.BR 0 ,
+and
+.I spell:0
+and
+.I spell
+are the same thing: a spell that says nothing about slots lives in slot 0
+forever, and so does every spell written before slots existed.
+.SS "The SLOTS file"
+.PP
+A slot need not be a single value. A spell declares one or more
+.IR axes ,
+and its slots are the matrix they span \- a version and a target triplet,
+for a cross toolchain. An axis is a name, a colon, and its values with the
+default first; values may run over as many lines as is convenient,
+\fB#\fP starts a comment, and a field beginning with \fB!\fP excludes a
+combination the matrix would otherwise imply:
+.IP
+.nf
+# grimoire/devel/gcc/SLOTS
+version: 15 14 13
+target:  native arm\-none\-eabi i386\-elf
+
+!13:i386\-elf        # 13 was never built for that target
+.fi
+.PP
+A spell whose slots need no explaining leaves the axis unnamed and just
+lists them, which is what most spells will look like:
+.IP
+.nf
+# grimoire/devel/binutils/SLOTS
+2.47 2.46
+.fi
+.PP
+An axis value is drawn from
+.BR [A\-Za\-z0\-9_.+\-]+ .
+It may not contain
+.BR : ,
+.BR / ,
+.BR = ,
+.BR @ ,
+whitespace or parentheses, all of which sorcery has other uses for.
+.SS "Writing DETAILS for a slotted spell"
+.PP
+.B $SLOT
+and one
+.BI $SLOT_ AXIS
+per named axis are set before DETAILS is sourced, so DETAILS decides what
+the slot means:
+.IP
+.nf
+case $SLOT_VERSION in
+  15) VERSION=15.1.0 ;;
+  14) VERSION=14.2.0 ;;
+  13) VERSION=13.3.0 ;;
+esac
+[[ $SLOT_TARGET == native ]] || OPTS="\-\-target=$SLOT_TARGET $OPTS"
+        SUBSLOT=${VERSION%%.*}
+.fi
+.PP
+A spell with no SLOTS file may still pin itself to one fixed slot by
+setting
+.B SLOT
+in DETAILS, which is the python2/python3 case. A spell that does neither
+is in slot 0.
+.PP
+Slots must not collide on the filesystem. That is the spell writer's job:
+install to versioned paths, use slot\-suffixed binary names, and so on.
+Sorcery only refuses to let one slot silently overwrite another.
+.SS "Subslots"
+.PP
+A
+.I subslot
+is the ABI a spell's dependents were built against \- usually a soname.
+It is not part of the spell's identity: a new subslot
+.I replaces
+what is installed rather than joining it, and it appears in no file name.
+It exists so that dependents can ask to be recast when it moves.
+.B $SUBSLOT
+is set in DETAILS and defaults to the slot, which never moves.
+.SS "Depending on a slot"
+.PP
+A dependency in DEPENDS may name a slot, a subslot, or neither:
+.IP
+.nf
+depends gcc                  # any slot, the installed one if there is one
+depends gcc:14:native        # that slot
+depends gcc:*:arm\-none\-eabi  # any gcc targeting arm
+depends gcc:14               # gcc 14 targeting anything: an axis left
+                             # off the end is the same as a "*" one
+depends glibc:=              # bind to glibc's ABI as it is now, and
+                             # recast me when it changes
+depends glibc:2.6/2.6.1      # one exact slot and ABI
+.fi
+.PP
+When a spell is
+.I cast
+rather than depended on, an axis left unconstrained takes its default
+value instead of matching any: a cast has to pick one point in the matrix.
 .SH "FINAL NOTES"
 The best way to learn the software catalogue is to examine some of the
 description files yourself. Most software catalogue entries are simple. For

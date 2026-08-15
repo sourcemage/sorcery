@@ -23,10 +23,13 @@ md5sum log.
 
 .I parameters
 .RS
-\fB\-n\fP, \fB\-\-spell\fP \fIspell\fP
+\fB\-n\fP, \fB\-\-spell\fP \fIspell\fP[:\fIslot\fP]
 .RS
 specify which spell to alter.  If not given, the pseudo\-spell "alter" is
-altered.  If the spell does not exist yet, it is created.
+altered.  If the spell does not exist yet, it is created.  A slotted
+spell is altered one slot at a time; see
+.B SLOTS
+below.
 .RE
 .PP
 .B \-v, \-\-version
@@ -117,6 +120,24 @@ caches of 1\-2G each.
 
 For casts, however, it may be intelligent to turn ARCHIVE back on so
 there is an easy rollback in case something fails.
+.SH "SLOTS"
+.PP
+A spell that declares slots has one install per slot, each with logs and
+a cache of its own, so alter has to be told which one it is altering:
+.RS
+.B alter \-n
+.I gcc:14:native
+.B touch /usr/bin/gcc\-14
+.RE
+.PP
+A bare name is the default slot,
+.BR 0 ,
+which is where an unslotted spell lives \- so nothing changes for a
+spell that says nothing about slots.  Names given to
+.B \-\-md5mend
+may carry a slot too.  See
+.BR grimoire (5)
+for what slots are.
 .SH "WARNING"
 .B alter is still very unstable.
 It is

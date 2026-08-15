@@ -3,7 +3,7 @@
 dispel \- removes software packages
 .SH SYNOPSIS
 .B dispel
-[options] [package1] ... [package2] ...
+[options] [package1[:slot]] ... [package2[:slot]] ...
 .PP
 .B dispel -e|--exile|-d|--downgrade
 <package> [version]
@@ -115,6 +115,31 @@ Use defaults for dependency following from the sorcery menu for child and/or par
 
 .SS "-h, --help"
 outputs short help
+.SH "SLOTS"
+A spell that declares slots has one installed copy per slot, and
+.I dispel
+removes one of them:
+.I dispel gcc:14
+leaves an installed
+.I gcc:15
+alone. See
+.BR grimoire (5)
+for what a slot is, and
+.I gaze slots <spell>
+for the ones that are installed.
+.PP
+A package named without a slot is the installed one, whichever slot that
+is \- it is not slot 0 \- because dispelling is about what is installed. If
+more than one slot of it is installed,
+.I dispel
+says so and asks you to name one rather than guess; a slot with an axis
+left off, or spelled
+.BR * ,
+still has to pick out a single install.
+.PP
+.I /var/lib/sorcery/sustained
+is read the same way round: a bare spell name in it sustains every slot of
+that spell, as it always has, and naming an instance sustains just the one.
 .SH "FILES"
 .SS /var/lib/sorcery/excluded
 List of regexps that are excluded during a cast or dispel.

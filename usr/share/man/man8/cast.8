@@ -2,7 +2,7 @@
 .SH NAME
 cast \- installs software packages
 .SH SYNOPSIS
-\fBcast\fP [\fIoptions\fP] [\fIpackage\fP ...]
+\fBcast\fP [\fIoptions\fP] [\fIpackage\fP[:\fIslot\fP] ...]
 .SH DESCRIPTION
 .B cast
 is part of the
@@ -111,13 +111,31 @@ The default option can be set via the sorcery menu.
 The environment is set using the sorcery configuration files. See
 .BR sorcery_config (8).
 .IP
+.SH SLOTS
+A spell that declares slots is cast one
+.I slot
+at a time, and its slots live side by side:
+.I cast gcc:14
+does not disturb an installed
+.IR gcc:15 .
+A slot left off, or an axis of it left off, takes its default value \-
+casting has to pick one \- so
+.I cast gcc
+casts the default slot and nothing else. See
+.BR grimoire (5)
+for what a slot is and how a spell declares one, and
+.I gaze slots
+.I <spell>
+for the ones a spell offers.
 .SH NOTES
 Do not include
 .SM version
 or
 .SM section
-name when specifying a package. \fBgaze\fP can provide a catalog of
-both. Refer to
+name when specifying a package. A
+.SM slot
+is not a version: it is part of the name of what gets installed.
+\fBgaze\fP can provide a catalog of both. Refer to
 .BR gaze (1)
 for such functionality.
 .P
