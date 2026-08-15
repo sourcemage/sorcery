@@ -727,6 +727,9 @@ real_name_search() {
                   pfx = pat " -> "
               pat = tolower(pat)
           }
+          # the index carries a row per slot as well, for the queue to
+          # read; a search is for spells, and one gcc is enough
+          index($1, ":") { next }
           tolower($1) ~ pat {
               grimoire = FILENAME
               sub("/[^/]*$", "", grimoire)

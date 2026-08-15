@@ -1261,9 +1261,16 @@ codex_create_keyword_cache() { (
 ##
 ## Multiversioned spells will a dummy entry. Persistent
 ## variables are ignored.
+##
+## Slotted spells get a row per slot, keyed on the instance -- see
+## codex_create_slot_version_cache.
 #---------------------------------------------------------------------
 codex_create_version_cache() {
-  xargs < <(codex_find_in_grimoire "$1" DETAILS) \
+  # what version a slotted spell is depends on the slot asked for, and
+  # reading the text of its DETAILS cannot say -- so those spells are
+  # left out here and their rows made by running it, further down
+  local slotted=$(codex_find_in_grimoire "$1" SLOTS | sed 's,SLOTS$,DETAILS,')
+  { xargs < <(codex_find_in_grimoire "$1" DETAILS | grep -vxF "$slotted") \
   awk -F"[\"'= ]+" '
 	function p(v) { return v in f ? f[v] : 0 }
 	{ sub(/^[\t ]+/, "") }
@@ -1283,8 +1290,46 @@ codex_create_version_cache() {
 		nextfile
 	}
 	{ f[$1] = $2 }
-  ' | sort > "$1/$VERSION_INDEX_FILE"
+  '
+    codex_create_slot_version_cache "$1"
+  } | sort > "$1/$VERSION_INDEX_FILE"
 }
+
+#---------------------------------------------------------------------
+## @param grimoire-path
+## @Stdout instance version patchlevel security_patch updated
+##
+## Prints the version index rows of every slot of every slotted spell
+## in grimoire.  These are the only rows of the index made by running a
+## DETAILS rather than reading it: which version a slot is only shows
+## once $SLOT is set, and no amount of staring at the text will say.
+## Spells with no SLOTS file pay nothing for this.
+##
+## The rows are keyed on the instance, which is how the state db names
+## an install, so that the queue can find them without loading a codex
+## per slot.
+##
+## A slot whose DETAILS leaves VERSION unset is called multiversioned,
+## as an unslotted spell computing its version at cast time is, and is
+## rechecked the slow way.
+#---------------------------------------------------------------------
+codex_create_slot_version_cache() { (
+    grimoire=$1
+
+    while read spell section_dir spec; do
+      for slot in $(slot_spec_expand "$spec"); do
+        # a DETAILS that reads its stdin would eat the list otherwise
+        codex_set_current_spell "$section_dir/$spell" "$slot" \
+          < /dev/null || continue
+        if [[ $VERSION ]]; then
+          echo "$SPELL_INSTANCE $VERSION ${PATCHLEVEL:-0}" \
+               "${SECURITY_PATCH:-0} ${UPDATED:-0}"
+        else
+          echo "$SPELL_INSTANCE multiversioned"
+        fi
+      done
+    done < <(codex_list_slots "$grimoire")
+) }
 
 #---------------------------------------------------------------------
 ## @param servicename
