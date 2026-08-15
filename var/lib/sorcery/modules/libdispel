@@ -251,13 +251,15 @@ dispel_not_possible()  {
 #-----
 ## Does the sustained checks for spells
 ##
-## A bare spell name in $SUSTAINED sustains every slot of it, which is
-## what the file has always meant; naming an instance sustains the one.
+## $SUSTAINED names the installs the running system cannot lose, and an
+## install is one instance: a bare name there is slot 0's, the name it
+## goes by everywhere else, and the other slots are sustained by naming
+## them.
 #-----
 dispel_sustained()  {
 
   if  [  "$SUSTAIN"  ==  "on"  ]  &&
-      grep  -q  -e  "^$SPELL$"  -e  "^$SPELL_INSTANCE$"  $SUSTAINED
+      grep  -q  -e  "^$SPELL_INSTANCE$"  $SUSTAINED
   then
     message "${SPELL_COLOR}${SPELL_INSTANCE}${DEFAULT_COLOR}"     \
             "${PROBLEM_COLOR}is sustained${DEFAULT_COLOR}."
