@@ -70,6 +70,17 @@ while
 
 sightsee [spell...]	Find upstream software releases. Takes paths or spell
 			names.
+
+A spell says where to look in a WATCH file beside its DETAILS, a line
+per slot:
+
+	<slot> <version regex> <url> [release regex]
+
+The version regex says which of the VERSION= values in DETAILS is that
+slot's, since only the spell knows; it matches the value, not the line,
+and the highest value it matches is the one taken, so a spell that needs
+no telling apart says `.'.  The release regex picks the version out of
+the page at the url, and is guessed from the url when left out.
 !
       exit 0
       ;;
@@ -95,10 +106,26 @@ else
   done
 fi
 
-find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
+find "${paths[@]}" -name DETAILS -exec gawk -vdebug="$debug" '
 	END { print_spell() }
 	FNR==1 {
 		if (spell != "") print_spell()
+		reset_spell()
+		watch_file = FILENAME
+		sub(/[^\/]*$/, "WATCH", watch_file)
+		read_watch(watch_file)
+	}
+	nwatch && /^[ \t]*(\([^()]*\)[ \t]*)?VERSION=/ {
+		ver = $0
+		sub(/^.*VERSION=["'\'']?/, "", ver)
+		ver = clean_version(ver)
+		for (i = 0; i < nwatch; i++) {
+			s = watch_slots[i]
+			if (ver !~ version_regex[s]) continue
+			if (!(s in slot_version) || newer(ver, slot_version[s]))
+				slot_version[s] = ver
+		}
+		next
 	}
 	/^ *SPELL=/ {
 		spell = $0
@@ -106,19 +133,68 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 		sub(/["'\'']$/, "", spell)
 		next
 	}
-	/^ *VERSION=/ {
-		version = $0
-		sub(/[\t ]*[;#].*/, "", version)
-		sub(/.*=["'\'']?/, "", version)
-		sub(/["'\'']$/, "", version)
-		if (watch_url != "") nextfile
+	function clean_version(v) {
+		sub(/[\t ]*[;#].*/, "", v)
+		sub(/["'\'']$/, "", v)
+		return v
 	}
-	/^# *Watch:/ {
-		sub(/^[^:]+: */, "")
-		watch_url = $1
-		sub(/^[^ ]+ */, "")
-		watch_regex = $0
-		if (version != "") nextfile
+	# spells list their versions in whatever order suits them, oldest
+	# first here and newest first there, so a slot takes the highest of
+	# the values its regex matched: digits weigh as numbers, and a value
+	# the shell still has to expand weighs less than a plain one
+	function newer(a, b,   ga, gb, na, nb, i) {
+		if (plain(a) != plain(b)) return plain(a) > plain(b)
+		na = split(a, ga, /[^0-9]+/)
+		nb = split(b, gb, /[^0-9]+/)
+		for (i = 1; i <= na || i <= nb; i++)
+			if (ga[i] + 0 != gb[i] + 0) return ga[i] + 0 > gb[i] + 0
+		return 0
+	}
+	function plain(v) {
+		return v ~ /\$/ ? 0 : 1
+	}
+	#-------------------------------------------------------------
+	## A WATCH file says where a spell'\''s upstream lives, a line per
+	## slot:
+	##
+	##	<slot> <version regex> <url> [release regex]
+	##
+	## The version regex says which of the VERSION= values in DETAILS
+	## is this slot'\''s, matching the value itself and not the line, the
+	## highest of the ones it matches being the one taken; the release
+	## regex picks the version out of the url'\''s page, and is guessed
+	## from the url when left out.  A spell whose versions need no
+	## telling apart says "." and slot 0, the name it goes by
+	## everywhere else.
+	#-------------------------------------------------------------
+	function read_watch(file,   line, slot, vre, url) {
+		while ((getline line < file) > 0) {
+			if (line ~ /^[ \t]*(#|$)/) continue
+			sub(/^[ \t]+/, "", line)
+			sub(/[ \t]+$/, "", line)
+			slot = next_field(line); line = rest
+			vre = next_field(line); line = rest
+			url = next_field(line); line = rest
+			if (url == "") {
+				printf "W: %s: %s\n", file, \
+					"want slot, version regex and url" \
+					>"/dev/stderr"
+				continue
+			}
+			watch_url[slot] = url
+			version_regex[slot] = vre
+			if (line != "") watch_regex[slot] = line
+			watch_slots[nwatch++] = slot
+		}
+		close(file)
+	}
+	# the field, with what follows it left in rest
+	function next_field(line,   field) {
+		field = line
+		sub(/[ \t].*/, "", field)
+		rest = line
+		sub(/^[^ \t]*[ \t]*/, "", rest)
+		return field
 	}
 	function select_regex(spell, url) {
 		version_re = "(?<version>[rv]?" \
@@ -156,19 +232,40 @@ find "${paths[@]}" -name DETAILS -exec awk -vdebug="$debug" '
 			"[.](orig[.])?" \
 			"(tar|zip|t[bgx]z|7z|sha?r|cpio|rpm|deb|[ot]tf)"
 	}
-	function print_spell() {
-		if (watch_url == "") {
+	function print_spell(   i, slot, name, ver, url, regex) {
+		if (nwatch == 0) {
 			printf "W: %s: %s\n", spell, \
 				"Upstream releases page not specified" \
 				>"/dev/stderr"
-		} else {
-			if (!watch_regex)
-				watch_regex = select_regex(spell, watch_url)
-			if (debug)
-				printf "D: regex `%s`\n", watch_regex >"/dev/stderr"
-			print spell, version, watch_url, watch_regex
 		}
-		version = watch_url = spell = ""
+		for (i = 0; i < nwatch; i++) {
+			slot = watch_slots[i]
+			# a slot is one install of the spell, and slot 0
+			# goes by the plain name, as everywhere else
+			name = (slot == "0") ? spell : spell ":" slot
+			url = watch_url[slot]
+			if (!(slot in slot_version)) {
+				printf "W: %s: %s\n", name, \
+					"no version matches" >"/dev/stderr"
+				continue
+			}
+			ver = slot_version[slot]
+			regex = watch_regex[slot]
+			if (!regex)
+				regex = select_regex(spell, url)
+			if (debug)
+				printf "D: regex `%s`\n", regex >"/dev/stderr"
+			print name, ver, url, regex
+		}
+	}
+	function reset_spell() {
+		spell = ""
+		nwatch = 0
+		split("", watch_url)
+		split("", watch_regex)
+		split("", watch_slots)
+		split("", version_regex)
+		split("", slot_version)
 	}
   ' {} + |
 while read spell cur_rel url regex; do
