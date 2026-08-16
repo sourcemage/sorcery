@@ -746,16 +746,12 @@ depends_resolve_atom() {
     return 0
   done
 
-  if ! codex_resolve_slot "$1" "$2" __res_slot; then
-    # a spell that pins its slot in DETAILS rather than declaring a
-    # SLOTS file has no spec to resolve against, so a concrete request
-    # is taken at its word and DETAILS has the last one
-    [[ $(codex_get_spell_slot_spec "$1") ]] && return 1
-    case $2 in
-      ''|*'*'*) return 1 ;;
-    esac
-    __res_slot=$2
-  fi
+  # nothing installed answers the atom, so the slot has to be one the
+  # grimoire offers; a spell that pins its slot in DETAILS rather than
+  # declaring a SLOTS file is not taken at its word here, because cast
+  # would refuse that name too -- the pin is only known once DETAILS has
+  # run, and until it has, the spell has the default slot and no other
+  codex_resolve_slot "$1" "$2" __res_slot || return 1
   slot_join "$1" "$__res_slot" "$4"
 }
 
