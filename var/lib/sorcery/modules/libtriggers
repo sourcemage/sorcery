@@ -89,29 +89,26 @@ trigger_split_row() {
 ## Triggers an event and performs necessary actions. Argument 2 is
 ## optional. If omitted, the value of SPELL will be used.
 ##
-## A trigger waits on a spell or on one slot of it, so casting an
-## instance fires the rows that named the slot and the rows that did
-## not, the way $SOLO reads a bare name as every slot.
+## A trigger waits on one instance: a cause naming no slot names slot
+## 0, the way it does everywhere else, so casting llvm:21 into /opt is
+## no business of whoever asked to hear about llvm.
 ##
 #---------------------------------------------------------------------
 trigger()
 {
   debug "libtriggers" "trigger - $*"
 
-  local spell instance action
+  local instance action
   action=$1
-  slot_split "${SPELL:-$2}" spell || spell=${SPELL:-$2}
-  slot_instance_tag "${SPELL_INSTANCE:-${SPELL:-$2}}" instance || instance=$spell
-  esc_str "$spell" spell
+  slot_instance_tag "${SPELL_INSTANCE:-${SPELL:-$2}}" instance ||
+    instance=${SPELL:-$2}
   esc_str "$instance" instance
 
   [ -f $TRIGGER_LIST ] || return 0
   # no locking of $TRIGGER_LIST since the triggered actions may need it
   # the subject in front of the cause may hold a slot, so the row cannot
   # be anchored at its start
-  iterate do_trigger $'\n' \
-          "$(grep -e ":$spell:on_$action:" -e ":$instance:on_$action:" \
-                  $TRIGGER_LIST)"
+  iterate do_trigger $'\n' "$(grep ":$instance:on_$action:" $TRIGGER_LIST)"
 }
 
 #---------------------------------------------------------------------
@@ -122,21 +119,20 @@ trigger()
 ## Get the triggerees of a given spell event and action.  Both what
 ## waits and what is waited on may hold a slot: the subject comes off
 ## the row whole rather than as its first field, and a cause naming no
-## slot is woken by every slot.
+## slot names slot 0.
 #---------------------------------------------------------------------
 get_triggerees() {
   local instance=$1
   local event=$2
-  local each spell cause row subject
+  local each cause row subject
   # get all the cast/check_self triggers
   [ -f $TRIGGER_LIST ] || return 0
 
-  slot_split "$instance" spell || spell=$instance
-  slot_instance_tag "$instance" cause || cause=$spell
+  slot_instance_tag "$instance" cause || cause=$instance
 
   lock_file $TRIGGER_LIST
   for each in $3 ; do
-    grep -e ":$spell:$event:$each" -e ":$cause:$event:$each" $TRIGGER_LIST |
+    grep ":$cause:$event:$each" $TRIGGER_LIST |
     while read row; do
       trigger_split_row "$row" subject && echo "$subject"
     done
@@ -156,16 +152,14 @@ get_run_script_triggers() {
   local instance=$1
   local event=$2
   local target=$3
-  local spell cause row action
+  local cause row action
 
-  slot_split "$instance" spell || spell=$instance
-  slot_instance_tag "$instance" cause || cause=$spell
+  slot_instance_tag "$instance" cause || cause=$instance
 
   lock_file $TRIGGER_LIST
   # the action is the tail of the row, not its fourth field: the subject
   # in front of it may hold a slot
-  grep -e "^$target:$spell:$event:run_script" \
-       -e "^$target:$cause:$event:run_script" $TRIGGER_LIST |
+  grep "^$target:$cause:$event:run_script" $TRIGGER_LIST |
   while read row; do
     trigger_split_row "$row" "" "" "" action && echo "$action"
   done
