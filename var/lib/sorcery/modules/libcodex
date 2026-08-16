@@ -798,7 +798,14 @@ codex_get_spell_paths() {
     smgl_basename "$GRIMOIRE" GRIMOIRE_NAME
   fi
   smgl_basename "$SPELL_DIRECTORY" SPELL
-  SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
+  local __cgsp_spell
+  if slot_undisk_tag "$SPELL_DISK_TAG" __cgsp_spell &&
+     [[ $__cgsp_spell == "$SPELL" ]]
+  then
+    SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL_DISK_TAG"
+  else
+    SPELL_CONFIG="$DEPENDS_CONFIG/$SPELL"
+  fi
   return 0
 }
 
