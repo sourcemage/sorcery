@@ -261,9 +261,17 @@ process_sub_depends() {
       local rc=0
 
       local THIS_SUB_DEPENDS=$sub_depends
+      local REQUESTER=$requester
       local PROCESSED_SUB_DEPENDS
       hash_get_ref processed_sub_depends $sub_dependee PROCESSED_SUB_DEPENDS
-      run_spell_file SUB_DEPENDS sub_depends || return 1
+
+      run_sub_depends_msg() {
+        depends_message "${sub_dependee}" "is providing sub-dependency" \
+                        "${sub_depends}" \
+                        "for ${SPELL_COLOR}${requester}${DEFAULT_COLOR}"
+      }
+
+      run_spell_file SUB_DEPENDS sub_depends run_sub_depends_msg || return 1
       hash_append processed_sub_depends $sub_dependee $sub_depends
     else
       debug libdepends "SUB_DEPENDS: $sub_dependee needs to provide $sub_depends but has already been processed"
@@ -1674,6 +1682,7 @@ real_sub_depends() {
     # spell if the sub-depends is enabled through the PRE_SUB_DEPENDS file.
     (
       THIS_SUB_DEPENDS=$sub_depends
+      REQUESTER=$requester
       if ! tablet_set_spell $sub_dependee ; then
         codex_set_current_spell_by_name $sub_dependee || return 1
       fi
